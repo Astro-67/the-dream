@@ -1,0 +1,667 @@
+openapi: 3.1.0
+
+info:
+  title: Zan Gateway PMS Push API
+  description: |
+    Public API specification for PMS Zanzibar push integration.
+    This public spec intentionally includes only the two push endpoints used by PMS suppliers.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:4100
+    description: Local development
+  - url: https://zangw-staging.zanrevenue.org
+    description: Staging server
+  - url: https://zangateway.zanrevenue.org
+    description: Production server
+
+tags:
+  - name: pms-zanzibar
+    description: PMS Zanzibar push integration (PMS booking webhooks)
+
+paths:
+  /api/v1/pms/zanzibar/bookings:
+    post:
+      tags:
+        - pms-zanzibar
+      summary: Push bookings from PMS (Zanzibar)
+      description: |
+        Accepts booking payloads from PMS for Zanzibar properties.
+        Validates the request using X-API-Key (PMS push API key). Forwards the payload
+        to the sync service for processing. Rate limited per API key (500 requests/minute).
+        Request body supports plain JSON (`identity`) and compressed JSON via
+        `Content-Encoding: gzip` or `Content-Encoding: br`.
+
+        ### Status + CurrentStatus (use together)
+
+        Send both on each booking when possible:
+
+        | Field | Role | Allowed values |
+        |-------|------|----------------|
+        | **Status** | Event / message type for this push | `New`, `Modify`, `Cancel` |
+        | **CurrentStatus** | Guest/stay lifecycle state | `Confirmed Reservation`, `Arrived`, `Checked In`, `Checked Out`, `Cancel`, `Void` |
+
+        Typical combinations:
+
+        - **New booking:** `Status: "New"`, `CurrentStatus: "Confirmed Reservation"`
+        - **Guest arrives / checks in:** `Status: "Modify"`, `CurrentStatus: "Arrived"` or `"Checked In"`
+        - **Guest departs:** `Status: "Modify"`, `CurrentStatus: "Checked Out"`
+        - **Cancellation:** `Status: "Cancel"`, `CurrentStatus: "Cancel"` (also send `CancelDate`)
+        - **Void:** `Status: "Modify"` or `"Cancel"`, `CurrentStatus: "Void"`
+
+        Canonical booking status prefers `CurrentStatus` over `Status` when both are present.
+        Snake_case aliases: `status`, `current_status`.
+
+        Example (plain JSON):
+        ```bash
+        curl -X POST "https://zangateway.zanrevenue.org/api/v1/pms/zanzibar/bookings" \
+          -H "Content-Type: application/json" \
+          -H "X-API-Key: <API_KEY>" \
+          --data '{"hotel_code":"39763","bookings":[{"reservation_no":"DOC-TEST-001","guest_first_name":"Test","guest_last_name":"Guest","checkin":"2026-04-28","checkout":"2026-04-29","guest_count":2,"status":"New","current_status":"Confirmed Reservation"}]}'
+        ```
+
+        Example (gzip):
+        ```bash
+        gzip -c payload.json | curl -X POST "https://zangateway.zanrevenue.org/api/v1/pms/zanzibar/bookings" \
+          -H "Content-Type: application/json" \
+          -H "Content-Encoding: gzip" \
+          -H "X-API-Key: <API_KEY>" \
+          --data-binary @-
+        ```
+
+        Example (brotli):
+        ```bash
+        brotli -c payload.json | curl -X POST "https://zangateway.zanrevenue.org/api/v1/pms/zanzibar/bookings" \
+          -H "Content-Type: application/json" \
+          -H "Content-Encoding: br" \
+          -H "X-API-Key: <API_KEY>" \
+          --data-binary @-
+        ```
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: header
+          name: Content-Encoding
+          required: false
+          schema:
+            type: string
+            enum: [identity, gzip, br]
+          description: |
+            Optional request content encoding for JSON payloads.
+            Omit header (or use `identity`) for uncompressed JSON.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hotel_code, bookings]
+              properties:
+                hotel_code:
+                  type: string
+                  description: PMS hotel code for the property
+                bookings:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/PmsZanzibarPushBooking'
+                  description: |
+                    Array of booking records from PMS.
+                    For successful normalization (not only acceptance), each booking should include:
+                    - reservation number: ReservationNo OR reservation_no
+                    - guest name: at least one of FirstName / guest_first_name OR LastName / guest_last_name
+                      (empty strings are ignored; single-name guests are allowed)
+                    - guest count: NoOfGuest OR guest_count OR Adult/Child (explicit 0 allowed for cancel/no-show)
+                    - arrival / departure: ArrivalDate OR checkin / DepartureDate OR checkout
+                      (or ReservationDate + NoOfNights when stay dates are blank, e.g. Novacom postings)
+                    You can send either naming style; you do not need to send both aliases.
+            examples:
+              titleCase:
+                summary: TitleCase eZee-style booking payload (new reservation)
+                value:
+                  hotel_code: "55748"
+                  bookings:
+                    - ReservationNo: "1234"
+                      FolioNo: "500"
+                      FirstName: "Dennis"
+                      LastName: "Jakobsen"
+                      ArrivalDate: "2025-10-28"
+                      DepartureDate: "2025-10-29"
+                      ArrivalTime: ""
+                      DepartureTime: ""
+                      NoOfGuest: 2
+                      RoomNo: "101"
+                      Status: "New"
+                      CurrentStatus: "Confirmed Reservation"
+                      TotalTax: 38360.95
+                      TotalInclusiveTax: 251550
+                      TotalExclusivTax: 213189.05
+                      OtherRevenueExclusiveTax: 646.55
+                      OtherRevenueInclusiveTax: 750
+                      DueAmount: 750
+                      Deposit: 250800
+                      CurrencyCode: "TZS"
+              titleCaseCheckIn:
+                summary: TitleCase — guest checked in (Modify + Checked In)
+                value:
+                  hotel_code: "55748"
+                  bookings:
+                    - ReservationNo: "1234"
+                      FolioNo: "500"
+                      FirstName: "Dennis"
+                      LastName: "Jakobsen"
+                      ArrivalDate: "2025-10-28"
+                      DepartureDate: "2025-10-29"
+                      NoOfGuest: 2
+                      RoomNo: "101"
+                      Status: "Modify"
+                      CurrentStatus: "Checked In"
+              snakeCase:
+                summary: snake_case booking payload (new reservation)
+                value:
+                  hotel_code: "55748"
+                  bookings:
+                    - reservation_no: "1234"
+                      folio_no: "500"
+                      guest_first_name: "Dennis"
+                      guest_last_name: "Jakobsen"
+                      checkin: "2025-10-28"
+                      checkout: "2025-10-29"
+                      arrival_time: ""
+                      departure_time: ""
+                      guest_count: 2
+                      room_no: "101"
+                      status: "New"
+                      current_status: "Confirmed Reservation"
+                      total_tax: 38360.95
+                      total_inclusive_tax: 251550
+                      total_exclusiv_tax: 213189.05
+                      other_revenue_exclusive_tax: 646.55
+                      other_revenue_inclusive_tax: 750
+                      due_amount: 750
+                      deposit: 250800
+                      currency_code: "TZS"
+                      amount_total: 251550
+      responses:
+        '200':
+          description: Bookings accepted and forwarded to sync service. `id` is the submission (raw batch id), not a stable booking key.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  id: { type: string, description: Submission / raw batch id (not a stable booking key) }
+                  hotel_code: { type: string }
+                  booking_count: { type: integer }
+                  rejected_booking_count: { type: integer }
+                  skipped_non_actionable_count:
+                    type: integer
+                    description: Empty DELETE POSTING stubs with no reservation/guest/stay identity (acknowledged, not stored)
+                  validation_errors:
+                    type: array
+                    items:
+                      type: object
+        '400':
+          description: Invalid request (missing/invalid hotel_code or bookings, or every booking failed validation)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests (default 500/minute per API key; EZEE_ZZ_PUSH_RATE_LIMIT_MAX)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Failed to forward to sync service after retries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported content encoding (only identity, gzip and br are accepted)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/pms/zanzibar/hotel-info:
+    post:
+      tags:
+        - pms-zanzibar
+      summary: Push hotel metadata from PMS (Zanzibar)
+      description: |
+        Upserts hotel profile data into `pms_push_hotels` keyed by the code inside `hotel_info`
+        (e.g. eZee `Hotel_Code` or `hotel_code`). Denormalizes `tax_region` from JSON when present.
+        Supplier is derived from the X-API-Key mapping (`api_keys.pms_supplier_id`) and is not accepted from client body.
+        Same X-API-Key authentication as the bookings push endpoint. Rate limited per API key.
+        Request body supports plain JSON (`identity`) and compressed JSON via
+        `Content-Encoding: gzip` or `Content-Encoding: br`.
+
+        Example (plain JSON):
+        ```bash
+        curl -X POST "https://zangateway.zanrevenue.org/api/v1/pms/zanzibar/hotel-info" \
+          -H "Content-Type: application/json" \
+          -H "X-API-Key: <API_KEY>" \
+          --data '{"hotel_info":{"Hotel_Code":"39763","Hotel_Name":"Demo Hotel","City":"Zanzibar","State":"Mjini Magharibi","Zipcode":"00000","Country":"Tanzania","Property_Type":"Hotel","Address":"Stone Town","CurrencyCode":"TZS"},"star_rating":"AA"}'
+        ```
+
+        Example (gzip):
+        ```bash
+        gzip -c payload.json | curl -X POST "https://zangateway.zanrevenue.org/api/v1/pms/zanzibar/hotel-info" \
+          -H "Content-Type: application/json" \
+          -H "Content-Encoding: gzip" \
+          -H "X-API-Key: <API_KEY>" \
+          --data-binary @-
+        ```
+
+        Example (brotli):
+        ```bash
+        brotli -c payload.json | curl -X POST "https://zangateway.zanrevenue.org/api/v1/pms/zanzibar/hotel-info" \
+          -H "Content-Type: application/json" \
+          -H "Content-Encoding: br" \
+          -H "X-API-Key: <API_KEY>" \
+          --data-binary @-
+        ```
+      security:
+        - apiKeyAuth: []
+      parameters:
+        - in: header
+          name: Content-Encoding
+          required: false
+          schema:
+            type: string
+            enum: [identity, gzip, br]
+          description: |
+            Optional request content encoding for JSON payloads.
+            Omit header (or use `identity`) for uncompressed JSON.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [hotel_info]
+              properties:
+                hotel_info:
+                  $ref: '#/components/schemas/PmsZanzibarHotelInfo'
+                  description: |
+                    Hotel metadata from PMS.
+                    Required fields are enforced for normalization and profile completeness.
+                star_rating:
+                  type: [integer, string]
+                  nullable: true
+                  description: |
+                    Optional hotel grade. Accepts integer `1`–`5` or string grades
+                    `"1"`–`"5"`, `"A"`, `"AA"`, `"AP"`, `"APP"`, `"HOS"`, `"SI"`.
+                    Stored as a canonical string grade. Send `null` or `""` to clear.
+                  examples: [4, '4', 'AA', 'SI']
+      responses:
+        '200':
+          description: Hotel info stored or updated. `ztn_number` is the linked legal-entity ZTN (null until ZRA registers it). `hotel_info_fetched_at` is this upsert time, not a registry lookup.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: true }
+                  id: { type: integer }
+                  hotel_code: { type: string }
+                  pms_supplier_id: { type: integer, nullable: true }
+                  tax_region: { type: string, nullable: true, description: Denormalized from hotel_info when present }
+                  hotel_info_fetched_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Timestamp of this hotel-info upsert (not a registry lookup)
+                  ztn_number:
+                    type: string
+                    nullable: true
+                    description: ZTN of the linked legal entity; null until ZRA registers the taxpayer. Not accepted from the request body.
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Too many requests (default 500/minute per API key; EZEE_ZZ_PUSH_RATE_LIMIT_MAX)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported content encoding (only identity, gzip and br are accepted)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: PMS push API key
+
+  schemas:
+    PmsZanzibarPushBooking:
+      type: object
+      description: |
+        Booking payload from PMS. Normalization accepts both eZee-style fields and snake_case aliases.
+        Required for HTTP 200 acceptance (either alias; do not send both styles):
+        - reservation number: `ReservationNo` or `reservation_no`
+        - guest name: first or last (`FirstName`/`guest_first_name` or `LastName`/`guest_last_name`; empty strings ignored)
+        - stay dates: `ArrivalDate`/`checkin` and `DepartureDate`/`checkout`.
+          If arrival is omitted, `ReservationDate` is copied as arrival.
+          If departure is omitted, it is derived as arrival + `NoOfNights` (or 1 night).
+          Always send the real stay dates; do not rely on derivation.
+        - guest count: `NoOfGuest` or `guest_count` or `Adult`/`Child` (explicit `0` allowed)
+        `Status` and `CurrentStatus` are not required for 200. Amounts and currency are not
+        required for 200 but should be sent (`CurrencyCode`/`currency_code` and
+        `TotalInclusiveTax`/`amount_total`) so tax reporting is complete.
+        `Status` is not an OTA create/update flag: identity is hotel_code + reservation number.
+      example:
+        reservation_no: "1234"
+        FolioNo: "500"
+        guest_first_name: "Dennis"
+        guest_last_name: "Jakobsen"
+        checkin: "2025-10-28"
+        checkout: "2025-10-29"
+        ReservationDate: "2025-10-01"
+        guest_count: 2
+        currency_code: "TZS"
+        amount_total: 251550
+        Status: "New"
+        CurrentStatus: "Confirmed Reservation"
+        ArrivalTime: ""
+        DepartureTime: ""
+      properties:
+        ReservationNo:
+          type: string
+          description: PMS reservation number (required for normalization identity)
+          examples: ['R001', '1234']
+        ReservationDate:
+          type: string
+          description: |
+            Date the reservation was created/booked (maps to canonical reservation_date).
+            Preferred PascalCase field. Same date formats as ArrivalDate/DepartureDate.
+          examples: ['2025-10-01', '01/10/2025']
+        reservation_date:
+          type: string
+          description: Snake_case alias for ReservationDate
+          examples: ['2025-10-01']
+        Status:
+          type: string
+          description: |
+            Event / message type for this push. Allowed: `New`, `Modify`, `Cancel`.
+            Use with `CurrentStatus` (lifecycle). Example: new booking → `Status: "New"`,
+            `CurrentStatus: "Confirmed Reservation"`; later check-in → `Status: "Modify"`,
+            `CurrentStatus: "Arrived"` or `"Checked In"`.
+            Canonical status prefers CurrentStatus over Status when both are present.
+          examples: ['New', 'Modify', 'Cancel']
+        status:
+          type: string
+          description: Snake_case alias for Status
+        CurrentStatus:
+          type: string
+          description: |
+            Guest/stay lifecycle state. Allowed: `Confirmed Reservation`, `Arrived`,
+            `Checked In`, `Checked Out`, `Cancel`, `Void`.
+            Preferred over Status when mapping the canonical booking status.
+          examples:
+            - 'Confirmed Reservation'
+            - 'Arrived'
+            - 'Checked In'
+            - 'Checked Out'
+            - 'Cancel'
+            - 'Void'
+        current_status:
+          type: string
+          description: Snake_case alias for CurrentStatus
+        BookingStatus:
+          type: string
+          description: Alternate lifecycle status field also accepted by the normalizer
+        booking_status:
+          type: string
+          description: Snake_case alias for BookingStatus
+        CancelDate:
+          type: string
+          description: |
+            Cancellation date when the reservation is cancelled (date-like string).
+            Preferred PascalCase field.
+          examples: ['2026-03-15', '15/03/2026']
+          nullable: true
+        cancel_date:
+          type: string
+          description: Snake_case alias for CancelDate
+          nullable: true
+        CancellationDate:
+          type: string
+          description: Alternate PascalCase alias for CancelDate
+          nullable: true
+        cancellation_date:
+          type: string
+          description: Alternate snake_case alias for CancelDate
+          nullable: true
+        FolioNo:
+          type: string
+          description: PMS folio/booking number
+        folio_no:
+          type: string
+          description: Snake_case folio/booking number alias
+        FirstName:
+          type: string
+          description: Guest first name (or use guest_first_name). At least one of first/last name required.
+        LastName:
+          type: string
+          description: Guest last name (or use guest_last_name). Optional if first name is present.
+        ArrivalDate:
+          type: string
+          description: |
+            Arrival/check-in date. If omitted, `ReservationDate` is copied as arrival.
+        DepartureDate:
+          type: string
+          description: |
+            Departure/check-out date. If omitted, derived as arrival + `NoOfNights` (or 1 night).
+        NoOfNights:
+          type: integer
+          minimum: 1
+          description: Used to derive departure when DepartureDate is omitted
+        no_of_nights:
+          type: integer
+          minimum: 1
+          description: Snake_case alias for NoOfNights
+        ArrivalTime:
+          type: string
+          nullable: true
+        arrival_time:
+          type: string
+          description: Optional snake_case arrival time alias
+          nullable: true
+        DepartureTime:
+          type: string
+          nullable: true
+        departure_time:
+          type: string
+          description: Optional snake_case departure time alias
+          nullable: true
+        TotalTax:
+          type: number
+          description: Tax total (VAT/tax line). Preferred PascalCase field for push clients.
+        'Total Tax':
+          type: number
+          description: Legacy alias with a space; still accepted by the normalizer. Prefer TotalTax for new integrations.
+        total_tax:
+          type: number
+          description: Snake_case tax total alias
+        TotalInclusiveTax:
+          type: number
+          description: eZee total amount including tax
+        total_inclusive_tax:
+          type: number
+          description: Snake_case total inclusive tax alias
+        TotalExclusivTax:
+          type: number
+          description: eZee total amount excluding tax (vendor spelling)
+        total_exclusiv_tax:
+          type: number
+          description: Snake_case alias for TotalExclusivTax
+        total_exclusive_tax:
+          type: number
+          description: Alternate snake_case alias for total excluding tax
+        OtherRevenueExclusiveTax:
+          type: number
+          description: eZee extra revenue excluding tax
+        other_revenue_exclusive_tax:
+          type: number
+          description: Snake_case extra revenue excluding tax alias
+        OtherRevenueInclusiveTax:
+          type: number
+          description: eZee extra revenue including tax
+        other_revenue_inclusive_tax:
+          type: number
+          description: Snake_case extra revenue including tax alias
+        DueAmount:
+          type: number
+          description: eZee due amount (supported as payment fallback when PaymentTotal missing)
+        due_amount:
+          type: number
+          description: Snake_case due amount alias
+        Deposit:
+          type: number
+          description: eZee deposit amount (supported as payment fallback when PaymentTotal missing)
+        deposit:
+          type: number
+          description: Snake_case deposit alias
+        CurrencyCode:
+          type: string
+          description: |
+            ISO currency of this booking's amounts. Overrides hotel_info.CurrencyCode for this stay.
+            If omitted, amounts are interpreted in the property default currency.
+          examples: ['EUR', 'TZS', 'USD']
+        currency_code:
+          type: string
+          description: Snake_case alias for CurrencyCode
+          examples: ['EUR', 'TZS', 'USD']
+        currencyCode:
+          type: string
+          description: camelCase alias for CurrencyCode
+        amount_total:
+          type: number
+          description: Stay total (fallback when TotalInclusiveTax / amount_after_tax absent)
+        amount_after_tax:
+          type: number
+          description: Amount after tax; accepted as inclusive total
+        TotalAmountAfterTax:
+          type: number
+          description: PascalCase alias for amount after tax
+        NoOfGuest:
+          type: integer
+          minimum: 0
+          description: Guest count (explicit 0 allowed for cancel/no-show)
+        guest_count:
+          type: integer
+          minimum: 0
+          description: Snake_case guest count (explicit 0 allowed for cancel/no-show)
+        RoomNo:
+          type: string
+          description: |
+            Physical room number (optional). Preferred PascalCase field.
+            Used for property-specific rules (e.g. underwater-room infra tax).
+          examples: ['101', 'UW-1']
+        room_no:
+          type: string
+          description: Snake_case alias for RoomNo
+          examples: ['101', 'UW-1']
+        RoomNumber:
+          type: string
+          description: Alternate PascalCase alias for RoomNo
+        room_number:
+          type: string
+          description: Alternate snake_case alias for room_no
+        reservation_no:
+          type: string
+        guest_first_name:
+          type: string
+          description: Snake_case guest first name. At least one of first/last name required.
+        guest_last_name:
+          type: string
+          description: Snake_case guest last name. Optional if first name is present.
+        checkin:
+          type: string
+          examples: ['2025-10-28']
+        checkout:
+          type: string
+          examples: ['2025-10-29']
+        Adult:
+          type: integer
+          minimum: 0
+        Child:
+          type: integer
+          minimum: 0
+      additionalProperties: true
+
+    PmsZanzibarHotelInfo:
+      type: object
+      required:
+        - Hotel_Code
+        - Hotel_Name
+        - City
+        - State
+        - Zipcode
+        - Country
+        - Property_Type
+        - Address
+        - CurrencyCode
+      properties:
+        Hotel_Code:
+          type: string
+        Hotel_Name:
+          type: string
+        City:
+          type: string
+        State:
+          type: string
+        Zipcode:
+          type: string
+        Country:
+          type: string
+        Property_Type:
+          type: string
+        Address:
+          type: string
+        CurrencyCode:
+          type: string
+        tax_region:
+          type: string
+          nullable: true
+          description: |
+            Optional tax region. Also accepted as TaxRegion, Tax_Region, taxRegion,
+            Region, or Tax_Zone. Denormalized onto the push hotel and returned on 200.
+        TaxRegion:
+          type: string
+          nullable: true
+          description: PascalCase alias for tax_region
+      additionalProperties: true
+
+    Error:
+      type: object
+      properties:
+        code: { type: integer }
+        message: { type: string }

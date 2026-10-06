@@ -1,0 +1,3 @@
+# Tenant isolation by global scope, with context carried by every job
+
+Every tenant-owned model carries `organization_id`, and property-owned models also carry `property_id`. A `BelongsToTenant` trait adds a global scope that reads a `TenantContext`. Web middleware sets the context from the session. Every queued job carries its organization and property explicitly and restores the context before running, because queues and scheduled tasks are where global scopes usually fail. Platform-level code, such as ZRA reporting across all properties, bypasses the scope only through one explicitly named path, so it stays visible in review. A Pest suite tests isolation across tenants for web routes, queued jobs, exports and file access.
