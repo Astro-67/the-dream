@@ -56,6 +56,7 @@ See [`docs/`](docs/):
 
 - [PRD](docs/prd/PRD.md)
 - [Architecture](docs/architecture.md)
+- [Design system](docs/design.md)
 - [Architecture decision records](docs/adr/)
 - [Glossary](docs/GLOSSARY.md)
 - [Risk register](docs/risk-register.md)
