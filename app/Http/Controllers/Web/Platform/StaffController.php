@@ -11,6 +11,7 @@ use App\Http\Requests\Platform\StorePlatformRoleRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,6 +23,8 @@ class StaffController extends Controller
 {
     public function index(ListPlatformStaff $listPlatformStaff): Response
     {
+        Gate::authorize('viewAny', User::class);
+
         return Inertia::render('platform/staff/index', [
             'staff' => $listPlatformStaff->handle(),
             'roles' => array_map(fn (PlatformRole $role) => ['value' => $role->value, 'label' => $role->label()], PlatformRole::cases()),
@@ -30,6 +33,8 @@ class StaffController extends Controller
 
     public function store(StorePlatformRoleRequest $request, AssignPlatformRole $assign): RedirectResponse
     {
+        Gate::authorize('managePlatformStaff', User::class);
+
         /** @var User $actor */
         $actor = $request->user();
         $grantee = $request->grantee();
@@ -44,6 +49,8 @@ class StaffController extends Controller
 
     public function destroy(Request $request, User $user, PlatformRole $role, RevokePlatformRole $revoke): RedirectResponse
     {
+        Gate::authorize('managePlatformStaff', User::class);
+
         /** @var User $actor */
         $actor = $request->user();
 
