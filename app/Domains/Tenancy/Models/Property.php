@@ -4,11 +4,13 @@ namespace App\Domains\Tenancy\Models;
 
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\PropertyType;
+use App\Domains\Tenancy\Policies\PropertyPolicy;
 use App\Support\Money\Currency;
 use App\Support\Tenancy\BelongsToTenant;
 use Database\Factories\PropertyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -41,6 +43,7 @@ use Illuminate\Support\Carbon;
     'phone', 'email', 'timezone', 'currency', 'jurisdiction_profile', 'zra_hotel_code',
 ])]
 #[UseFactory(PropertyFactory::class)]
+#[UsePolicy(PropertyPolicy::class)]
 class Property extends Model
 {
     /** @use HasFactory<PropertyFactory> */

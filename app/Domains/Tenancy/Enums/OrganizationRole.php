@@ -5,7 +5,8 @@ namespace App\Domains\Tenancy\Enums;
 /**
  * The organization roles of PRD §5. Each is a spatie role in the organization's team.
  *
- * Ticket #7 fills in the permission sets; until then only the owner's is defined.
+ * Ticket #7 fills in the permission sets; until then only the owner's and the
+ * group operations manager's property management are defined.
  */
 enum OrganizationRole: string
 {
@@ -27,6 +28,9 @@ enum OrganizationRole: string
                 'organization.manage',
                 'properties.manage',
                 'members.manage',
+            ],
+            self::GroupOperationsManager => [
+                'properties.manage',
             ],
             default => [],
         };

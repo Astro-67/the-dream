@@ -1,0 +1,19 @@
+<?php
+
+use App\Http\Controllers\Web\Tenancy\CurrentPropertyController;
+use App\Http\Controllers\Web\Tenancy\PropertyController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
+    // The property switcher. It carries its target, not a property intent. The organization switcher (#9) sits next to it.
+    Route::put('current-property', [CurrentPropertyController::class, 'update'])->name('current-property.update');
+
+    // Forms here carry the property they were opened for (EnsurePropertyIntent).
+    Route::middleware('property.intent')->group(function () {
+        Route::get('properties', [PropertyController::class, 'index'])->name('properties.index');
+        Route::get('properties/create', [PropertyController::class, 'create'])->name('properties.create');
+        Route::post('properties', [PropertyController::class, 'store'])->name('properties.store');
+        Route::get('properties/{property}/edit', [PropertyController::class, 'edit'])->name('properties.edit');
+        Route::put('properties/{property}', [PropertyController::class, 'update'])->name('properties.update');
+    });
+});
