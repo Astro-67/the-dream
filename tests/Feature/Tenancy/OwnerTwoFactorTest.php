@@ -4,6 +4,7 @@ use App\Domains\Tenancy\Actions\SendInvitation;
 use App\Domains\Tenancy\Data\InvitationDetails;
 use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -74,8 +75,18 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
             $owner,
             new InvitationDetails('pending@example.test', MembershipGrant::properties(OrganizationRole::FrontDesk, [$property->id]), CarbonImmutable::now()->addWeek()),
         )))],
+        'members.index' => ['GET', route($routeName)],
+        'members.edit' => ['GET', route($routeName, ownMembership($owner, $property))],
+        'members.update' => ['PUT', route($routeName, ownMembership($owner, $property)), [...$intent, 'role' => 'group_operations_manager', 'all_properties' => true]],
+        'members.destroy' => ['DELETE', route($routeName, ownMembership($owner, $property)), $intent],
+        'members.transfer-ownership' => ['POST', route($routeName, ownMembership($owner, $property)), [...$intent, 'role' => 'owner', 'all_properties' => true]],
         default => throw new LogicException("Add the owner-only route [{$routeName}] to ownerOnlyRequest()."),
     };
+}
+
+function ownMembership(User $owner, Property $property): OrganizationMembership
+{
+    return inTenant($property, fn () => OrganizationMembership::query()->where('user_id', $owner->id)->sole());
 }
 
 test('after turning on two-factor authentication, the owner returns to what they were doing and completes it', function () {

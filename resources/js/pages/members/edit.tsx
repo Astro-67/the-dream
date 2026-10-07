@@ -58,8 +58,9 @@ function TransferOwnership({
                 <DialogTitle>Make {member.name} an owner?</DialogTitle>
                 <DialogDescription>
                     {member.name} becomes an owner with all properties,
-                    including member management and owner-only settings. Choose
-                    what you keep: you can stay an owner, or take another role.
+                    including member management and owner-only settings, once
+                    they turn on two-factor authentication. Choose what you
+                    keep: you can stay an owner, or take another role.
                 </DialogDescription>
                 <Form
                     {...transferOwnership.form(member.id)}

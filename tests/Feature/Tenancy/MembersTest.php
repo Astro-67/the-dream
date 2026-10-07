@@ -18,6 +18,20 @@ function membershipOf(TenantFixture $tenant, User $member): OrganizationMembersh
     return inTenant($tenant->organization, fn () => OrganizationMembership::query()->where('user_id', $member->id)->sole());
 }
 
+/**
+ * The member with two-factor authentication on, as owners need it for owner-only actions (#13).
+ */
+function withTwoFactorOn(User $user): User
+{
+    $user->forceFill([
+        'two_factor_secret' => encrypt('secret'),
+        'two_factor_recovery_codes' => encrypt(json_encode(['recovery-code-1'])),
+        'two_factor_confirmed_at' => now(),
+    ])->save();
+
+    return $user->fresh() ?? $user;
+}
+
 test('the members list shows each member\'s role and properties, or all properties', function () {
     $t = twoTenants();
 
@@ -197,7 +211,10 @@ test('transferring ownership makes the target an owner and gives the previous ow
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('members.index'));
 
-    $this->actingAs($frontDesk->fresh())->get(route('members.index'))->assertInertia(fn (Assert $page) => $page
+    // The new owner must turn on two-factor authentication before owner-only pages (#13).
+    $this->actingAs($frontDesk->fresh())->get(route('members.index'))->assertRedirect(route('security.edit'));
+
+    $this->actingAs(withTwoFactorOn($frontDesk))->get(route('members.index'))->assertInertia(fn (Assert $page) => $page
         ->where('members', fn ($members) => collect($members)->contains(fn ($m) => $m['email'] === 'front_desk@alpha.test'
             && $m['role'] === 'owner' && $m['allProperties'] === true))
         ->where('members', fn ($members) => collect($members)->contains(fn ($m) => $m['email'] === 'owner@alpha.test'
@@ -221,7 +238,18 @@ test('a previous owner who stays an owner can then be demoted, since another own
         ])
         ->assertSessionHasNoErrors();
 
+    // A new owner must turn on two-factor authentication before owner-only actions (#13).
+    $demote = [
+        '_property' => $t->a->property->id,
+        'role' => 'auditor',
+        'all_properties' => false,
+        'property_ids' => [$t->a->property->id],
+    ];
     $this->actingAs($manager->fresh())
+        ->put(route('members.update', membershipOf($t->a, $t->a->owner)), $demote)
+        ->assertRedirect(route('security.edit'));
+
+    $this->actingAs(withTwoFactorOn($manager))
         ->put(route('members.update', membershipOf($t->a, $t->a->owner)), [
             '_property' => $t->a->property->id,
             'role' => 'auditor',
