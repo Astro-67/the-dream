@@ -1,10 +1,12 @@
 import { usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    Building2,
     FolderGit2,
     Hotel,
     LayoutGrid,
     MailPlus,
+    ShieldCheck,
 } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -20,6 +22,8 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as invitations } from '@/routes/invitations';
+import { index as platformOrganizations } from '@/routes/platform/organizations';
+import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
 import type { NavItem } from '@/types';
 
@@ -50,8 +54,21 @@ const invitationsNavItem: NavItem = {
     icon: MailPlus,
 };
 
+const platformNavItems: NavItem[] = [
+    {
+        title: 'Organizations',
+        href: platformOrganizations(),
+        icon: Building2,
+    },
+    {
+        title: 'Platform staff',
+        href: platformStaff(),
+        icon: ShieldCheck,
+    },
+];
+
 export function AppSidebar() {
-    const { permissions } = usePage().props.auth;
+    const { permissions, platformRoles } = usePage().props.auth;
     // Hidden from members who can't use them; the server still checks.
     const canInvite =
         permissions.includes('members.manage') ||
@@ -63,6 +80,9 @@ export function AppSidebar() {
             : []),
         ...(canInvite ? [invitationsNavItem] : []),
     ];
+    const isPlatformAdministrator = platformRoles.includes(
+        'platform_administrator',
+    );
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -76,6 +96,12 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={navItems} />
+                {isPlatformAdministrator && (
+                    <NavMain
+                        items={platformNavItems}
+                        label="Platform administration"
+                    />
+                )}
             </SidebarContent>
 
             <SidebarFooter>

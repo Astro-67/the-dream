@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domains\Platform\Enums\PlatformRole;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
@@ -15,7 +16,8 @@ use Symfony\Component\HttpFoundation\Response;
  * Route middleware `tenant`: runs the rest of the request inside the tenant
  * context stored in the session, after rechecking the user's membership.
  *
- * - `tenant` (operational pages): a user with no membership is sent to organization setup.
+ * - `tenant` (operational pages): a user with no membership is sent to organization setup,
+ *   or, if they are a platform administrator, to the platform pages.
  * - `tenant:optional` (user settings): sets the context when there is one, never redirects.
  *
  * Registered ahead of SubstituteBindings, so route model binding is already scoped.
@@ -37,9 +39,12 @@ class SetTenantContext
         $context = $this->resolve($request->session(), $user);
 
         if ($context === null) {
-            return $mode === 'optional'
-                ? $next($request)
-                : redirect()->route('organizations.create');
+            return match (true) {
+                $mode === 'optional' => $next($request),
+                // Platform administrators work outside organizations; their home is the platform pages.
+                $user->hasPlatformRole(PlatformRole::Administrator) => redirect()->route('platform.organizations.index'),
+                default => redirect()->route('organizations.create'),
+            };
         }
 
         self::remember($request->session(), $context);
