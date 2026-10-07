@@ -59,6 +59,18 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
+    --color-status-success: var(--status-success);
+    --color-status-success-tint: var(--status-success-tint);
+    --color-status-warning: var(--status-warning);
+    --color-status-warning-tint: var(--status-warning-tint);
+    --color-status-error: var(--status-error);
+    --color-status-error-tint: var(--status-error-tint);
+    --color-status-info: var(--status-info);
+    --color-status-info-tint: var(--status-info-tint);
+    --color-status-unavailable: var(--status-unavailable);
+    --color-status-unavailable-tint: var(--status-unavailable-tint);
+    --color-status-success-dot: var(--status-success-dot);
+    --color-status-warning-dot: var(--status-warning-dot);
 }
 
 :root {
@@ -95,6 +107,18 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.87 0 0);
+    --status-success: #047857;
+    --status-success-tint: #ECFDF5;
+    --status-warning: #B45309;
+    --status-warning-tint: #FFFBEB;
+    --status-error: #B91C1C;
+    --status-error-tint: #FEF2F2;
+    --status-info: #4338CA;
+    --status-info-tint: #EEF2FF;
+    --status-unavailable: #475569;
+    --status-unavailable-tint: #F1F5F9;
+    --status-success-dot: #10B981;
+    --status-warning-dot: #F59E0B;
 }
 
 .dark {
@@ -130,6 +154,18 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(0.269 0 0);
     --sidebar-ring: oklch(0.439 0 0);
+    --status-success: #34D399;
+    --status-success-tint: color-mix(in srgb, #34D399 15%, var(--card));
+    --status-warning: #FBBF24;
+    --status-warning-tint: color-mix(in srgb, #FBBF24 15%, var(--card));
+    --status-error: #F87171;
+    --status-error-tint: color-mix(in srgb, #F87171 15%, var(--card));
+    --status-info: #818CF8;
+    --status-info-tint: color-mix(in srgb, #818CF8 15%, var(--card));
+    --status-unavailable: #94A3B8;
+    --status-unavailable-tint: color-mix(in srgb, #94A3B8 15%, var(--card));
+    --status-success-dot: #34D399;
+    --status-warning-dot: #FBBF24;
 }
 
 @layer base {

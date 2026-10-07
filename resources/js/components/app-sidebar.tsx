@@ -1,19 +1,33 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
-import AppLogo from '@/components/app-logo';
+import { usePage } from '@inertiajs/react';
+import {
+    BookOpen,
+    Building2,
+    FolderGit2,
+    Hotel,
+    LayoutGrid,
+    MailPlus,
+    ShieldCheck,
+    Users,
+} from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
+import { SidebarTenant } from '@/components/shared/tenant-context';
 import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
     SidebarHeader,
     SidebarMenu,
-    SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useCan } from '@/hooks/use-can';
 import { dashboard } from '@/routes';
+import { index as invitations } from '@/routes/invitations';
+import { index as members } from '@/routes/members';
+import { index as platformOrganizations } from '@/routes/platform/organizations';
+import { index as platformStaff } from '@/routes/platform/staff';
+import { index as properties } from '@/routes/properties';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -37,23 +51,63 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
+const invitationsNavItem: NavItem = {
+    title: 'Invitations',
+    href: invitations(),
+    icon: MailPlus,
+};
+
+const platformNavItems: NavItem[] = [
+    {
+        title: 'Organizations',
+        href: platformOrganizations(),
+        icon: Building2,
+    },
+    {
+        title: 'Platform staff',
+        href: platformStaff(),
+        icon: ShieldCheck,
+    },
+];
+
 export function AppSidebar() {
+    const { platformRoles } = usePage().props.auth;
+    // Hidden from members who can't use them; the server still checks.
+    const can = useCan();
+    const navItems: NavItem[] = [
+        ...mainNavItems,
+        ...(can('properties.view')
+            ? [{ title: 'Properties', href: properties(), icon: Hotel }]
+            : []),
+        ...(can('members.view')
+            ? [{ title: 'Members', href: members(), icon: Users }]
+            : []),
+        ...(can('members.manage', 'members.invite')
+            ? [invitationsNavItem]
+            : []),
+    ];
+    const isPlatformAdministrator = platformRoles.includes(
+        'platform_administrator',
+    );
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
-                                <AppLogo />
-                            </Link>
-                        </SidebarMenuButton>
+                        <SidebarTenant />
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={navItems} />
+                {isPlatformAdministrator && (
+                    <NavMain
+                        items={platformNavItems}
+                        label="Platform administration"
+                    />
+                )}
             </SidebarContent>
 
             <SidebarFooter>

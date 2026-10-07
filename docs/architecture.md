@@ -3,7 +3,7 @@
 - **Status:** draft 1, 6 October 2026
 - **Implements:** [`docs/prd/PRD.md`](prd/PRD.md) v1.1
 - **Vocabulary:** [`docs/GLOSSARY.md`](GLOSSARY.md)
-- **Decisions:** [`docs/adr/`](adr/), ADRs 0001–0011
+- **Decisions:** [`docs/adr/`](adr/), ADRs 0001–0012
 
 This document describes how Thedream is built: the domains, their boundaries, how integration messages move, and how the system is deployed and recovered. The ADRs record *why* each decision was made. This document records *what* the shape is. When the two disagree, the ADR wins and this document gets fixed.
 
@@ -56,6 +56,7 @@ The application is one Laravel app divided into domains under `app/Domains/<Doma
 | Domain | Owns | PRD |
 |---|---|---|
 | **Tenancy** | Organization, Property, memberships, jurisdiction profile | §4, §6, §7.2 |
+| **Platform** | Platform roles (platform administrator, compliance operator) and the platform pages' read models. Later also support sessions and platform secrets | §5, §7.3 |
 | **Inventory** | Room types, rooms, out-of-service periods, availability | §7.4 (PMS-01) |
 | **Rates** | Rate plans, prices, restrictions (minimum stay, closed to arrival, stop-sell) | §7.4 (PMS-01) |
 | **Reservations** | Reservations, stays, reservation numbers, channel references, no-shows | §7.4 |
@@ -72,7 +73,7 @@ Not yet a domain folder, and added when their first ticket needs them:
 
 - **Subscriptions:** plans, SaaS invoices, entitlements (§7.3, §13).
 - **Compliance incidents and latency monitoring:** a Compliance domain if they outgrow Reports and the outbox (§7.9, §7.11).
-- **Platform administration:** support sessions and platform secrets (§5, §10).
+- **Platform administration** beyond roles and the organization list: support sessions and platform secrets (§5, §10), in the Platform domain.
 
 Users, login, registration and MFA stay where the starter kit puts them (`app/Models/User.php`, Fortify actions).
 
@@ -85,10 +86,11 @@ app/Domains/{Distribution,ZanReporting,FiscalReceipting}/
   Contracts/        ChannelConnector.php, ZanReporter.php, FiscalReceipter.php
   Adapters/         Vendor adapters and Fake* adapters
 app/Support/
-  Tenancy/          TenantContext, BelongsToTenant, Tenancy::asPlatform()
+  Tenancy/          Tenancy::within(), TenantContext, BelongsToTenant, BelongsToProperty
   Outbox/           Outbox model base, drainer, sweeper, idempotency keys
   Money/            Money value object, currency
-  Jobs/             TenantAware trait and job middleware
+  Jobs/             TenantAware marker and the queue handler that runs queued work in Tenancy::within()
+  Console/          TenantCommand base class (--organization, --property; runs handle() in Tenancy::within())
 app/Http/Controllers/Web/      Inertia controllers, grouped by domain
 app/Http/Controllers/Api/V1/   Inbound webhooks and any future API
 routes/web.php                 Loads every file in routes/web/ (one file per domain)
@@ -125,21 +127,41 @@ Actions are what the HTTP layer, jobs, imports and tests all call. No business l
 
 ## 4. Tenancy and authorization
 
-### 4.1 Tenant context (ADR 0008)
+### 4.1 Tenant context (ADR 0008, ADR 0012)
 
-- `TenantContext` holds the current organization, and the current property where there is one.
-- **Web:** middleware resolves it from the session after checking membership. It also calls `setPermissionsTeamId($organization->id)` for spatie.
-- **Jobs:** every tenant-scoped job uses a `TenantAware` trait. The job stores the organization and property IDs when it is dispatched, and job middleware restores the `TenantContext` and spatie team ID before `handle()` runs. A tenant-scoped job without a context fails, rather than running unscoped.
-- **Global scope:** `BelongsToTenant` adds a scope filtering by `organization_id`. Property-owned models also filter by `property_id` when a property is in context. Creating a model fills both IDs from the context.
-- **Platform bypass:** platform code that must work across tenants, such as the ZAN Gateway drainer or the platform compliance dashboard, runs inside `Tenancy::asPlatform(fn () => ...)`. This is the only way to remove the scope, so it's easy to find in review.
+Everything about "which tenant am I acting for" goes through one module, `App\Support\Tenancy`, and one entry point:
+
+```php
+Tenancy::within(TenantContext::forProperty($property), fn () => ...);       // organization + property
+Tenancy::within(TenantContext::forOrganization($organization), fn () => ...); // organization only
+Tenancy::within(TenantContext::platform('ZAN Gateway drain'), fn () => ...);  // across organizations, logged
+```
+
+- `TenantContext` is a value object of IDs: an organization and optionally a property, or "platform" plus a reason. It is serializable, so jobs can carry it. `TenantContext::fromIds($organizationId, $propertyId)` rebuilds one from stored IDs.
+- `within` sets the context and spatie's team ID (`setPermissionsTeamId($organization->id)`), checks that the property belongs to the organization, runs the callback, and restores the previous context and team ID afterwards, even on exceptions. Contexts nest.
+- Reading the context: `Tenancy::current()`, `Tenancy::organization()`, `Tenancy::property()`, `Tenancy::isPlatform()`.
+- Choosing a context for a user (membership rechecked on every call): `Tenancy::allows($user, $context)`, `Tenancy::defaultContextFor($user)`, and for the switcher `Tenancy::organizationsFor($user)` and `Tenancy::propertiesFor($user)` (in the current organization).
+- **Web:** the `tenant` route middleware (`SetTenantContext`) reads the organization and property from the session, rechecks them with `Tenancy::allows`, falls back to `Tenancy::defaultContextFor`, and wraps the rest of the request in `within`. A user with no membership is sent to organization setup. It runs before `SubstituteBindings`, so route model binding is already scoped. `tenant:optional` sets the context when there is one but never redirects (used by user settings pages).
+- **Jobs (#10):** anything queued inside `within` (jobs, mail, notifications, listeners) captures `Tenancy::current()` in its queue payload, and `CallQueuedTenantHandler` re-enters that context with `within` on the worker, before the job is unserialized, so its models are restored, its middleware and `handle()` run, and its chain continues inside the tenant. The worker's state is restored after each job. Tenant models are restored with the tenant scope, so a job handed another tenant's record fails with `ModelNotFoundException`. A job marked `implements TenantAware` must have a tenant: dispatched outside one (or from the platform context) it fails at once with `MissingTenantContext`, without retries. Dispatch inside a block closure: `fn () => Job::dispatch()` queues the job only after `within` has returned.
+- **Console:** a command that acts for one tenant extends `App\Support\Console\TenantCommand`, which adds `--organization=<id>` (required) and `--property=<id>` and runs `handle()` inside `within`. Commands working across organizations enter `TenantContext::platform($reason)` themselves.
+- **Tests:** call `within` directly. Pest helpers: `organizationWithOwner()` builds an organization, its first property and its owner through the real action; `inTenant($organizationOrProperty, fn)` wraps `within`.
+- **Scoping:** `BelongsToTenant` (organization-owned models) adds a global scope on `organization_id`; `BelongsToProperty` (property-owned models) adds `property_id` too when a property is in context. `Organization` itself is scoped to the current organization. Creating a model fills both IDs from the context, and a mismatching ID or a change of `organization_id` throws `TenantMismatch`.
+- **Fail closed:** querying or creating a tenant-owned model with no context throws `MissingTenantContext`.
+- **Platform context:** the only way to read across organizations. Tenant scopes don't filter, the spatie team ID is cleared, created records must name their organization explicitly, and entering it is written to the activity log (`log_name` `platform`) with the actor (the signed-in user as causer, and the running queued job or console command as the `job` or `command` property) and the reason. Queued work dispatched inside the platform context runs in it too, and logs its own entry. The scope class is used only inside `App\Support\Tenancy`, enforced by an architecture test.
 
 ### 4.2 Authorization (ADR 0007)
 
 - spatie teams mode: **team = organization**. Roles such as owner, group manager, property manager, front desk, finance, housekeeping and auditor are assigned within an organization.
 - `property_memberships` lists the properties each organization member may act in.
 - **Policies** check both: the role has the permission, **and** the record's property is in the user's property memberships. Organization-level roles (owner, group manager) may be granted all properties.
-- Platform roles (platform administrator, compliance operator) are separate and never come from organization membership.
-- **Inertia shared props** carry the current organization, property, and the user's permissions for that property, so the UI can hide actions. The server still checks every request.
+  - Every policy does this through one helper, `App\Support\Tenancy\Access::allows($user, $permission, $propertyOrRecord = null)`, judged in the current organization (null = an organization-wide action).
+  - Permission names live in the `OrganizationPermission` enum; each role's set is `OrganizationRole::permissions()`, seeded per organization by `ProvisionOrganizationRoles`. After changing a set, run `php artisan organizations:sync-roles` to update existing organizations.
+- **Platform roles** (platform administrator, compliance operator) are separate and never come from organization membership (#11). They live in the `platform_role_assignments` table, not in spatie's teams, so no organization role or invitation can carry one; an architecture test keeps the model inside the Platform domain. `AssignPlatformRole` / `RevokePlatformRole` are the only way in: called by a platform administrator (from the Platform staff page) or with no actor by a seed or `php artisan platform:assign-role {email} {role}` / `platform:revoke-role`. Each change is written to the activity log (`log_name` `platform`). Read with `$user->hasPlatformRole(PlatformRole::Administrator)`, checked against the database on every call.
+- **Platform pages** (`routes/web/platform.php`, under `/platform`) use the route middleware `platform:<role>` (403 for anyone without that platform role, organization owners included) followed by `two-factor`. They sit outside the `tenant` middleware, and anything they read across organizations runs in `TenantContext::platform($reason)`, so each view is logged. The organization list shows name, owners, active property count and created date, and nothing from inside organizations. A platform administrator with no membership who opens an operational page is sent to the platform pages instead of organization setup.
+- **`two-factor` route middleware** (`RequireTwoFactor`): the user must have confirmed two-factor authentication. Otherwise a page visit or form post is redirected to `security.edit` with an error toast, and a JSON request gets 403. Put it after the middleware that decides access, so people without access get 403 rather than a 2FA prompt. Platform pages use it.
+- **Owner-only actions need 2FA (#13).** A route is owner-only when it takes `two-factor:owner`, placed after `tenant`: owners of the current organization (`Access::isOwner`) without confirmed 2FA are sent to set it up, and every other role passes untouched. It is a gate on owners as people, not a permission: what anyone may do is still decided by policies with `Access::allows`. Owner-only today: property management (`routes/web/properties.php`, everything but the switcher) and member management (`routes/web/invitations.php`, sending, listing and revoking; not accepting; and `routes/web/members.php`, the members list, changing access, removing members and transferring ownership). A new owner from a transfer must turn 2FA on before using them. Organization-settings routes join by adding the middleware to their group, e.g. `Route::middleware(['auth', 'verified', 'tenant', 'two-factor:owner'])->group(...)`, and a case in `ownerOnlyRequest()` in `tests/Feature/Tenancy/OwnerTwoFactorTest.php`, which sends an owner without 2FA to every route carrying the middleware. Turning 2FA off takes owner-only access away on the next request.
+- **Returning after 2FA setup:** when either gate redirects, it keeps the reason and where to return (the page asked for, or for a form post the same-site page it came from) in the session. The security settings show the reason and, once 2FA is on, a Continue link back. Passing any two-factor gate clears it. Test fixtures (`organizationWithOwner()`, `twoTenants()`, `memberOfBoth()` with an owner role) give owners 2FA, so tests reach owner-only routes; pass your own owner to `organizationWithOwner(owner: ...)` to test without it.
+- **Inertia shared props** carry the current organization, property, and the user's permissions for that property, so the UI can hide actions, plus `auth.platformRoles` for platform navigation. The server still checks every request.
 
 ### 4.3 Cross-tenant test suite
 
@@ -151,7 +173,17 @@ A Pest suite seeds two organizations with two properties each, and asserts that 
 - files in storage;
 - integration queues and the compliance dashboard.
 
-New routes are checked automatically: the suite enumerates registered routes, so a new route without a cross-tenant test fails.
+New routes are checked automatically: the suite enumerates registered routes, so a new route without a cross-tenant test fails. Coverage is declared per route in `tests/Feature/Isolation/Coverage/` (one file per domain; how-to in the README there), and the fixture is the `twoTenants()` Pest helper. A separate test fails any model whose table has `organization_id` or `property_id` but lacks `BelongsToTenant` or `BelongsToProperty`.
+
+### 4.4 Archiving a property and pre-archive checks
+
+An owner archives a property with `ArchiveProperty` (and brings it back with `RestoreProperty`); both are audited. An archived property (`archived_at` set) is left out of `Tenancy::allows`, `defaultContextFor` and `propertiesFor`, so it drops out of the switcher and nobody can work in it, while its records and audit history stay and it is still listed on the properties page. Archiving the organization's last active property is refused.
+
+Before archiving, `ArchiveProperty` runs every **pre-archive check**: a class implementing `App\Domains\Tenancy\Contracts\PreArchiveCheck`, whose `blockingReason(Property)` returns null to allow archiving or a sentence telling the owner what stops it. Checks run inside the property's tenant context, and the owner sees every failing reason. M1 registers none. A later domain adds one by tagging it in its service provider:
+
+```php
+$this->app->tag([NoFutureBookings::class], PreArchiveCheck::TAG); // e.g. Reservations; also open balances (Billing), undelivered ZRA reports (ZanReporting)
+```
 
 ## 5. Integration messaging: the outbox (ADR 0009)
 
@@ -200,7 +232,7 @@ These rows are the **record of truth** for delivery. The delivery log (ZAN-08), 
 - A platform-wide rate limiter allows **100 requests per minute** (PRD I-5), shared across all properties and keyed globally, not per tenant.
 - A 200 response is checked **for each booking**: `rejected_booking_count` and `validation_errors` decide each row's status (ZAN-06).
 - **Idempotency:** ZAN Gateway has no idempotency field. It upserts by hotel code plus reservation number, so re-sending a row's state is harmless. The idempotency key is kept on our side for the log.
-- The drainer runs under `Tenancy::asPlatform()` because the key and rate limit belong to the platform (ADR 0003).
+- The drainer runs under `Tenancy::within(TenantContext::platform(...))` because the key and rate limit belong to the platform (ADR 0003).
 
 **VFMS (FiscalReceipting)**
 
@@ -284,7 +316,7 @@ Each integration domain has two parts:
 
 | Concern | Convention |
 |---|---|
-| Primary keys | ULID on every table (`HasUlids`) |
+| Primary keys | ULIDs (`HasUlids`) for application-owned models, including users, tenancy and platform tables. Framework/vendor storage tables retain their package-defined key types: passkeys, Spatie roles and permissions, activity log, and queue tables (`jobs`). Permission team and model morph keys are ULID-compatible. |
 | Money | Integer minor units plus an ISO currency code. A value object, never floats. VFMS "EURO" is mapped to and from EUR at the adapter |
 | Reservation number | A `reservation_number_sequences` row per property, incremented under `SELECT … FOR UPDATE` in the creating transaction. Formatted per property, never reused (PRD PMS-03). Separate from the ULID |
 | Channel reference | Stored on the reservation, unique per channel connection |
@@ -418,3 +450,4 @@ This applies only if the client rejects a VPS (ADR 0006).
 | [0009](adr/0009-transactional-outbox-for-integrations.md) | Transactional outbox for integrations |
 | [0010](adr/0010-integrations-are-modules-behind-interfaces.md) | Integrations are modules behind interfaces |
 | [0011](adr/0011-aws-af-south-1-with-managed-mysql.md) | AWS af-south-1 with managed MySQL and PITR |
+| [0012](adr/0012-one-tenancy-entry-point-with-platform-as-a-context.md) | One Tenancy entry point, with platform as a kind of context |
