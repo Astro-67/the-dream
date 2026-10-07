@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
     Route::get('invitations/create', [InvitationController::class, 'create'])->name('invitations.create');
-    Route::post('invitations', [InvitationController::class, 'store'])->name('invitations.store');
+    // The invite form carries the property it was opened for, so an invitation opened in one
+    // organization can't be sent from another after a switch (EnsurePropertyIntent).
+    Route::post('invitations', [InvitationController::class, 'store'])->middleware('property.intent')->name('invitations.store');
     Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy'])->name('invitations.destroy');
 });
 

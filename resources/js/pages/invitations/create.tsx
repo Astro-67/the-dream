@@ -2,6 +2,7 @@ import { Form, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -56,6 +57,8 @@ export default function CreateInvitation({
                 >
                     {({ processing, errors }) => (
                         <>
+                            <PropertyIntent />
+                            <InputError message={errors._property} />
                             <div className="grid gap-2">
                                 <Label htmlFor="email">Email address</Label>
                                 <Input
