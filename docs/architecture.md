@@ -164,7 +164,7 @@ A Pest suite seeds two organizations with two properties each, and asserts that 
 - files in storage;
 - integration queues and the compliance dashboard.
 
-New routes are checked automatically: the suite enumerates registered routes, so a new route without a cross-tenant test fails.
+New routes are checked automatically: the suite enumerates registered routes, so a new route without a cross-tenant test fails. Coverage is declared per route in `tests/Feature/Isolation/Coverage/` (one file per domain; how-to in the README there), and the fixture is the `twoTenants()` Pest helper. A separate test fails any model whose table has `organization_id` or `property_id` but lacks `BelongsToTenant` or `BelongsToProperty`.
 
 ## 5. Integration messaging: the outbox (ADR 0009)
 
