@@ -12,6 +12,8 @@ export type User = {
 
 export type Auth = {
     user: User;
+    /** Permissions in the current organization, for hiding actions. The server still checks. */
+    permissions: string[];
 };
 
 export type Passkey = {
