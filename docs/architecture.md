@@ -171,6 +171,16 @@ A Pest suite seeds two organizations with two properties each, and asserts that 
 
 New routes are checked automatically: the suite enumerates registered routes, so a new route without a cross-tenant test fails. Coverage is declared per route in `tests/Feature/Isolation/Coverage/` (one file per domain; how-to in the README there), and the fixture is the `twoTenants()` Pest helper. A separate test fails any model whose table has `organization_id` or `property_id` but lacks `BelongsToTenant` or `BelongsToProperty`.
 
+### 4.4 Archiving a property and pre-archive checks
+
+An owner archives a property with `ArchiveProperty` (and brings it back with `RestoreProperty`); both are audited. An archived property (`archived_at` set) is left out of `Tenancy::allows`, `defaultContextFor` and `propertiesFor`, so it drops out of the switcher and nobody can work in it, while its records and audit history stay and it is still listed on the properties page. Archiving the organization's last active property is refused.
+
+Before archiving, `ArchiveProperty` runs every **pre-archive check**: a class implementing `App\Domains\Tenancy\Contracts\PreArchiveCheck`, whose `blockingReason(Property)` returns null to allow archiving or a sentence telling the owner what stops it. Checks run inside the property's tenant context, and the owner sees every failing reason. M1 registers none. A later domain adds one by tagging it in its service provider:
+
+```php
+$this->app->tag([NoFutureBookings::class], PreArchiveCheck::TAG); // e.g. Reservations; also open balances (Billing), undelivered ZRA reports (ZanReporting)
+```
+
 ## 5. Integration messaging: the outbox (ADR 0009)
 
 ### 5.1 Tables
