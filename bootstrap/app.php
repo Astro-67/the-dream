@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Middleware\EnsurePlatformRole;
 use App\Http\Middleware\EnsurePropertyIntent;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequireTwoFactor;
 use App\Http\Middleware\SetTenantContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -29,6 +31,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => SetTenantContext::class,
             'property.intent' => EnsurePropertyIntent::class,
+            'platform' => EnsurePlatformRole::class,
+            'two-factor' => RequireTwoFactor::class,
         ]);
 
         // Route model binding must already run inside the tenant context (ADR 0012),
