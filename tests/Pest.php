@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\TwoTenants;
 use Tests\TestCase;
 
 /*
@@ -109,4 +110,14 @@ function inTenant(Organization|Property $tenant, Closure $callback): mixed
         : TenantContext::forOrganization($tenant);
 
     return Tenancy::within($context, $callback);
+}
+
+/**
+ * The isolation fixture: organizations Alpha ($tenants->a) and Bravo ($tenants->b),
+ * each with two properties and a member in every organization role. See
+ * Tests\Support\TenantFixture for what each side holds.
+ */
+function twoTenants(): TwoTenants
+{
+    return TwoTenants::build();
 }
