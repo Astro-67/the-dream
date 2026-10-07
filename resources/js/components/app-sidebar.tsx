@@ -20,6 +20,7 @@ import {
     SidebarMenu,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useCan } from '@/hooks/use-can';
 import { dashboard } from '@/routes';
 import { index as invitations } from '@/routes/invitations';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
@@ -68,17 +69,17 @@ const platformNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { permissions, platformRoles } = usePage().props.auth;
+    const { platformRoles } = usePage().props.auth;
     // Hidden from members who can't use them; the server still checks.
-    const canInvite =
-        permissions.includes('members.manage') ||
-        permissions.includes('members.invite');
+    const can = useCan();
     const navItems: NavItem[] = [
         ...mainNavItems,
-        ...(permissions.includes('properties.manage')
+        ...(can('properties.view')
             ? [{ title: 'Properties', href: properties(), icon: Hotel }]
             : []),
-        ...(canInvite ? [invitationsNavItem] : []),
+        ...(can('members.manage', 'members.invite')
+            ? [invitationsNavItem]
+            : []),
     ];
     const isPlatformAdministrator = platformRoles.includes(
         'platform_administrator',

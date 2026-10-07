@@ -21,7 +21,7 @@ type PropertyRow = {
     timezone: string;
     currency: Currency;
     jurisdictionProfile: JurisdictionProfile;
-    can: { archive: boolean };
+    can: { update: boolean; archive: boolean };
 };
 
 type ArchivedPropertyRow = {
@@ -139,9 +139,11 @@ function ArchivedChip() {
 export default function PropertiesIndex({
     properties,
     archivedProperties,
+    canCreate,
 }: {
     properties: PropertyRow[];
     archivedProperties: ArchivedPropertyRow[];
+    canCreate: boolean;
 }) {
     const { tenant } = usePage().props;
 
@@ -159,23 +161,27 @@ export default function PropertiesIndex({
                             jurisdiction profile.
                         </p>
                     </div>
-                    <Button asChild>
-                        <Link href={create()} data-test="add-property">
-                            <Plus aria-hidden />
-                            Add property
-                        </Link>
-                    </Button>
+                    {canCreate && (
+                        <Button asChild>
+                            <Link href={create()} data-test="add-property">
+                                <Plus aria-hidden />
+                                Add property
+                            </Link>
+                        </Button>
+                    )}
                 </header>
 
                 {properties.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         No properties you can work in.{' '}
-                        <Link
-                            href={create()}
-                            className="font-medium text-primary underline-offset-4 hover:underline"
-                        >
-                            Add a property
-                        </Link>
+                        {canCreate && (
+                            <Link
+                                href={create()}
+                                className="font-medium text-primary underline-offset-4 hover:underline"
+                            >
+                                Add a property
+                            </Link>
+                        )}
                     </p>
                 ) : (
                     <div className="overflow-x-auto rounded-lg border">
@@ -241,18 +247,22 @@ export default function PropertiesIndex({
                                         </td>
                                         <td className="px-4 py-2">
                                             <div className="flex justify-end gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={edit(property.id)}
-                                                        aria-label={`Edit ${property.name}`}
+                                                {property.can.update && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        asChild
                                                     >
-                                                        Edit
-                                                    </Link>
-                                                </Button>
+                                                        <Link
+                                                            href={edit(
+                                                                property.id,
+                                                            )}
+                                                            aria-label={`Edit ${property.name}`}
+                                                        >
+                                                            Edit
+                                                        </Link>
+                                                    </Button>
+                                                )}
                                                 {property.can.archive && (
                                                     <ArchiveProperty
                                                         property={property}

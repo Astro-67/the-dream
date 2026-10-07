@@ -2,43 +2,56 @@
 
 namespace App\Domains\Tenancy\Policies;
 
-use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
-use App\Support\Tenancy\Tenancy;
-use App\Support\Tenancy\TenantContext;
+use App\Support\Tenancy\Access;
 
 /**
- * Who may add and edit the current organization's properties: members whose
- * role grants properties.manage (owner, group operations manager). Editing also
- * needs the member to be allowed to act in that property. Archiving and
- * restoring are for the organization's owners only.
+ * The current organization's properties.
+ *
+ * - properties.view: see the properties the member may act in.
+ * - properties.manage (owner, group operations manager): add properties to the
+ *   organization, and see its archived properties.
+ * - properties.update (also property managers): edit a property they may act in.
+ * - properties.archive (owners only): archive a property, and restore one.
  */
 class PropertyPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('properties.manage');
+        return Access::allows($user, OrganizationPermission::PropertiesView);
+    }
+
+    /**
+     * Archived properties are out of everyone's reach for daily work, so they
+     * are listed only to the roles that run the whole portfolio.
+     */
+    public function viewArchived(User $user): bool
+    {
+        return Access::allows($user, OrganizationPermission::PropertiesManage);
     }
 
     public function create(User $user): bool
     {
-        return $user->can('properties.manage');
+        return Access::allows($user, OrganizationPermission::PropertiesManage);
     }
 
     public function update(User $user, Property $property): bool
     {
-        return $user->can('properties.manage')
-            && Tenancy::allows($user, TenantContext::forProperty($property));
+        return Access::allows($user, OrganizationPermission::PropertiesUpdate, $property);
     }
 
     public function archive(User $user, Property $property): bool
     {
-        return $user->hasRole(OrganizationRole::Owner->value);
+        return Access::allows($user, OrganizationPermission::PropertiesArchive, $property);
     }
 
+    /**
+     * Checked organization-wide: no one may act in an archived property until it is restored.
+     */
     public function restore(User $user, Property $property): bool
     {
-        return $user->hasRole(OrganizationRole::Owner->value);
+        return Access::allows($user, OrganizationPermission::PropertiesArchive);
     }
 }

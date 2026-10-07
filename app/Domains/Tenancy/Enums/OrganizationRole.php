@@ -2,12 +2,12 @@
 
 namespace App\Domains\Tenancy\Enums;
 
+use App\Domains\Tenancy\Enums\OrganizationPermission as P;
+
 /**
  * The organization roles of PRD §5. Each is a spatie role in the organization's team.
- *
- * Ticket #7 fills in the permission sets; until then only the owner's and the
- * group operations manager's property management, and the property manager's
- * invitation permission are defined.
+ * What each role may do is permissions(); where, is the member's property
+ * membership. App\Support\Tenancy\Access checks both.
  */
 enum OrganizationRole: string
 {
@@ -51,24 +51,57 @@ enum OrganizationRole: string
     }
 
     /**
+     * The role's permission set: the one place it is defined. Each organization's
+     * roles are seeded from it (ProvisionOrganizationRoles). Job titles and
+     * departments grant nothing; only the role does.
+     *
+     * Archiving properties, and financial and security settings, are owner-only.
+     * A group operations manager gets the settings only when granted them individually.
+     *
      * @return list<string>
      */
     public function permissions(): array
     {
-        return match ($this) {
-            self::Owner => [
-                'organization.manage',
-                'properties.manage',
-                'members.manage',
-            ],
+        return P::names(...match ($this) {
+            self::Owner => P::cases(),
             self::GroupOperationsManager => [
-                'properties.manage',
+                P::PropertiesView, P::PropertiesManage, P::PropertiesUpdate,
+                P::MembersView,
+                P::ReservationsView, P::ReservationsManage, P::RoomsAssign, P::GuestsView,
+                P::HousekeepingView, P::HousekeepingManage,
+                P::FinanceView, P::ReportsView,
             ],
-            // Invite staff to the properties the manager may act in (see InvitationPolicy).
             self::PropertyManager => [
-                'members.invite',
+                P::PropertiesView, P::PropertiesUpdate,
+                // Invite staff to the properties the manager may act in (see InvitationPolicy).
+                P::MembersView, P::MembersInvite,
+                P::ReservationsView, P::ReservationsManage, P::RoomsAssign, P::GuestsView,
+                P::HousekeepingView, P::HousekeepingManage,
+                P::FiscalExceptionsReview, P::ReportsView,
+                P::ChannelsManage, P::ApprovalsManage,
             ],
-            default => [],
-        };
+            self::FrontDesk => [
+                P::ReservationsView, P::ReservationsManage, P::RoomsAssign,
+                P::GuestsView, P::GuestsRegister, P::GuestIdentityView,
+                P::ChargesPost,
+                P::HousekeepingView,
+            ],
+            self::Finance => [
+                P::ReservationsView, P::GuestsView,
+                P::ChargesPost,
+                P::FinanceView, P::FinanceCorrect, P::FiscalExceptionsReview, P::ReportsView,
+            ],
+            // Room status and tasks only: no guest identity documents or financial records.
+            self::Housekeeping => [
+                P::HousekeepingView, P::HousekeepingManage,
+            ],
+            // Read-only. No identity documents either.
+            self::Auditor => [
+                P::PropertiesView, P::MembersView,
+                P::ReservationsView, P::GuestsView,
+                P::HousekeepingView,
+                P::FinanceView, P::ReportsView,
+            ],
+        });
     }
 }

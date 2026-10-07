@@ -184,3 +184,21 @@ test('only owners archive and restore properties', function (OrganizationRole $r
     'housekeeping' => OrganizationRole::Housekeeping,
     'auditor' => OrganizationRole::Auditor,
 ]);
+
+test('members limited to their own properties are not shown the organization\'s archived properties', function (OrganizationRole $role) {
+    $t = twoTenants();
+
+    $this->actingAs($t->a->owner)
+        ->post(route('properties.archive', $t->a->otherProperty), ['_property' => $t->a->property->id]);
+
+    $this->actingAs($t->a->member($role))
+        ->get(route('properties.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('properties', 1)
+            ->where('properties.0.can.archive', false)
+            ->has('archivedProperties', 0));
+})->with([
+    'property manager' => OrganizationRole::PropertyManager,
+    'auditor' => OrganizationRole::Auditor,
+]);

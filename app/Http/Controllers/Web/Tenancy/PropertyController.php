@@ -32,6 +32,7 @@ class PropertyController extends Controller
         $user = $request->user();
 
         return Inertia::render('properties/index', [
+            'canCreate' => $user->can('create', Property::class),
             'properties' => Tenancy::propertiesFor($user)->map(fn (Property $property) => [
                 'id' => $property->id,
                 'name' => $property->name,
@@ -39,10 +40,13 @@ class PropertyController extends Controller
                 'timezone' => $property->timezone,
                 'currency' => $property->currency->value,
                 'jurisdictionProfile' => $property->jurisdiction_profile->value,
-                'can' => ['archive' => $user->can('archive', $property)],
+                'can' => [
+                    'update' => $user->can('update', $property),
+                    'archive' => $user->can('archive', $property),
+                ],
             ])->values(),
             // Archived properties stay readable here; they are left out of the switcher and operational lists.
-            'archivedProperties' => Property::query()
+            'archivedProperties' => ! $user->can('viewArchived', Property::class) ? [] : Property::query()
                 ->whereNotNull('archived_at')
                 ->orderBy('name')
                 ->get()

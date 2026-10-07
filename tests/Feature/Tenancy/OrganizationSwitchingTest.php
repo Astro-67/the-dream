@@ -71,13 +71,17 @@ test('switching organization makes it and one of its permitted properties curren
             ->where('tenant.organization', ['id' => $t->b->organization->id, 'name' => $t->b->organization->name])
             ->where('tenant.property.id', $t->b->property->id)
             ->where('tenant.properties', [['id' => $t->b->property->id, 'name' => $t->b->property->name]])
-            // The Bravo role's permissions, not the Alpha one's.
-            ->where('auth.permissions', ['members.invite']));
+            // The Bravo role's permissions (property manager), not the Alpha one's.
+            ->where('auth.permissions', fn ($permissions) => collect($permissions)->contains('members.invite')
+                && ! collect($permissions)->contains('properties.manage')));
 
     $this->get(route('invitations.index'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('invitations', fn ($invitations) => collect($invitations)->pluck('email')->all() === ['newcomer@bravo.test']));
-    $this->get(route('properties.index'))->assertForbidden();
+    $this->get(route('properties.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canCreate', false)
+            ->where('properties', fn ($properties) => collect($properties)->pluck('id')->all() === [$t->b->property->id]));
     // Alpha's records are out of reach while Bravo is current.
     $this->get(route('properties.edit', $t->a->property->id))->assertNotFound();
 
@@ -89,7 +93,8 @@ test('switching organization makes it and one of its permitted properties curren
             ->where('tenant.organization.id', $t->a->organization->id)
             ->where('tenant.property.id', fn ($id) => in_array($id, [$t->a->property->id, $t->a->otherProperty->id], true))
             ->has('tenant.properties', 2)
-            ->where('auth.permissions', ['properties.manage']));
+            ->where('auth.permissions', fn ($permissions) => collect($permissions)->contains('properties.manage')
+                && ! collect($permissions)->contains('members.invite')));
     $this->get(route('invitations.index'))->assertForbidden();
 });
 
