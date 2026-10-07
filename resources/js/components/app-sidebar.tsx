@@ -1,4 +1,5 @@
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
+import { usePage } from '@inertiajs/react';
+import { BookOpen, FolderGit2, LayoutGrid, MailPlus } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -12,6 +13,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as invitations } from '@/routes/invitations';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -35,7 +37,22 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
+const invitationsNavItem: NavItem = {
+    title: 'Invitations',
+    href: invitations(),
+    icon: MailPlus,
+};
+
 export function AppSidebar() {
+    const { permissions } = usePage().props.auth;
+    // Hidden from members who can't invite; the server still checks.
+    const canInvite =
+        permissions.includes('members.manage') ||
+        permissions.includes('members.invite');
+    const navItems = canInvite
+        ? [...mainNavItems, invitationsNavItem]
+        : mainNavItems;
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -47,7 +64,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={navItems} />
             </SidebarContent>
 
             <SidebarFooter>
