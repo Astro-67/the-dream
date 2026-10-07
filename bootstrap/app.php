@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsurePlatformRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireTwoFactor;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'tenant' => SetTenantContext::class,
+            'platform' => EnsurePlatformRole::class,
             'two-factor' => RequireTwoFactor::class,
         ]);
 

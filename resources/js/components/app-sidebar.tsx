@@ -1,4 +1,11 @@
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
+import { usePage } from '@inertiajs/react';
+import {
+    BookOpen,
+    Building2,
+    FolderGit2,
+    LayoutGrid,
+    ShieldCheck,
+} from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -12,6 +19,8 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as platformOrganizations } from '@/routes/platform/organizations';
+import { index as platformStaff } from '@/routes/platform/staff';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -35,7 +44,25 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
+const platformNavItems: NavItem[] = [
+    {
+        title: 'Organizations',
+        href: platformOrganizations(),
+        icon: Building2,
+    },
+    {
+        title: 'Platform staff',
+        href: platformStaff(),
+        icon: ShieldCheck,
+    },
+];
+
 export function AppSidebar() {
+    const { auth } = usePage().props;
+    const isPlatformAdministrator = auth.platformRoles.includes(
+        'platform_administrator',
+    );
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -48,6 +75,12 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} />
+                {isPlatformAdministrator && (
+                    <NavMain
+                        items={platformNavItems}
+                        label="Platform administration"
+                    />
+                )}
             </SidebarContent>
 
             <SidebarFooter>
