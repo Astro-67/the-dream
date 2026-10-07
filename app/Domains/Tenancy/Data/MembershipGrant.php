@@ -40,4 +40,17 @@ final readonly class MembershipGrant
     {
         return new self($role, false, array_values(array_unique($propertyIds)));
     }
+
+    /**
+     * The grant as audit trail values, compared before and after a change.
+     *
+     * @return array{role: string, all_properties: bool, property_ids: list<string>}
+     */
+    public function toAuditValues(): array
+    {
+        $propertyIds = $this->allProperties ? [] : $this->propertyIds;
+        sort($propertyIds);
+
+        return ['role' => $this->role->value, 'all_properties' => $this->allProperties, 'property_ids' => $propertyIds];
+    }
 }

@@ -7,6 +7,7 @@ import {
     LayoutGrid,
     MailPlus,
     ShieldCheck,
+    Users,
 } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -23,6 +24,7 @@ import {
 import { useCan } from '@/hooks/use-can';
 import { dashboard } from '@/routes';
 import { index as invitations } from '@/routes/invitations';
+import { index as members } from '@/routes/members';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
 import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
@@ -76,6 +78,9 @@ export function AppSidebar() {
         ...mainNavItems,
         ...(can('properties.view')
             ? [{ title: 'Properties', href: properties(), icon: Hotel }]
+            : []),
+        ...(can('members.view')
+            ? [{ title: 'Members', href: members(), icon: Users }]
             : []),
         ...(can('members.manage', 'members.invite')
             ? [invitationsNavItem]
