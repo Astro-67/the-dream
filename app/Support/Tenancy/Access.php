@@ -3,6 +3,7 @@
 namespace App\Support\Tenancy;
 
 use App\Domains\Tenancy\Enums\OrganizationPermission;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -38,6 +39,20 @@ final class Access
         $propertyId = self::propertyId($property);
 
         return Tenancy::allows($user, TenantContext::fromIds($organizationId, $propertyId));
+    }
+
+    /**
+     * Whether the user is an owner of the current organization. Only for rules
+     * about owners as people (they must use two-factor authentication); what a
+     * member may do is always a permission, checked with allows().
+     */
+    public static function isOwner(User $user): bool
+    {
+        $organizationId = Tenancy::current()?->organizationId;
+
+        return $organizationId !== null
+            && Tenancy::allows($user, TenantContext::fromIds($organizationId))
+            && $user->hasRole(OrganizationRole::Owner->value);
     }
 
     /**

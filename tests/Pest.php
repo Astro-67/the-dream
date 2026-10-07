@@ -83,14 +83,15 @@ function organizationSetupPayload(array $overrides = []): array
 
 /**
  * An organization with its first property and owner, built through the same
- * action the setup form uses.
+ * action the setup form uses. The owner has two-factor authentication on, as
+ * owner-only actions require (#13), unless one is passed in.
  *
  * @param  array<string, mixed>  $overrides  organization setup fields, as in organizationSetupPayload()
  * @return array{0: User, 1: Organization, 2: Property}
  */
 function organizationWithOwner(array $overrides = [], ?User $owner = null): array
 {
-    $owner ??= User::factory()->create();
+    $owner ??= User::factory()->withTwoFactor()->create();
     $organization = app(CreateOrganization::class)->handle($owner, OrganizationSetup::fromArray(organizationSetupPayload($overrides)));
     $property = inTenant($organization, fn () => Property::query()->sole());
 

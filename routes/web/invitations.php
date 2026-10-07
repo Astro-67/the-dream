@@ -4,8 +4,9 @@ use App\Http\Controllers\Web\Tenancy\InvitationAcceptanceController;
 use App\Http\Controllers\Web\Tenancy\InvitationController;
 use Illuminate\Support\Facades\Route;
 
-// Sending and revoking invitations, inside the current organization.
-Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
+// Sending and revoking invitations, inside the current organization. Managing members
+// is owner-only: owners need two-factor authentication (docs/architecture.md §4.2).
+Route::middleware(['auth', 'verified', 'tenant', 'two-factor:owner'])->group(function () {
     Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
     Route::get('invitations/create', [InvitationController::class, 'create'])->name('invitations.create');
     // The invite form carries the property it was opened for, so an invitation opened in one

@@ -10,7 +10,8 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::put('current-property', [CurrentPropertyController::class, 'update'])->name('current-property.update');
 
     // Forms here carry the property they were opened for (EnsurePropertyIntent).
-    Route::middleware('property.intent')->group(function () {
+    // Managing properties is owner-only: owners need two-factor authentication (docs/architecture.md §4.2).
+    Route::middleware(['property.intent', 'two-factor:owner'])->group(function () {
         Route::get('properties', [PropertyController::class, 'index'])->name('properties.index');
         Route::get('properties/create', [PropertyController::class, 'create'])->name('properties.create');
         Route::post('properties', [PropertyController::class, 'store'])->name('properties.store');
