@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { BookOpen, FolderGit2, Hotel, LayoutGrid } from 'lucide-react';
+import { BookOpen, FolderGit2, Hotel, LayoutGrid, MailPlus } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -13,6 +13,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as invitations } from '@/routes/invitations';
 import { index as properties } from '@/routes/properties';
 import type { NavItem } from '@/types';
 
@@ -37,13 +38,24 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
+const invitationsNavItem: NavItem = {
+    title: 'Invitations',
+    href: invitations(),
+    icon: MailPlus,
+};
+
 export function AppSidebar() {
-    const { auth } = usePage().props;
+    const { permissions } = usePage().props.auth;
+    // Hidden from members who can't use them; the server still checks.
+    const canInvite =
+        permissions.includes('members.manage') ||
+        permissions.includes('members.invite');
     const navItems: NavItem[] = [
         ...mainNavItems,
-        ...(auth.permissions.includes('properties.manage')
+        ...(permissions.includes('properties.manage')
             ? [{ title: 'Properties', href: properties(), icon: Hotel }]
             : []),
+        ...(canInvite ? [invitationsNavItem] : []),
     ];
 
     return (

@@ -88,7 +88,8 @@ app/Support/
   Tenancy/          Tenancy::within(), TenantContext, BelongsToTenant, BelongsToProperty
   Outbox/           Outbox model base, drainer, sweeper, idempotency keys
   Money/            Money value object, currency
-  Jobs/             TenantAware trait and job middleware (both call Tenancy::within)
+  Jobs/             TenantAware marker and the queue handler that runs queued work in Tenancy::within()
+  Console/          TenantCommand base class (--organization, --property; runs handle() in Tenancy::within())
 app/Http/Controllers/Web/      Inertia controllers, grouped by domain
 app/Http/Controllers/Api/V1/   Inbound webhooks and any future API
 routes/web.php                 Loads every file in routes/web/ (one file per domain)
@@ -140,11 +141,12 @@ Tenancy::within(TenantContext::platform('ZAN Gateway drain'), fn () => ...);  //
 - Reading the context: `Tenancy::current()`, `Tenancy::organization()`, `Tenancy::property()`, `Tenancy::isPlatform()`.
 - Choosing a context for a user (membership rechecked on every call): `Tenancy::allows($user, $context)`, `Tenancy::defaultContextFor($user)`, and for the switcher `Tenancy::organizationsFor($user)` and `Tenancy::propertiesFor($user)` (in the current organization).
 - **Web:** the `tenant` route middleware (`SetTenantContext`) reads the organization and property from the session, rechecks them with `Tenancy::allows`, falls back to `Tenancy::defaultContextFor`, and wraps the rest of the request in `within`. A user with no membership is sent to organization setup. It runs before `SubstituteBindings`, so route model binding is already scoped. `tenant:optional` sets the context when there is one but never redirects (used by user settings pages).
-- **Jobs (#10):** a `TenantAware` job captures `Tenancy::current()` when dispatched, and its job middleware calls `within` with it. No captured context means the job fails.
-- **Console and tests:** call `within` directly. Pest helpers: `organizationWithOwner()` builds an organization, its first property and its owner through the real action; `inTenant($organizationOrProperty, fn)` wraps `within`.
+- **Jobs (#10):** anything queued inside `within` (jobs, mail, notifications, listeners) captures `Tenancy::current()` in its queue payload, and `CallQueuedTenantHandler` re-enters that context with `within` on the worker, before the job is unserialized, so its models are restored, its middleware and `handle()` run, and its chain continues inside the tenant. The worker's state is restored after each job. Tenant models are restored with the tenant scope, so a job handed another tenant's record fails with `ModelNotFoundException`. A job marked `implements TenantAware` must have a tenant: dispatched outside one (or from the platform context) it fails at once with `MissingTenantContext`, without retries. Dispatch inside a block closure: `fn () => Job::dispatch()` queues the job only after `within` has returned.
+- **Console:** a command that acts for one tenant extends `App\Support\Console\TenantCommand`, which adds `--organization=<id>` (required) and `--property=<id>` and runs `handle()` inside `within`. Commands working across organizations enter `TenantContext::platform($reason)` themselves.
+- **Tests:** call `within` directly. Pest helpers: `organizationWithOwner()` builds an organization, its first property and its owner through the real action; `inTenant($organizationOrProperty, fn)` wraps `within`.
 - **Scoping:** `BelongsToTenant` (organization-owned models) adds a global scope on `organization_id`; `BelongsToProperty` (property-owned models) adds `property_id` too when a property is in context. `Organization` itself is scoped to the current organization. Creating a model fills both IDs from the context, and a mismatching ID or a change of `organization_id` throws `TenantMismatch`.
 - **Fail closed:** querying or creating a tenant-owned model with no context throws `MissingTenantContext`.
-- **Platform context:** the only way to read across organizations. Tenant scopes don't filter, the spatie team ID is cleared, created records must name their organization explicitly, and entering it is written to the activity log (`log_name` `platform`) with the actor and the reason. The scope class is used only inside `App\Support\Tenancy`, enforced by an architecture test.
+- **Platform context:** the only way to read across organizations. Tenant scopes don't filter, the spatie team ID is cleared, created records must name their organization explicitly, and entering it is written to the activity log (`log_name` `platform`) with the actor (the signed-in user as causer, and the running queued job or console command as the `job` or `command` property) and the reason. Queued work dispatched inside the platform context runs in it too, and logs its own entry. The scope class is used only inside `App\Support\Tenancy`, enforced by an architecture test.
 
 ### 4.2 Authorization (ADR 0007)
 

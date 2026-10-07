@@ -2,13 +2,13 @@
 
 namespace Tests\Support;
 
+use App\Domains\Tenancy\Actions\AddOrganizationMember;
 use App\Domains\Tenancy\Actions\CreateProperty;
+use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Data\PropertyDetails;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Organization;
-use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Domains\Tenancy\Models\Property;
-use App\Domains\Tenancy\Models\PropertyMembership;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -66,26 +66,21 @@ final class TenantFixture
 
         $members = [OrganizationRole::Owner->value => $owner];
 
-        // Until the membership actions land (invitations, #6), members are added here directly.
         inTenant($organization, function () use ($label, $slug, $first, &$members) {
             foreach (OrganizationRole::cases() as $role) {
                 if ($role === OrganizationRole::Owner) {
                     continue;
                 }
 
-                $allProperties = $role === OrganizationRole::GroupOperationsManager;
                 $user = User::factory()->create([
                     'name' => $label.' '.Str::headline($role->value),
                     'email' => "{$role->value}@{$slug}.test",
                 ]);
 
-                OrganizationMembership::query()->create(['user_id' => $user->id, 'all_properties' => $allProperties]);
+                app(AddOrganizationMember::class)->handle($user, $role === OrganizationRole::GroupOperationsManager
+                    ? MembershipGrant::allProperties($role)
+                    : MembershipGrant::properties($role, [$first->id]));
 
-                if (! $allProperties) {
-                    PropertyMembership::query()->create(['user_id' => $user->id, 'property_id' => $first->id]);
-                }
-
-                $user->assignRole($role->value);
                 $members[$role->value] = $user;
             }
         });
