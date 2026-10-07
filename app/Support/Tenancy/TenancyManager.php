@@ -107,12 +107,15 @@ final class TenancyManager
 
     /**
      * The context a user lands in when none is chosen: their first organization
-     * and the first property they may act in there. Null when they have no membership.
+     * and the first property they may act in there. Given an organization (a
+     * switch), its first property they may act in. Null when they have no
+     * membership (of that organization).
      */
-    public function defaultContextFor(User $user): ?TenantContext
+    public function defaultContextFor(User $user, ?string $organizationId = null): ?TenantContext
     {
         $memberships = $this->unscoped(OrganizationMembership::class)
             ->where('user_id', $user->getKey())
+            ->when($organizationId !== null, fn (Builder $query) => $query->where('organization_id', $organizationId))
             ->orderBy('created_at')
             ->orderBy('id')
             ->get();
