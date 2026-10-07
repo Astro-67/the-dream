@@ -1,14 +1,17 @@
 # Thedream PMS design system
 
 ## Overview
+
 A precise, calm interface for people running hotels: front desk, reservations, housekeeping, finance and compliance staff, working long shifts on desktops and tablets, often on slow connections. The aesthetic is quietly confident: clear headings, generous but disciplined spacing, flat surfaces with crisp borders. Information density is high where staff scan and act (calendars, tables, folios) and relaxed where they read or decide (onboarding, settings, confirmations). Every status is readable at a glance and never depends on colour alone.
 
 The interface is built on the Laravel React starter kit: Tailwind CSS 4, shadcn/ui and Radix. This document sets the values; the starter kit's components implement them. Interfaces ship in English and Kiswahili.
 
 ## Colors
+
 All text colours below meet WCAG AA (4.5:1) on the surface they're used on, and border and focus colours used for controls meet 3:1. Ratios were checked for both themes.
 
 ### Light theme
+
 - **Primary** (#4F46E5): primary button fill, active navigation, links, selected states. White text on it: 6.3:1
 - **Primary Hover** (#4338CA): hover and pressed state for primary elements
 - **Primary Tint** (#EEF2FF): selected rows, active filters, the current date in the calendar
@@ -23,6 +26,7 @@ All text colours below meet WCAG AA (4.5:1) on the surface they're used on, and 
 - **Destructive** (#DC2626): fill for destructive buttons (white text 4.8:1); use #B91C1C for destructive text
 
 ### Dark theme
+
 - **Primary** (#818CF8): primary fill with near-black text (#0A0A0B, 6.6:1); links and focus ring
 - **Primary Hover** (#A5B4FC)
 - **Primary Tint** (#818CF8 at 15% over surface)
@@ -37,17 +41,18 @@ All text colours below meet WCAG AA (4.5:1) on the surface they're used on, and 
 - **Destructive** (#F87171) with near-black text
 
 ### Status colours
+
 Status is always shown as a **label (and, where useful, an icon) plus colour**, never colour alone. Light theme: dark text on a pale tint. Dark theme: the 400 shade on a 15% tint of the same hue.
 
-| Role | Light text / tint | Dark text | Used for |
-|---|---|---|---|
-| Success | #047857 / #ECFDF5 | #34D399 | Delivered, paid, room clean, check-in complete |
-| Warning | #B45309 / #FFFBEB | #FBBF24 | Pending, late, room dirty, balance due |
-| Error | #B91C1C / #FEF2F2 | #F87171 | Failed, rejected, blocked, validation errors |
-| Info | #4338CA / #EEF2FF | #818CF8 | Sending, in progress, informational notices |
-| Occupied | #0369A1 / #F0F9FF | #38BDF8 | Room occupied |
-| Inspection | #6D28D9 / #F5F3FF | #A78BFA | Room needs inspection |
-| Unavailable | #475569 / #F1F5F9 | #94A3B8 | Room out of service, disabled integrations, archived |
+| Role        | Light text / tint | Dark text | Used for                                             |
+| ----------- | ----------------- | --------- | ---------------------------------------------------- |
+| Success     | #047857 / #ECFDF5 | #34D399   | Delivered, paid, room clean, check-in complete       |
+| Warning     | #B45309 / #FFFBEB | #FBBF24   | Pending, late, room dirty, balance due               |
+| Error       | #B91C1C / #FEF2F2 | #F87171   | Failed, rejected, blocked, validation errors         |
+| Info        | #4338CA / #EEF2FF | #818CF8   | Sending, in progress, informational notices          |
+| Occupied    | #0369A1 / #F0F9FF | #38BDF8   | Room occupied                                        |
+| Inspection  | #6D28D9 / #F5F3FF | #A78BFA   | Room needs inspection                                |
+| Unavailable | #475569 / #F1F5F9 | #94A3B8   | Room out of service, disabled integrations, archived |
 
 The bright shades (#10B981, #F59E0B, #EF4444) are allowed only for status dots and chart marks, never for text.
 
@@ -56,6 +61,7 @@ The bright shades (#10B981, #F59E0B, #EF4444) are allowed only for status dots a
 **Compliance and delivery status (RPT-04, ZAN-08):** delivered = Success, pending = Info, late = Warning, failed, rejected and blocked = Error, not applicable (mainland) = Unavailable.
 
 ## Typography
+
 - **Heading font:** General Sans, weight 600 only. Self-hosted (WOFF2, Latin subset) through the Laravel Vite font plugin, not loaded from the Fontshare CDN.
 - **Body font:** DM Sans, weights 400 and 500, loaded through Bunny Fonts as the starter kit already does.
 - **Mono font:** JetBrains Mono, weight 400. Used for identifiers: reservation numbers, channel references, receipt and VFMS reference numbers, document numbers, codes.
@@ -64,21 +70,23 @@ Headings use General Sans with letter spacing of -0.02em. Body and interface tex
 
 **Type scale** (size / line height):
 
-| Style | Font | Size |
-|---|---|---|
-| Display (auth and onboarding only) | General Sans 600 | 30 / 36px |
-| Page title | General Sans 600 | 24 / 32px |
-| Section heading | General Sans 600 | 18 / 28px |
-| Subheading | DM Sans 500 | 16 / 24px |
-| Body and inputs | DM Sans 400 | 14 / 20px |
-| Small | DM Sans 400 | 13 / 18px |
-| Caption | DM Sans 400 | 12 / 16px |
-| Overline | DM Sans 500, uppercase, +0.06em | 11 / 16px |
+| Style                              | Font                            | Size      |
+| ---------------------------------- | ------------------------------- | --------- |
+| Display (auth and onboarding only) | General Sans 600                | 30 / 36px |
+| Page title                         | General Sans 600                | 24 / 32px |
+| Section heading                    | General Sans 600                | 18 / 28px |
+| Subheading                         | DM Sans 500                     | 16 / 24px |
+| Body and inputs                    | DM Sans 400                     | 14 / 20px |
+| Small                              | DM Sans 400                     | 13 / 18px |
+| Caption                            | DM Sans 400                     | 12 / 16px |
+| Overline                           | DM Sans 500, uppercase, +0.06em | 11 / 16px |
 
 **Numbers:** money, counts, dates and times use tabular figures (`font-variant-numeric: tabular-nums`) so columns line up.
 
 ## Elevation
+
 Surfaces are flat, separated by 1px borders. Shadows mean "this floats" or "you can pick this up":
+
 - Dropdowns, popovers, the command palette and toasts use shadow-lg.
 - Dialogs and sheets use shadow-xl over a 40% black overlay.
 - Clickable cards gain a hover shadow (0 8px 30px rgba(0,0,0,0.08)) and lift 2px. Static cards and table rows never lift.
@@ -88,25 +96,27 @@ Surfaces are flat, separated by 1px borders. Shadows mean "this floats" or "you 
 Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion`: remove lifts and slides, keep fades.
 
 ## Components
+
 - **Buttons:** primary (Primary fill, white text), secondary (surface fill, 1px Input Border), ghost (text only, tinted background on hover), destructive (Destructive fill). Radius 6px, DM Sans 500. Sizes: 32px (dense toolbars and table rows), 36px (default), 44px (touch and tablet primary actions). Buttons don't move on hover; they change colour only. Loading buttons keep their width and show a spinner.
 - **Cards:** Surface, 1px Border, 12px radius. Only clickable cards (for example a property in the property picker) get the hover lift.
 - **Inputs and selects:** Surface fill, 1px Input Border, 6px radius, 8px × 12px padding, 14px text. Focus: Focus Ring. Error: Error border, plus an error message below the field (Error text, 13px, with an icon). The label always sits above the field, and placeholders are never used as labels.
 - **Checkboxes and switches:** square checkboxes (4px radius, 16px box inside a 24px hit area) for choosing items. Switches for settings that take effect immediately. Radios for one-of-many. Never round checkboxes.
 - **Chips:**
-  - **Status chips** are pill-shaped (9999px radius), 12px text, 2px × 8px padding, with a 6px dot and a label, in the status colours above.
-  - **Tags and filters** use a 4px radius, Background fill and Text Secondary text. Active filters use Primary Tint with Primary text.
+    - **Status chips** are pill-shaped (9999px radius), 12px text, 2px × 8px padding, with a 6px dot and a label, in the status colours above.
+    - **Tags and filters** use a 4px radius, Background fill and Text Secondary text. Active filters use Primary Tint with Primary text.
 - **Tooltips:** the shadcn/Radix Tooltip, which works with a keyboard and on touch. Never put essential information only in a tooltip, and never use native `title` tooltips.
 - **Dialogs and confirmations:** shadcn Dialog. Destructive confirmations name the object ("Cancel reservation R-1042?"), explain the consequence, and put the destructive button last. Any action that reports to ZRA says so ("This sends a cancellation to ZAN Gateway").
 - **Toasts:** bottom-right on desktop, top on mobile. Success toasts disappear after 4 seconds. Error toasts stay until dismissed.
 - **Empty states:** a one-line explanation plus the next action ("No arrivals today. Create a reservation"). No illustrations.
 - **Navigation:** the starter kit's collapsible sidebar on desktop and tablet, which becomes a sheet on mobile.
-  - **Organization and property switcher** at the top of the sidebar, always showing the current organization and property (PRD §4).
-  - **Top bar:** breadcrumb, the property's current **business date**, the connection status, and the user menu.
-  - **Sidebar sections:** Front desk, Reservations, Calendar, Housekeeping, Billing, Reports, Compliance (Zanzibar properties only), Settings.
+    - **Organization and property switcher** at the top of the sidebar, always showing the current organization and property (PRD §4).
+    - **Top bar:** breadcrumb, the property's current **business date**, the connection status, and the user menu.
+    - **Sidebar sections:** Front desk, Reservations, Calendar, Housekeeping, Billing, Reports, Compliance (Zanzibar properties only), Settings.
 - **Command palette (⌘K / Ctrl+K):** searches reservations by number, guest name, channel reference and room number, within the current property only. Opened from a search bar showing the shortcut badge.
 - **Connection status:** when the browser goes offline, a persistent amber banner below the top bar says "Offline: changes can't be saved", and actions that change data are disabled. No false success messages (PRD connectivity requirement).
 
 ## PMS patterns
+
 - **Data tables:** dense rows (40px; 48px on touch), sticky header, Border dividers, row hover in Background. Text columns are left-aligned; numbers and money are right-aligned with tabular figures. Row actions go in the last column, with an overflow menu after two actions. Sorting is shown in the header. Selected rows use Primary Tint.
 - **Reservation calendar (PMS-01):** rooms as rows, dates as columns. The current business date column uses Primary Tint. Each booking bar shows the guest name and channel, with a status chip on hover or focus. Out-of-service periods are hatched in Unavailable. The grid scrolls in both directions with sticky room labels and date header, and is fully usable with a keyboard.
 - **Money:** always shown with its currency code ("TZS 251,550", "USD 120.00"). TZS shows no decimals, while USD and EUR show two. Different currencies are never added together or shown as one total; a folio with two currencies shows two balances (FIN-01). Negative amounts use a minus sign, not just red.
@@ -118,6 +128,7 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 - **Touch:** housekeeping on mobile and the front desk on tablets need touch targets of at least 44 × 44px, with 8px between targets.
 
 ## Spacing
+
 - Base unit: 4px
 - Scale: 4, 8, 12, 16, 20, 24, 32, 40, 48, 64px
 - Component padding: small 4 × 8, medium 8 × 12, large 12 × 20
@@ -127,7 +138,9 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 - Card grid gap: 16–24px
 
 ## Border Radius
+
 Set the starter kit's `--radius` to 8px. Its derived sizes then give:
+
 - 4px (`rounded-sm`): tags, badges, inline code, checkboxes
 - 6px (`rounded-md`): buttons, inputs, selects
 - 8px (`rounded-lg`): panels, dropdowns, popovers, dialogs
@@ -135,29 +148,31 @@ Set the starter kit's `--radius` to 8px. Its derived sizes then give:
 - 9999px (`rounded-full`): avatars, status chips, status dots
 
 ## Implementation: shadcn tokens
+
 Map this document onto the variables in `resources/css/app.css` (`:root` for light, `.dark` for dark):
 
-| Variable | Light | Dark |
-|---|---|---|
-| `--background` | #FAFAFA | #0A0A0B |
-| `--foreground` | #0A0A0A | #F4F4F5 |
-| `--card`, `--popover`, `--sidebar` | #FFFFFF | #141416 (popover #1C1C1F) |
-| `--primary` | #4F46E5 | #818CF8 |
-| `--primary-foreground` | #FFFFFF | #0A0A0B |
-| `--secondary`, `--muted`, `--accent` | #F4F4F5 | #1C1C1F |
-| `--muted-foreground` | #6B6B6B | #A1A1AA |
-| `--destructive` | #DC2626 | #F87171 |
-| `--border` | #E8E8EC | #27272A |
-| `--input` | #8A8A94 | #63636B |
-| `--ring` | #4F46E5 | #818CF8 |
-| `--radius` | 0.5rem | 0.5rem |
-| `--font-sans` | DM Sans | DM Sans |
-| `--font-heading` (new) | General Sans | General Sans |
-| `--font-mono` | JetBrains Mono | JetBrains Mono |
+| Variable                             | Light          | Dark                      |
+| ------------------------------------ | -------------- | ------------------------- |
+| `--background`                       | #FAFAFA        | #0A0A0B                   |
+| `--foreground`                       | #0A0A0A        | #F4F4F5                   |
+| `--card`, `--popover`, `--sidebar`   | #FFFFFF        | #141416 (popover #1C1C1F) |
+| `--primary`                          | #4F46E5        | #818CF8                   |
+| `--primary-foreground`               | #FFFFFF        | #0A0A0B                   |
+| `--secondary`, `--muted`, `--accent` | #F4F4F5        | #1C1C1F                   |
+| `--muted-foreground`                 | #6B6B6B        | #A1A1AA                   |
+| `--destructive`                      | #DC2626        | #F87171                   |
+| `--border`                           | #E8E8EC        | #27272A                   |
+| `--input`                            | #8A8A94        | #63636B                   |
+| `--ring`                             | #4F46E5        | #818CF8                   |
+| `--radius`                           | 0.5rem         | 0.5rem                    |
+| `--font-sans`                        | DM Sans        | DM Sans                   |
+| `--font-heading` (new)               | General Sans   | General Sans              |
+| `--font-mono`                        | JetBrains Mono | JetBrains Mono            |
 
 Status colours become additional tokens (`--status-success`, `--status-success-tint` and so on) so that chips, room status and compliance views share one definition.
 
 ## Do's and Don'ts
+
 - Do use Primary only for interactive and selected elements, never for decoration or static text.
 - Do show every status as a label plus colour; never rely on colour alone.
 - Do keep the 4px spacing grid for padding, margins and gaps.
