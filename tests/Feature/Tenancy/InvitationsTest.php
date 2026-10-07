@@ -221,6 +221,20 @@ test('an owner can grant all properties to owners and group operations managers'
         ->has('tenant.properties', 2));
 });
 
+test('an owner invitation must grant all properties', function () {
+    $t = twoTenants();
+
+    $this->actingAs($t->a->owner)
+        ->post(route('invitations.store'), [
+            '_property' => $t->a->property->id,
+            'email' => 'co-owner@example.test',
+            'role' => 'owner',
+            'all_properties' => false,
+            'property_ids' => [$t->a->property->id],
+        ])
+        ->assertSessionHasErrors('all_properties');
+});
+
 test('only owners and group operations managers can be granted all properties', function () {
     $t = twoTenants();
 

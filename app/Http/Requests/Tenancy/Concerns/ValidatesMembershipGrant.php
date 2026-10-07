@@ -42,6 +42,10 @@ trait ValidatesMembershipGrant
         $role = OrganizationRole::tryFrom((string) $this->input('role'));
         $allProperties = $this->boolean('all_properties');
 
+        if ($role !== null && $role === OrganizationRole::Owner && ! $allProperties) {
+            $validator->errors()->add('all_properties', 'Owners work in all properties.');
+        }
+
         if ($role !== null && $allProperties && ! $role->mayHaveAllProperties()) {
             $validator->errors()->add('all_properties', 'Only owners and group operations managers can be given all properties.');
         }

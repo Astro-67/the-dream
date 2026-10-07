@@ -6,7 +6,7 @@ use App\Domains\Tenancy\Data\InvitationDetails;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Invitation;
 use App\Domains\Tenancy\Models\OrganizationMembership;
-use App\Domains\Tenancy\Models\Property;
+use App\Http\Requests\Tenancy\Concerns\ValidatesMembershipGrant;
 use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -20,6 +20,8 @@ use Illuminate\Validation\Validator;
  */
 class StoreInvitationRequest extends FormRequest
 {
+    use ValidatesMembershipGrant;
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', Invitation::class) ?? false;
@@ -39,10 +41,7 @@ class StoreInvitationRequest extends FormRequest
     {
         return [
             'email' => ['required', 'string', 'email', 'max:255', $this->notAlreadyInvitedOrMember(...)],
-            'role' => ['required', Rule::enum(OrganizationRole::class)],
-            'all_properties' => ['boolean'],
-            'property_ids' => ['exclude_if:all_properties,true', 'required', 'array', 'min:1'],
-            'property_ids.*' => ['string', 'distinct'],
+            ...$this->grantRules(),
             'expires_in_days' => ['nullable', 'integer', 'min:1', 'max:30'],
         ];
     }
@@ -52,9 +51,7 @@ class StoreInvitationRequest extends FormRequest
      */
     public function messages(): array
     {
-        return [
-            'property_ids.required' => 'Choose at least one property, or all properties.',
-        ];
+        return $this->grantMessages();
     }
 
     /**
@@ -62,22 +59,7 @@ class StoreInvitationRequest extends FormRequest
      */
     public function after(): array
     {
-        return [
-            function (Validator $validator) {
-                $role = OrganizationRole::tryFrom((string) $this->input('role'));
-
-                if ($role !== null && $this->boolean('all_properties') && ! $role->mayHaveAllProperties()) {
-                    $validator->errors()->add('all_properties', 'Only owners and group operations managers can be given all properties.');
-                }
-
-                $ids = $this->boolean('all_properties') ? [] : array_filter((array) $this->input('property_ids', []), 'is_string');
-
-                // Scoped to the current organization, so another organization's property is never accepted.
-                if ($ids !== [] && Property::query()->whereKey($ids)->whereNull('archived_at')->count() !== count(array_unique($ids))) {
-                    $validator->errors()->add('property_ids', 'Choose properties of this organization.');
-                }
-            },
-        ];
+        return [$this->validateGrant(...)];
     }
 
     public function details(): InvitationDetails
