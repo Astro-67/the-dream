@@ -9,6 +9,8 @@ namespace App\Support\Tenancy;
  */
 trait IsTenant
 {
+    use RestoresWithinTenant;
+
     public static function bootIsTenant(): void
     {
         static::addGlobalScope(new TenantScope('id'));
