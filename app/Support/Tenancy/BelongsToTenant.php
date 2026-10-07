@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 trait BelongsToTenant
 {
+    use RestoresWithinTenant;
+
     public static function bootBelongsToTenant(): void
     {
         $propertyOwned = in_array(BelongsToProperty::class, class_uses_recursive(static::class), true);

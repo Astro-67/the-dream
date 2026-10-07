@@ -29,6 +29,8 @@ final class TenancyManager
      */
     private array $stack = [];
 
+    public function __construct(private readonly Origin $origin) {}
+
     /**
      * Run the callback inside the given tenant context, with spatie's team ID set
      * to match. The previous context and team ID are restored afterwards.
@@ -204,9 +206,10 @@ final class TenancyManager
     private function logPlatformEntry(TenantContext $context): void
     {
         // Runs before the callback, so a failed log write means the platform work never starts.
+        // The causer is the signed-in user, if any; the running job or command is recorded too.
         activity('platform')
             ->event('platform_context_entered')
-            ->withProperties(['reason' => $context->platformReason])
+            ->withProperties(['reason' => $context->platformReason, ...$this->origin->describe()])
             ->log('Entered the platform context');
     }
 

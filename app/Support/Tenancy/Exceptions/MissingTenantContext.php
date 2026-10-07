@@ -25,6 +25,11 @@ final class MissingTenantContext extends RuntimeException
         return new self("Creating [{$model}] requires a property in the tenant context, or an explicit property_id.");
     }
 
+    public static function forJob(string $job): self
+    {
+        return new self("Tenant-scoped job [{$job}] was dispatched without a tenant context, so it will not run. Dispatch it inside Tenancy::within() with an organization (the platform context is not a tenant).");
+    }
+
     public static function forPlatformWrite(string $model): self
     {
         return new self("Creating [{$model}] in the platform context requires an explicit organization_id (and property_id for property-owned records).");
