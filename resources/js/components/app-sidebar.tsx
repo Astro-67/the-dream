@@ -1,5 +1,11 @@
 import { usePage } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, MailPlus } from 'lucide-react';
+import {
+    BookOpen,
+    FolderGit2,
+    Hotel,
+    LayoutGrid,
+    MailPlus,
+} from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -14,6 +20,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { index as invitations } from '@/routes/invitations';
+import { index as properties } from '@/routes/properties';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -45,13 +52,17 @@ const invitationsNavItem: NavItem = {
 
 export function AppSidebar() {
     const { permissions } = usePage().props.auth;
-    // Hidden from members who can't invite; the server still checks.
+    // Hidden from members who can't use them; the server still checks.
     const canInvite =
         permissions.includes('members.manage') ||
         permissions.includes('members.invite');
-    const navItems = canInvite
-        ? [...mainNavItems, invitationsNavItem]
-        : mainNavItems;
+    const navItems: NavItem[] = [
+        ...mainNavItems,
+        ...(permissions.includes('properties.manage')
+            ? [{ title: 'Properties', href: properties(), icon: Hotel }]
+            : []),
+        ...(canInvite ? [invitationsNavItem] : []),
+    ];
 
     return (
         <Sidebar collapsible="icon" variant="inset">
