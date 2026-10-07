@@ -11,6 +11,7 @@ type PropertyRow = {
     timezone: string;
     currency: Currency;
     jurisdictionProfile: JurisdictionProfile;
+    canUpdate: boolean;
 };
 
 const jurisdictionLabels: Record<JurisdictionProfile, string> = {
@@ -20,8 +21,10 @@ const jurisdictionLabels: Record<JurisdictionProfile, string> = {
 
 export default function PropertiesIndex({
     properties,
+    canCreate,
 }: {
     properties: PropertyRow[];
+    canCreate: boolean;
 }) {
     const { tenant } = usePage().props;
 
@@ -39,23 +42,27 @@ export default function PropertiesIndex({
                             jurisdiction profile.
                         </p>
                     </div>
-                    <Button asChild>
-                        <Link href={create()} data-test="add-property">
-                            <Plus aria-hidden />
-                            Add property
-                        </Link>
-                    </Button>
+                    {canCreate && (
+                        <Button asChild>
+                            <Link href={create()} data-test="add-property">
+                                <Plus aria-hidden />
+                                Add property
+                            </Link>
+                        </Button>
+                    )}
                 </header>
 
                 {properties.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         No properties you can work in.{' '}
-                        <Link
-                            href={create()}
-                            className="font-medium text-primary underline-offset-4 hover:underline"
-                        >
-                            Add a property
-                        </Link>
+                        {canCreate && (
+                            <Link
+                                href={create()}
+                                className="font-medium text-primary underline-offset-4 hover:underline"
+                            >
+                                Add a property
+                            </Link>
+                        )}
                     </p>
                 ) : (
                     <div className="overflow-x-auto rounded-lg border">
@@ -120,18 +127,20 @@ export default function PropertiesIndex({
                                             )}
                                         </td>
                                         <td className="px-4 py-2 text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                asChild
-                                            >
-                                                <Link
-                                                    href={edit(property.id)}
-                                                    aria-label={`Edit ${property.name}`}
+                                            {property.canUpdate && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    asChild
                                                 >
-                                                    Edit
-                                                </Link>
-                                            </Button>
+                                                    <Link
+                                                        href={edit(property.id)}
+                                                        aria-label={`Edit ${property.name}`}
+                                                    >
+                                                        Edit
+                                                    </Link>
+                                                </Button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

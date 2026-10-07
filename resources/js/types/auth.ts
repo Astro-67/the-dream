@@ -12,7 +12,7 @@ export type User = {
 
 export type Auth = {
     user: User;
-    /** Permissions in the current organization, for hiding actions. The server still checks. */
+    /** Permissions in the current property, for hiding actions (see useCan). The server still checks. */
     permissions: string[];
 };
 
