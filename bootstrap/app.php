@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequireTwoFactor;
 use App\Http\Middleware\SetTenantContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -25,7 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        $middleware->alias(['tenant' => SetTenantContext::class]);
+        $middleware->alias([
+            'tenant' => SetTenantContext::class,
+            'two-factor' => RequireTwoFactor::class,
+        ]);
 
         // Route model binding must already run inside the tenant context (ADR 0012).
         $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: SetTenantContext::class);
