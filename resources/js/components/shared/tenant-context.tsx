@@ -11,12 +11,6 @@ import {
 import { SidebarMenuButton } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { dashboard } from '@/routes';
-import type { JurisdictionProfile } from '@/types';
-
-const jurisdictionLabels: Record<JurisdictionProfile, string> = {
-    zanzibar: 'Zanzibar',
-    mainland_tanzania: 'Mainland',
-};
 
 /**
  * Top of the sidebar: the current organization and property (design.md,
@@ -91,7 +85,7 @@ export function CurrentProperty() {
             />
             <span className="truncate font-medium">{tenant.property.name}</span>
             <span className="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                {jurisdictionLabels[tenant.property.jurisdictionProfile]}
+                {tenant.property.jurisdictionLabel}
             </span>
         </div>
     );

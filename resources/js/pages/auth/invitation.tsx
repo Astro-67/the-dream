@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { dashboard, login, logout, register } from '@/routes';
 import { accept } from '@/routes/invitations';
+import { formatDate } from '@/features/platform/format';
 
 type Props = {
     invitation: {
@@ -19,12 +20,6 @@ type Props = {
     signedInAs: string | null;
     link: { organization: string; token: string };
 };
-
-const dateFormat = new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-});
 
 export default function Invitation({
     invitation,
@@ -54,7 +49,7 @@ export default function Invitation({
                     )}
                     <dt className="text-muted-foreground">Expires</dt>
                     <dd className="tabular-nums">
-                        {dateFormat.format(new Date(invitation.expiresAt))}
+                        {formatDate(invitation.expiresAt)}
                     </dd>
                 </dl>
 

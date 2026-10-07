@@ -1,16 +1,6 @@
 import { Form, Head } from '@inertiajs/react';
-import { useState } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
 import InputError from '@/components/input-error';
-import TextLink from '@/components/text-link';
-import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -20,52 +10,48 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import TextLink from '@/components/text-link';
+import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
+import type { PropertyFormOptions } from '@/features/tenancy/property-fields';
+import { PropertyFields } from '@/features/tenancy/property-fields';
 import { logout } from '@/routes';
 import { store } from '@/routes/organizations';
-import type { JurisdictionProfile, SelectOption } from '@/types';
+import type { Currency, SelectOption } from '@/types';
 
 type Props = {
     countries: SelectOption[];
-    propertyTypes: SelectOption[];
-    currencies: SelectOption[];
-    jurisdictionProfiles: SelectOption[];
-    timezones: string[];
-    defaults: {
-        country: string;
-        timezone: string;
-        currency: string;
+} & PropertyFormOptions & {
+        defaults: {
+            country: string;
+            timezone: string;
+            currency: Currency;
+        };
     };
-};
-
-const jurisdictionHints: Record<JurisdictionProfile, string> = {
-    zanzibar:
-        'ZRA rules apply: booking reports to ZAN Gateway and fiscal receipts through VFMS.',
-    mainland_tanzania:
-        'No ZRA reporting. Thedream issues non-fiscal receipts for mainland properties.',
-};
 
 function Field({
     id,
     label,
     error,
-    hint,
-    className,
     children,
 }: {
     id: string;
     label: string;
     error?: string;
-    hint?: string;
-    className?: string;
     children: React.ReactNode;
 }) {
     return (
-        <div className={cn('grid content-start gap-2', className)}>
+        <div className={cn('grid content-start gap-2')}>
             <Label htmlFor={id}>{label}</Label>
             {children}
-            {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
             <InputError message={error} />
         </div>
     );
@@ -108,9 +94,6 @@ export default function CreateOrganization({
     timezones,
     defaults,
 }: Props) {
-    const [jurisdiction, setJurisdiction] =
-        useState<JurisdictionProfile | null>(null);
-
     return (
         <>
             <Head title="Set up your organization" />
@@ -182,224 +165,27 @@ export default function CreateOrganization({
                                             Your first property
                                         </CardTitle>
                                         <CardDescription>
-                                            The hotel you'll start working in.
+                                            The property you'll start working
+                                            in.
                                         </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="grid gap-6 sm:grid-cols-2">
-                                        <Field
-                                            id="property_name"
-                                            label="Property name"
-                                            error={errors.property_name}
-                                        >
-                                            <Input
-                                                id="property_name"
-                                                name="property_name"
-                                                required
-                                            />
-                                        </Field>
-                                        <Field
-                                            id="property_type"
-                                            label="Property type"
-                                            error={errors.property_type}
-                                        >
-                                            <OptionSelect
-                                                id="property_type"
-                                                name="property_type"
-                                                options={propertyTypes}
-                                                placeholder="Choose a type"
-                                            />
-                                        </Field>
-
-                                        <fieldset className="grid gap-3 sm:col-span-2">
-                                            <legend className="mb-3 text-sm leading-none font-medium">
-                                                Jurisdiction profile
-                                            </legend>
-                                            <div className="grid gap-3 sm:grid-cols-2">
-                                                {jurisdictionProfiles.map(
-                                                    (profile) => {
-                                                        const value =
-                                                            profile.value as JurisdictionProfile;
-                                                        const checked =
-                                                            jurisdiction ===
-                                                            value;
-
-                                                        return (
-                                                            <label
-                                                                key={value}
-                                                                className={cn(
-                                                                    'flex cursor-pointer gap-3 rounded-lg border border-input p-4 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2',
-                                                                    checked &&
-                                                                        'border-primary bg-primary/5',
-                                                                )}
-                                                            >
-                                                                <input
-                                                                    type="radio"
-                                                                    name="jurisdiction_profile"
-                                                                    value={
-                                                                        value
-                                                                    }
-                                                                    required
-                                                                    checked={
-                                                                        checked
-                                                                    }
-                                                                    onChange={() =>
-                                                                        setJurisdiction(
-                                                                            value,
-                                                                        )
-                                                                    }
-                                                                    className="mt-0.5 size-4 accent-primary"
-                                                                />
-                                                                <span className="grid gap-1">
-                                                                    <span className="text-sm font-medium">
-                                                                        {
-                                                                            profile.label
-                                                                        }
-                                                                    </span>
-                                                                    <span className="text-xs text-muted-foreground">
-                                                                        {
-                                                                            jurisdictionHints[
-                                                                                value
-                                                                            ]
-                                                                        }
-                                                                    </span>
-                                                                </span>
-                                                            </label>
-                                                        );
-                                                    },
-                                                )}
-                                            </div>
-                                            <InputError
-                                                message={
-                                                    errors.jurisdiction_profile
-                                                }
-                                            />
-                                        </fieldset>
-
-                                        {jurisdiction === 'zanzibar' && (
-                                            <Field
-                                                id="zra_hotel_code"
-                                                label="ZRA hotel code (optional)"
-                                                hint="Issued when ZRA registers the property. You can add it later."
-                                                error={errors.zra_hotel_code}
-                                                className="sm:col-span-2"
-                                            >
-                                                <Input
-                                                    id="zra_hotel_code"
-                                                    name="zra_hotel_code"
-                                                    className="font-mono"
-                                                />
-                                            </Field>
-                                        )}
-
-                                        <Field
-                                            id="address_line"
-                                            label="Street address"
-                                            error={errors.address_line}
-                                            className="sm:col-span-2"
-                                        >
-                                            <Input
-                                                id="address_line"
-                                                name="address_line"
-                                                required
-                                                autoComplete="address-line1"
-                                            />
-                                        </Field>
-                                        <Field
-                                            id="city"
-                                            label="City or town"
-                                            error={errors.city}
-                                        >
-                                            <Input
-                                                id="city"
-                                                name="city"
-                                                required
-                                                autoComplete="address-level2"
-                                            />
-                                        </Field>
-                                        <Field
-                                            id="region"
-                                            label="Region"
-                                            error={errors.region}
-                                        >
-                                            <Input
-                                                id="region"
-                                                name="region"
-                                                required
-                                                autoComplete="address-level1"
-                                            />
-                                        </Field>
-                                        <Field
-                                            id="postal_code"
-                                            label="Postal code (optional)"
-                                            error={errors.postal_code}
-                                        >
-                                            <Input
-                                                id="postal_code"
-                                                name="postal_code"
-                                                autoComplete="postal-code"
-                                            />
-                                        </Field>
-                                        <Field
-                                            id="phone"
-                                            label="Phone"
-                                            error={errors.phone}
-                                        >
-                                            <Input
-                                                id="phone"
-                                                name="phone"
-                                                type="tel"
-                                                required
-                                                autoComplete="tel"
-                                            />
-                                        </Field>
-                                        <Field
-                                            id="email"
-                                            label="Property email"
-                                            error={errors.email}
-                                            className="sm:col-span-2"
-                                        >
-                                            <Input
-                                                id="email"
-                                                name="email"
-                                                type="email"
-                                                required
-                                                autoComplete="email"
-                                            />
-                                        </Field>
-                                        <Field
-                                            id="timezone"
-                                            label="Timezone"
-                                            error={errors.timezone}
-                                        >
-                                            <OptionSelect
-                                                id="timezone"
-                                                name="timezone"
-                                                options={timezones.map(
-                                                    (zone) => ({
-                                                        value: zone,
-                                                        label: zone.replaceAll(
-                                                            '_',
-                                                            ' ',
-                                                        ),
-                                                    }),
-                                                )}
-                                                defaultValue={defaults.timezone}
-                                                placeholder="Choose a timezone"
-                                            />
-                                        </Field>
-                                        <Field
-                                            id="currency"
-                                            label="Operational currency"
-                                            error={errors.currency}
-                                        >
-                                            <OptionSelect
-                                                id="currency"
-                                                name="currency"
-                                                options={currencies}
-                                                defaultValue={defaults.currency}
-                                                placeholder="Choose a currency"
-                                            />
-                                        </Field>
+                                    <CardContent>
+                                        <PropertyFields
+                                            options={{
+                                                propertyTypes,
+                                                currencies,
+                                                jurisdictionProfiles,
+                                                timezones,
+                                            }}
+                                            values={{
+                                                timezone: defaults.timezone,
+                                                currency: defaults.currency,
+                                            }}
+                                            errors={errors}
+                                            nameField="property_name"
+                                            defaultJurisdiction="zanzibar"
+                                            autoFocusName={false}
+                                        />
                                     </CardContent>
                                 </Card>
 

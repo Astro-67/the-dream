@@ -13,6 +13,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { create, destroy, index } from '@/routes/invitations';
+import { formatDate } from '@/features/platform/format';
 
 type PendingInvitation = {
     id: string;
@@ -30,12 +31,6 @@ type Props = {
     invitations: PendingInvitation[];
     canInvite: boolean;
 };
-
-const dateFormat = new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-});
 
 function RevokeInvitation({ invitation }: { invitation: PendingInvitation }) {
     return (
@@ -163,9 +158,7 @@ export default function Invitations({ invitations, canInvite }: Props) {
                                             {invitation.invitedBy ?? '—'}
                                         </td>
                                         <td className="h-10 px-4 text-muted-foreground tabular-nums">
-                                            {dateFormat.format(
-                                                new Date(invitation.expiresAt),
-                                            )}
+                                            {formatDate(invitation.expiresAt)}
                                         </td>
                                         <td className="h-10 px-4 text-right">
                                             {invitation.canRevoke && (

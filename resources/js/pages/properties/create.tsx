@@ -22,8 +22,8 @@ export default function CreateProperty({ defaults, ...options }: Props) {
                         Add property
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Another hotel in your organization, with its own local
-                        settings.
+                        Another property in your organization, with its own
+                        local settings.
                     </p>
                 </header>
 
