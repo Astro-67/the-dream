@@ -74,7 +74,7 @@ function ArchiveProperty({ property }: { property: PropertyRow }) {
                             {(errors.archive || errors._property) && (
                                 <p
                                     role="alert"
-                                    className="mb-4 flex gap-2 text-[13px] text-red-700 dark:text-red-400"
+                                    className="mb-4 flex gap-2 text-[13px] text-status-error"
                                 >
                                     <AlertCircle
                                         aria-hidden
@@ -126,10 +126,10 @@ function RestoreProperty({ property }: { property: ArchivedPropertyRow }) {
 
 function ArchivedChip() {
     return (
-        <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-400/15 dark:text-slate-400">
+        <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-status-unavailable-tint px-2 py-0.5 text-xs font-medium text-status-unavailable">
             <span
                 aria-hidden
-                className="size-1.5 rounded-full bg-slate-500 dark:bg-slate-400"
+                className="size-1.5 rounded-full bg-status-unavailable"
             />
             Archived
         </span>

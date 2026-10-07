@@ -316,7 +316,7 @@ Each integration domain has two parts:
 
 | Concern | Convention |
 |---|---|
-| Primary keys | ULID on every table (`HasUlids`) |
+| Primary keys | ULIDs (`HasUlids`) for application-owned models, including users, tenancy and platform tables. Framework/vendor storage tables retain their package-defined key types: passkeys, Spatie roles and permissions, activity log, and queue tables (`jobs`). Permission team and model morph keys are ULID-compatible. |
 | Money | Integer minor units plus an ISO currency code. A value object, never floats. VFMS "EURO" is mapped to and from EUR at the adapter |
 | Reservation number | A `reservation_number_sequences` row per property, incremented under `SELECT … FOR UPDATE` in the creating transaction. Formatted per property, never reused (PRD PMS-03). Separate from the ULID |
 | Channel reference | Stored on the reservation, unique per channel connection |

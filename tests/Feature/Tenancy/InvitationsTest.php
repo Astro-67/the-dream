@@ -190,7 +190,7 @@ test('an owner revokes a pending invitation, which leaves the list and can\'t be
     $invitation = inTenant($organization, fn () => Invitation::query()->sole());
 
     $this->actingAs($owner)
-        ->delete(route('invitations.destroy', $invitation))
+        ->delete(route('invitations.destroy', $invitation), ['_property' => $property->id])
         ->assertRedirect(route('invitations.index'));
     $this->get(route('invitations.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
 
@@ -301,7 +301,7 @@ test('a property manager neither sees nor revokes invitations beyond their own p
     $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
         ->get(route('invitations.index'))
         ->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
-    $this->delete(route('invitations.destroy', $invitation))->assertForbidden();
+    $this->delete(route('invitations.destroy', $invitation), ['_property' => $t->a->property->id])->assertForbidden();
 
     expect(inTenant($t->a->organization, fn () => Invitation::query()->pending()->count()))->toBe(1);
 });
@@ -342,7 +342,7 @@ test('sending, accepting and revoking invitations are audited with the actor and
     auth()->logout();
     invitationLink($owner, ['email' => 'zawadi@example.test', 'property_ids' => [$property->id]]);
     $revoked = inTenant($organization, fn () => Invitation::query()->where('email', 'zawadi@example.test')->sole());
-    $this->actingAs($owner)->delete(route('invitations.destroy', $revoked));
+    $this->actingAs($owner)->delete(route('invitations.destroy', $revoked), ['_property' => $property->id]);
 
     $entry = fn (string $event, string $email) => Activity::query()->where('log_name', 'audit')->where('event', $event)->get()
         ->sole(fn (Activity $a) => $a->getExtraProperty('attributes')['email'] === $email);
