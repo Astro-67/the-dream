@@ -1,5 +1,12 @@
 <?php
 
+use App\Domains\Tenancy\Actions\CreateOrganization;
+use App\Domains\Tenancy\Data\OrganizationSetup;
+use App\Domains\Tenancy\Models\Organization;
+use App\Domains\Tenancy\Models\Property;
+use App\Models\User;
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +51,62 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * A valid organization setup form submission. Override any field by key.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function organizationSetupPayload(array $overrides = []): array
 {
-    // ..
+    return [
+        'organization_name' => 'Spice Island Hotels',
+        'country' => 'TZ',
+        'property_name' => 'Stone Town Inn',
+        'property_type' => 'hotel',
+        'address_line' => 'Kenyatta Road 12',
+        'city' => 'Zanzibar City',
+        'region' => 'Mjini Magharibi',
+        'postal_code' => '71101',
+        'phone' => '+255 24 223 0000',
+        'email' => 'frontdesk@stonetowninn.example',
+        'timezone' => 'Africa/Dar_es_Salaam',
+        'currency' => 'USD',
+        'jurisdiction_profile' => 'zanzibar',
+        'zra_hotel_code' => 'ZH-0042',
+        ...$overrides,
+    ];
+}
+
+/**
+ * An organization with its first property and owner, built through the same
+ * action the setup form uses.
+ *
+ * @param  array<string, mixed>  $overrides  organization setup fields, as in organizationSetupPayload()
+ * @return array{0: User, 1: Organization, 2: Property}
+ */
+function organizationWithOwner(array $overrides = [], ?User $owner = null): array
+{
+    $owner ??= User::factory()->create();
+    $organization = app(CreateOrganization::class)->handle($owner, OrganizationSetup::fromArray(organizationSetupPayload($overrides)));
+    $property = inTenant($organization, fn () => Property::query()->sole());
+
+    return [$owner, $organization, $property];
+}
+
+/**
+ * Run a callback inside an organization's (or a property's) tenant context.
+ *
+ * @template TReturn
+ *
+ * @param  Closure(): TReturn  $callback
+ * @return TReturn
+ */
+function inTenant(Organization|Property $tenant, Closure $callback): mixed
+{
+    $context = $tenant instanceof Property
+        ? TenantContext::forProperty($tenant)
+        : TenantContext::forOrganization($tenant);
+
+    return Tenancy::within($context, $callback);
 }

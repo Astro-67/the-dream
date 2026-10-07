@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -16,9 +15,9 @@ class DashboardTest extends TestCase
         $response->assertRedirect(route('login'));
     }
 
-    public function test_authenticated_users_can_visit_the_dashboard()
+    public function test_organization_members_can_visit_the_dashboard()
     {
-        $user = User::factory()->create();
+        [$user] = organizationWithOwner();
         $this->actingAs($user);
 
         $response = $this->get(route('dashboard'));
