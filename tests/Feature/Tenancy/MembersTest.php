@@ -378,16 +378,16 @@ test('role changes, property changes, removals and transfers are audited with be
         ->and($entries->every(fn (Activity $entry) => $entry->causer_id === $t->a->owner->id
             && $entry->getExtraProperty('organization_id') === $t->a->organization->id))->toBeTrue();
 
-    expect($entries[0]->getExtraProperty('old'))->toBe(['user_id' => $frontDesk->id, 'role' => 'front_desk', 'all_properties' => false, 'property_ids' => [$t->a->property->id]])
-        ->and($entries[0]->getExtraProperty('attributes'))->toBe(['user_id' => $frontDesk->id, 'role' => 'auditor', 'all_properties' => false, 'property_ids' => [$t->a->otherProperty->id]]);
+    expect($entries[0]->getExtraProperty('old'))->toEqual(['user_id' => $frontDesk->id, 'role' => 'front_desk', 'all_properties' => false, 'property_ids' => [$t->a->property->id]])
+        ->and($entries[0]->getExtraProperty('attributes'))->toEqual(['user_id' => $frontDesk->id, 'role' => 'auditor', 'all_properties' => false, 'property_ids' => [$t->a->otherProperty->id]]);
 
-    expect($entries[1]->getExtraProperty('old'))->toBe(['user_id' => $housekeeping->id, 'role' => 'housekeeping', 'all_properties' => false, 'property_ids' => [$t->a->property->id]])
+    expect($entries[1]->getExtraProperty('old'))->toEqual(['user_id' => $housekeeping->id, 'role' => 'housekeeping', 'all_properties' => false, 'property_ids' => [$t->a->property->id]])
         ->and($entries[1]->getExtraProperty('attributes'))->toBeNull();
 
-    expect($entries[2]->getExtraProperty('old'))->toBe([
+    expect($entries[2]->getExtraProperty('old'))->toEqual([
         'new_owner' => ['user_id' => $manager->id, 'role' => 'group_operations_manager', 'all_properties' => true, 'property_ids' => []],
         'previous_owner' => ['user_id' => $t->a->owner->id, 'role' => 'owner', 'all_properties' => true, 'property_ids' => []],
-    ])->and($entries[2]->getExtraProperty('attributes'))->toBe([
+    ])->and($entries[2]->getExtraProperty('attributes'))->toEqual([
         'new_owner' => ['user_id' => $manager->id, 'role' => 'owner', 'all_properties' => true, 'property_ids' => []],
         'previous_owner' => ['user_id' => $t->a->owner->id, 'role' => 'group_operations_manager', 'all_properties' => true, 'property_ids' => []],
     ]);
