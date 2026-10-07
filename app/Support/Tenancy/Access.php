@@ -7,6 +7,7 @@ use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 /**
  * The authorization check every policy uses (ADR 0007): the member's role in the
@@ -32,7 +33,17 @@ final class Access
     {
         $organizationId = Tenancy::current()?->organizationId;
 
-        if ($organizationId === null || ! $user->checkPermissionTo(self::name($permission))) {
+        if ($organizationId === null) {
+            return false;
+        }
+
+        try {
+            $hasPermission = $user->checkPermissionTo(self::name($permission));
+        } catch (PermissionDoesNotExist) {
+            return false;
+        }
+
+        if (! $hasPermission) {
             return false;
         }
 

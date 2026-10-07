@@ -56,25 +56,27 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        $ownedMemberships = Tenancy::within(TenantContext::platform('Check last-owner account deletion'), fn () => OrganizationMembership::query()
-            ->where('user_id', $user->getKey())
-            ->get()
-            ->filter(fn (OrganizationMembership $membership) => Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => $membership->user->hasRole(OrganizationRole::Owner->value))));
-
-        foreach ($ownedMemberships as $membership) {
-            $hasAnotherOwner = Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => OrganizationMembership::query()
-                ->where('user_id', '!=', $user->getKey())
-                ->get()
-                ->contains(fn (OrganizationMembership $other) => $other->user->hasRole(OrganizationRole::Owner->value)));
-
-            if (! $hasAnotherOwner) {
-                throw ValidationException::withMessages([
-                    'account' => __('Your account cannot be deleted while you are the last owner of an organization. Transfer ownership or add another owner first.'),
-                ]);
-            }
-        }
-
         DB::transaction(function () use ($user) {
+            $ownedMemberships = Tenancy::within(TenantContext::platform('Check last-owner account deletion'), fn () => OrganizationMembership::query()
+                ->where('user_id', $user->getKey())
+                ->lockForUpdate()
+                ->get()
+                ->filter(fn (OrganizationMembership $membership) => Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => $membership->user->hasRole(OrganizationRole::Owner->value))));
+
+            foreach ($ownedMemberships as $membership) {
+                $hasAnotherOwner = Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => OrganizationMembership::query()
+                    ->where('user_id', '!=', $user->getKey())
+                    ->lockForUpdate()
+                    ->get()
+                    ->contains(fn (OrganizationMembership $other) => $other->user->hasRole(OrganizationRole::Owner->value)));
+
+                if (! $hasAnotherOwner) {
+                    throw ValidationException::withMessages([
+                        'account' => __('Your account cannot be deleted while you are the last owner of an organization. Transfer ownership or add another owner first.'),
+                    ]);
+                }
+            }
+
             Auth::logout();
             $user->delete();
         });

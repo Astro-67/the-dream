@@ -348,16 +348,19 @@ test('sending, accepting and revoking invitations are audited with the actor and
         ->sole(fn (Activity $a) => $a->getExtraProperty('attributes')['email'] === $email);
 
     $invited = $entry('invited', 'amina@example.test');
-    expect($invited->causer?->is($owner))->toBeTrue()
+    expect($invited->getExtraProperty('result'))->toBe('success')
+        ->and($invited->causer?->is($owner))->toBeTrue()
         ->and($invited->getExtraProperty('organization_id'))->toBe($organization->id)
         ->and($invited->getExtraProperty('attributes'))->toMatchArray(['role' => 'auditor', 'all_properties' => false, 'property_ids' => [$property->id]]);
 
     $accepted = $entry('accepted', 'amina@example.test');
-    expect($accepted->causer?->is($amina))->toBeTrue()
+    expect($accepted->getExtraProperty('result'))->toBe('success')
+        ->and($accepted->causer?->is($amina))->toBeTrue()
         ->and($accepted->getExtraProperty('organization_id'))->toBe($organization->id);
 
     $revokedEntry = $entry('revoked', 'zawadi@example.test');
-    expect($revokedEntry->causer?->is($owner))->toBeTrue()
+    expect($revokedEntry->getExtraProperty('result'))->toBe('success')
+        ->and($revokedEntry->causer?->is($owner))->toBeTrue()
         ->and($revokedEntry->getExtraProperty('organization_id'))->toBe($organization->id);
 
     expect(Activity::query()->where('event', 'member_added')->sole()->getExtraProperty('attributes'))
