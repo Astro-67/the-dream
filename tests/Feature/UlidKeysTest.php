@@ -3,6 +3,7 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -37,4 +38,15 @@ test('a user can hold a role and a direct permission within a ULID-keyed organiz
 
     expect($user->fresh()->hasRole('front desk'))->toBeFalse();
     expect($user->fresh()->hasDirectPermission('reservations.view'))->toBeFalse();
+});
+
+test('an audit entry records a ULID-keyed user as both its causer and its subject', function () {
+    $actor = User::factory()->create();
+    $member = User::factory()->create();
+
+    activity()->causedBy($actor)->performedOn($member)->log('member invited');
+
+    $entry = Activity::query()->latest('id')->firstOrFail();
+    expect($entry->causer?->is($actor))->toBeTrue();
+    expect($entry->subject?->is($member))->toBeTrue();
 });
