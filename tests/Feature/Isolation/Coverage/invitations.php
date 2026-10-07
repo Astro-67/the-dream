@@ -51,15 +51,20 @@ return [
     // The form offers only Alpha's properties.
     'invitations.create' => RouteCoverage::visit(),
 
-    // Inviting to a Bravo property is refused, and nothing is created in Bravo.
+    // Inviting to a Bravo property, or from a form carrying Bravo's property, is refused, and nothing is created in Bravo.
     'invitations.store' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $invite = ['email' => 'spy@alpha.test', 'role' => 'front_desk', 'property_ids' => [$t->b->property->id]];
+
         $responses = [
             $this->actingAs($t->a->owner)
-                ->post(route('invitations.store'), ['email' => 'spy@alpha.test', 'role' => 'front_desk', 'property_ids' => [$t->b->property->id]])
+                ->post(route('invitations.store'), [...$invite, '_property' => $t->a->property->id])
                 ->assertSessionHasErrors('property_ids'),
             $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
-                ->post(route('invitations.store'), ['email' => 'spy@alpha.test', 'role' => 'front_desk', 'property_ids' => [$t->b->property->id]])
+                ->post(route('invitations.store'), [...$invite, '_property' => $t->a->property->id])
                 ->assertSessionHasErrors('property_ids'),
+            $this->actingAs($t->a->owner)
+                ->post(route('invitations.store'), [...$invite, '_property' => $t->b->property->id])
+                ->assertForbidden(),
         ];
 
         expect(inTenant($t->b->organization, fn () => Invitation::query()->count()))->toBe(0);
