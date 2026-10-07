@@ -2,6 +2,7 @@
 
 use App\Domains\Tenancy\Contracts\PreArchiveCheck;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Support\Tenancy\Access;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Fixtures\Tenancy\RefuseArchivingProperty;
@@ -138,6 +139,30 @@ test('archiving and restoring are audited with the actor, and the property\'s ea
     }
 });
 
+test('permitted readers can access archived records while writes remain refused', function () {
+    $t = twoTenants();
+    $auditor = $t->a->member(OrganizationRole::Auditor);
+
+    $this->actingAs($t->a->owner)
+        ->post(route('properties.archive', $t->a->property), ['_property' => $t->a->property->id]);
+
+    $this->actingAs($auditor)
+        ->get(route('properties.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('archivedProperties', 1)
+            ->where('archivedProperties.0.name', 'Alpha Stone Town Inn'));
+
+    expect(inTenant($t->a->organization, fn () => Access::allows($auditor, 'properties.view', $t->a->property)))->toBeTrue();
+
+    $this->actingAs($t->a->owner)
+        ->post(route('properties.archive', $t->a->otherProperty), ['_property' => $t->a->otherProperty->id]);
+
+    $this->actingAs($auditor)
+        ->put(route('properties.update', $t->a->property), PropertyForm::payload(['_property' => $t->a->otherProperty->id]))
+        ->assertForbidden();
+});
+
 test('managers still see archived properties, which stay out of reach for daily work', function () {
     $t = twoTenants();
     $manager = $t->a->member(OrganizationRole::GroupOperationsManager);
@@ -185,7 +210,7 @@ test('only owners archive and restore properties', function (OrganizationRole $r
     'auditor' => OrganizationRole::Auditor,
 ]);
 
-test('members limited to their own properties are not shown the organization\'s archived properties', function (OrganizationRole $role) {
+test('members with properties.view can see the organization\'s archived list', function (OrganizationRole $role) {
     $t = twoTenants();
 
     $this->actingAs($t->a->owner)
@@ -197,7 +222,7 @@ test('members limited to their own properties are not shown the organization\'s 
         ->assertInertia(fn (Assert $page) => $page
             ->has('properties', 1)
             ->where('properties.0.can.archive', false)
-            ->has('archivedProperties', 0));
+            ->has('archivedProperties', 1));
 })->with([
     'property manager' => OrganizationRole::PropertyManager,
     'auditor' => OrganizationRole::Auditor,

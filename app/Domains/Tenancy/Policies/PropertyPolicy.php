@@ -24,12 +24,11 @@ class PropertyPolicy
     }
 
     /**
-     * Archived properties are out of everyone's reach for daily work, so they
-     * are listed only to the roles that run the whole portfolio.
+     * Archived property history is visible to any member who can view properties.
      */
     public function viewArchived(User $user): bool
     {
-        return Access::allows($user, OrganizationPermission::PropertiesManage);
+        return Access::allows($user, OrganizationPermission::PropertiesView);
     }
 
     public function create(User $user): bool

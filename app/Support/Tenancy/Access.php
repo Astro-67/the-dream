@@ -38,7 +38,15 @@ final class Access
 
         $propertyId = self::propertyId($property);
 
-        return Tenancy::allows($user, TenantContext::fromIds($organizationId, $propertyId));
+        $resolvedPermission = OrganizationPermission::tryFrom(self::name($permission));
+        $context = TenantContext::fromIds($organizationId, $propertyId);
+
+        if ($resolvedPermission?->isReadOnly() ?? false) {
+            return Tenancy::allows($user, $context) || Tenancy::allowsArchived($user, $context);
+        }
+
+        return ($propertyId === null || ! Tenancy::isArchivedProperty($organizationId, $propertyId))
+            && Tenancy::allows($user, $context);
     }
 
     /**

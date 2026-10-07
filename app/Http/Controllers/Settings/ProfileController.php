@@ -2,13 +2,19 @@
 
 namespace App\Http\Controllers\Settings;
 
+use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -50,9 +56,28 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        Auth::logout();
+        $ownedMemberships = Tenancy::within(TenantContext::platform('Check last-owner account deletion'), fn () => OrganizationMembership::query()
+            ->where('user_id', $user->getKey())
+            ->get()
+            ->filter(fn (OrganizationMembership $membership) => Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => $membership->user->hasRole(OrganizationRole::Owner->value))));
 
-        $user->delete();
+        foreach ($ownedMemberships as $membership) {
+            $hasAnotherOwner = Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => OrganizationMembership::query()
+                ->where('user_id', '!=', $user->getKey())
+                ->get()
+                ->contains(fn (OrganizationMembership $other) => $other->user->hasRole(OrganizationRole::Owner->value)));
+
+            if (! $hasAnotherOwner) {
+                throw ValidationException::withMessages([
+                    'account' => __('Your account cannot be deleted while you are the last owner of an organization. Transfer ownership or add another owner first.'),
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($user) {
+            Auth::logout();
+            $user->delete();
+        });
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

@@ -61,6 +61,20 @@ class ProfileUpdateTest extends TestCase
         $this->assertNotNull($user->refresh()->email_verified_at);
     }
 
+    public function test_the_last_owner_cannot_delete_their_account()
+    {
+        [$owner] = organizationWithOwner();
+
+        $response = $this
+            ->actingAs($owner)
+            ->from(route('profile.edit'))
+            ->delete(route('profile.destroy'), ['password' => 'password']);
+
+        $response->assertSessionHasErrors(['account' => 'Your account cannot be deleted while you are the last owner of an organization. Transfer ownership or add another owner first.']);
+        $this->assertAuthenticatedAs($owner);
+        $this->assertNotNull($owner->fresh());
+    }
+
     public function test_user_can_delete_their_account()
     {
         $user = User::factory()->create();

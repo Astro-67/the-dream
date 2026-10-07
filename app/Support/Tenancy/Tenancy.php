@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static bool isPlatform()
  * @method static bool allows(User $user, TenantContext $context)
  * @method static TenantContext|null defaultContextFor(User $user, ?string $organizationId = null)
+ * @method static bool isArchivedProperty(string $organizationId, string $propertyId)
+ * @method static bool allowsArchived(User $user, TenantContext $context)
  * @method static bool hasMembership(User $user)
  * @method static Collection<int, Organization> organizationsFor(User $user)
  * @method static Collection<int, Property> propertiesFor(User $user)

@@ -46,5 +46,6 @@ trait WritesMembershipGrants
         /** @var User $member */
         $member = $membership->user;
         $member->unsetRelation('roles')->syncRoles([$grant->role->value]);
+        $member->unsetRelation('permissions')->syncPermissions([]);
     }
 }

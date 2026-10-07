@@ -40,6 +40,7 @@ class RemoveMember
 
             PropertyMembership::query()->where('user_id', $member->getKey())->delete();
             $member->unsetRelation('roles')->syncRoles([]);
+            $member->unsetRelation('permissions')->syncPermissions([]);
             $membership->delete();
 
             Audit::record($actor, 'member_removed', $membership, 'Member removed', [

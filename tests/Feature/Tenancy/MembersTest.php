@@ -71,6 +71,18 @@ test('an owner opens a member\'s access form with their current role and propert
         ->assertForbidden();
 });
 
+test('removing a member clears directly granted organization permissions', function () {
+    $t = twoTenants();
+    $manager = $t->a->member(OrganizationRole::GroupOperationsManager);
+    inTenant($t->a->organization, fn () => $manager->givePermissionTo('settings.finance.manage'));
+
+    $this->actingAs($t->a->owner)
+        ->delete(route('members.destroy', membershipOf($t->a, $manager)), ['_property' => $t->a->property->id])
+        ->assertSessionHasNoErrors();
+
+    expect(inTenant($t->a->organization, fn () => $manager->fresh()->hasPermissionTo('settings.finance.manage')))->toBeFalse();
+});
+
 test('changing a member\'s role and properties applies on their next request', function () {
     $t = twoTenants();
     $frontDesk = $t->a->member(OrganizationRole::FrontDesk);

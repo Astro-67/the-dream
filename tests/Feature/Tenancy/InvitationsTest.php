@@ -287,7 +287,7 @@ test('a property manager can\'t invite to another property, grant all properties
         ->assertForbidden();
     $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'c@example.test', 'role' => 'group_operations_manager', 'all_properties' => true])
         ->assertForbidden();
-    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'd@example.test', 'role' => 'owner', 'property_ids' => [$t->a->property->id]])
+    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'd@example.test', 'role' => 'owner', 'all_properties' => true])
         ->assertForbidden();
 
     $this->get(route('invitations.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
