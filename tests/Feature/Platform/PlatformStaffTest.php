@@ -5,6 +5,15 @@ use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 
+test('the platform staff read enters the logged platform context', function () {
+    $admin = platformStaff();
+
+    $this->actingAs($admin)->get(route('platform.staff.index'))->assertOk();
+
+    expect(Activity::query()->where('log_name', 'platform')->where('event', 'platform_context_entered')
+        ->where('causer_id', $admin->id)->where('properties->reason', 'Platform administrator listed platform staff')->exists())->toBeTrue();
+});
+
 test('a platform administrator sees the platform staff and their roles', function () {
     $admin = platformStaff(attributes: ['name' => 'Asha Admin', 'email' => 'asha@thedream.test']);
     platformStaff(PlatformRole::ComplianceOperator, attributes: ['name' => 'Omar Operator', 'email' => 'omar@thedream.test']);

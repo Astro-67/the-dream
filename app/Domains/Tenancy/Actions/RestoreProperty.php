@@ -20,11 +20,14 @@ class RestoreProperty
         }
 
         return DB::transaction(function () use ($actor, $property) {
+            $before = ['archived_at' => $property->archived_at->toIso8601String()];
             $property->archived_at = null;
             $property->save();
 
             Audit::record($actor, 'restored', $property, 'Property restored', [
                 'property_id' => $property->getKey(),
+                'old' => $before,
+                'attributes' => ['archived_at' => null],
             ]);
 
             return $property;

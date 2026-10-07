@@ -45,6 +45,7 @@ class AddOrganizationMember
             $member->unsetRelation('roles')->assignRole($grant->role->value);
 
             Audit::record($actor, 'member_added', $membership, 'Member added', [
+                'result' => 'success',
                 'attributes' => [
                     'user_id' => $member->getKey(),
                     'role' => $grant->role->value,

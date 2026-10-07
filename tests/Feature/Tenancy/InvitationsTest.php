@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Invitation;
 use App\Domains\Tenancy\Notifications\InvitationSent;
@@ -43,6 +44,14 @@ function invitationLink(User $inviter, array $input): string
 
     return $link;
 }
+
+test('an invitation model exposes the grant encoded for the invitee', function () {
+    [$owner, $organization, $property] = organizationWithOwner();
+    invitationLink($owner, ['email' => 'grant@example.test', 'role' => 'front_desk', 'property_ids' => [$property->id]]);
+    $invitation = inTenant($organization, fn () => Invitation::query()->sole());
+
+    expect($invitation->grant())->toEqual(MembershipGrant::properties(OrganizationRole::FrontDesk, [$property->id]));
+});
 
 test('an owner invites a person with a role, properties and an expiry, and the invitation is listed as pending', function () {
     Notification::fake();
@@ -190,7 +199,7 @@ test('an owner revokes a pending invitation, which leaves the list and can\'t be
     $invitation = inTenant($organization, fn () => Invitation::query()->sole());
 
     $this->actingAs($owner)
-        ->delete(route('invitations.destroy', $invitation))
+        ->delete(route('invitations.destroy', $invitation), ['_property' => $property->id])
         ->assertRedirect(route('invitations.index'));
     $this->get(route('invitations.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
 
@@ -219,6 +228,20 @@ test('an owner can grant all properties to owners and group operations managers'
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('tenant.organization.id', $t->a->organization->id)
         ->has('tenant.properties', 2));
+});
+
+test('an owner invitation must grant all properties', function () {
+    $t = twoTenants();
+
+    $this->actingAs($t->a->owner)
+        ->post(route('invitations.store'), [
+            '_property' => $t->a->property->id,
+            'email' => 'co-owner@example.test',
+            'role' => 'owner',
+            'all_properties' => false,
+            'property_ids' => [$t->a->property->id],
+        ])
+        ->assertSessionHasErrors('all_properties');
 });
 
 test('only owners and group operations managers can be granted all properties', function () {
@@ -273,7 +296,7 @@ test('a property manager can\'t invite to another property, grant all properties
         ->assertForbidden();
     $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'c@example.test', 'role' => 'group_operations_manager', 'all_properties' => true])
         ->assertForbidden();
-    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'd@example.test', 'role' => 'owner', 'property_ids' => [$t->a->property->id]])
+    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'd@example.test', 'role' => 'owner', 'all_properties' => true])
         ->assertForbidden();
 
     $this->get(route('invitations.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
@@ -287,7 +310,7 @@ test('a property manager neither sees nor revokes invitations beyond their own p
     $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
         ->get(route('invitations.index'))
         ->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
-    $this->delete(route('invitations.destroy', $invitation))->assertForbidden();
+    $this->delete(route('invitations.destroy', $invitation), ['_property' => $t->a->property->id])->assertForbidden();
 
     expect(inTenant($t->a->organization, fn () => Invitation::query()->pending()->count()))->toBe(1);
 });
@@ -328,22 +351,25 @@ test('sending, accepting and revoking invitations are audited with the actor and
     auth()->logout();
     invitationLink($owner, ['email' => 'zawadi@example.test', 'property_ids' => [$property->id]]);
     $revoked = inTenant($organization, fn () => Invitation::query()->where('email', 'zawadi@example.test')->sole());
-    $this->actingAs($owner)->delete(route('invitations.destroy', $revoked));
+    $this->actingAs($owner)->delete(route('invitations.destroy', $revoked), ['_property' => $property->id]);
 
     $entry = fn (string $event, string $email) => Activity::query()->where('log_name', 'audit')->where('event', $event)->get()
         ->sole(fn (Activity $a) => $a->getExtraProperty('attributes')['email'] === $email);
 
     $invited = $entry('invited', 'amina@example.test');
-    expect($invited->causer?->is($owner))->toBeTrue()
+    expect($invited->getExtraProperty('result'))->toBe('success')
+        ->and($invited->causer?->is($owner))->toBeTrue()
         ->and($invited->getExtraProperty('organization_id'))->toBe($organization->id)
         ->and($invited->getExtraProperty('attributes'))->toMatchArray(['role' => 'auditor', 'all_properties' => false, 'property_ids' => [$property->id]]);
 
     $accepted = $entry('accepted', 'amina@example.test');
-    expect($accepted->causer?->is($amina))->toBeTrue()
+    expect($accepted->getExtraProperty('result'))->toBe('success')
+        ->and($accepted->causer?->is($amina))->toBeTrue()
         ->and($accepted->getExtraProperty('organization_id'))->toBe($organization->id);
 
     $revokedEntry = $entry('revoked', 'zawadi@example.test');
-    expect($revokedEntry->causer?->is($owner))->toBeTrue()
+    expect($revokedEntry->getExtraProperty('result'))->toBe('success')
+        ->and($revokedEntry->causer?->is($owner))->toBeTrue()
         ->and($revokedEntry->getExtraProperty('organization_id'))->toBe($organization->id);
 
     expect(Activity::query()->where('event', 'member_added')->sole()->getExtraProperty('attributes'))

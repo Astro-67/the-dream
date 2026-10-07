@@ -19,6 +19,7 @@ class CreateProperty
             $property = Property::query()->create($details->toAttributes());
 
             Audit::record($actor, 'created', $property, 'Property created', [
+                'result' => 'success',
                 'property_id' => $property->getKey(),
                 'attributes' => $property->only([
                     'name', 'property_type', 'address_line', 'city', 'region', 'postal_code',

@@ -6,8 +6,8 @@ and Bravo's markers (IDs, names, emails, codes) must not appear in any response 
 
 ## Adding coverage for a new route
 
-Add one entry, keyed by route name, to the file for your domain. For example, `routes/web/reservations.php`
-goes in `Coverage/reservations.php`. Create the file if it doesn't exist; it returns an array.
+Add one entry, keyed by route name, to the file for your domain. For example, `routes/web/tenancy.php`
+goes in `Coverage/tenancy.php`. Create the file if it doesn't exist; it returns an array.
 Unnamed routes are keyed by URI, but name your routes.
 
 ```php
@@ -35,7 +35,7 @@ return [
 ];
 ```
 
-For writes (`POST`, `PATCH`, `DELETE`), also assert that Bravo's record is unchanged.
+For writes (`POST`, `PATCH`, `DELETE`), also assert that Bravo's record is unchanged. Tenant forms that change data must include their opening property's `_property` intent, including deletes.
 
 ## The fixture
 

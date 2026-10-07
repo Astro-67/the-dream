@@ -54,6 +54,7 @@ class CreateOrganization
 
             Tenancy::within(TenantContext::forProperty($property), function () use ($owner, $organization) {
                 Audit::record($owner, 'created', $organization, 'Organization created', [
+                    'result' => 'success',
                     'attributes' => $organization->only(['name', 'country']),
                 ]);
             });

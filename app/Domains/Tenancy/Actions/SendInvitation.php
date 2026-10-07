@@ -36,6 +36,7 @@ class SendInvitation
             ]);
 
             Audit::record($inviter, 'invited', $invitation, 'Invitation sent', [
+                'result' => 'success',
                 'attributes' => [
                     'email' => $invitation->email,
                     'role' => $invitation->role->value,

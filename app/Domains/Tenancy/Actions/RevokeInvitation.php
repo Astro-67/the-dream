@@ -27,6 +27,7 @@ class RevokeInvitation
             $invitation->update(['revoked_at' => now(), 'revoked_by' => $actor->getKey()]);
 
             Audit::record($actor, 'revoked', $invitation, 'Invitation revoked', [
+                'result' => 'success',
                 'attributes' => ['email' => $invitation->email, 'role' => $invitation->role->value],
             ]);
 

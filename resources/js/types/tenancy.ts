@@ -13,6 +13,7 @@ export type TenantProperty = {
     timezone: string;
     currency: Currency;
     jurisdictionProfile: JurisdictionProfile;
+    jurisdictionLabel: string;
     /** Present only for Zanzibar properties. */
     zraHotelCode?: string | null;
 };

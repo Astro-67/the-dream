@@ -24,7 +24,7 @@ class MembershipPolicy
 
     public function view(User $user, OrganizationMembership $membership): bool
     {
-        if ($this->managesMembers($user)) {
+        if (Access::allows($user, OrganizationPermission::MembersManage)) {
             return true;
         }
 
@@ -45,20 +45,15 @@ class MembershipPolicy
 
     public function update(User $user, OrganizationMembership $membership): bool
     {
-        return $this->managesMembers($user);
+        return Access::allows($user, OrganizationPermission::MembersManage);
     }
 
     public function delete(User $user, OrganizationMembership $membership): bool
     {
-        return $this->managesMembers($user);
+        return Access::allows($user, OrganizationPermission::MembersManage);
     }
 
     public function transferOwnership(User $user, OrganizationMembership $membership): bool
-    {
-        return $this->managesMembers($user);
-    }
-
-    private function managesMembers(User $user): bool
     {
         return Access::allows($user, OrganizationPermission::MembersManage);
     }

@@ -7,14 +7,14 @@ export function TwoFactorStatus({ enabled }: { enabled: boolean }) {
             className={cn(
                 'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs whitespace-nowrap',
                 enabled
-                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-400'
-                    : 'bg-amber-50 text-amber-700 dark:bg-amber-400/15 dark:text-amber-400',
+                    ? 'bg-status-success-tint text-status-success'
+                    : 'bg-status-warning-tint text-status-warning',
             )}
         >
             <span
                 className={cn(
                     'size-1.5 rounded-full',
-                    enabled ? 'bg-emerald-500' : 'bg-amber-500',
+                    enabled ? 'bg-status-success-dot' : 'bg-status-warning-dot',
                 )}
                 aria-hidden
             />

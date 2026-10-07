@@ -108,24 +108,35 @@ export function PropertyFields({
     options,
     values,
     errors,
+    nameField = 'name',
+    defaultJurisdiction = null,
+    autoFocusName = true,
 }: {
     options: PropertyFormOptions;
     values?: Partial<PropertyValues>;
     errors: Partial<Record<string, string>>;
+    nameField?: string;
+    defaultJurisdiction?: JurisdictionProfile | null;
+    autoFocusName?: boolean;
 }) {
     const [jurisdiction, setJurisdiction] =
         useState<JurisdictionProfile | null>(
-            values?.jurisdiction_profile ?? null,
+            values?.jurisdiction_profile ?? defaultJurisdiction,
         );
+    const propertyNameField = nameField;
 
     return (
         <div className="grid gap-6 sm:grid-cols-2">
-            <Field id="name" label="Property name" error={errors.name}>
+            <Field
+                id={propertyNameField}
+                label="Property name"
+                error={errors[nameField] ?? errors.name}
+            >
                 <Input
-                    id="name"
-                    name="name"
+                    id={propertyNameField}
+                    name={propertyNameField}
                     required
-                    autoFocus
+                    autoFocus={autoFocusName}
                     defaultValue={values?.name}
                 />
             </Field>

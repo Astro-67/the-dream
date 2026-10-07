@@ -2,7 +2,6 @@
 
 namespace App\Domains\Tenancy\Actions;
 
-use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Enums\InvitationStatus;
 use App\Domains\Tenancy\Exceptions\InvitationUnavailable;
 use App\Domains\Tenancy\Exceptions\MembershipRefused;
@@ -43,11 +42,7 @@ class AcceptInvitation
                 throw MembershipRefused::wrongEmail();
             }
 
-            $grant = $invitation->all_properties
-                ? MembershipGrant::allProperties($invitation->role)
-                : MembershipGrant::properties($invitation->role, $invitation->property_ids);
-
-            $membership = $this->addMember->handle($user, $grant, $user);
+            $membership = $this->addMember->handle($user, $invitation->grant(), $user);
 
             $invitation->update(['accepted_at' => now(), 'accepted_by' => $user->getKey()]);
 
@@ -57,6 +52,7 @@ class AcceptInvitation
             }
 
             Audit::record($user, 'accepted', $invitation, 'Invitation accepted', [
+                'result' => 'success',
                 'attributes' => ['email' => $invitation->email, 'role' => $invitation->role->value],
             ]);
 

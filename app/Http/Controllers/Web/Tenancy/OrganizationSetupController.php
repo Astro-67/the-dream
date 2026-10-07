@@ -6,8 +6,8 @@ use App\Domains\Tenancy\Actions\CreateOrganization;
 use App\Domains\Tenancy\Enums\Country;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\PropertyType;
+use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
-use App\Http\Middleware\SetTenantContext;
 use App\Http\Requests\Tenancy\StoreOrganizationRequest;
 use App\Models\User;
 use App\Support\Money\Currency;
@@ -33,17 +33,32 @@ class OrganizationSetupController extends Controller
         }
 
         return Inertia::render('organizations/create', [
-            'countries' => array_map(fn (Country $c) => ['value' => $c->value, 'label' => $c->label()], Country::cases()),
-            'propertyTypes' => array_map(fn (PropertyType $t) => ['value' => $t->value, 'label' => $t->label()], PropertyType::cases()),
-            'currencies' => array_map(fn (Currency $c) => ['value' => $c->value, 'label' => $c->value], Currency::cases()),
-            'jurisdictionProfiles' => array_map(fn (JurisdictionProfile $j) => ['value' => $j->value, 'label' => $j->label()], JurisdictionProfile::cases()),
+            'countries' => array_map(fn (Country $country) => ['value' => $country->value, 'label' => $country->label()], Country::cases()),
+            ...self::propertyFormOptions('setup'),
+        ]);
+    }
+
+    /**
+     * @return array{
+     *     propertyTypes: list<array{value: string, label: string}>,
+     *     currencies: list<array{value: string, label: string}>,
+     *     jurisdictionProfiles: list<array{value: string, label: string}>,
+     *     timezones: list<string>, defaults: array<string, string>
+     * }
+     */
+    public static function propertyFormOptions(string $mode): array
+    {
+        return [
+            'propertyTypes' => array_map(fn (PropertyType $type) => ['value' => $type->value, 'label' => $type->label()], PropertyType::cases()),
+            'currencies' => array_map(fn (Currency $currency) => ['value' => $currency->value, 'label' => $currency->value], Currency::cases()),
+            'jurisdictionProfiles' => array_map(fn (JurisdictionProfile $profile) => ['value' => $profile->value, 'label' => $profile->label()], JurisdictionProfile::cases()),
             'timezones' => DateTimeZone::listIdentifiers(),
             'defaults' => [
-                'country' => Country::Tanzania->value,
-                'timezone' => 'Africa/Dar_es_Salaam',
+                'timezone' => Property::DEFAULT_TIMEZONE,
                 'currency' => Currency::TZS->value,
+                ...($mode === 'setup' ? ['country' => Country::Tanzania->value] : []),
             ],
-        ]);
+        ];
     }
 
     public function store(StoreOrganizationRequest $request, CreateOrganization $createOrganization): RedirectResponse
@@ -56,7 +71,7 @@ class OrganizationSetupController extends Controller
         $context = Tenancy::defaultContextFor($user);
 
         if ($context !== null) {
-            SetTenantContext::remember($request->session(), $context);
+            Tenancy::remember($request->session(), $context);
         }
 
         return redirect()->route('dashboard');

@@ -9,6 +9,7 @@ use App\Domains\Tenancy\Models\PropertyMembership;
 use App\Models\User;
 use App\Support\Tenancy\Exceptions\TenantMismatch;
 use Closure;
+use Illuminate\Contracts\Session\Session;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -61,6 +62,15 @@ final class TenancyManager
         }
     }
 
+    /**
+     * Store an already-authorized context in the user's session for the next request.
+     */
+    public function remember(Session $session, TenantContext $context): void
+    {
+        $session->put('tenancy.organization_id', $context->organizationId);
+        $session->put('tenancy.property_id', $context->propertyId);
+    }
+
     public function current(): ?TenantContext
     {
         return $this->frame()['context'] ?? null;
@@ -102,6 +112,10 @@ final class TenancyManager
             return true;
         }
 
+        if ($this->isArchivedProperty((string) $context->organizationId, $context->propertyId)) {
+            return false;
+        }
+
         return $this->permittedProperties($user, $membership)->whereKey($context->propertyId)->exists();
     }
 
@@ -131,6 +145,36 @@ final class TenancyManager
         $first = $memberships->first();
 
         return $first === null ? null : TenantContext::forOrganization($first->organization_id);
+    }
+
+    public function allowsArchived(User $user, TenantContext $context): bool
+    {
+        if ($context->isPlatform() || $context->propertyId === null) {
+            return false;
+        }
+
+        $membership = $this->membership($user, (string) $context->organizationId);
+
+        if ($membership === null) {
+            return false;
+        }
+
+        $propertyAssigned = $membership->all_properties || $this->unscoped(PropertyMembership::class)
+            ->where('organization_id', $membership->organization_id)
+            ->where('user_id', $user->getKey())
+            ->where('property_id', $context->propertyId)
+            ->exists();
+
+        return $propertyAssigned && $this->isArchivedProperty((string) $context->organizationId, $context->propertyId);
+    }
+
+    public function isArchivedProperty(string $organizationId, string $propertyId): bool
+    {
+        return $this->unscoped(Property::class)
+            ->whereKey($propertyId)
+            ->where('organization_id', $organizationId)
+            ->whereNotNull('archived_at')
+            ->exists();
     }
 
     public function hasMembership(User $user): bool
@@ -227,13 +271,16 @@ final class TenancyManager
     /**
      * @return Builder<Property>
      */
-    private function permittedProperties(User $user, OrganizationMembership $membership): Builder
+    private function permittedProperties(User $user, OrganizationMembership $membership, bool $includeArchived = false): Builder
     {
         $query = $this->unscoped(Property::class)
             ->where('organization_id', $membership->organization_id)
-            ->whereNull('archived_at')
             ->orderBy('name')
             ->orderBy('id');
+
+        if (! $includeArchived) {
+            $query->active();
+        }
 
         if (! $membership->all_properties) {
             $query->whereIn('id', $this->unscoped(PropertyMembership::class)

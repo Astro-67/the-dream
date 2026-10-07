@@ -19,7 +19,7 @@ use Tests\Support\TwoTenants;
  *
  * @return array<string, bool>
  */
-function accessAcrossTenants(TwoTenants $t, User $member, string $permission): array
+function accessAcrossTenants(TwoTenants $t, User $member, OrganizationPermission $permission): array
 {
     return inTenant($t->a->organization, fn () => [
         'a.property' => Access::allows($member, $permission, $t->a->property),
@@ -44,8 +44,8 @@ test('a front-desk member works only in their own property', function () {
     $t = twoTenants();
     $frontDesk = $t->a->member(OrganizationRole::FrontDesk);
 
-    expect(accessAcrossTenants($t, $frontDesk, 'reservations.manage'))->toBe(onlyIn('a.property'))
-        ->and(accessAcrossTenants($t, $frontDesk, 'guests.identity.view'))->toBe(onlyIn('a.property'));
+    expect(accessAcrossTenants($t, $frontDesk, OrganizationPermission::ReservationsManage))->toBe(onlyIn('a.property'))
+        ->and(accessAcrossTenants($t, $frontDesk, OrganizationPermission::GuestIdentityView))->toBe(onlyIn('a.property'));
 });
 
 test('an auditor may view permitted records but every change is refused', function () {
@@ -54,30 +54,30 @@ test('an auditor may view permitted records but every change is refused', functi
 
     foreach (OrganizationPermission::cases() as $permission) {
         if (! $permission->isReadOnly()) {
-            expect(accessAcrossTenants($t, $auditor, $permission->value))->toBe(onlyIn(), $permission->value);
+            expect(accessAcrossTenants($t, $auditor, $permission))->toBe(onlyIn(), $permission->value);
         }
     }
 
-    expect(accessAcrossTenants($t, $auditor, 'reservations.view'))->toBe(onlyIn('a.property'))
-        ->and(accessAcrossTenants($t, $auditor, 'finance.view'))->toBe(onlyIn('a.property'))
-        ->and(accessAcrossTenants($t, $auditor, 'guests.identity.view'))->toBe(onlyIn());
+    expect(accessAcrossTenants($t, $auditor, OrganizationPermission::ReservationsView))->toBe(onlyIn('a.property'))
+        ->and(accessAcrossTenants($t, $auditor, OrganizationPermission::FinanceView))->toBe(onlyIn('a.property'))
+        ->and(accessAcrossTenants($t, $auditor, OrganizationPermission::GuestIdentityView))->toBe(onlyIn());
 });
 
 test('a housekeeping member is refused finance and guest identity data', function () {
     $t = twoTenants();
     $housekeeping = $t->a->member(OrganizationRole::Housekeeping);
 
-    foreach (['finance.view', 'finance.correct', 'charges.post', 'reports.view', 'guests.view', 'guests.identity.view'] as $permission) {
-        expect(accessAcrossTenants($t, $housekeeping, $permission))->toBe(onlyIn(), $permission);
+    foreach ([OrganizationPermission::FinanceView, OrganizationPermission::FinanceCorrect, OrganizationPermission::ChargesPost, OrganizationPermission::ReportsView, OrganizationPermission::GuestsView, OrganizationPermission::GuestIdentityView] as $permission) {
+        expect(accessAcrossTenants($t, $housekeeping, $permission))->toBe(onlyIn(), $permission->value);
     }
 
-    expect(accessAcrossTenants($t, $housekeeping, 'housekeeping.manage'))->toBe(onlyIn('a.property'));
+    expect(accessAcrossTenants($t, $housekeeping, OrganizationPermission::HousekeepingManage))->toBe(onlyIn('a.property'));
 });
 
 test('all-properties members reach every property of their organization and nothing outside it', function (OrganizationRole $role) {
     $t = twoTenants();
 
-    expect(accessAcrossTenants($t, $t->a->member($role), 'properties.update'))->toBe(onlyIn('a.property', 'a.otherProperty'));
+    expect(accessAcrossTenants($t, $t->a->member($role), OrganizationPermission::PropertiesUpdate))->toBe(onlyIn('a.property', 'a.otherProperty'));
 })->with([OrganizationRole::Owner, OrganizationRole::GroupOperationsManager]);
 
 test('a member of another organization is refused everything, whatever their role there', function () {
@@ -85,7 +85,7 @@ test('a member of another organization is refused everything, whatever their rol
     $bravoOwner = $t->b->owner;
 
     foreach (OrganizationPermission::cases() as $permission) {
-        expect(accessAcrossTenants($t, $bravoOwner, $permission->value))->toBe(onlyIn(), $permission->value)
+        expect(accessAcrossTenants($t, $bravoOwner, $permission))->toBe(onlyIn(), $permission->value)
             ->and(inTenant($t->a->organization, fn () => Access::allows($bravoOwner, $permission)))->toBeFalse();
     }
 });
@@ -98,7 +98,7 @@ test('each role uses exactly its permissions, only in the properties it may act 
     foreach (OrganizationPermission::cases() as $permission) {
         $expected = in_array($permission->value, $role->permissions(), true) ? $reach : onlyIn();
 
-        expect(accessAcrossTenants($t, $member, $permission->value))->toBe($expected, "{$role->value}: {$permission->value}");
+        expect(accessAcrossTenants($t, $member, $permission))->toBe($expected, "{$role->value}: {$permission->value}");
     }
 })->with(OrganizationRole::cases());
 
@@ -106,12 +106,12 @@ test('a group operations manager uses financial settings only when granted them'
     $t = twoTenants();
     $manager = $t->a->member(OrganizationRole::GroupOperationsManager);
 
-    expect(accessAcrossTenants($t, $manager, 'settings.finance.manage'))->toBe(onlyIn());
+    expect(accessAcrossTenants($t, $manager, OrganizationPermission::FinanceSettingsManage))->toBe(onlyIn());
 
-    inTenant($t->a->organization, fn () => $manager->givePermissionTo('settings.finance.manage'));
+    inTenant($t->a->organization, fn () => $manager->givePermissionTo(OrganizationPermission::FinanceSettingsManage->value));
 
-    expect(accessAcrossTenants($t, $manager->fresh(), 'settings.finance.manage'))->toBe(onlyIn('a.property', 'a.otherProperty'))
-        ->and(accessAcrossTenants($t, $manager->fresh(), 'settings.security.manage'))->toBe(onlyIn());
+    expect(accessAcrossTenants($t, $manager->fresh(), OrganizationPermission::FinanceSettingsManage))->toBe(onlyIn('a.property', 'a.otherProperty'))
+        ->and(accessAcrossTenants($t, $manager->fresh(), OrganizationPermission::SecuritySettingsManage))->toBe(onlyIn());
 });
 
 test('the page data carries the member\'s permissions for the current property', function () {
@@ -134,6 +134,6 @@ test('the page data carries the member\'s permissions for the current property',
 test('nothing is allowed outside a tenant context', function () {
     $t = twoTenants();
 
-    expect(Access::allows($t->a->owner, 'properties.view', $t->a->property))->toBeFalse()
+    expect(Access::allows($t->a->owner, OrganizationPermission::PropertiesView, $t->a->property))->toBeFalse()
         ->and(Access::permissionsFor($t->a->owner, $t->a->property))->toBe([]);
 });

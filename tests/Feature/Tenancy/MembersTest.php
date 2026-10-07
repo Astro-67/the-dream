@@ -71,6 +71,35 @@ test('an owner opens a member\'s access form with their current role and propert
         ->assertForbidden();
 });
 
+test('removing a member clears directly granted organization permissions', function () {
+    $t = twoTenants();
+    $manager = $t->a->member(OrganizationRole::GroupOperationsManager);
+    inTenant($t->a->organization, fn () => $manager->givePermissionTo('settings.finance.manage'));
+
+    $this->actingAs($t->a->owner)
+        ->delete(route('members.destroy', membershipOf($t->a, $manager)), ['_property' => $t->a->property->id])
+        ->assertSessionHasNoErrors();
+
+    expect(inTenant($t->a->organization, fn () => $manager->fresh()->hasPermissionTo('settings.finance.manage')))->toBeFalse();
+});
+
+test('changing a member\'s role clears directly granted organization permissions', function () {
+    $t = twoTenants();
+    $manager = $t->a->member(OrganizationRole::GroupOperationsManager);
+    inTenant($t->a->organization, fn () => $manager->givePermissionTo('settings.finance.manage'));
+
+    $this->actingAs($t->a->owner)
+        ->put(route('members.update', membershipOf($t->a, $manager)), [
+            '_property' => $t->a->property->id,
+            'role' => 'front_desk',
+            'all_properties' => false,
+            'property_ids' => [$t->a->property->id],
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(inTenant($t->a->organization, fn () => $manager->fresh()->hasPermissionTo('settings.finance.manage')))->toBeFalse();
+});
+
 test('changing a member\'s role and properties applies on their next request', function () {
     $t = twoTenants();
     $frontDesk = $t->a->member(OrganizationRole::FrontDesk);
@@ -180,6 +209,11 @@ test('removing or demoting the last owner is refused with a clear message', func
 
     $this->get(route('members.index'))->assertInertia(fn (Assert $page) => $page
         ->where('members', fn ($members) => collect($members)->contains(fn ($m) => $m['email'] === 'owner@alpha.test' && $m['role'] === 'owner')));
+
+    expect(Activity::query()->whereIn('event', ['member_removal_refused', 'member_change_refused'])
+        ->where('log_name', 'audit')->pluck('event')->all())->toBe(['member_removal_refused', 'member_change_refused'])
+        ->and(Activity::query()->whereIn('event', ['member_removal_refused', 'member_change_refused'])
+            ->get()->every(fn (Activity $entry) => $entry->getExtraProperty('result') === 'refused'))->toBeTrue();
 });
 
 test('no one is made an owner except through a transfer', function () {
@@ -340,6 +374,7 @@ test('role changes, property changes, removals and transfers are audited with be
         ->orderBy('id')->get();
 
     expect($entries->pluck('event')->all())->toBe(['member_updated', 'member_removed', 'ownership_transferred'])
+        ->and($entries->every(fn (Activity $entry) => $entry->getExtraProperty('result') === 'success'))->toBeTrue()
         ->and($entries->every(fn (Activity $entry) => $entry->causer_id === $t->a->owner->id
             && $entry->getExtraProperty('organization_id') === $t->a->organization->id))->toBeTrue();
 

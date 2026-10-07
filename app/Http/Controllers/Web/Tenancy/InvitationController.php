@@ -72,7 +72,7 @@ class InvitationController extends Controller
             fn (OrganizationRole $role) => $managesMembers || $role->isPropertyStaff(),
         ));
         $properties = $managesMembers
-            ? Property::query()->whereNull('archived_at')->orderBy('name')->get()
+            ? Property::query()->active()->orderBy('name')->get()
             : Tenancy::propertiesFor($user);
 
         return Inertia::render('invitations/create', [
@@ -95,7 +95,7 @@ class InvitationController extends Controller
         $user = $request->user();
         $sendInvitation->handle($user, $details);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Invitation sent to {$details->email}."]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation sent to :email.', ['email' => $details->email])]);
 
         return redirect()->route('invitations.index');
     }
@@ -109,9 +109,9 @@ class InvitationController extends Controller
 
         try {
             $revokeInvitation->handle($user, $invitation);
-            Inertia::flash('toast', ['type' => 'success', 'message' => "Invitation for {$invitation->email} revoked."]);
+            Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation for :email revoked.', ['email' => $invitation->email])]);
         } catch (InvitationUnavailable) {
-            Inertia::flash('toast', ['type' => 'error', 'message' => "The invitation for {$invitation->email} is no longer pending."]);
+            Inertia::flash('toast', ['type' => 'error', 'message' => __('The invitation for :email is no longer pending.', ['email' => $invitation->email])]);
         }
 
         return redirect()->route('invitations.index');

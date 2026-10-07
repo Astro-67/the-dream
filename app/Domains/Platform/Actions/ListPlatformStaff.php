@@ -4,6 +4,8 @@ namespace App\Domains\Platform\Actions;
 
 use App\Domains\Platform\Models\PlatformRoleAssignment;
 use App\Models\User;
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 
 /**
  * Everyone holding a platform role, with their roles and whether they have
@@ -16,7 +18,7 @@ final class ListPlatformStaff
      */
     public function handle(): array
     {
-        return User::query()
+        return Tenancy::within(TenantContext::platform('Platform administrator listed platform staff'), fn () => User::query()
             ->whereHas('platformRoleAssignments')
             ->with('platformRoleAssignments')
             ->orderBy('name')
@@ -31,6 +33,6 @@ final class ListPlatformStaff
                     ->sort()->values()->all(),
                 'twoFactorEnabled' => $user->hasEnabledTwoFactorAuthentication(),
             ])
-            ->values()->all();
+            ->values()->all());
     }
 }

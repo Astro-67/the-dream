@@ -1,7 +1,11 @@
 <?php
 
+use App\Domains\Tenancy\Actions\ArchiveProperty;
 use App\Domains\Tenancy\Contracts\PreArchiveCheck;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Models\Property;
+use App\Support\Tenancy\Access;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Fixtures\Tenancy\RefuseArchivingProperty;
@@ -9,6 +13,14 @@ use Tests\Support\PropertyForm;
 
 afterEach(function () {
     RefuseArchivingProperty::$refusedPropertyId = null;
+});
+
+test('active property query scope excludes archived properties', function () {
+    $t = twoTenants();
+    inTenant($t->a->property, fn () => app(ArchiveProperty::class)->handle($t->a->owner, $t->a->otherProperty));
+
+    expect(inTenant($t->a->organization, fn () => Property::query()->active()->pluck('id')->all()))
+        ->toBe([$t->a->property->id]);
 });
 
 test('an owner archives a property, which leaves the switcher and the list of active properties', function () {
@@ -101,7 +113,8 @@ test('a registered pre-archive check that fails blocks archiving and shows its r
         ->assertInertia(fn (Assert $page) => $page
             ->has('tenant.properties', 2)
             ->has('archivedProperties', 0));
-    expect(Activity::query()->where('event', 'archived')->exists())->toBeFalse();
+    expect(Activity::query()->where('event', 'archived')->exists())->toBeFalse()
+        ->and(Activity::query()->where('event', 'archive_refused')->where('subject_id', $t->a->otherProperty->id)->first()?->getExtraProperty('result'))->toBe('refused');
 });
 
 test('a property every pre-archive check passes is archived', function () {
@@ -129,13 +142,43 @@ test('archiving and restoring are audited with the actor, and the property\'s ea
 
     $history = Activity::query()->where('subject_id', $property->id)->orderBy('id')->get();
 
-    expect($history->pluck('event')->all())->toBe(['created', 'updated', 'archived', 'restored']);
+    expect($history->pluck('event')->all())->toBe(['created', 'updated', 'archived', 'restored'])
+        ->and($history[2]->getExtraProperty('result'))->toBe('success')
+        ->and($history[2]->getExtraProperty('old'))->toBe(['archived_at' => null])
+        ->and($history[2]->getExtraProperty('attributes.archived_at'))->toBeString()
+        ->and($history[3]->getExtraProperty('result'))->toBe('success')
+        ->and($history[3]->getExtraProperty('old.archived_at'))->toBeString()
+        ->and($history[3]->getExtraProperty('attributes'))->toBe(['archived_at' => null]);
 
     foreach ($history->where('event', '!=', 'created') as $entry) {
         expect($entry->causer?->is($t->a->owner))->toBeTrue()
             ->and($entry->getExtraProperty('organization_id'))->toBe($t->a->organization->id)
             ->and($entry->getExtraProperty('property_id'))->toBe($property->id);
     }
+});
+
+test('permitted readers can access archived records while writes remain refused', function () {
+    $t = twoTenants();
+    $auditor = $t->a->member(OrganizationRole::Auditor);
+
+    $this->actingAs($t->a->owner)
+        ->post(route('properties.archive', $t->a->property), ['_property' => $t->a->property->id]);
+
+    $this->actingAs($auditor)
+        ->get(route('properties.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('archivedProperties', 1)
+            ->where('archivedProperties.0.name', 'Alpha Stone Town Inn'));
+
+    expect(inTenant($t->a->organization, fn () => Access::allows($auditor, OrganizationPermission::PropertiesView, $t->a->property)))->toBeTrue();
+
+    $this->actingAs($t->a->owner)
+        ->post(route('properties.archive', $t->a->otherProperty), ['_property' => $t->a->otherProperty->id]);
+
+    $this->actingAs($auditor)
+        ->put(route('properties.update', $t->a->property), PropertyForm::payload(['_property' => $t->a->otherProperty->id]))
+        ->assertForbidden();
 });
 
 test('managers still see archived properties, which stay out of reach for daily work', function () {
@@ -185,7 +228,7 @@ test('only owners archive and restore properties', function (OrganizationRole $r
     'auditor' => OrganizationRole::Auditor,
 ]);
 
-test('members limited to their own properties are not shown the organization\'s archived properties', function (OrganizationRole $role) {
+test('members with properties.view can see the organization\'s archived list', function (OrganizationRole $role) {
     $t = twoTenants();
 
     $this->actingAs($t->a->owner)
@@ -197,7 +240,7 @@ test('members limited to their own properties are not shown the organization\'s 
         ->assertInertia(fn (Assert $page) => $page
             ->has('properties', 1)
             ->where('properties.0.can.archive', false)
-            ->has('archivedProperties', 0));
+            ->has('archivedProperties', 1));
 })->with([
     'property manager' => OrganizationRole::PropertyManager,
     'auditor' => OrganizationRole::Auditor,

@@ -12,6 +12,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { archive, create, edit, index, restore } from '@/routes/properties';
+import { formatDate } from '@/features/platform/format';
 import type { Currency, JurisdictionProfile } from '@/types';
 
 type PropertyRow = {
@@ -21,6 +22,7 @@ type PropertyRow = {
     timezone: string;
     currency: Currency;
     jurisdictionProfile: JurisdictionProfile;
+    jurisdictionLabel: string;
     can: { update: boolean; archive: boolean };
 };
 
@@ -30,24 +32,10 @@ type ArchivedPropertyRow = {
     city: string;
     timezone: string;
     jurisdictionProfile: JurisdictionProfile;
+    jurisdictionLabel: string;
     archivedAt: string;
     can: { restore: boolean };
 };
-
-const jurisdictionLabels: Record<JurisdictionProfile, string> = {
-    zanzibar: 'Zanzibar',
-    mainland_tanzania: 'Mainland Tanzania',
-};
-
-/** "7 Oct 2026", in the property's own timezone. */
-function formatDate(iso: string, timeZone: string): string {
-    return new Intl.DateTimeFormat('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        timeZone,
-    }).format(new Date(iso));
-}
 
 function ArchiveProperty({ property }: { property: PropertyRow }) {
     return (
@@ -74,7 +62,7 @@ function ArchiveProperty({ property }: { property: PropertyRow }) {
                             {(errors.archive || errors._property) && (
                                 <p
                                     role="alert"
-                                    className="mb-4 flex gap-2 text-[13px] text-red-700 dark:text-red-400"
+                                    className="mb-4 flex gap-2 text-[13px] text-status-error"
                                 >
                                     <AlertCircle
                                         aria-hidden
@@ -126,10 +114,10 @@ function RestoreProperty({ property }: { property: ArchivedPropertyRow }) {
 
 function ArchivedChip() {
     return (
-        <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-400/15 dark:text-slate-400">
+        <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-status-unavailable-tint px-2 py-0.5 text-xs font-medium text-status-unavailable">
             <span
                 aria-hidden
-                className="size-1.5 rounded-full bg-slate-500 dark:bg-slate-400"
+                className="size-1.5 rounded-full bg-status-unavailable"
             />
             Archived
         </span>
@@ -228,12 +216,7 @@ export default function PropertiesIndex({
                                         </td>
                                         <td className="px-4 py-2">
                                             <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                                                {
-                                                    jurisdictionLabels[
-                                                        property
-                                                            .jurisdictionProfile
-                                                    ]
-                                                }
+                                                {property.jurisdictionLabel}
                                             </span>
                                         </td>
                                         <td className="px-4 py-2 font-mono">
@@ -332,12 +315,7 @@ export default function PropertiesIndex({
                                             </td>
                                             <td className="px-4 py-2">
                                                 <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                                                    {
-                                                        jurisdictionLabels[
-                                                            property
-                                                                .jurisdictionProfile
-                                                        ]
-                                                    }
+                                                    {property.jurisdictionLabel}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-2 tabular-nums">

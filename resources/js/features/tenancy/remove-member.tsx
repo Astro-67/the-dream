@@ -45,7 +45,7 @@ export function RemoveMember({ member, trigger }: Props) {
                             {(errors.member || errors._property) && (
                                 <p
                                     role="alert"
-                                    className="mb-4 flex gap-2 text-[13px] text-red-700 dark:text-red-400"
+                                    className="mb-4 flex gap-2 text-[13px] text-status-error"
                                 >
                                     <AlertCircle
                                         aria-hidden

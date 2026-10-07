@@ -53,7 +53,7 @@ trait ValidatesMembershipGrant
         $ids = $allProperties ? [] : array_filter((array) $this->input('property_ids', []), 'is_string');
 
         // Scoped to the current organization, so another organization's property is never accepted.
-        if ($ids !== [] && Property::query()->whereKey($ids)->whereNull('archived_at')->count() !== count(array_unique($ids))) {
+        if ($ids !== [] && Property::query()->active()->whereKey($ids)->count() !== count(array_unique($ids))) {
             $validator->errors()->add('property_ids', 'Choose properties of this organization.');
         }
     }

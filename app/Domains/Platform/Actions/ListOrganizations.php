@@ -26,7 +26,7 @@ final class ListOrganizations
     {
         return Tenancy::within(TenantContext::platform('Platform administrator listed organizations'), function (): array {
             $organizations = Organization::query()
-                ->withCount(['properties' => fn ($query) => $query->whereNull('archived_at')])
+                ->withCount(['properties' => fn ($query) => $query->active()])
                 ->orderBy('name')
                 ->orderBy('id')
                 ->get();

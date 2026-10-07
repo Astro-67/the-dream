@@ -80,11 +80,13 @@ test('property creation and edits are audited with the actor and the before and 
     ]));
 
     $created = Activity::query()->where('event', 'created')->where('description', 'Property created')->latest('id')->first();
-    expect($created->causer?->is($owner))->toBeTrue()
+    $updated = Activity::query()->where('event', 'updated')->where('subject_id', $property->id)->sole();
+    expect($created->getExtraProperty('result'))->toBe('success')
+        ->and($updated->getExtraProperty('result'))->toBe('success')
+        ->and($created->causer?->is($owner))->toBeTrue()
         ->and($created->getExtraProperty('organization_id'))->toBe($organization->id)
         ->and($created->getExtraProperty('attributes')['name'])->toBe('Serengeti Gate Lodge');
 
-    $updated = Activity::query()->where('event', 'updated')->where('subject_id', $property->id)->sole();
     expect($updated->causer?->is($owner))->toBeTrue()
         ->and($updated->getExtraProperty('organization_id'))->toBe($organization->id)
         ->and($updated->getExtraProperty('property_id'))->toBe($property->id)
