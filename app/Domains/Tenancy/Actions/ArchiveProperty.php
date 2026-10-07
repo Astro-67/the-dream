@@ -64,6 +64,7 @@ class ArchiveProperty
             });
         } catch (ArchiveRefused $refused) {
             Audit::record($actor, 'archive_refused', $property, 'Property archive refused', [
+                'property_id' => $property->getKey(),
                 'result' => 'refused', 'reason' => $refused->getMessage(),
             ]);
 

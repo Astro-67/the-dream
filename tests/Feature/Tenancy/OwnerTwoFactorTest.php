@@ -74,7 +74,7 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
         'invitations.destroy' => ['DELETE', route($routeName, inTenant($property, fn () => app(SendInvitation::class)->handle(
             $owner,
             new InvitationDetails('pending@example.test', MembershipGrant::properties(OrganizationRole::FrontDesk, [$property->id]), CarbonImmutable::now()->addWeek()),
-        )))],
+        ))), $intent],
         'members.index' => ['GET', route($routeName)],
         'members.edit' => ['GET', route($routeName, ownMembership($owner, $property))],
         'members.update' => ['PUT', route($routeName, ownMembership($owner, $property)), [...$intent, 'role' => 'group_operations_manager', 'all_properties' => true]],
