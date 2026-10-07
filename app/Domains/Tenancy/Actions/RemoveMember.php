@@ -27,25 +27,36 @@ class RemoveMember
      */
     public function handle(?User $actor, OrganizationMembership $membership): void
     {
-        Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => DB::transaction(function () use ($actor, $membership) {
-            $this->lockMemberships();
-            $before = $membership->grant();
+        try {
+            Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => DB::transaction(function () use ($actor, $membership) {
+                $this->lockMemberships();
+                $before = $membership->grant();
 
-            if ($before->role === OrganizationRole::Owner && $this->ownerCount() <= 1) {
-                throw MembershipChangeRefused::lastOwner();
+                if ($before->role === OrganizationRole::Owner && $this->ownerCount() <= 1) {
+                    throw MembershipChangeRefused::lastOwner();
+                }
+
+                /** @var User $member */
+                $member = $membership->user;
+
+                PropertyMembership::query()->where('user_id', $member->getKey())->delete();
+                $member->unsetRelation('roles')->syncRoles([]);
+                $member->unsetRelation('permissions')->syncPermissions([]);
+                $membership->delete();
+
+                Audit::record($actor, 'member_removed', $membership, 'Member removed', [
+                    'old' => ['user_id' => $member->getKey(), ...$before->toAuditValues()],
+                ]);
+            }));
+        } catch (MembershipChangeRefused $refused) {
+            if ($refused->getMessage() === MembershipChangeRefused::lastOwner()->getMessage()) {
+                Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => Audit::record($actor, 'member_removal_refused', $membership, 'Member removal refused', [
+                    'result' => 'refused', 'reason' => $refused->getMessage(),
+                    'old' => ['user_id' => $membership->user_id, ...$membership->grant()->toAuditValues()],
+                ]));
             }
 
-            /** @var User $member */
-            $member = $membership->user;
-
-            PropertyMembership::query()->where('user_id', $member->getKey())->delete();
-            $member->unsetRelation('roles')->syncRoles([]);
-            $member->unsetRelation('permissions')->syncPermissions([]);
-            $membership->delete();
-
-            Audit::record($actor, 'member_removed', $membership, 'Member removed', [
-                'old' => ['user_id' => $member->getKey(), ...$before->toAuditValues()],
-            ]);
-        }));
+            throw $refused;
+        }
     }
 }

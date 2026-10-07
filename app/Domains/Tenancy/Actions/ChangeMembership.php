@@ -29,30 +29,41 @@ class ChangeMembership
      */
     public function handle(?User $actor, OrganizationMembership $membership, MembershipGrant $grant): OrganizationMembership
     {
-        return Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => DB::transaction(function () use ($actor, $membership, $grant) {
-            $this->lockMemberships();
-            $before = $membership->grant();
+        try {
+            return Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => DB::transaction(function () use ($actor, $membership, $grant) {
+                $this->lockMemberships();
+                $before = $membership->grant();
 
-            if ($grant->role === OrganizationRole::Owner && $before->role !== OrganizationRole::Owner) {
-                throw MembershipChangeRefused::ownershipOnlyByTransfer();
-            }
+                if ($grant->role === OrganizationRole::Owner && $before->role !== OrganizationRole::Owner) {
+                    throw MembershipChangeRefused::ownershipOnlyByTransfer();
+                }
 
-            if ($before->role === OrganizationRole::Owner && $grant->role !== OrganizationRole::Owner && $this->ownerCount() <= 1) {
-                throw MembershipChangeRefused::lastOwner();
-            }
+                if ($before->role === OrganizationRole::Owner && $grant->role !== OrganizationRole::Owner && $this->ownerCount() <= 1) {
+                    throw MembershipChangeRefused::lastOwner();
+                }
 
-            if ($before->toAuditValues() === $grant->toAuditValues()) {
+                if ($before->toAuditValues() === $grant->toAuditValues()) {
+                    return $membership;
+                }
+
+                $this->writeGrant($membership, $grant);
+
+                Audit::record($actor, 'member_updated', $membership, 'Member access changed', [
+                    'old' => ['user_id' => $membership->user_id, ...$before->toAuditValues()],
+                    'attributes' => ['user_id' => $membership->user_id, ...$grant->toAuditValues()],
+                ]);
+
                 return $membership;
+            }));
+        } catch (MembershipChangeRefused $refused) {
+            if ($refused->getMessage() === MembershipChangeRefused::lastOwner()->getMessage()) {
+                Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => Audit::record($actor, 'member_change_refused', $membership, 'Member role change refused', [
+                    'result' => 'refused', 'reason' => $refused->getMessage(),
+                    'old' => ['user_id' => $membership->user_id, ...$membership->grant()->toAuditValues()],
+                ]));
             }
 
-            $this->writeGrant($membership, $grant);
-
-            Audit::record($actor, 'member_updated', $membership, 'Member access changed', [
-                'old' => ['user_id' => $membership->user_id, ...$before->toAuditValues()],
-                'attributes' => ['user_id' => $membership->user_id, ...$grant->toAuditValues()],
-            ]);
-
-            return $membership;
-        }));
+            throw $refused;
+        }
     }
 }

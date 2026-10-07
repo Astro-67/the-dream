@@ -27,6 +27,7 @@ final class Audit
             ->withProperties([
                 'organization_id' => $context?->organizationId,
                 'property_id' => $context?->propertyId,
+                'result' => 'success',
                 ...$properties,
             ])
             ->log($description);

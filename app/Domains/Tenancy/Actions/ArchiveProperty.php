@@ -35,29 +35,40 @@ class ArchiveProperty
             return $property;
         }
 
-        return DB::transaction(function () use ($actor, $property) {
-            // Locks the organization's active properties, so two owners can't archive the last two at once.
-            $active = Property::query()->whereNull('archived_at')->lockForUpdate()->pluck('id');
+        try {
+            return DB::transaction(function () use ($actor, $property) {
+                // Locks the organization's active properties, so two owners can't archive the last two at once.
+                $active = Property::query()->where('organization_id', $property->organization_id)->whereNull('archived_at')->lockForUpdate()->pluck('id');
 
-            if ($active->doesntContain(fn (string $id) => $id !== $property->getKey())) {
-                throw ArchiveRefused::lastActiveProperty($property);
-            }
+                if ($active->doesntContain(fn (string $id) => $id !== $property->getKey())) {
+                    throw ArchiveRefused::lastActiveProperty($property);
+                }
 
-            $reasons = $this->failedChecks($property);
+                $reasons = $this->failedChecks($property);
 
-            if ($reasons !== []) {
-                throw new ArchiveRefused($reasons);
-            }
+                if ($reasons !== []) {
+                    throw new ArchiveRefused($reasons);
+                }
 
-            $property->archived_at = now();
-            $property->save();
+                $before = ['archived_at' => null];
+                $property->archived_at = now();
+                $property->save();
 
-            Audit::record($actor, 'archived', $property, 'Property archived', [
-                'property_id' => $property->getKey(),
+                Audit::record($actor, 'archived', $property, 'Property archived', [
+                    'property_id' => $property->getKey(),
+                    'old' => $before,
+                    'attributes' => ['archived_at' => $property->archived_at->toIso8601String()],
+                ]);
+
+                return $property;
+            });
+        } catch (ArchiveRefused $refused) {
+            Audit::record($actor, 'archive_refused', $property, 'Property archive refused', [
+                'result' => 'refused', 'reason' => $refused->getMessage(),
             ]);
 
-            return $property;
-        });
+            throw $refused;
+        }
     }
 
     /**

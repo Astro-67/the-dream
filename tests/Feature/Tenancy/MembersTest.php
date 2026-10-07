@@ -192,6 +192,11 @@ test('removing or demoting the last owner is refused with a clear message', func
 
     $this->get(route('members.index'))->assertInertia(fn (Assert $page) => $page
         ->where('members', fn ($members) => collect($members)->contains(fn ($m) => $m['email'] === 'owner@alpha.test' && $m['role'] === 'owner')));
+
+    expect(Activity::query()->whereIn('event', ['member_removal_refused', 'member_change_refused'])
+        ->where('log_name', 'audit')->pluck('event')->all())->toBe(['member_removal_refused', 'member_change_refused'])
+        ->and(Activity::query()->whereIn('event', ['member_removal_refused', 'member_change_refused'])
+            ->get()->every(fn (Activity $entry) => $entry->getExtraProperty('result') === 'refused'))->toBeTrue();
 });
 
 test('no one is made an owner except through a transfer', function () {

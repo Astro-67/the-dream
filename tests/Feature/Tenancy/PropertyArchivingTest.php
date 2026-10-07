@@ -102,7 +102,8 @@ test('a registered pre-archive check that fails blocks archiving and shows its r
         ->assertInertia(fn (Assert $page) => $page
             ->has('tenant.properties', 2)
             ->has('archivedProperties', 0));
-    expect(Activity::query()->where('event', 'archived')->exists())->toBeFalse();
+    expect(Activity::query()->where('event', 'archived')->exists())->toBeFalse()
+        ->and(Activity::query()->where('event', 'archive_refused')->where('subject_id', $t->a->otherProperty->id)->first()?->getExtraProperty('result'))->toBe('refused');
 });
 
 test('a property every pre-archive check passes is archived', function () {
@@ -130,7 +131,13 @@ test('archiving and restoring are audited with the actor, and the property\'s ea
 
     $history = Activity::query()->where('subject_id', $property->id)->orderBy('id')->get();
 
-    expect($history->pluck('event')->all())->toBe(['created', 'updated', 'archived', 'restored']);
+    expect($history->pluck('event')->all())->toBe(['created', 'updated', 'archived', 'restored'])
+        ->and($history[2]->getExtraProperty('result'))->toBe('success')
+        ->and($history[2]->getExtraProperty('old'))->toBe(['archived_at' => null])
+        ->and($history[2]->getExtraProperty('attributes.archived_at'))->toBeString()
+        ->and($history[3]->getExtraProperty('result'))->toBe('success')
+        ->and($history[3]->getExtraProperty('old.archived_at'))->toBeString()
+        ->and($history[3]->getExtraProperty('attributes'))->toBe(['archived_at' => null]);
 
     foreach ($history->where('event', '!=', 'created') as $entry) {
         expect($entry->causer?->is($t->a->owner))->toBeTrue()

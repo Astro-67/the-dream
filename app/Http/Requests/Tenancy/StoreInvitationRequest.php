@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Tenancy;
 
 use App\Domains\Tenancy\Data\InvitationDetails;
-use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Invitation;
 use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Http\Requests\Tenancy\Concerns\ValidatesMembershipGrant;
@@ -11,7 +10,7 @@ use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Validator;
 
 /**
@@ -25,6 +24,15 @@ class StoreInvitationRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user()?->can('create', Invitation::class) ?? false;
+    }
+
+    protected function passedValidation(): void
+    {
+        if ($this->user() !== null && $this->user()->can('create', [Invitation::class, $this->grant()])) {
+            return;
+        }
+
+        Gate::authorize('create', [Invitation::class, $this->grant()]);
     }
 
     protected function prepareForValidation(): void
