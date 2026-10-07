@@ -3,7 +3,7 @@
 - **Status:** draft 1, 6 October 2026
 - **Implements:** [`docs/prd/PRD.md`](prd/PRD.md) v1.1
 - **Vocabulary:** [`docs/GLOSSARY.md`](GLOSSARY.md)
-- **Decisions:** [`docs/adr/`](adr/), ADRs 0001–0011
+- **Decisions:** [`docs/adr/`](adr/), ADRs 0001–0012
 
 This document describes how Thedream is built: the domains, their boundaries, how integration messages move, and how the system is deployed and recovered. The ADRs record *why* each decision was made. This document records *what* the shape is. When the two disagree, the ADR wins and this document gets fixed.
 
@@ -85,10 +85,10 @@ app/Domains/{Distribution,ZanReporting,FiscalReceipting}/
   Contracts/        ChannelConnector.php, ZanReporter.php, FiscalReceipter.php
   Adapters/         Vendor adapters and Fake* adapters
 app/Support/
-  Tenancy/          TenantContext, BelongsToTenant, Tenancy::asPlatform()
+  Tenancy/          Tenancy::within(), TenantContext, BelongsToTenant, BelongsToProperty
   Outbox/           Outbox model base, drainer, sweeper, idempotency keys
   Money/            Money value object, currency
-  Jobs/             TenantAware trait and job middleware
+  Jobs/             TenantAware trait and job middleware (both call Tenancy::within)
 app/Http/Controllers/Web/      Inertia controllers, grouped by domain
 app/Http/Controllers/Api/V1/   Inbound webhooks and any future API
 routes/web.php                 Loads every file in routes/web/ (one file per domain)
@@ -125,13 +125,26 @@ Actions are what the HTTP layer, jobs, imports and tests all call. No business l
 
 ## 4. Tenancy and authorization
 
-### 4.1 Tenant context (ADR 0008)
+### 4.1 Tenant context (ADR 0008, ADR 0012)
 
-- `TenantContext` holds the current organization, and the current property where there is one.
-- **Web:** middleware resolves it from the session after checking membership. It also calls `setPermissionsTeamId($organization->id)` for spatie.
-- **Jobs:** every tenant-scoped job uses a `TenantAware` trait. The job stores the organization and property IDs when it is dispatched, and job middleware restores the `TenantContext` and spatie team ID before `handle()` runs. A tenant-scoped job without a context fails, rather than running unscoped.
-- **Global scope:** `BelongsToTenant` adds a scope filtering by `organization_id`. Property-owned models also filter by `property_id` when a property is in context. Creating a model fills both IDs from the context.
-- **Platform bypass:** platform code that must work across tenants, such as the ZAN Gateway drainer or the platform compliance dashboard, runs inside `Tenancy::asPlatform(fn () => ...)`. This is the only way to remove the scope, so it's easy to find in review.
+Everything about "which tenant am I acting for" goes through one module, `App\Support\Tenancy`, and one entry point:
+
+```php
+Tenancy::within(TenantContext::forProperty($property), fn () => ...);       // organization + property
+Tenancy::within(TenantContext::forOrganization($organization), fn () => ...); // organization only
+Tenancy::within(TenantContext::platform('ZAN Gateway drain'), fn () => ...);  // across organizations, logged
+```
+
+- `TenantContext` is a value object of IDs: an organization and optionally a property, or "platform" plus a reason. It is serializable, so jobs can carry it. `TenantContext::fromIds($organizationId, $propertyId)` rebuilds one from stored IDs.
+- `within` sets the context and spatie's team ID (`setPermissionsTeamId($organization->id)`), checks that the property belongs to the organization, runs the callback, and restores the previous context and team ID afterwards, even on exceptions. Contexts nest.
+- Reading the context: `Tenancy::current()`, `Tenancy::organization()`, `Tenancy::property()`, `Tenancy::isPlatform()`.
+- Choosing a context for a user (membership rechecked on every call): `Tenancy::allows($user, $context)`, `Tenancy::defaultContextFor($user)`, and for the switcher `Tenancy::organizationsFor($user)` and `Tenancy::propertiesFor($user)` (in the current organization).
+- **Web:** the `tenant` route middleware (`SetTenantContext`) reads the organization and property from the session, rechecks them with `Tenancy::allows`, falls back to `Tenancy::defaultContextFor`, and wraps the rest of the request in `within`. A user with no membership is sent to organization setup. It runs before `SubstituteBindings`, so route model binding is already scoped. `tenant:optional` sets the context when there is one but never redirects (used by user settings pages).
+- **Jobs (#10):** a `TenantAware` job captures `Tenancy::current()` when dispatched, and its job middleware calls `within` with it. No captured context means the job fails.
+- **Console and tests:** call `within` directly. Pest helpers: `organizationWithOwner()` builds an organization, its first property and its owner through the real action; `inTenant($organizationOrProperty, fn)` wraps `within`.
+- **Scoping:** `BelongsToTenant` (organization-owned models) adds a global scope on `organization_id`; `BelongsToProperty` (property-owned models) adds `property_id` too when a property is in context. `Organization` itself is scoped to the current organization. Creating a model fills both IDs from the context, and a mismatching ID or a change of `organization_id` throws `TenantMismatch`.
+- **Fail closed:** querying or creating a tenant-owned model with no context throws `MissingTenantContext`.
+- **Platform context:** the only way to read across organizations. Tenant scopes don't filter, the spatie team ID is cleared, created records must name their organization explicitly, and entering it is written to the activity log (`log_name` `platform`) with the actor and the reason. The scope class is used only inside `App\Support\Tenancy`, enforced by an architecture test.
 
 ### 4.2 Authorization (ADR 0007)
 
@@ -200,7 +213,7 @@ These rows are the **record of truth** for delivery. The delivery log (ZAN-08), 
 - A platform-wide rate limiter allows **100 requests per minute** (PRD I-5), shared across all properties and keyed globally, not per tenant.
 - A 200 response is checked **for each booking**: `rejected_booking_count` and `validation_errors` decide each row's status (ZAN-06).
 - **Idempotency:** ZAN Gateway has no idempotency field. It upserts by hotel code plus reservation number, so re-sending a row's state is harmless. The idempotency key is kept on our side for the log.
-- The drainer runs under `Tenancy::asPlatform()` because the key and rate limit belong to the platform (ADR 0003).
+- The drainer runs under `Tenancy::within(TenantContext::platform(...))` because the key and rate limit belong to the platform (ADR 0003).
 
 **VFMS (FiscalReceipting)**
 
@@ -418,3 +431,4 @@ This applies only if the client rejects a VPS (ADR 0006).
 | [0009](adr/0009-transactional-outbox-for-integrations.md) | Transactional outbox for integrations |
 | [0010](adr/0010-integrations-are-modules-behind-interfaces.md) | Integrations are modules behind interfaces |
 | [0011](adr/0011-aws-af-south-1-with-managed-mysql.md) | AWS af-south-1 with managed MySQL and PITR |
+| [0012](adr/0012-one-tenancy-entry-point-with-platform-as-a-context.md) | One Tenancy entry point, with platform as a kind of context |
