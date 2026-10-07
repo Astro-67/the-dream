@@ -28,6 +28,7 @@ class UpdateProperty
             $property->save();
 
             Audit::record($actor, 'updated', $property, 'Property updated', [
+                'result' => 'success',
                 'property_id' => $property->getKey(),
                 'old' => $old,
                 'attributes' => $property->only($changed),

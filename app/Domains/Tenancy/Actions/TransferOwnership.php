@@ -57,6 +57,7 @@ class TransferOwnership
             $this->writeGrant($source, $previousOwnerGrant);
 
             Audit::record($previousOwner, 'ownership_transferred', $target, 'Ownership transferred', [
+                'result' => 'success',
                 'old' => [
                     'new_owner' => ['user_id' => $target->user_id, ...$targetBefore->toAuditValues()],
                     'previous_owner' => ['user_id' => $source->user_id, ...$sourceBefore->toAuditValues()],

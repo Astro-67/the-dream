@@ -57,6 +57,7 @@ class AcceptInvitation
             }
 
             Audit::record($user, 'accepted', $invitation, 'Invitation accepted', [
+                'result' => 'success',
                 'attributes' => ['email' => $invitation->email, 'role' => $invitation->role->value],
             ]);
 

@@ -357,6 +357,7 @@ test('role changes, property changes, removals and transfers are audited with be
         ->orderBy('id')->get();
 
     expect($entries->pluck('event')->all())->toBe(['member_updated', 'member_removed', 'ownership_transferred'])
+        ->and($entries->every(fn (Activity $entry) => $entry->getExtraProperty('result') === 'success'))->toBeTrue()
         ->and($entries->every(fn (Activity $entry) => $entry->causer_id === $t->a->owner->id
             && $entry->getExtraProperty('organization_id') === $t->a->organization->id))->toBeTrue();
 
