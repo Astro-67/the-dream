@@ -11,14 +11,25 @@ use App\Support\Tenancy\Access;
  * The current organization's properties.
  *
  * - properties.view: see the properties the member may act in.
- * - properties.manage (owner, group operations manager): add properties to the organization.
+ * - properties.manage (owner, group operations manager): add properties to the
+ *   organization, and see its archived properties.
  * - properties.update (also property managers): edit a property they may act in.
+ * - properties.archive (owners only): archive a property, and restore one.
  */
 class PropertyPolicy
 {
     public function viewAny(User $user): bool
     {
         return Access::allows($user, OrganizationPermission::PropertiesView);
+    }
+
+    /**
+     * Archived properties are out of everyone's reach for daily work, so they
+     * are listed only to the roles that run the whole portfolio.
+     */
+    public function viewArchived(User $user): bool
+    {
+        return Access::allows($user, OrganizationPermission::PropertiesManage);
     }
 
     public function create(User $user): bool
@@ -29,5 +40,18 @@ class PropertyPolicy
     public function update(User $user, Property $property): bool
     {
         return Access::allows($user, OrganizationPermission::PropertiesUpdate, $property);
+    }
+
+    public function archive(User $user, Property $property): bool
+    {
+        return Access::allows($user, OrganizationPermission::PropertiesArchive, $property);
+    }
+
+    /**
+     * Checked organization-wide: no one may act in an archived property until it is restored.
+     */
+    public function restore(User $user, Property $property): bool
+    {
+        return Access::allows($user, OrganizationPermission::PropertiesArchive);
     }
 }

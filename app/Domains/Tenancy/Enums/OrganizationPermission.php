@@ -24,6 +24,7 @@ enum OrganizationPermission: string
     case PropertiesView = 'properties.view';
     case PropertiesManage = 'properties.manage';
     case PropertiesUpdate = 'properties.update';
+    case PropertiesArchive = 'properties.archive';
 
     // Members
     case MembersView = 'members.view';

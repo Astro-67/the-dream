@@ -40,8 +40,25 @@ class PropertyController extends Controller
                 'timezone' => $property->timezone,
                 'currency' => $property->currency->value,
                 'jurisdictionProfile' => $property->jurisdiction_profile->value,
-                'canUpdate' => $user->can('update', $property),
+                'can' => [
+                    'update' => $user->can('update', $property),
+                    'archive' => $user->can('archive', $property),
+                ],
             ])->values(),
+            // Archived properties stay readable here; they are left out of the switcher and operational lists.
+            'archivedProperties' => ! $user->can('viewArchived', Property::class) ? [] : Property::query()
+                ->whereNotNull('archived_at')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Property $property) => [
+                    'id' => $property->id,
+                    'name' => $property->name,
+                    'city' => $property->city,
+                    'jurisdictionProfile' => $property->jurisdiction_profile->value,
+                    'timezone' => $property->timezone,
+                    'archivedAt' => $property->archived_at?->toIso8601String(),
+                    'can' => ['restore' => $user->can('restore', $property)],
+                ])->values(),
         ]);
     }
 

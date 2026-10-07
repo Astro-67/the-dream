@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Web\Tenancy\ArchivedPropertyController;
 use App\Http\Controllers\Web\Tenancy\CurrentPropertyController;
 use App\Http\Controllers\Web\Tenancy\PropertyController;
 use Illuminate\Support\Facades\Route;
@@ -15,5 +16,7 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
         Route::post('properties', [PropertyController::class, 'store'])->name('properties.store');
         Route::get('properties/{property}/edit', [PropertyController::class, 'edit'])->name('properties.edit');
         Route::put('properties/{property}', [PropertyController::class, 'update'])->name('properties.update');
+        Route::post('properties/{property}/archive', [ArchivedPropertyController::class, 'store'])->name('properties.archive');
+        Route::delete('properties/{property}/archive', [ArchivedPropertyController::class, 'destroy'])->name('properties.restore');
     });
 });

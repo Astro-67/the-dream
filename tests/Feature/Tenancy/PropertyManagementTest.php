@@ -182,7 +182,7 @@ test('a property manager edits their own property, but can\'t add properties or 
             ->where('canCreate', false)
             ->has('properties', 1)
             ->where('properties.0.id', $t->a->property->id)
-            ->where('properties.0.canUpdate', true));
+            ->where('properties.0.can.update', true));
 
     $this->get(route('properties.edit', $t->a->property))->assertOk();
     $this->put(route('properties.update', $t->a->property), PropertyForm::payload([
@@ -212,7 +212,7 @@ test('an auditor sees the properties they may view, but every change is refused'
             ->where('canCreate', false)
             ->has('properties', 1)
             ->where('properties.0.name', 'Alpha Stone Town Inn')
-            ->where('properties.0.canUpdate', false));
+            ->where('properties.0.can.update', false));
 
     $this->get(route('properties.create'))->assertForbidden();
     $this->get(route('properties.edit', $t->a->property))->assertForbidden();
@@ -233,8 +233,8 @@ test('owners see every property with the actions to add and edit them', function
         ->assertInertia(fn (Assert $page) => $page
             ->where('canCreate', true)
             ->has('properties', 2)
-            ->where('properties.0.canUpdate', true)
-            ->where('properties.1.canUpdate', true));
+            ->where('properties.0.can.update', true)
+            ->where('properties.1.can.update', true));
 });
 
 /**

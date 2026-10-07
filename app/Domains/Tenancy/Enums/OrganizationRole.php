@@ -55,8 +55,8 @@ enum OrganizationRole: string
      * roles are seeded from it (ProvisionOrganizationRoles). Job titles and
      * departments grant nothing; only the role does.
      *
-     * Financial and security settings are owner-only. A group operations manager
-     * gets them only when granted to them individually.
+     * Archiving properties, and financial and security settings, are owner-only.
+     * A group operations manager gets the settings only when granted them individually.
      *
      * @return list<string>
      */

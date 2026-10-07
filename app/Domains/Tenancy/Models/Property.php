@@ -7,6 +7,7 @@ use App\Domains\Tenancy\Enums\PropertyType;
 use App\Domains\Tenancy\Policies\PropertyPolicy;
 use App\Support\Money\Currency;
 use App\Support\Tenancy\BelongsToTenant;
+use Carbon\CarbonImmutable;
 use Database\Factories\PropertyFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
@@ -15,7 +16,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Carbon;
 
 /**
  * One hotel operated by an organization (GLOSSARY: property).
@@ -34,9 +34,9 @@ use Illuminate\Support\Carbon;
  * @property Currency $currency
  * @property JurisdictionProfile $jurisdiction_profile
  * @property string|null $zra_hotel_code
- * @property Carbon|null $archived_at
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
+ * @property CarbonImmutable|null $archived_at
+ * @property CarbonImmutable|null $created_at
+ * @property CarbonImmutable|null $updated_at
  */
 #[Fillable([
     'organization_id', 'name', 'property_type', 'address_line', 'city', 'region', 'postal_code',

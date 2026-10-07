@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Tenancy\Actions\ArchiveProperty;
 use App\Domains\Tenancy\Models\Property;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\PropertyForm;
@@ -15,7 +16,7 @@ use Tests\Support\TwoTenants;
  * @return array<string, array<string, mixed>>
  */
 $bravoProperties = fn (TwoTenants $t): array => inTenant($t->b->organization, fn () => Property::query()
-    ->orderBy('id')->get()->keyBy('id')->map(fn (Property $p) => $p->only(['name', 'email', 'currency', 'timezone']))->all());
+    ->orderBy('id')->get()->keyBy('id')->map(fn (Property $p) => [...$p->only(['name', 'email', 'currency', 'timezone']), 'archived_at' => $p->archived_at?->toIso8601String()])->all());
 
 return [
     // Switching to Bravo's property is refused, and the member stays in Alpha.
@@ -68,6 +69,44 @@ return [
         ];
 
         expect($bravoProperties($t))->toBe($before);
+
+        return $responses;
+    }),
+
+    // Archiving Bravo's property: not found through Alpha, refused when the form names Bravo's property.
+    'properties.archive' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoProperties) {
+        $before = $bravoProperties($t);
+
+        $responses = [
+            $this->actingAs($t->a->owner)
+                ->post(route('properties.archive', $t->b->otherProperty->id), ['_property' => $t->a->property->id])
+                ->assertNotFound(),
+            $this->actingAs($t->a->owner)
+                ->post(route('properties.archive', $t->b->otherProperty->id), ['_property' => $t->b->property->id])
+                ->assertForbidden(),
+        ];
+
+        expect($bravoProperties($t))->toBe($before);
+
+        return $responses;
+    }),
+
+    // Restoring Bravo's archived property: the same two refusals, and it stays archived.
+    'properties.restore' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoProperties) {
+        inTenant($t->b->property, fn () => app(ArchiveProperty::class)->handle($t->b->owner, $t->b->otherProperty));
+        $before = $bravoProperties($t);
+
+        $responses = [
+            $this->actingAs($t->a->owner)
+                ->delete(route('properties.restore', $t->b->otherProperty->id), ['_property' => $t->a->property->id])
+                ->assertNotFound(),
+            $this->actingAs($t->a->owner)
+                ->delete(route('properties.restore', $t->b->otherProperty->id), ['_property' => $t->b->property->id])
+                ->assertForbidden(),
+        ];
+
+        expect($bravoProperties($t))->toBe($before)
+            ->and($before[$t->b->otherProperty->id]['archived_at'])->not->toBeNull();
 
         return $responses;
     }),
