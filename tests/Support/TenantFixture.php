@@ -43,7 +43,8 @@ final class TenantFixture
     {
         $slug = Str::lower($label);
 
-        $owner = User::factory()->create(['name' => "{$label} Owner", 'email' => "owner@{$slug}.test"]);
+        // Owners use two-factor authentication, as owner-only actions require (#13).
+        $owner = User::factory()->withTwoFactor()->create(['name' => "{$label} Owner", 'email' => "owner@{$slug}.test"]);
 
         [, $organization, $first] = organizationWithOwner([
             'organization_name' => "{$label} Hotels Group",

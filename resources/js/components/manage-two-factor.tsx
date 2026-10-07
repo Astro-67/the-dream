@@ -1,9 +1,10 @@
-import { Form } from '@inertiajs/react';
-import { ShieldCheck } from 'lucide-react';
+import { Form, Link } from '@inertiajs/react';
+import { ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import Heading from '@/components/heading';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
 import { disable, enable } from '@/routes/two-factor';
@@ -12,6 +13,8 @@ export type Props = {
     canManageTwoFactor?: boolean;
     requiresConfirmation?: boolean;
     twoFactorEnabled?: boolean;
+    /** Why the user was sent here to turn it on, and where to return to afterwards. */
+    twoFactorRequired?: { reason: string; returnTo: string | null } | null;
 };
 
 export default function ManageTwoFactor(props: Props) {
@@ -51,6 +54,12 @@ export default function ManageTwoFactor(props: Props) {
                 title="Two-factor authentication"
                 description="Manage your two-factor authentication settings"
             />
+            {props.twoFactorRequired ? (
+                <RequiredNotice
+                    {...props.twoFactorRequired}
+                    twoFactorEnabled={twoFactorEnabled}
+                />
+            ) : null}
             {twoFactorEnabled ? (
                 <div className="flex flex-col items-start justify-start space-y-4">
                     <p className="text-sm text-muted-foreground">
@@ -122,5 +131,43 @@ export default function ManageTwoFactor(props: Props) {
                 errors={errors}
             />
         </div>
+    );
+}
+
+function RequiredNotice({
+    reason,
+    returnTo,
+    twoFactorEnabled,
+}: {
+    reason: string;
+    returnTo: string | null;
+    twoFactorEnabled: boolean;
+}) {
+    if (!twoFactorEnabled) {
+        return (
+            <Alert>
+                <ShieldAlert />
+                <AlertTitle>Two-factor authentication needed</AlertTitle>
+                <AlertDescription>{reason}</AlertDescription>
+            </Alert>
+        );
+    }
+
+    return (
+        <Alert>
+            <ShieldCheck />
+            <AlertTitle>Two-factor authentication is on</AlertTitle>
+            <AlertDescription>
+                <p>
+                    Keep your recovery codes somewhere safe
+                    {returnTo ? ', then continue where you left off.' : '.'}
+                </p>
+                {returnTo ? (
+                    <Button asChild size="sm" className="mt-2">
+                        <Link href={returnTo}>Continue</Link>
+                    </Button>
+                ) : null}
+            </AlertDescription>
+        </Alert>
     );
 }
