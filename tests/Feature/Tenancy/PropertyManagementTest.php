@@ -1,9 +1,11 @@
 <?php
 
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Models\Property;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\PropertyForm;
+use Tests\Support\TwoTenants;
 
 test('an owner adds a property that keeps its own timezone, currency and jurisdiction profile', function () {
     [$owner, , $first] = organizationWithOwner();
@@ -149,7 +151,7 @@ test('a group operations manager adds and edits properties', function () {
             ->where('properties', fn ($properties) => collect($properties)->pluck('name')->contains('Alpha Arusha Lodge Renamed')));
 });
 
-test('members whose role does not manage properties can neither add nor edit them', function (OrganizationRole $role) {
+test('members whose role has no property permissions can neither see, add nor edit properties', function (OrganizationRole $role) {
     $t = twoTenants();
     $member = $t->a->member($role);
 
@@ -162,14 +164,85 @@ test('members whose role does not manage properties can neither add nor edit the
         'name' => 'Hijacked',
     ]))->assertForbidden();
 
-    $this->actingAs($t->a->owner)->get(route('properties.index'))
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('properties', 2)
-            ->where('properties', fn ($properties) => ! collect($properties)->pluck('name')->contains('Hijacked')));
+    expect(propertyNames($t))->toBe(['Alpha Arusha Lodge', 'Alpha Stone Town Inn']);
 })->with([
-    'property manager' => OrganizationRole::PropertyManager,
     'front desk' => OrganizationRole::FrontDesk,
     'finance' => OrganizationRole::Finance,
     'housekeeping' => OrganizationRole::Housekeeping,
-    'auditor' => OrganizationRole::Auditor,
 ]);
+
+test('a property manager edits their own property, but can\'t add properties or edit another', function () {
+    $t = twoTenants();
+    $manager = $t->a->member(OrganizationRole::PropertyManager);
+
+    $this->actingAs($manager)
+        ->get(route('properties.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canCreate', false)
+            ->has('properties', 1)
+            ->where('properties.0.id', $t->a->property->id)
+            ->where('properties.0.canUpdate', true));
+
+    $this->get(route('properties.edit', $t->a->property))->assertOk();
+    $this->put(route('properties.update', $t->a->property), PropertyForm::payload([
+        '_property' => $t->a->property->id,
+        'name' => 'Alpha Stone Town Grand',
+    ]))->assertRedirect(route('properties.index'));
+
+    $this->get(route('properties.create'))->assertForbidden();
+    $this->post(route('properties.store'), PropertyForm::payload(['_property' => $t->a->property->id]))->assertForbidden();
+    // Changing the ID in the URL to the property they don't work in.
+    $this->get(route('properties.edit', $t->a->otherProperty))->assertForbidden();
+    $this->put(route('properties.update', $t->a->otherProperty), PropertyForm::payload([
+        '_property' => $t->a->property->id,
+        'name' => 'Hijacked',
+    ]))->assertForbidden();
+
+    expect(propertyNames($t))->toBe(['Alpha Arusha Lodge', 'Alpha Stone Town Grand']);
+});
+
+test('an auditor sees the properties they may view, but every change is refused', function () {
+    $t = twoTenants();
+
+    $this->actingAs($t->a->member(OrganizationRole::Auditor))
+        ->get(route('properties.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canCreate', false)
+            ->has('properties', 1)
+            ->where('properties.0.name', 'Alpha Stone Town Inn')
+            ->where('properties.0.canUpdate', false));
+
+    $this->get(route('properties.create'))->assertForbidden();
+    $this->get(route('properties.edit', $t->a->property))->assertForbidden();
+    $this->post(route('properties.store'), PropertyForm::payload(['_property' => $t->a->property->id]))->assertForbidden();
+    $this->put(route('properties.update', $t->a->property), PropertyForm::payload([
+        '_property' => $t->a->property->id,
+        'name' => 'Hijacked',
+    ]))->assertForbidden();
+
+    expect(propertyNames($t))->toBe(['Alpha Arusha Lodge', 'Alpha Stone Town Inn']);
+});
+
+test('owners see every property with the actions to add and edit them', function () {
+    $t = twoTenants();
+
+    $this->actingAs($t->a->owner)
+        ->get(route('properties.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canCreate', true)
+            ->has('properties', 2)
+            ->where('properties.0.canUpdate', true)
+            ->where('properties.1.canUpdate', true));
+});
+
+/**
+ * Alpha's property names as stored, sorted.
+ *
+ * @return list<string>
+ */
+function propertyNames(TwoTenants $t): array
+{
+    return inTenant($t->a->organization, fn () => Property::query()->orderBy('name')->pluck('name')->all());
+}

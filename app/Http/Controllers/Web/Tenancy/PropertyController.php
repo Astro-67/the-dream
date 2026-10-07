@@ -32,6 +32,7 @@ class PropertyController extends Controller
         $user = $request->user();
 
         return Inertia::render('properties/index', [
+            'canCreate' => $user->can('create', Property::class),
             'properties' => Tenancy::propertiesFor($user)->map(fn (Property $property) => [
                 'id' => $property->id,
                 'name' => $property->name,
@@ -39,6 +40,7 @@ class PropertyController extends Controller
                 'timezone' => $property->timezone,
                 'currency' => $property->currency->value,
                 'jurisdictionProfile' => $property->jurisdiction_profile->value,
+                'canUpdate' => $user->can('update', $property),
             ])->values(),
         ]);
     }

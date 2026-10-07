@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Tenancy;
 use App\Domains\Tenancy\Actions\RevokeInvitation;
 use App\Domains\Tenancy\Actions\SendInvitation;
 use App\Domains\Tenancy\Data\InvitationDetails;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Exceptions\InvitationUnavailable;
 use App\Domains\Tenancy\Models\Invitation;
@@ -12,6 +13,7 @@ use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenancy\StoreInvitationRequest;
 use App\Models\User;
+use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,7 +65,7 @@ class InvitationController extends Controller
 
         /** @var User $user */
         $user = $request->user();
-        $managesMembers = $user->checkPermissionTo('members.manage');
+        $managesMembers = Access::allows($user, OrganizationPermission::MembersManage);
 
         $roles = array_values(array_filter(
             OrganizationRole::cases(),

@@ -3,26 +3,25 @@
 namespace App\Domains\Tenancy\Policies;
 
 use App\Domains\Tenancy\Data\MembershipGrant;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Invitation;
-use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
-use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\Access;
 
 /**
  * Who may invite people to the current organization, and with what grant.
  *
  * - `members.manage` (owners): any role, any properties of the organization, or all properties.
- * - `members.invite` (property managers): property staff roles, only to properties
- *   they may act in themselves, never all properties.
+ * - `members.invite` (property managers): property staff roles, and only to properties
+ *   where they hold members.invite themselves (Access), never all properties.
  *
- * Checked against the organization in the tenant context. Which properties exist
- * there is validated by the form request; this decides whether the user may grant them.
+ * Which properties exist is validated by the form request; this decides whether the user may grant them.
  */
 class InvitationPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $this->managesMembers($user) || $user->checkPermissionTo('members.invite');
+        return $this->managesMembers($user) || Access::allows($user, OrganizationPermission::MembersInvite);
     }
 
     public function create(User $user, ?MembershipGrant $grant = null): bool
@@ -31,7 +30,7 @@ class InvitationPolicy
             return true;
         }
 
-        if (! $user->checkPermissionTo('members.invite')) {
+        if (! Access::allows($user, OrganizationPermission::MembersInvite)) {
             return false;
         }
 
@@ -53,7 +52,7 @@ class InvitationPolicy
 
     private function managesMembers(User $user): bool
     {
-        return $user->checkPermissionTo('members.manage');
+        return Access::allows($user, OrganizationPermission::MembersManage);
     }
 
     private function withinOwnProperties(User $user, MembershipGrant $grant): bool
@@ -62,9 +61,13 @@ class InvitationPolicy
             return false;
         }
 
-        $own = Tenancy::propertiesFor($user)->map(fn (Property $property) => $property->id)->all();
+        foreach ($grant->propertyIds as $propertyId) {
+            if (! Access::allows($user, OrganizationPermission::MembersInvite, $propertyId)) {
+                return false;
+            }
+        }
 
-        return array_diff($grant->propertyIds, $own) === [];
+        return true;
     }
 
     private function grantOf(Invitation $invitation): MembershipGrant

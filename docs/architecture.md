@@ -153,6 +153,8 @@ Tenancy::within(TenantContext::platform('ZAN Gateway drain'), fn () => ...);  //
 - spatie teams mode: **team = organization**. Roles such as owner, group manager, property manager, front desk, finance, housekeeping and auditor are assigned within an organization.
 - `property_memberships` lists the properties each organization member may act in.
 - **Policies** check both: the role has the permission, **and** the record's property is in the user's property memberships. Organization-level roles (owner, group manager) may be granted all properties.
+  - Every policy does this through one helper, `App\Support\Tenancy\Access::allows($user, $permission, $propertyOrRecord = null)`, judged in the current organization (null = an organization-wide action).
+  - Permission names live in the `OrganizationPermission` enum; each role's set is `OrganizationRole::permissions()`, seeded per organization by `ProvisionOrganizationRoles`. After changing a set, run `php artisan organizations:sync-roles` to update existing organizations.
 - Platform roles (platform administrator, compliance operator) are separate and never come from organization membership.
 - **Inertia shared props** carry the current organization, property, and the user's permissions for that property, so the UI can hide actions. The server still checks every request.
 

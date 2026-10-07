@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Domains\Tenancy\Models\Organization;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
+use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -100,16 +101,14 @@ class HandleInertiaRequests extends Middleware
     }
 
     /**
+     * The member's permissions in the current property (or organization-wide when there is none).
+     *
      * @return list<string>
      */
     private function permissions(Request $request): array
     {
         $user = $request->user();
 
-        if (! $user instanceof User || Tenancy::organization() === null) {
-            return [];
-        }
-
-        return $user->getAllPermissions()->pluck('name')->map(fn ($name) => (string) $name)->values()->all();
+        return $user instanceof User ? Access::permissionsFor($user, Tenancy::property()) : [];
     }
 }
