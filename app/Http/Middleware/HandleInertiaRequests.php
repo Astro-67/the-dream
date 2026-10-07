@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Tenancy\Models\Organization;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -47,6 +48,8 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 // For hiding actions the user can't take. The server still checks every request.
                 'permissions' => fn () => $this->permissions($request),
+                // For showing platform navigation. Platform routes check the role again.
+                'platformRoles' => fn () => $this->platformRoles($request),
             ],
             'tenant' => fn () => $this->tenant($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
@@ -98,6 +101,18 @@ class HandleInertiaRequests extends Middleware
         }
 
         return $props;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function platformRoles(Request $request): array
+    {
+        $user = $request->user();
+
+        return $user instanceof User
+            ? array_map(fn (PlatformRole $role) => $role->value, $user->platformRoles())
+            : [];
     }
 
     /**

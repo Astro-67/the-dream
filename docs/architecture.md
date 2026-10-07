@@ -56,6 +56,7 @@ The application is one Laravel app divided into domains under `app/Domains/<Doma
 | Domain | Owns | PRD |
 |---|---|---|
 | **Tenancy** | Organization, Property, memberships, jurisdiction profile | §4, §6, §7.2 |
+| **Platform** | Platform roles (platform administrator, compliance operator) and the platform pages' read models. Later also support sessions and platform secrets | §5, §7.3 |
 | **Inventory** | Room types, rooms, out-of-service periods, availability | §7.4 (PMS-01) |
 | **Rates** | Rate plans, prices, restrictions (minimum stay, closed to arrival, stop-sell) | §7.4 (PMS-01) |
 | **Reservations** | Reservations, stays, reservation numbers, channel references, no-shows | §7.4 |
@@ -72,7 +73,7 @@ Not yet a domain folder, and added when their first ticket needs them:
 
 - **Subscriptions:** plans, SaaS invoices, entitlements (§7.3, §13).
 - **Compliance incidents and latency monitoring:** a Compliance domain if they outgrow Reports and the outbox (§7.9, §7.11).
-- **Platform administration:** support sessions and platform secrets (§5, §10).
+- **Platform administration** beyond roles and the organization list: support sessions and platform secrets (§5, §10), in the Platform domain.
 
 Users, login, registration and MFA stay where the starter kit puts them (`app/Models/User.php`, Fortify actions).
 
@@ -155,8 +156,10 @@ Tenancy::within(TenantContext::platform('ZAN Gateway drain'), fn () => ...);  //
 - **Policies** check both: the role has the permission, **and** the record's property is in the user's property memberships. Organization-level roles (owner, group manager) may be granted all properties.
   - Every policy does this through one helper, `App\Support\Tenancy\Access::allows($user, $permission, $propertyOrRecord = null)`, judged in the current organization (null = an organization-wide action).
   - Permission names live in the `OrganizationPermission` enum; each role's set is `OrganizationRole::permissions()`, seeded per organization by `ProvisionOrganizationRoles`. After changing a set, run `php artisan organizations:sync-roles` to update existing organizations.
-- Platform roles (platform administrator, compliance operator) are separate and never come from organization membership.
-- **Inertia shared props** carry the current organization, property, and the user's permissions for that property, so the UI can hide actions. The server still checks every request.
+- **Platform roles** (platform administrator, compliance operator) are separate and never come from organization membership (#11). They live in the `platform_role_assignments` table, not in spatie's teams, so no organization role or invitation can carry one; an architecture test keeps the model inside the Platform domain. `AssignPlatformRole` / `RevokePlatformRole` are the only way in: called by a platform administrator (from the Platform staff page) or with no actor by a seed or `php artisan platform:assign-role {email} {role}` / `platform:revoke-role`. Each change is written to the activity log (`log_name` `platform`). Read with `$user->hasPlatformRole(PlatformRole::Administrator)`, checked against the database on every call.
+- **Platform pages** (`routes/web/platform.php`, under `/platform`) use the route middleware `platform:<role>` (403 for anyone without that platform role, organization owners included) followed by `two-factor`. They sit outside the `tenant` middleware, and anything they read across organizations runs in `TenantContext::platform($reason)`, so each view is logged. The organization list shows name, owners, active property count and created date, and nothing from inside organizations. A platform administrator with no membership who opens an operational page is sent to the platform pages instead of organization setup.
+- **`two-factor` route middleware** (`RequireTwoFactor`): the user must have confirmed two-factor authentication. Otherwise a page visit or form post is redirected to `security.edit` with an error toast, and a JSON request gets 403. Put it after the middleware that decides access, so people without access get 403 rather than a 2FA prompt. Platform pages use it now; owner-only actions add it the same way (#13).
+- **Inertia shared props** carry the current organization, property, and the user's permissions for that property, so the UI can hide actions, plus `auth.platformRoles` for platform navigation. The server still checks every request.
 
 ### 4.3 Cross-tenant test suite
 

@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Platform\Actions\AssignPlatformRole;
+use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Tenancy\Actions\CreateOrganization;
 use App\Domains\Tenancy\Data\OrganizationSetup;
 use App\Domains\Tenancy\Models\Organization;
@@ -110,6 +112,22 @@ function inTenant(Organization|Property $tenant, Closure $callback): mixed
         : TenantContext::forOrganization($tenant);
 
     return Tenancy::within($context, $callback);
+}
+
+/**
+ * A member of platform staff, granted the role the way a seed or console command does.
+ * With two-factor authentication enabled unless $twoFactor is false.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function platformStaff(PlatformRole $role = PlatformRole::Administrator, bool $twoFactor = true, array $attributes = []): User
+{
+    $factory = User::factory();
+    $user = ($twoFactor ? $factory->withTwoFactor() : $factory)->create($attributes);
+
+    app(AssignPlatformRole::class)->handle($user, $role);
+
+    return $user;
 }
 
 /**
