@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Web\Tenancy;
 
 use App\Http\Controllers\Controller;
-use App\Http\Middleware\SetTenantContext;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
@@ -30,7 +29,7 @@ class CurrentPropertyController extends Controller
         $context = TenantContext::fromIds($organizationId, $propertyId);
         abort_unless(Tenancy::allows($user, $context), 403);
 
-        SetTenantContext::remember($request->session(), $context);
+        Tenancy::remember($request->session(), $context);
 
         // Pages, lists and filters of the previous property must not come back:
         // drop the encrypted browser history and land on the dashboard, not back on a filtered list.

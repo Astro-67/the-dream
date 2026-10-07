@@ -92,7 +92,7 @@ class MemberController extends Controller
             ))),
             // What the previous owner may keep after a transfer, staying an owner included.
             'transferRoles' => array_map($roleOption, OrganizationRole::cases()),
-            'properties' => Property::query()->whereNull('archived_at')->orderBy('name')->get()
+            'properties' => Property::query()->active()->orderBy('name')->get()
                 ->map(fn (Property $property) => ['value' => $property->id, 'label' => $property->name])->values(),
         ]);
     }

@@ -36,9 +36,9 @@ class ArchiveProperty
         }
 
         try {
-            return DB::transaction(function () use ($actor, $property) {
+            return Tenancy::within(TenantContext::forOrganization($property->organization_id), fn () => DB::transaction(function () use ($actor, $property) {
                 // Locks the organization's active properties, so two owners can't archive the last two at once.
-                $active = Property::query()->where('organization_id', $property->organization_id)->whereNull('archived_at')->lockForUpdate()->pluck('id');
+                $active = Property::query()->where('organization_id', $property->organization_id)->active()->lockForUpdate()->pluck('id');
 
                 if ($active->doesntContain(fn (string $id) => $id !== $property->getKey())) {
                     throw ArchiveRefused::lastActiveProperty($property);
@@ -61,12 +61,12 @@ class ArchiveProperty
                 ]);
 
                 return $property;
-            });
+            }));
         } catch (ArchiveRefused $refused) {
-            Audit::record($actor, 'archive_refused', $property, 'Property archive refused', [
+            Tenancy::within(TenantContext::forOrganization($property->organization_id), fn () => Audit::record($actor, 'archive_refused', $property, 'Property archive refused', [
                 'property_id' => $property->getKey(),
                 'result' => 'refused', 'reason' => $refused->getMessage(),
-            ]);
+            ]));
 
             throw $refused;
         }

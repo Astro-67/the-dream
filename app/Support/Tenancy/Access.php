@@ -15,9 +15,9 @@ use Spatie\Permission\Exceptions\PermissionDoesNotExist;
  * the member may act in there. Both are rechecked on every call, so a removed
  * member or a withdrawn property is refused on the very next request.
  *
- *     Access::allows($user, 'reservations.manage', $reservation)  // record with property_id
- *     Access::allows($user, 'properties.update', $property)
- *     Access::allows($user, 'members.manage')                     // organization-wide action
+ *     Access::allows($user, OrganizationPermission::ReservationsManage, $reservation)
+ *     Access::allows($user, OrganizationPermission::PropertiesUpdate, $property)
+ *     Access::allows($user, OrganizationPermission::MembersManage)
  *
  * Always judged in the current tenant context's organization: a property of another
  * organization is never allowed, whatever the member's role there. Outside a tenant
@@ -29,7 +29,7 @@ final class Access
      * @param  Property|Model|string|null  $property  the property, a record with a property_id, a property ID,
      *                                                or null for an action that belongs to no single property
      */
-    public static function allows(User $user, OrganizationPermission|string $permission, Property|Model|string|null $property = null): bool
+    public static function allows(User $user, OrganizationPermission $permission, Property|Model|string|null $property = null): bool
     {
         $organizationId = Tenancy::current()?->organizationId;
 
@@ -38,7 +38,7 @@ final class Access
         }
 
         try {
-            $hasPermission = $user->checkPermissionTo(self::name($permission));
+            $hasPermission = $user->checkPermissionTo($permission->value);
         } catch (PermissionDoesNotExist) {
             return false;
         }
@@ -49,10 +49,9 @@ final class Access
 
         $propertyId = self::propertyId($property);
 
-        $resolvedPermission = OrganizationPermission::tryFrom(self::name($permission));
         $context = TenantContext::fromIds($organizationId, $propertyId);
 
-        if ($resolvedPermission?->isReadOnly() ?? false) {
+        if ($permission->isReadOnly()) {
             return Tenancy::allows($user, $context) || Tenancy::allowsArchived($user, $context);
         }
 
@@ -89,11 +88,6 @@ final class Access
         }
 
         return $user->getAllPermissions()->pluck('name')->map(fn ($name) => (string) $name)->sort()->values()->all();
-    }
-
-    private static function name(OrganizationPermission|string $permission): string
-    {
-        return $permission instanceof OrganizationPermission ? $permission->value : $permission;
     }
 
     private static function propertyId(Property|Model|string|null $property): ?string

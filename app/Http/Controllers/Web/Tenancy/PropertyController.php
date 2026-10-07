@@ -4,15 +4,12 @@ namespace App\Http\Controllers\Web\Tenancy;
 
 use App\Domains\Tenancy\Actions\CreateProperty;
 use App\Domains\Tenancy\Actions\UpdateProperty;
-use App\Domains\Tenancy\Enums\JurisdictionProfile;
-use App\Domains\Tenancy\Enums\PropertyType;
 use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenancy\PropertyRequest;
 use App\Models\User;
 use App\Support\Money\Currency;
 use App\Support\Tenancy\Tenancy;
-use DateTimeZone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -40,6 +37,7 @@ class PropertyController extends Controller
                 'timezone' => $property->timezone,
                 'currency' => $property->currency->value,
                 'jurisdictionProfile' => $property->jurisdiction_profile->value,
+                'jurisdictionLabel' => $property->jurisdiction_profile->label(),
                 'can' => [
                     'update' => $user->can('update', $property),
                     'archive' => $user->can('archive', $property),
@@ -55,6 +53,7 @@ class PropertyController extends Controller
                     'name' => $property->name,
                     'city' => $property->city,
                     'jurisdictionProfile' => $property->jurisdiction_profile->value,
+                    'jurisdictionLabel' => $property->jurisdiction_profile->label(),
                     'timezone' => $property->timezone,
                     'archivedAt' => $property->archived_at?->toIso8601String(),
                     'can' => ['restore' => $user->can('restore', $property)],
@@ -67,9 +66,9 @@ class PropertyController extends Controller
         Gate::authorize('create', Property::class);
 
         return Inertia::render('properties/create', [
-            ...$this->formOptions(),
+            ...$this->formOptions('create'),
             'defaults' => [
-                'timezone' => 'Africa/Dar_es_Salaam',
+                'timezone' => Property::DEFAULT_TIMEZONE,
                 'currency' => Currency::TZS->value,
             ],
         ]);
@@ -92,7 +91,7 @@ class PropertyController extends Controller
         Gate::authorize('update', $property);
 
         return Inertia::render('properties/edit', [
-            ...$this->formOptions(),
+            ...$this->formOptions('edit'),
             'property' => [
                 'id' => $property->id,
                 'name' => $property->name,
@@ -127,13 +126,13 @@ class PropertyController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function formOptions(): array
+    private function formOptions(string $mode): array
     {
-        return [
-            'propertyTypes' => array_map(fn (PropertyType $t) => ['value' => $t->value, 'label' => $t->label()], PropertyType::cases()),
-            'currencies' => array_map(fn (Currency $c) => ['value' => $c->value, 'label' => $c->value], Currency::cases()),
-            'jurisdictionProfiles' => array_map(fn (JurisdictionProfile $j) => ['value' => $j->value, 'label' => $j->label()], JurisdictionProfile::cases()),
-            'timezones' => DateTimeZone::listIdentifiers(),
-        ];
+        unset($mode);
+
+        $options = OrganizationSetupController::propertyFormOptions('property');
+        unset($options['defaults']['country']);
+
+        return $options;
     }
 }

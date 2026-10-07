@@ -3,13 +3,11 @@
 namespace App\Http\Controllers\Web\Tenancy;
 
 use App\Domains\Tenancy\Actions\AcceptInvitation;
-use App\Domains\Tenancy\Enums\InvitationStatus;
+use App\Domains\Tenancy\Actions\InvitationAcceptance;
 use App\Domains\Tenancy\Exceptions\InvitationUnavailable;
 use App\Domains\Tenancy\Exceptions\MembershipRefused;
 use App\Domains\Tenancy\Models\Invitation;
-use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Http\Controllers\Controller;
-use App\Http\Middleware\SetTenantContext;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
@@ -42,7 +40,7 @@ class InvitationAcceptanceController extends Controller
                 'invitedBy' => $invitation->inviter?->name,
                 'expiresAt' => $invitation->expires_at->toIso8601String(),
             ]),
-            'refusal' => $this->refusal($invitation, $user),
+            'refusal' => InvitationAcceptance::refusal($invitation, $user),
             'signedInAs' => $user?->email,
             'link' => ['organization' => $organization, 'token' => $token],
         ]);
@@ -69,35 +67,10 @@ class InvitationAcceptanceController extends Controller
 
             return $property === null ? TenantContext::forOrganization($invitation->organization_id) : TenantContext::forProperty($property);
         });
-        SetTenantContext::remember($request->session(), $context);
+        Tenancy::remember($request->session(), $context);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Invitation accepted. Welcome aboard.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation accepted. Welcome aboard.')]);
 
         return redirect()->route('dashboard');
-    }
-
-    /**
-     * Why this person can't accept the invitation right now, or null when they can (or must sign in first).
-     */
-    private function refusal(Invitation $invitation, ?User $user): ?string
-    {
-        if ($invitation->status() !== InvitationStatus::Pending) {
-            return $invitation->status()->refusal();
-        }
-
-        if ($user === null) {
-            return null;
-        }
-
-        if (! $invitation->isFor($user)) {
-            return MembershipRefused::wrongEmail()->getMessage();
-        }
-
-        $isMember = Tenancy::within(
-            TenantContext::forOrganization($invitation->organization_id),
-            fn () => OrganizationMembership::query()->where('user_id', $user->getKey())->exists(),
-        );
-
-        return $isMember ? MembershipRefused::alreadyAMember()->getMessage() : null;
     }
 }

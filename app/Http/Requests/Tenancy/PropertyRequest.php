@@ -31,7 +31,17 @@ class PropertyRequest extends FormRequest
     public function rules(): array
     {
         return [
+            ...self::propertyRules(),
             'name' => ['required', 'string', 'max:255'],
+        ];
+    }
+
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
+    public static function propertyRules(): array
+    {
+        return [
             'property_type' => ['required', Rule::enum(PropertyType::class)],
             'address_line' => ['required', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:120'],

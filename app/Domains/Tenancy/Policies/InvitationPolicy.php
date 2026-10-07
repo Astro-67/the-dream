@@ -21,12 +21,12 @@ class InvitationPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $this->managesMembers($user) || Access::allows($user, OrganizationPermission::MembersInvite);
+        return Access::allows($user, OrganizationPermission::MembersManage) || Access::allows($user, OrganizationPermission::MembersInvite);
     }
 
     public function create(User $user, ?MembershipGrant $grant = null): bool
     {
-        if ($this->managesMembers($user)) {
+        if (Access::allows($user, OrganizationPermission::MembersManage)) {
             return true;
         }
 
@@ -42,17 +42,12 @@ class InvitationPolicy
      */
     public function view(User $user, Invitation $invitation): bool
     {
-        return $this->create($user, $this->grantOf($invitation));
+        return $this->create($user, $invitation->grant());
     }
 
     public function revoke(User $user, Invitation $invitation): bool
     {
         return $this->view($user, $invitation);
-    }
-
-    private function managesMembers(User $user): bool
-    {
-        return Access::allows($user, OrganizationPermission::MembersManage);
     }
 
     private function withinOwnProperties(User $user, MembershipGrant $grant): bool
@@ -68,10 +63,5 @@ class InvitationPolicy
         }
 
         return true;
-    }
-
-    private function grantOf(Invitation $invitation): MembershipGrant
-    {
-        return new MembershipGrant($invitation->role, $invitation->all_properties, $invitation->property_ids);
     }
 }

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Facade;
  * Entry point of the Tenancy module (ADR 0012). See TenancyManager.
  *
  * @method static mixed within(TenantContext $context, Closure $callback)
+ * @method static void remember(\Illuminate\Contracts\Session\Session $session, TenantContext $context)
  * @method static TenantContext|null current()
  * @method static Organization|null organization()
  * @method static Property|null property()

@@ -47,7 +47,7 @@ class SetTenantContext
             };
         }
 
-        self::remember($request->session(), $context);
+        Tenancy::remember($request->session(), $context);
 
         // Tenant pages are kept encrypted in browser history, so a switch (Inertia::clearHistory())
         // makes the previous property's pages unrecoverable with the back button.
@@ -55,16 +55,6 @@ class SetTenantContext
 
         /** @var Response */
         return Tenancy::within($context, fn () => $next($request));
-    }
-
-    /**
-     * Make this the user's current context for later requests (after setup or a switch).
-     * Callers must have checked it with Tenancy::allows() first.
-     */
-    public static function remember(Session $session, TenantContext $context): void
-    {
-        $session->put(self::ORGANIZATION_KEY, $context->organizationId);
-        $session->put(self::PROPERTY_KEY, $context->propertyId);
     }
 
     private function resolve(Session $session, User $user): ?TenantContext

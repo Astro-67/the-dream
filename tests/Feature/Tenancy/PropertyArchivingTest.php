@@ -1,7 +1,10 @@
 <?php
 
+use App\Domains\Tenancy\Actions\ArchiveProperty;
 use App\Domains\Tenancy\Contracts\PreArchiveCheck;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Models\Property;
 use App\Support\Tenancy\Access;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
@@ -10,6 +13,14 @@ use Tests\Support\PropertyForm;
 
 afterEach(function () {
     RefuseArchivingProperty::$refusedPropertyId = null;
+});
+
+test('active property query scope excludes archived properties', function () {
+    $t = twoTenants();
+    inTenant($t->a->property, fn () => app(ArchiveProperty::class)->handle($t->a->owner, $t->a->otherProperty));
+
+    expect(inTenant($t->a->organization, fn () => Property::query()->active()->pluck('id')->all()))
+        ->toBe([$t->a->property->id]);
 });
 
 test('an owner archives a property, which leaves the switcher and the list of active properties', function () {
@@ -160,7 +171,7 @@ test('permitted readers can access archived records while writes remain refused'
             ->has('archivedProperties', 1)
             ->where('archivedProperties.0.name', 'Alpha Stone Town Inn'));
 
-    expect(inTenant($t->a->organization, fn () => Access::allows($auditor, 'properties.view', $t->a->property)))->toBeTrue();
+    expect(inTenant($t->a->organization, fn () => Access::allows($auditor, OrganizationPermission::PropertiesView, $t->a->property)))->toBeTrue();
 
     $this->actingAs($t->a->owner)
         ->post(route('properties.archive', $t->a->otherProperty), ['_property' => $t->a->otherProperty->id]);

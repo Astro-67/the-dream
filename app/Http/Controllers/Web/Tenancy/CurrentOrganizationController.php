@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Web\Tenancy;
 
 use App\Http\Controllers\Controller;
-use App\Http\Middleware\SetTenantContext;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +28,7 @@ class CurrentOrganizationController extends Controller
         $context = Tenancy::defaultContextFor($user, $organizationId);
         abort_unless($context !== null, 403);
 
-        SetTenantContext::remember($request->session(), $context);
+        Tenancy::remember($request->session(), $context);
 
         // As for a property switch: the previous organization's pages, lists and
         // filters must not come back, so drop the encrypted history and start on the dashboard.

@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tenancy\Models;
 
+use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Enums\InvitationStatus;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Policies\InvitationPolicy;
@@ -97,6 +98,13 @@ class Invitation extends Model
             $this->expires_at->isPast() => InvitationStatus::Expired,
             default => InvitationStatus::Pending,
         };
+    }
+
+    public function grant(): MembershipGrant
+    {
+        return $this->all_properties
+            ? MembershipGrant::allProperties($this->role)
+            : MembershipGrant::properties($this->role, $this->property_ids);
     }
 
     public function isFor(User $user): bool

@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Invitation;
 use App\Domains\Tenancy\Notifications\InvitationSent;
@@ -43,6 +44,14 @@ function invitationLink(User $inviter, array $input): string
 
     return $link;
 }
+
+test('an invitation model exposes the grant encoded for the invitee', function () {
+    [$owner, $organization, $property] = organizationWithOwner();
+    invitationLink($owner, ['email' => 'grant@example.test', 'role' => 'front_desk', 'property_ids' => [$property->id]]);
+    $invitation = inTenant($organization, fn () => Invitation::query()->sole());
+
+    expect($invitation->grant())->toEqual(MembershipGrant::properties(OrganizationRole::FrontDesk, [$property->id]));
+});
 
 test('an owner invites a person with a role, properties and an expiry, and the invitation is listed as pending', function () {
     Notification::fake();

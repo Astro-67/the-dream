@@ -9,6 +9,7 @@ use App\Domains\Tenancy\Models\PropertyMembership;
 use App\Models\User;
 use App\Support\Tenancy\Exceptions\TenantMismatch;
 use Closure;
+use Illuminate\Contracts\Session\Session;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -59,6 +60,15 @@ final class TenancyManager
             array_pop($this->stack);
             $this->useTeam($previousTeamId);
         }
+    }
+
+    /**
+     * Store an already-authorized context in the user's session for the next request.
+     */
+    public function remember(Session $session, TenantContext $context): void
+    {
+        $session->put('tenancy.organization_id', $context->organizationId);
+        $session->put('tenancy.property_id', $context->propertyId);
     }
 
     public function current(): ?TenantContext
@@ -265,9 +275,12 @@ final class TenancyManager
     {
         $query = $this->unscoped(Property::class)
             ->where('organization_id', $membership->organization_id)
-            ->when(! $includeArchived, fn (Builder $query) => $query->whereNull('archived_at'))
             ->orderBy('name')
             ->orderBy('id');
+
+        if (! $includeArchived) {
+            $query->active();
+        }
 
         if (! $membership->all_properties) {
             $query->whereIn('id', $this->unscoped(PropertyMembership::class)
