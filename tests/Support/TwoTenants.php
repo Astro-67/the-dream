@@ -31,10 +31,12 @@ final class TwoTenants
      * A person who belongs to both organizations, having accepted a separate
      * invitation from each owner. A role that may hold all properties gets
      * them; any other role gets the organization's first property ($property).
+     * An owner in either has two-factor authentication on, like the fixture's owners.
      */
     public function memberOfBoth(OrganizationRole $inAlpha, OrganizationRole $inBravo): User
     {
-        $user = User::factory()->create(['name' => 'Dual Member', 'email' => 'dual.member@example.test']);
+        $factory = in_array(OrganizationRole::Owner, [$inAlpha, $inBravo], true) ? User::factory()->withTwoFactor() : User::factory();
+        $user = $factory->create(['name' => 'Dual Member', 'email' => 'dual.member@example.test']);
 
         foreach ([[$this->a, $inAlpha], [$this->b, $inBravo]] as [$tenant, $role]) {
             $grant = $role->mayHaveAllProperties()
