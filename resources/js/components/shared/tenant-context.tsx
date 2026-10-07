@@ -1,7 +1,14 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Building2, MapPin } from 'lucide-react';
+import { Building2, ChevronsUpDown, MapPin } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
+import { PropertySwitcherItems } from '@/components/shared/property-switcher';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { SidebarMenuButton } from '@/components/ui/sidebar';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { dashboard } from '@/routes';
 import type { JurisdictionProfile } from '@/types';
 
@@ -11,11 +18,12 @@ const jurisdictionLabels: Record<JurisdictionProfile, string> = {
 };
 
 /**
- * Top of the sidebar: the current organization and property (design.md, Navigation).
- * Switching between them arrives with the property and organization switchers.
+ * Top of the sidebar: the current organization and property (design.md,
+ * Navigation), opening the organization and property switcher.
  */
 export function SidebarTenant() {
     const { tenant } = usePage().props;
+    const isMobile = useIsMobile();
 
     if (!tenant.organization) {
         return (
@@ -28,25 +36,38 @@ export function SidebarTenant() {
     }
 
     return (
-        <SidebarMenuButton
-            size="lg"
-            asChild
-            tooltip={`${tenant.organization.name} · ${tenant.property?.name ?? 'No property'}`}
-        >
-            <Link href={dashboard()} prefetch data-test="sidebar-tenant">
-                <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                    <Building2 className="size-4" aria-hidden />
-                </div>
-                <div className="grid min-w-0 flex-1 text-left leading-tight">
-                    <span className="truncate text-xs text-muted-foreground">
-                        {tenant.organization.name}
-                    </span>
-                    <span className="truncate text-sm font-medium">
-                        {tenant.property?.name ?? 'No property selected'}
-                    </span>
-                </div>
-            </Link>
-        </SidebarMenuButton>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                    size="lg"
+                    tooltip={`${tenant.organization.name} · ${tenant.property?.name ?? 'No property'}`}
+                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                    data-test="sidebar-tenant"
+                >
+                    <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+                        <Building2 className="size-4" aria-hidden />
+                    </div>
+                    <div className="grid min-w-0 flex-1 text-left leading-tight">
+                        <span className="truncate text-xs text-muted-foreground">
+                            {tenant.organization.name}
+                        </span>
+                        <span className="truncate text-sm font-medium">
+                            {tenant.property?.name ?? 'No property selected'}
+                        </span>
+                    </div>
+                    <ChevronsUpDown className="ml-auto size-4" aria-hidden />
+                </SidebarMenuButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+                className="w-(--radix-dropdown-menu-trigger-width) min-w-60 rounded-lg"
+                align="start"
+                side={isMobile ? 'bottom' : 'right'}
+                sideOffset={4}
+            >
+                {/* The organization switcher (#9) goes above the properties, with a separator. */}
+                <PropertySwitcherItems />
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 

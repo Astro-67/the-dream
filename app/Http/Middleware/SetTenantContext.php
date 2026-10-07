@@ -9,6 +9,7 @@ use App\Support\Tenancy\TenantContext;
 use Closure;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -47,6 +48,10 @@ class SetTenantContext
         }
 
         self::remember($request->session(), $context);
+
+        // Tenant pages are kept encrypted in browser history, so a switch (Inertia::clearHistory())
+        // makes the previous property's pages unrecoverable with the back button.
+        Inertia::encryptHistory();
 
         /** @var Response */
         return Tenancy::within($context, fn () => $next($request));

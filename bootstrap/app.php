@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsurePlatformRole;
+use App\Http\Middleware\EnsurePropertyIntent;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequireTwoFactor;
@@ -29,12 +30,15 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'tenant' => SetTenantContext::class,
+            'property.intent' => EnsurePropertyIntent::class,
             'platform' => EnsurePlatformRole::class,
             'two-factor' => RequireTwoFactor::class,
         ]);
 
-        // Route model binding must already run inside the tenant context (ADR 0012).
+        // Route model binding must already run inside the tenant context (ADR 0012),
+        // and inside the property a form was opened for (tenant, then property.intent, then bindings).
         $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: SetTenantContext::class);
+        $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: EnsurePropertyIntent::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
