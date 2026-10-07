@@ -1,5 +1,11 @@
 import { usePage } from '@inertiajs/react';
-import { BookOpen, FolderGit2, Hotel, LayoutGrid, MailPlus } from 'lucide-react';
+import {
+    BookOpen,
+    FolderGit2,
+    Hotel,
+    LayoutGrid,
+    MailPlus,
+} from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
