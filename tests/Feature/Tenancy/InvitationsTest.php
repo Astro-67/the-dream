@@ -19,13 +19,16 @@ function invitationLink(User $inviter, array $input): string
 {
     Notification::fake();
 
-    test()->actingAs($inviter)
-        ->post(route('invitations.store'), [
-            'role' => 'front_desk',
-            'all_properties' => false,
-            'expires_in_days' => 7,
-            ...$input,
-        ])
+    // The form carries the property it was opened for, as in the browser.
+    $openedFor = test()->actingAs($inviter)->get(route('invitations.create'))->viewData('page')['props']['tenant']['property']['id'];
+
+    test()->post(route('invitations.store'), [
+        '_property' => $openedFor,
+        'role' => 'front_desk',
+        'all_properties' => false,
+        'expires_in_days' => 7,
+        ...$input,
+    ])
         ->assertSessionHasNoErrors();
 
     $link = null;
@@ -47,7 +50,7 @@ test('an owner invites a person with a role, properties and an expiry, and the i
     $t = twoTenants();
 
     $this->actingAs($t->a->owner)
-        ->post(route('invitations.store'), [
+        ->post(route('invitations.store'), ['_property' => $t->a->property->id,
             'email' => 'Amina@Example.test',
             'role' => 'front_desk',
             'all_properties' => false,
@@ -222,7 +225,7 @@ test('only owners and group operations managers can be granted all properties', 
     $t = twoTenants();
 
     $this->actingAs($t->a->owner)
-        ->post(route('invitations.store'), ['email' => 'amina@example.test', 'role' => 'front_desk', 'all_properties' => true])
+        ->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'amina@example.test', 'role' => 'front_desk', 'all_properties' => true])
         ->assertSessionHasErrors('all_properties');
 });
 
@@ -230,11 +233,11 @@ test('an invitation names at least one property of the organization, unless it g
     $t = twoTenants();
 
     $this->actingAs($t->a->owner)
-        ->post(route('invitations.store'), ['email' => 'amina@example.test', 'role' => 'front_desk', 'all_properties' => false])
+        ->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'amina@example.test', 'role' => 'front_desk', 'all_properties' => false])
         ->assertSessionHasErrors('property_ids');
 
     $this->actingAs($t->a->owner)
-        ->post(route('invitations.store'), ['email' => 'amina@example.test', 'role' => 'front_desk', 'property_ids' => [$t->b->property->id]])
+        ->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'amina@example.test', 'role' => 'front_desk', 'property_ids' => [$t->b->property->id]])
         ->assertSessionHasErrors('property_ids');
 });
 
@@ -250,7 +253,7 @@ test('a property manager invites staff to their own property', function () {
                 && collect($roles)->pluck('value')->doesntContain('group_operations_manager')
                 && collect($roles)->every(fn ($role) => $role['mayHaveAllProperties'] === false)));
 
-    $this->post(route('invitations.store'), ['email' => 'amina@example.test', 'role' => 'housekeeping', 'property_ids' => [$t->a->property->id]])
+    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'amina@example.test', 'role' => 'housekeeping', 'property_ids' => [$t->a->property->id]])
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('invitations.index'));
 
@@ -264,13 +267,13 @@ test('a property manager can\'t invite to another property, grant all properties
     $manager = $t->a->member(OrganizationRole::PropertyManager);
     $this->actingAs($manager);
 
-    $this->post(route('invitations.store'), ['email' => 'a@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->otherProperty->id]])
+    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'a@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->otherProperty->id]])
         ->assertForbidden();
-    $this->post(route('invitations.store'), ['email' => 'b@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->property->id, $t->a->otherProperty->id]])
+    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'b@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->property->id, $t->a->otherProperty->id]])
         ->assertForbidden();
-    $this->post(route('invitations.store'), ['email' => 'c@example.test', 'role' => 'group_operations_manager', 'all_properties' => true])
+    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'c@example.test', 'role' => 'group_operations_manager', 'all_properties' => true])
         ->assertForbidden();
-    $this->post(route('invitations.store'), ['email' => 'd@example.test', 'role' => 'owner', 'property_ids' => [$t->a->property->id]])
+    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'd@example.test', 'role' => 'owner', 'property_ids' => [$t->a->property->id]])
         ->assertForbidden();
 
     $this->get(route('invitations.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
@@ -295,7 +298,7 @@ test('members without the invite permission can\'t see or send invitations', fun
 
     $this->get(route('invitations.index'))->assertForbidden();
     $this->get(route('invitations.create'))->assertForbidden();
-    $this->post(route('invitations.store'), ['email' => 'a@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->property->id]])
+    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'a@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->property->id]])
         ->assertForbidden();
 })->with([
     OrganizationRole::GroupOperationsManager,
@@ -310,9 +313,9 @@ test('a person who is already a member, or already invited, isn\'t invited again
     invitationLink($t->a->owner, ['email' => 'amina@example.test', 'property_ids' => [$t->a->property->id]]);
 
     $this->actingAs($t->a->owner)
-        ->post(route('invitations.store'), ['email' => 'AMINA@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->property->id]])
+        ->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'AMINA@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->property->id]])
         ->assertSessionHasErrors(['email' => 'This person already has a pending invitation. Revoke it to send a new one.']);
-    $this->post(route('invitations.store'), ['email' => $t->a->member(OrganizationRole::Finance)->email, 'role' => 'front_desk', 'property_ids' => [$t->a->property->id]])
+    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => $t->a->member(OrganizationRole::Finance)->email, 'role' => 'front_desk', 'property_ids' => [$t->a->property->id]])
         ->assertSessionHasErrors(['email' => 'This person is already a member of the organization.']);
 });
 

@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Building2, ChevronsUpDown, MapPin } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
+import { OrganizationSwitcherItems } from '@/components/shared/organization-switcher';
 import { PropertySwitcherItems } from '@/components/shared/property-switcher';
 import {
     DropdownMenu,
@@ -64,7 +65,7 @@ export function SidebarTenant() {
                 side={isMobile ? 'bottom' : 'right'}
                 sideOffset={4}
             >
-                {/* The organization switcher (#9) goes above the properties, with a separator. */}
+                <OrganizationSwitcherItems />
                 <PropertySwitcherItems />
             </DropdownMenuContent>
         </DropdownMenu>
