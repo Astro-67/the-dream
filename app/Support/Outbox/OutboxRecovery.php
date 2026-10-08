@@ -1,0 +1,142 @@
+<?php
+
+namespace App\Support\Outbox;
+
+use App\Domains\Platform\Enums\PlatformRole;
+use App\Domains\Platform\Models\PlatformRoleAssignment;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
+use App\Domains\Tenancy\Models\Property;
+use App\Models\User;
+use App\Support\Audit\Audit;
+use App\Support\Tenancy\Access;
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
+use RuntimeException;
+
+final class OutboxRecovery
+{
+    public function retry(User $actor, string $propertyId, string $messageId, string $reason): void
+    {
+        $this->authorized($actor, $propertyId, $messageId, 'outbox_recovery_refused', $reason, false, function (OutboxMessage $message) use ($actor, $reason): void {
+            DB::transaction(function () use ($message, $actor, $reason): void {
+                $locked = OutboxMessage::query()->whereKey($message->id)->lockForUpdate()->firstOrFail();
+                if ($locked->claim_token !== null || $locked->claim_expires_at?->isFuture() || $locked->status === 'sending') {
+                    throw new RuntimeException('An active delivery attempt prevents recovery.');
+                }
+                if (! in_array($locked->status, ['retryable', 'unknown', 'exhausted', 'exhausted_unknown'], true)) {
+                    throw new RuntimeException('Only retryable or unknown delivery can be restarted.');
+                }
+                if (in_array($locked->status, ['unknown', 'exhausted_unknown'], true)
+                    && ! app(DeliveryAdapters::class)->for($locked->integration)->policy()->unknownRetrySafe) {
+                    throw new RuntimeException('Unknown delivery requires reconciliation before retry.');
+                }
+
+                $locked->status = 'retryable';
+                $locked->setAttribute('next_attempt_at', now());
+                $locked->setAttribute('dispatch_claim_token', null);
+                $locked->setAttribute('dispatch_claim_expires_at', null);
+                $locked->save();
+                Audit::record($actor, 'outbox_recovery', $locked, 'Restarted outbox delivery', ['reason' => $reason, 'outcome' => 'retryable']);
+                $id = $locked->id;
+                $organizationId = $locked->organization_id;
+                $propertyId = $locked->property_id;
+                DB::afterCommit(fn () => $this->dispatch($id, $organizationId, $propertyId));
+            });
+        });
+    }
+
+    public function confirmAccepted(User $actor, string $propertyId, string $messageId, string $reason, string $evidence): void
+    {
+        if (trim($evidence) === '') {
+            throw new RuntimeException('Acceptance evidence is required.');
+        }
+        $this->authorized($actor, $propertyId, $messageId, 'outbox_recovery_refused', $reason, false, function (OutboxMessage $message) use ($actor, $reason, $evidence): void {
+            DB::transaction(function () use ($message, $actor, $reason, $evidence): void {
+                $locked = OutboxMessage::query()->whereKey($message->id)->lockForUpdate()->firstOrFail();
+                if ($locked->claim_token !== null || $locked->claim_expires_at?->isFuture() || $locked->status === 'sending') {
+                    throw new RuntimeException('An active delivery attempt prevents recovery.');
+                }
+                if (! in_array($locked->status, ['unknown', 'exhausted_unknown'], true)) {
+                    throw new RuntimeException('Only uncertain delivery can be confirmed accepted.');
+                }
+                $locked->status = 'delivered';
+                $locked->delivered_at = now();
+                $locked->setAttribute('next_attempt_at', null);
+                $locked->save();
+                Audit::record($actor, 'outbox_recovery', $locked, 'Confirmed outbox acceptance', ['reason' => $reason, 'outcome' => 'delivered', 'evidence_hash' => hash('sha256', $evidence)]);
+                $stream = $locked->stream_key;
+                $sequence = $locked->sequence;
+                DB::afterCommit(fn () => app(DeliveryEngine::class)->releaseRecoveredSuccessor($stream, $sequence));
+            });
+        });
+    }
+
+    public function showBody(User $actor, string $propertyId, string $messageId, string $reason): array
+    {
+        return $this->authorized($actor, $propertyId, $messageId, 'outbox_body_read_refused', $reason, true, function (OutboxMessage $message) use ($actor, $reason): array {
+            Audit::record($actor, 'outbox_body_read', $message, 'Read outbox payload', ['reason' => $reason, 'payload_hash' => hash('sha256', json_encode($message->payload, JSON_THROW_ON_ERROR))]);
+
+            return $message->payload;
+        });
+    }
+
+    private function authorized(User $actor, string $propertyId, string $messageId, string $refusedEvent, string $reason, bool $raw, callable $operation): mixed
+    {
+        if (trim($reason) === '') {
+            throw new RuntimeException('A reason is required.');
+        }
+        $property = Property::withoutGlobalScopes()->find($propertyId);
+        if ($property === null) {
+            throw new RuntimeException('The property does not exist.');
+        }
+        try {
+            return Tenancy::within(TenantContext::forProperty($property), function () use ($actor, $property, $messageId, $operation, $raw): mixed {
+                $message = OutboxMessage::query()->whereKey($messageId)->firstOrFail();
+                if ($raw) {
+                    if (! $actor->can('outbox.raw.read')) {
+                        throw new RuntimeException('Raw outbox access is not authorized.');
+                    }
+                } elseif (! $this->canRecover($actor, $property, $message)) {
+                    throw new RuntimeException('Outbox recovery is not authorized.');
+                }
+
+                return $operation($message);
+            });
+        } catch (\Throwable $failure) {
+            try {
+                Tenancy::within(TenantContext::forProperty($property), function () use ($actor, $messageId, $refusedEvent, $reason): void {
+                    $message = OutboxMessage::query()->whereKey($messageId)->first();
+                    if ($message !== null) {
+                        Audit::record($actor, $refusedEvent, $message, 'Refused outbox recovery action', ['reason' => $reason, 'outcome' => 'refused']);
+                    }
+                });
+            } catch (\Throwable) {
+                // Preserve the original refusal if the audit store is unavailable.
+            }
+            throw $failure;
+        }
+    }
+
+    private function canRecover(User $actor, Property $property, OutboxMessage $message): bool
+    {
+        if ($message->property_id !== $property->id) {
+            return false;
+        }
+        $platformCompliance = PlatformRoleAssignment::query()->withoutGlobalScopes()
+            ->where('user_id', $actor->id)->where('role', PlatformRole::ComplianceOperator->value)->exists();
+        if ($platformCompliance) {
+            return in_array($message->integration, ['zan', 'vfms'], true);
+        }
+
+        return Access::allows($actor, OrganizationPermission::OutboxRecover, $property);
+    }
+
+    private function dispatch(string $messageId, string $organizationId, string $propertyId): void
+    {
+        Tenancy::within(TenantContext::fromIds($organizationId, $propertyId), function () use ($messageId): void {
+            Queue::push(new DrainOutboxMessage($messageId));
+        });
+    }
+}

@@ -155,6 +155,11 @@ final class DeliveryEngine
             : null;
     }
 
+    public function releaseRecoveredSuccessor(string $streamKey, int $sequence): void
+    {
+        $this->releaseNext($streamKey, $sequence);
+    }
+
     private function releaseNext(string $streamKey, int $sequence): void
     {
         DB::transaction(function () use ($streamKey, $sequence): void {
