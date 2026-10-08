@@ -68,7 +68,7 @@ final class RestoreReconciler
             if ($gate === null || ! $gate->is_closed) {
                 throw new LogicException('The restore gate changed while reconciliation was in progress.');
             }
-            $current = OutboxMessage::query()->whereIn('id', array_map(static fn (OutboxMessage $message): string => $message->id, $messages))->lockForUpdate()->get()->keyBy('id');
+            $current = OutboxMessage::query()->whereIn('id', $messages->map(static fn (OutboxMessage $message): string => $message->id)->all())->lockForUpdate()->get()->keyBy('id');
             if ($current->count() !== count($messages)) {
                 throw new LogicException('Outbox history changed while reconciliation was in progress.');
             }
