@@ -24,6 +24,7 @@ final class Outbox
         string $event,
         array $payload,
         string $idempotencyKey,
+        ?string $coalesceKey = null,
     ): OutboxMessage {
         if (DB::transactionLevel() < 1) {
             throw new LogicException('Outbox messages must be recorded inside the caller transaction.');
@@ -45,7 +46,33 @@ final class Outbox
         } elseif ($subjectType === '' || $subjectId === '') {
             throw new LogicException('Outbox subject type and ID must not be empty.');
         }
+        $adapter = app(DeliveryAdapters::class)->for($integration);
+        $policy = $adapter->policy();
+        if ($policy->latestOnly()) {
+            if (! is_callable($policy->coalesceKey)) {
+                throw new LogicException('Latest-only outbox policy must define its coalesce key.');
+            }
+            $derivedKey = ($policy->coalesceKey)($payload);
+            if (! is_string($derivedKey) || $derivedKey === '' || ($coalesceKey !== null && $coalesceKey !== $derivedKey)) {
+                throw new LogicException('Latest-only outbox messages require the integration coalesce key.');
+            }
+            $coalesceKey = $derivedKey;
+        } elseif ($coalesceKey !== null) {
+            throw new LogicException('Ordered outbox messages cannot declare a coalesce key.');
+        }
         $streamKey = hash('sha256', json_encode([$context->organizationId, $context->propertyId, $integration, $subjectType, $subjectId], JSON_THROW_ON_ERROR));
+        $coalesceKeyHash = $coalesceKey === null ? null : hash('sha256', json_encode([$context->organizationId, $context->propertyId, $integration, $coalesceKey], JSON_THROW_ON_ERROR));
+        if ($coalesceKeyHash !== null) {
+            OutboxMessage::query()
+                ->where('organization_id', $context->organizationId)
+                ->where('property_id', $context->propertyId)
+                ->where('integration', $integration)
+                ->where('coalesce_key_hash', $coalesceKeyHash)
+                ->where('status', 'pending')
+                ->where('attempt_count', 0)
+                ->whereNull('claim_token')
+                ->update(['status' => 'superseded', 'updated_at' => now()]);
+        }
         $query = OutboxMessage::query()
             ->where('organization_id', $context->organizationId)
             ->where('property_id', $context->propertyId)
@@ -63,6 +90,7 @@ final class Outbox
             'idempotency_key' => $idempotencyKey.':'.$streamKey.':'.$sequence,
             'event' => $event,
             'payload' => $payload,
+            'coalesce_key_hash' => $coalesceKeyHash,
         ]);
         $message->save();
 

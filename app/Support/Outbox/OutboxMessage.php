@@ -14,7 +14,7 @@ class OutboxMessage extends Model
 
     protected $fillable = [
         'integration', 'subject_type', 'subject_id', 'sequence', 'stream_key',
-        'idempotency_key', 'event', 'payload', 'status', 'attempt_count',
+        'idempotency_key', 'event', 'payload', 'status', 'attempt_count', 'coalesce_key_hash',
     ];
 
     protected function casts(): array
