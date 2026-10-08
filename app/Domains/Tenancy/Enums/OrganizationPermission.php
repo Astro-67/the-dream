@@ -53,6 +53,8 @@ enum OrganizationPermission: string
     // Property operations
     case ChannelsManage = 'channels.manage';
     case ApprovalsManage = 'approvals.manage';
+    case OutboxRecover = 'outbox.recover';
+    case OutboxRawRead = 'outbox.raw.read';
 
     /**
      * Whether the permission only reads. Everything else changes data.

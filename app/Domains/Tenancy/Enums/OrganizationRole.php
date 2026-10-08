@@ -32,34 +32,17 @@ enum OrganizationRole: string
         };
     }
 
-    /**
-     * Whether a member with this role may be granted all properties (ADR 0007).
-     * Everyone else is limited to the properties listed in their membership.
-     */
     public function mayHaveAllProperties(): bool
     {
         return in_array($this, [self::Owner, self::GroupOperationsManager], true);
     }
 
-    /**
-     * Roles that work within a property rather than across the organization.
-     * Property managers may invite staff in these roles to their own property.
-     */
     public function isPropertyStaff(): bool
     {
         return ! $this->mayHaveAllProperties();
     }
 
-    /**
-     * The role's permission set: the one place it is defined. Each organization's
-     * roles are seeded from it (ProvisionOrganizationRoles). Job titles and
-     * departments grant nothing; only the role does.
-     *
-     * Archiving properties, and financial and security settings, are owner-only.
-     * A group operations manager gets the settings only when granted them individually.
-     *
-     * @return list<string>
-     */
+    /** @return list<string> */
     public function permissions(): array
     {
         return P::names(...match ($this) {
@@ -73,8 +56,7 @@ enum OrganizationRole: string
             ],
             self::PropertyManager => [
                 P::PropertiesView, P::PropertiesUpdate,
-                // Invite staff to the properties the manager may act in (see InvitationPolicy).
-                P::MembersView, P::MembersInvite,
+                P::MembersView, P::MembersInvite, P::OutboxRecover,
                 P::ReservationsView, P::ReservationsManage, P::RoomsAssign, P::GuestsView,
                 P::HousekeepingView, P::HousekeepingManage,
                 P::FiscalExceptionsReview, P::ReportsView,
@@ -83,23 +65,16 @@ enum OrganizationRole: string
             self::FrontDesk => [
                 P::ReservationsView, P::ReservationsManage, P::RoomsAssign,
                 P::GuestsView, P::GuestsRegister, P::GuestIdentityView,
-                P::ChargesPost,
-                P::HousekeepingView,
+                P::ChargesPost, P::HousekeepingView,
             ],
             self::Finance => [
-                P::ReservationsView, P::GuestsView,
-                P::ChargesPost,
+                P::ReservationsView, P::GuestsView, P::ChargesPost,
                 P::FinanceView, P::FinanceCorrect, P::FiscalExceptionsReview, P::ReportsView,
             ],
-            // Room status and tasks only: no guest identity documents or financial records.
-            self::Housekeeping => [
-                P::HousekeepingView, P::HousekeepingManage,
-            ],
-            // Read-only. No identity documents either.
+            self::Housekeeping => [P::HousekeepingView, P::HousekeepingManage],
             self::Auditor => [
                 P::PropertiesView, P::MembersView,
-                P::ReservationsView, P::GuestsView,
-                P::HousekeepingView,
+                P::ReservationsView, P::GuestsView, P::HousekeepingView,
                 P::FinanceView, P::ReportsView,
             ],
         });
