@@ -36,6 +36,7 @@ final class RestoreIdentityRecovery
         }
 
         return DB::transaction(function () use ($property, $actor, $reason, $reports): int {
+            Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
             $gate = DB::table('outbox_restore_gates')->where('property_id', $property->id)->lockForUpdate()->first();
             if ($gate === null || ! $gate->is_closed || $gate->delivery_reconciled_at === null) {
                 throw new LogicException('Complete delivery reconciliation before identity recovery.');

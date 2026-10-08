@@ -70,6 +70,20 @@ test('reconciliation-capable adapter resolves accepted work and identity evidenc
     expect(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeFalse();
 });
 
+test('identity recovery rejects a provider that cannot attest complete scope coverage', function () {
+    $tenant = twoTenants();
+    $actor = $tenant->a->owner;
+    $adapter = new ReconcilingOutboxAdapter;
+    $adapter->completeIdentityCoverage = false;
+    app(DeliveryAdapters::class)->register('incomplete-fake', $adapter);
+    Artisan::call('outbox:gate', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Restore exercise']);
+    expect(app(RestoreReconciler::class)->reconcile($actor, $tenant->a->property, 'No local messages to reconcile'))->toBe(['reconciled' => 0, 'unresolved' => 0]);
+
+    expect(fn () => Tenancy::within(TenantContext::forProperty($tenant->a->property), fn () => app(RestoreIdentityRecovery::class)->recover($tenant->a->property, $actor, 'Incomplete provider history')))
+        ->toThrow(LogicException::class, 'complete verified identity-boundary contract');
+    expect(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeTrue();
+});
+
 test('older backup missing externally accepted history is reported and identity boundary blocks allocation until verified', function () {
     $tenant = twoTenants();
     $actor = $tenant->a->owner;
