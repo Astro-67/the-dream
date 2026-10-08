@@ -5,6 +5,7 @@ namespace App\Domains\Rates\Models;
 use App\Support\Tenancy\BelongsToProperty;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -28,5 +29,15 @@ class RatePrice extends Model
     protected function casts(): array
     {
         return ['date' => 'immutable_date', 'base_price' => 'integer', 'extra_adult' => 'integer', 'extra_child' => 'integer'];
+    }
+
+    /**
+     * Stored as a plain Y-m-d, so date strings match it on every database (SQLite would add a time).
+     *
+     * @return Attribute<never, string>
+     */
+    protected function date(): Attribute
+    {
+        return Attribute::set(fn (mixed $value) => $this->asDate($value)->format('Y-m-d'));
     }
 }
