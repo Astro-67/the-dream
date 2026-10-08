@@ -18,7 +18,7 @@ return new class extends Migration
     {
         Schema::table('outbox_messages', function (Blueprint $table) {
             $table->dropIndex('outbox_coalesce_lookup_index');
-            $table->dropColumn('coalesce_key');
+            $table->dropColumn('coalesce_key_hash');
         });
     }
 };

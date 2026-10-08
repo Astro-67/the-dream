@@ -48,21 +48,16 @@ final class Outbox
         }
         $adapter = app(DeliveryAdapters::class)->for($integration);
         $policy = $adapter->policy();
+        $coalesceKeyHash = null;
         if ($policy->latestOnly()) {
-            if (! is_callable($policy->coalesceKey)) {
-                throw new LogicException('Latest-only outbox policy must define its coalesce key.');
-            }
-            $derivedKey = ($policy->coalesceKey)($payload);
-            if (! is_string($derivedKey) || $derivedKey === '' || ($coalesceKey !== null && $coalesceKey !== $derivedKey)) {
-                throw new LogicException('Latest-only outbox messages require the integration coalesce key.');
+            $derivedKey = $policy->coalesceKeyFor($payload);
+            if ($coalesceKey !== null && $coalesceKey !== $derivedKey) {
+                throw new LogicException('Latest-only outbox messages require matching integration coalesce key.');
             }
             $coalesceKey = $derivedKey;
-        } elseif ($coalesceKey !== null) {
-            throw new LogicException('Ordered outbox messages cannot declare a coalesce key.');
-        }
-        $streamKey = hash('sha256', json_encode([$context->organizationId, $context->propertyId, $integration, $subjectType, $subjectId], JSON_THROW_ON_ERROR));
-        $coalesceKeyHash = $coalesceKey === null ? null : hash('sha256', json_encode([$context->organizationId, $context->propertyId, $integration, $coalesceKey], JSON_THROW_ON_ERROR));
-        if ($coalesceKeyHash !== null) {
+            $coalesceKeyHash = $policy->keyHash($context->organizationId, $context->propertyId, $integration, $coalesceKey);
+            DB::table('outbox_coalesce_locks')->insertOrIgnore(['key_hash' => $coalesceKeyHash]);
+            DB::table('outbox_coalesce_locks')->where('key_hash', $coalesceKeyHash)->lockForUpdate()->first();
             OutboxMessage::query()
                 ->where('organization_id', $context->organizationId)
                 ->where('property_id', $context->propertyId)
@@ -72,7 +67,10 @@ final class Outbox
                 ->where('attempt_count', 0)
                 ->whereNull('claim_token')
                 ->update(['status' => 'superseded', 'updated_at' => now()]);
+        } elseif ($coalesceKey !== null) {
+            throw new LogicException('Ordered outbox messages cannot declare a coalesce key.');
         }
+        $streamKey = hash('sha256', json_encode([$context->organizationId, $context->propertyId, $integration, $subjectType, $subjectId], JSON_THROW_ON_ERROR));
         $query = OutboxMessage::query()
             ->where('organization_id', $context->organizationId)
             ->where('property_id', $context->propertyId)
