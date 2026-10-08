@@ -1,6 +1,6 @@
 # Coding standards
 
-Judgement calls for review. Mechanical rules are enforced by tests in `tests/Unit` (`CodingRulesTest`, `TenancyArchTest`, `PlatformArchTest`) and `tests/Feature/Tenancy/PropertyIntentCoverageTest.php`; those failures need no review comment.
+Judgement calls for review. Mechanical rules are enforced by tests in `tests/Unit` (`CodingRulesTest`, `TenancyArchTest`, `PlatformArchTest`, `OutboxArchTest`), `tests/Feature/SchemaRulesTest.php` and `tests/Feature/Tenancy/PropertyIntentCoverageTest.php`; those failures need no review comment.
 
 Each rule cites its source. A rule here never overrides the source it cites.
 
@@ -13,6 +13,7 @@ Each rule cites its source. A rule here never overrides the source it cites.
 ## Tenancy
 
 - **Enter tenants through `Tenancy::within`** (ADR 0012). Cross-organization reads use `TenantContext::platform($reason)` with a reason a reviewer can read in the log.
+- **Property checks filter by the property they receive.** Organization context scopes to the organization, not to one property, so a check handed a `Property` (such as a `PreArchiveCheck`) adds `where('property_id', ...)`. Its test uses two properties in one organization.
 - **Every new route has isolation coverage** (`tests/Feature/Isolation/Coverage/README.md`), with an `attempt` that tries organization B's records, not only a `visit`.
 - **Refused sensitive actions are audited** with their result, like successful ones (spec #1, "Audit").
 
