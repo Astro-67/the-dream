@@ -21,11 +21,14 @@ class RatePriceController extends Controller
     {
         Gate::authorize('view', $ratePlan);
 
+        $base = $ratePlan->basePlan;
+
         return Inertia::render('rates/prices', [
             'plan' => ['id' => $ratePlan->id, 'name' => $ratePlan->name, 'currency' => $ratePlan->currency->value],
+            'base' => $base === null ? null : ['id' => $base->id, 'name' => $base->name, 'adjustmentKind' => $ratePlan->adjustment_kind?->value, 'adjustment' => $ratePlan->adjustment],
             'roomTypes' => $ratePlan->roomTypes()->orderBy('code')->get(['room_types.id', 'name', 'code']),
-            'prices' => RatePrice::query()->where('rate_plan_id', $ratePlan->id)->orderBy('date')->orderBy('room_type_id')->get()->map(fn (RatePrice $price) => ['room_type_id' => $price->room_type_id, 'date' => $price->date->format('Y-m-d'), 'base_price' => $price->base_price, 'extra_adult' => $price->extra_adult, 'extra_child' => $price->extra_child]),
-            'canManage' => Gate::allows('update', $ratePlan),
+            'prices' => RatePrice::query()->where('rate_plan_id', $base->id ?? $ratePlan->id)->orderBy('date')->orderBy('room_type_id')->get()->map($ratePlan->priced(...))->map(fn (RatePrice $price) => ['room_type_id' => $price->room_type_id, 'date' => $price->date->format('Y-m-d'), 'base_price' => $price->base_price, 'extra_adult' => $price->extra_adult, 'extra_child' => $price->extra_child]),
+            'canManage' => $base === null && Gate::allows('update', $ratePlan),
         ]);
     }
 

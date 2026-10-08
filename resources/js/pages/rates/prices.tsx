@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/utils';
-import { quote } from '@/routes/rate-plans';
+import { prices as pricesOf, quote } from '@/routes/rate-plans';
 import { update } from '@/routes/rate-plans/prices';
 type Price = {
     room_type_id: string;
@@ -17,11 +17,13 @@ type Price = {
 };
 export default function Prices({
     plan,
+    base,
     roomTypes,
     prices,
     canManage,
 }: {
     plan: { id: string; name: string; currency: string };
+    base: { id: string; name: string } | null;
     roomTypes: { id: string; name: string }[];
     prices: Price[];
     canManage: boolean;
@@ -39,6 +41,18 @@ export default function Prices({
                         <Link href={quote(plan.id)}>Preview a quote</Link>
                     </Button>
                 </header>
+                {base && (
+                    <p className="text-sm text-muted-foreground">
+                        Derived from{' '}
+                        <Link
+                            href={pricesOf(base.id)}
+                            className="underline underline-offset-4"
+                        >
+                            {base.name}
+                        </Link>
+                        . These prices follow its prices; edit them there.
+                    </p>
+                )}
                 {canManage && (
                     <Form
                         {...update.form(plan.id)}

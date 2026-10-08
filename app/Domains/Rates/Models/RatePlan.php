@@ -9,7 +9,9 @@ use App\Support\Money\Currency;
 use App\Support\Tenancy\BelongsToProperty;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -42,6 +44,25 @@ class RatePlan extends Model
     protected function casts(): array
     {
         return ['currency' => Currency::class, 'adjustment_kind' => AdjustmentKind::class, 'adjustment' => 'integer', 'deactivated_at' => 'immutable_datetime'];
+    }
+
+    /**
+     * Plans another plan may derive from: active and not derived themselves, so derivation is one level.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function bases(Builder $query): void
+    {
+        $query->whereNull($this->qualifyColumn('base_rate_plan_id'))->whereNull($this->qualifyColumn('deactivated_at'));
+    }
+
+    /** A base price as this plan sells it: adjusted, unsaved, for a derived plan; unchanged otherwise. */
+    public function priced(RatePrice $price): RatePrice
+    {
+        return $this->adjustment_kind === null ? $price : (clone $price)->forceFill(
+            $this->adjustment_kind->apply((int) $this->adjustment, $price->base_price, $price->extra_adult, $price->extra_child),
+        );
     }
 
     /** @return BelongsToMany<RoomType, $this> */

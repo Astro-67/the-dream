@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
+import { formatMoney } from '@/lib/utils';
 import { create, prices } from '@/routes/rate-plans';
 
 type Plan = {
@@ -8,6 +9,23 @@ type Plan = {
     code: string;
     currency: string;
     roomTypes: { id: string; name: string }[];
+    base: {
+        id: string;
+        name: string;
+        adjustmentKind: 'percent' | 'amount';
+        adjustment: number;
+    } | null;
+};
+const derivation = (plan: Plan) => {
+    if (!plan.base) {
+        return 'Own prices';
+    }
+    const size = Math.abs(plan.base.adjustment);
+    const amount =
+        plan.base.adjustmentKind === 'percent'
+            ? `${size}%`
+            : formatMoney(size, plan.currency);
+    return `${plan.base.name} ${plan.base.adjustment < 0 ? '−' : '+'} ${amount}`;
 };
 export default function RatePlans({
     ratePlans,
@@ -43,6 +61,7 @@ export default function RatePlans({
                                     <th className="p-3">Name</th>
                                     <th className="p-3">Currency</th>
                                     <th className="p-3">Room types</th>
+                                    <th className="p-3">Prices</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -67,6 +86,9 @@ export default function RatePlans({
                                             {plan.roomTypes
                                                 .map((room) => room.name)
                                                 .join(', ')}
+                                        </td>
+                                        <td className="p-3 tabular-nums">
+                                            {derivation(plan)}
                                         </td>
                                     </tr>
                                 ))}

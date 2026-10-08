@@ -54,12 +54,14 @@ return [
     'rate-plans.create' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoPlan) {
         $bravoPlan($t);
 
-        return $this->actingAs($t->a->owner)->get(route('rate-plans.create'))->assertOk()->assertDontSee('Bravo Secret Suite');
+        return $this->actingAs($t->a->owner)->get(route('rate-plans.create'))->assertOk()->assertDontSee('Bravo Secret Suite')->assertDontSee('Bravo Secret Rate');
     }),
     'rate-plans.store' => RouteCoverage::attempt($writeAttempt(fn (TwoTenants $t, RatePlan $plan, RoomType $roomType) => [
         $this->actingAs($t->a->owner)->post(route('rate-plans.store'), ['_property' => $t->b->property->id, 'name' => 'Hijacked', 'code' => 'HJ', 'currency' => 'USD', 'room_type_ids' => [$roomType->id]])->assertForbidden(),
         // Bravo's room type can't be attached to an Alpha plan.
         $this->actingAs($t->a->owner)->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Hijacked', 'code' => 'HJ', 'currency' => 'USD', 'room_type_ids' => [$roomType->id]])->assertSessionHasErrors('room_type_ids.0'),
+        // Bravo's plan can't be the base of an Alpha plan.
+        $this->actingAs($t->a->owner)->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Hijacked', 'code' => 'HJ', 'base_rate_plan_id' => $plan->id, 'adjustment_kind' => 'percent', 'adjustment' => -10])->assertSessionHasErrors('base_rate_plan_id'),
     ])),
     'rate-plans.prices' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoPlan) {
         [$plan] = $bravoPlan($t);

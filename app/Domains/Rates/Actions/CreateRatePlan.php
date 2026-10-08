@@ -19,7 +19,7 @@ class CreateRatePlan
         return DB::transaction(function () use ($actor, $details) {
             if (isset($details['base_rate_plan_id'])) {
                 // Locked so the base can't be deactivated while a plan derives from it.
-                $base = RatePlan::query()->whereKey($details['base_rate_plan_id'])->whereNull('base_rate_plan_id')->whereNull('deactivated_at')->lockForUpdate()->firstOrFail();
+                $base = RatePlan::query()->whereKey($details['base_rate_plan_id'])->bases()->lockForUpdate()->firstOrFail();
                 $details = [...$details, 'currency' => $base->currency->value, 'room_type_ids' => $base->roomTypes()->pluck('room_types.id')->all()];
             }
             $plan = RatePlan::query()->create(collect($details)->except('room_type_ids')->all());
