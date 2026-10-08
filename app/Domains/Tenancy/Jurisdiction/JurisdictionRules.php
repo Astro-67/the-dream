@@ -33,6 +33,16 @@ final class JurisdictionRules
         return self::of($profile)->hasZraHotelCode();
     }
 
+    /**
+     * Refuses a jurisdiction profile change that would break what depends on
+     * the current profile (PRD §6: not while the property has future
+     * reservations or open folios). UpdateProperty calls it before saving.
+     *
+     * ponytail: allows every change; Spec 4 adds the future-reservations
+     * condition and Spec 6 the open-folios one, each throwing a refusal.
+     */
+    public static function ensureProfileCanChange(Property $property, JurisdictionProfile $to): void {}
+
     private static function of(JurisdictionProfile $profile): ProfileRules
     {
         return match ($profile) {
