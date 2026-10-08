@@ -108,7 +108,7 @@ final class OutboxRecovery
 
             return Tenancy::within($context, function () use ($actor, $property, $message, $operation, $raw): mixed {
                 if ($raw) {
-                    if (! $actor->can('outbox.raw.read')) {
+                    if (! Access::allows($actor, OrganizationPermission::OutboxRawRead, $property)) {
                         throw new RuntimeException('Raw outbox access is not authorized.');
                     }
                 } elseif (! $this->canRecover($actor, $property, $message)) {
