@@ -30,6 +30,10 @@ _Avoid_: Vendor, integrator
 A message to ZAN Gateway recording a reservation event: new, modified, cancelled, checked in or checked out.
 _Avoid_: Sync, push, posting
 
+**Booking report correction**:
+A revision of a booking report confirmed rejected by ZAN Gateway, preserving the reservation event it reports. It is not a new reservation event or a replacement with an unrelated later state.
+_Avoid_: Retry (for a correction), latest-state sync
+
 **Reservation number**:
 Thedream's own identifier for a reservation: unique within its property, never reused, and kept for the whole stay. It is the identifier sent to ZAN Gateway.
 _Avoid_: Booking ID, confirmation number

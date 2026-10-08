@@ -15,7 +15,7 @@ This document describes how Thedream is built: the domains, their boundaries, ho
                          ┌──────────────────────────────────────────────┐
   Staff browser ────────▶│  Thedream (Laravel 12 modular monolith)      │
   (Inertia + React)      │                                              │
-                         │  Web ─ Actions ─ Domain ─ Outbox tables      │
+                         │  Web ─ Actions ─ Domain ─ Outbox table       │
   Channel manager ──────▶│  Inbound webhooks ─ Inbox table              │
   (webhooks / pull)      │                                              │
                          │  Queue workers (Supervisor) ─ Adapters ──────┼──▶ Channel manager ──▶ Booking.com, other OTAs
@@ -87,7 +87,7 @@ app/Domains/{Distribution,ZanReporting,FiscalReceipting}/
   Adapters/         Vendor adapters and Fake* adapters
 app/Support/
   Tenancy/          Tenancy::within(), TenantContext, BelongsToTenant, BelongsToProperty
-  Outbox/           Outbox model base, drainer, sweeper, idempotency keys
+  Outbox/           Shared record, delivery engine, sweeper, recovery and restore gate
   Money/            Money value object, currency
   Jobs/             TenantAware marker and the queue handler that runs queued work in Tenancy::within()
   Console/          TenantCommand base class (--organization, --property; runs handle() in Tenancy::within())
@@ -107,7 +107,7 @@ database/migrations/           One folder, migration names prefixed by domain
 These are enforced by Pest architecture tests (`arch()`), so a violation fails CI:
 
 1. **Writes go through the owning domain's actions.** Another domain may read a model, but it changes data only by calling that domain's action.
-2. **Core domains never touch adapters.** Reservations, FrontDesk and Billing call the `ChannelConnector`, `ZanReporter` and `FiscalReceipter` interfaces, or write outbox rows. They never reference an adapter class or an HTTP client (ADR 0010).
+2. **Core domains never touch adapters or write outbox rows directly.** Reservations, FrontDesk and Billing call integration-owned recording operations through `ChannelConnector`, `ZanReporter` and `FiscalReceipter`. Only integration domains call the shared outbox `record`; an architecture test enforces this boundary. Core domains never reference an adapter class or an HTTP client (ADR 0010).
 3. **Every tenant-owned model uses `BelongsToTenant`** (§4).
 4. **Controllers stay thin.** They authorize through a Policy, validate through a Form Request, call one action, and return an Inertia response.
 5. **No `env()` outside config files.** Secrets are read through config.
@@ -119,7 +119,7 @@ One class per use case, with a single `handle()` method. An action:
 1. receives an already-authorized, validated input (a DTO or Form Request data);
 2. opens a database transaction;
 3. changes domain state;
-4. writes outbox rows for every integration effect (§5) in the **same transaction**;
+4. calls integration recording operations for every integration effect (§5) in the **same transaction**, holding the subject lock used to allocate its stream sequence; recording requires the caller's transaction and never opens an independent one;
 5. records activity through activitylog;
 6. dispatches domain events after commit.
 
@@ -179,7 +179,7 @@ New routes are checked automatically: the suite enumerates registered routes, so
 
 An owner archives a property with `ArchiveProperty` (and brings it back with `RestoreProperty`); both are audited. An archived property (`archived_at` set) is left out of `Tenancy::allows`, `defaultContextFor` and `propertiesFor`, so it drops out of the switcher and nobody can work in it, while its records and audit history stay and it is still listed on the properties page. Archiving the organization's last active property is refused.
 
-Before archiving, `ArchiveProperty` runs every **pre-archive check**: a class implementing `App\Domains\Tenancy\Contracts\PreArchiveCheck`, whose `blockingReason(Property)` returns null to allow archiving or a sentence telling the owner what stops it. Checks run inside the property's tenant context, and the owner sees every failing reason. M1 registers none. A later domain adds one by tagging it in its service provider:
+Before archiving, `ArchiveProperty` runs every **pre-archive check**: a class implementing `App\Domains\Tenancy\Contracts\PreArchiveCheck`, whose `blockingReason(Property)` returns null to allow archiving or a sentence telling the owner what stops it. Checks run inside the property's tenant context, and the owner sees every failing reason. The M1 outbox foundation registers a check blocking archival while the property has unresolved messages (including unknown, rejected, exhausted or blocked work), so recovery remains possible. Other domains add checks by tagging them in their service provider:
 
 ```php
 $this->app->tag([NoFutureBookings::class], PreArchiveCheck::TAG); // e.g. Reservations; also open balances (Billing), undelivered ZRA reports (ZanReporting)
@@ -187,72 +187,76 @@ $this->app->tag([NoFutureBookings::class], PreArchiveCheck::TAG); // e.g. Reserv
 
 ## 5. Integration messaging: the outbox (ADR 0009)
 
-### 5.1 Tables
+The confirmed M1 scope and acceptance criteria are in [Spec 2: integration outbox foundation](spec-2-integration-outbox.md).
 
-Each outbound integration has its own outbox table:
+### 5.1 Record and ownership
 
-| Table                       | Integration                                             |
-| --------------------------- | ------------------------------------------------------- |
-| `booking_reports`           | ZAN Gateway                                             |
-| `fiscal_transactions`       | VFMS                                                    |
-| `channel_outbound_messages` | Channel manager (availability, rates, acknowledgements) |
+All outbound integrations use one tenant- and property-scoped `outbox_messages` table with an `integration` column (ZAN Gateway, VFMS or channel manager). These rows and their attempt/revision history are the **record of truth** for delivery, retries, the delivery log (ZAN-08), compliance dashboard (RPT-04) and latency monitoring. The queue's `jobs` table is just transport.
 
-Common columns:
+| Field                                                                          | Meaning                                                                                                                     |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `organization_id`, `property_id`, `integration`                          | ULID, tenant/property scope and integration identity                                                                        |
+| `subject_type`, `subject_id`, `sequence`                                       | Ordered stream: organization + property + integration + subject type + subject ID. ZAN uses a reservation; VFMS uses a stay |
+| `idempotency_key`                                                              | Stable stream-scoped operation identity, not just subject ULID + sequence                                                   |
+| `event`, `payload`                                                             | Original operation and encrypted snapshot built inside the domain transaction                                               |
+| `status`                                                                       | `pending`, `sending`, `delivered`, `unknown`, `rejected`, `failed` (retries exhausted), or `blocked` successor              |
+| Attempts, claim token/expiry, retry timing, provider references, delivery time | Durable delivery state; encrypted request/response and revision history retained separately                                 |
 
-| Column                                                         | Meaning                                                                                                        |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `id`                                                           | ULID                                                                                                           |
-| `organization_id`, `property_id`                               | Tenant scope                                                                                                   |
-| `subject_type`, `subject_id`                                   | Usually the reservation                                                                                        |
-| `sequence`                                                     | Increases per subject. Defines delivery order                                                                  |
-| `idempotency_key`                                              | Subject ULID + sequence (for example `01JA…:7`)                                                                |
-| `event`                                                        | For example `checked_in`                                                                                       |
-| `payload`                                                      | JSON, built at write time from the committed state                                                             |
-| `status`                                                       | `pending` → `sending` → `delivered`, or `rejected` (permanent, needs a person) or `failed` (retries exhausted) |
-| `attempts`, `next_attempt_at`, `last_response`, `delivered_at` | Delivery state                                                                                                 |
+Database uniqueness protects both sequence and idempotency key within the stream. Only integration domains call shared `record`, enforced by an architecture test; they choose jurisdiction, subject, operation and payload. Recording requires the caller's existing transaction and subject lock; allocate from the stream's highest existing sequence under that lock. Credential or adapter changes do not reset the stream. Recording never commits independently.
 
-These rows are the **record of truth** for delivery. The delivery log (ZAN-08), compliance dashboard (RPT-04) and latency alerts all read them. The queue's `jobs` table is just transport.
+`App\Support\Outbox` owns recording mechanics, claims, ordering, batching, quotas, retries, recovery and the restore gate. Integrations supply transport adapters and **delivery policy as data**: batch grouping, maximum size, quota identity/limit, and ordered versus latest-only mode (including its scoped coalescing key). They do not each implement a drainer.
 
 ### 5.2 Delivery
 
-1. The action writes the outbox row inside its transaction (§3.3).
-2. **After commit**, a drain job for that subject is dispatched. The Supervisor workers pick it up within about a second, so delivery is attempted immediately.
-3. A **sweeper** runs every minute from the scheduler and dispatches drains for any row still `pending` with `next_attempt_at` in the past. That covers crashes, deploys and failed attempts.
-4. **Ordering:** a row is sent only when every lower `sequence` for the same subject is `delivered` or terminal. The drain takes a cache lock per subject (database cache driver) so two workers never send the same subject in parallel.
-5. **Responses:**
-    - success → `delivered`;
-    - validation error or other 4xx → `rejected`, with an alert to the compliance operator and property manager;
-    - 429, 5xx or timeout → back to `pending` with exponential backoff.
+1. **After commit**, enqueue a drain. A **minute sweeper** rediscovers due pending work, missed dispatches and expired claims; the queue is not the durable delivery record.
+2. In a short database transaction, claim eligible work with a fenced token and expiry. An ordered stream has **one in-flight message**; a batch may combine messages from independent streams only. Lower sequences must be delivered: rejected, exhausted and unknown messages do not count as completed and hold successors.
+3. Call the adapter's `send(messages)` **outside any database transaction**. It returns exactly one result per input: `accepted`, `rejected`, `retryable` or `unknown`, with provider references and retry timing where available. HTTP status alone, including 200 or a duplicate error, is not acceptance.
+4. Persist results only if the claim token is still current. Expired attempts become **unknown**, not blindly pending; a late worker cannot overwrite a newer claim or recovery decision. Only explicit acceptance marks a message delivered. A confirmed retryable result schedules an unchanged retry with policy backoff and provider timing. A timeout or crash that leaves acceptance uncertain is unknown.
+5. Unknown work retains its payload, key and sequence. Retry it unchanged only under a **verified provider idempotency contract**; otherwise reconcile delivery first. Rejection or exhausted retries blocks an ordered stream; exhaustion never converts an uncertain outcome into confirmed rejection. Authorized operators may restart unchanged retries under the same safety rules; there is no generic skip.
+
+Quota identities and limits are policy data, coordinated globally across workers. Respect provider retry timings and isolate integrations so one integration's quota or backoff does not stop the others.
+
+**Latest-only work:** the integration defines a key scoped by organization, property, integration and the state being replaced (for example channel connection, room type and dates). Coalesce only **unattempted pending** snapshots. An in-flight snapshot is immutable and newer state waits as a successor. Unknown delivery holds that key until resolved; confirmed rejection does not block a newer state. This is not permission to skip ordered compliance operations.
 
 ### 5.3 Per-integration rules
 
 **ZAN Gateway (ZanReporting)**
 
-- One request per property: `{ hotel_code, bookings[] }`, holding **at most one row per reservation** (the oldest pending), so events for one reservation never race inside a batch.
-- A platform-wide rate limiter allows **100 requests per minute** (PRD I-5), shared across all properties and keyed globally, not per tenant.
-- A 200 response is checked **for each booking**: `rejected_booking_count` and `validation_errors` decide each row's status (ZAN-06).
-- **Idempotency:** ZAN Gateway has no idempotency field. It upserts by hotel code plus reservation number, so re-sending a row's state is harmless. The idempotency key is kept on our side for the log.
-- The drainer runs under `Tenancy::within(TenantContext::platform(...))` because the key and rate limit belong to the platform (ADR 0003).
+- Ordered per reservation. Batch by property as `{ hotel_code, bookings[] }`, at most one message per reservation; maximum batch size is policy data.
+- The platform quota is **100 requests per minute** (PRD I-5), shared across properties and workers through one global quota identity.
+- Classify each booking's response (`rejected_booking_count`, `validation_errors`), not just the HTTP response (ZAN-06).
+- ZAN has no idempotency field. Upsert by hotel code + reservation number is **not proof** that replaying an older lifecycle snapshot is harmless. Replay unknown or restored work only under a verified safe contract; otherwise hold it for reconciliation.
+- Cross-organization draining enters `Tenancy::within(TenantContext::platform(...))` with an audited reason; claiming and sending preserve each message's property scope (ADR 0003).
 
 **VFMS (FiscalReceipting)**
 
-- One call per row, strictly in order per stay. A stay's check-out call is sent only after every earlier call has been delivered (FSC-07).
-- **Idempotency:** the VFMS `referenceNumber` ("a unique transaction no.") carries the idempotency key. **Unverified:** how VFMS responds to a duplicate `referenceNumber`. Until it's tested against the VFMS test server, a duplicate-reference error is treated as `delivered` only after confirming the record through the accommodation report call.
-- Credentials are per property (FSC-01).
+- Ordered per stay, one message per call. Check-out waits for every earlier call's explicit acceptance (FSC-07).
+- `referenceNumber` carries the idempotency key. Duplicate-reference behaviour and corrected-payload key reuse remain **unverified**; a duplicate error alone never means delivered. Reconcile against the accommodation report and verify acceptance before proceeding.
+- Credentials are per property (FSC-01). After restore, VFMS delivery **must be reconciled**, not assumed safe to replay.
 
 **Channel manager (Distribution)**
 
-- Availability and rate changes for the same room type and date range are **coalesced**: only the latest state is sent.
-- The idempotency key is passed as the channel manager's idempotency header if it has one. Support for this is a selection criterion (PRD §9).
+- Availability and rates use latest-only policies with integration-defined scoped keys; other operations declare their own ordering policy.
+- Pass the key through a provider-supported idempotency header. Support is a selection criterion (PRD §9), not a guarantee. Unknown delivery and post-restore replay require a verified safe contract or reconciliation; coalescing alone is not proof of safety.
 
-### 5.4 Latency monitoring
+### 5.4 Recovery and privacy
 
-A scheduled check runs every minute over undelivered `booking_reports`, measuring age from the domain event's time:
+Owners and property managers may recover work only within their authorized organization/properties. A platform **compliance operator** may recover **ZAN/VFMS only**, never channel-manager work. M1 exposes recovery through commands, not a UI: every invocation names an explicit actor, property and reason, checks the applicable policy, and audits the outcome. Entering platform context does not replace authorization.
+
+An authorized correction is allowed only after **confirmed rejection**, not unknown delivery or generic exhaustion. Preserve the original operation; keep its key and sequence only when the provider contract verifies key reuse with corrected data, otherwise leave it blocked. Under the subject lock, with no active attempt, atomically revise the rejected snapshot and consistently rebuild affected blocked snapshots from their original operations. Preserve immutable attempt/revision history and audit the actor/reason; validation, rebuilding or audit failure rolls back **all** changes. Release eligible delivery only after commit. No recovery path silently skips an ordered operation.
+
+Encrypt payloads, response bodies and revision/attempt history at rest. Credentials never enter those snapshots, logs or audits. Logs and ordinary delivery views expose metadata and hashes only; raw payload/history reads require a **separate policy** from recovery or metadata access. M1 includes no pruning. Provider-specific production retention policy and deletion tooling are prerequisites before real integration activation, not an indefinite-retention policy.
+
+### 5.5 Latency monitoring and milestone scope
+
+A later scheduled check runs every minute over undelivered `outbox_messages` filtered to ZAN, measuring age from the domain event's time:
 
 - **3 minutes:** alert the compliance operator.
 - **5 minutes:** open a `ComplianceIncident` (PRD ZAN-05).
 
 Delivery latency (event time to `delivered_at`) is recorded for the p95 target.
+
+**M1 foundation** includes the shared record/engine, policy and adapter contracts, scoped recovery commands, archival check, persistent restore gate and fake-contract tests. It includes **no real provider clients, lifecycle UI or provider alerts**. Fake tests prove the engine's safety rules, not provider compatibility, idempotency or replay safety. Real-provider restore/reconciliation contracts are M3 work; the full restore exercise remains the M4 release gate (§12).
 
 ## 6. Inbound channel messages
 
@@ -266,16 +270,18 @@ Delivery latency (event time to `delivered_at`) is recorded for the p95 target.
 
 How PRD §8 maps onto actions and outbox rows at a Zanzibar property:
 
-| Step                           | Action                                                                                       | Outbox rows written in the same transaction                                                                                        |
-| ------------------------------ | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Booking arrives                | `Distribution\ProcessInboundReservation` → `Reservations\CreateReservation`                  | `booking_reports` (New / Confirmed Reservation); `channel_outbound_messages` (availability)                                        |
-| Guest changes the booking      | `Reservations\ModifyReservation`                                                             | `booking_reports` (Modify); `channel_outbound_messages` if dates or room type changed                                              |
-| Guest cancels                  | `Reservations\CancelReservation`                                                             | `booking_reports` (Cancel / Cancel + CancelDate); availability. Any fee → `Billing\PostFiscalException`                            |
-| No-show confirmed              | `FrontDesk\ConfirmNoShow` (proposed by night audit)                                          | `booking_reports` (Cancel / Cancel, guest count 0)                                                                                 |
-| Check-in                       | `FrontDesk\CheckIn` (requires identity documents for every guest under the Zanzibar profile) | `booking_reports` (Modify / Checked In); `fiscal_transactions` (ACCOMMODATION_REQUEST, DIRECT, first night's rate)                 |
-| Room move, added guest, extras | `FrontDesk\MoveRoom`, `Guests\AddGuest`, `Billing\PostCharge`                                | `fiscal_transactions` (change room, add guest, services); `booking_reports` where reported fields change                           |
-| Night audit                    | `FrontDesk\CloseBusinessDate`                                                                | `fiscal_transactions` (CHANGEROOM_PRICE) when the next night's rate differs                                                        |
-| Check-out                      | `FrontDesk\CheckOut`                                                                         | `booking_reports` (Modify / Checked Out); `fiscal_transactions` (ACCOMMODATION_CHECK_OUT). The fiscal report prints once delivered |
+All rows below are `outbox_messages`, distinguished by integration; integration recording operations write them inside the caller's transaction.
+
+| Step                           | Action                                                                                       | Integration messages written in the same transaction                                                |
+| ------------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Booking arrives                | `Distribution\ProcessInboundReservation` → `Reservations\CreateReservation`                  | ZAN (New / Confirmed Reservation); channel manager (availability)                                   |
+| Guest changes the booking      | `Reservations\ModifyReservation`                                                             | ZAN (Modify); channel manager if dates or room type changed                                         |
+| Guest cancels                  | `Reservations\CancelReservation`                                                             | ZAN (Cancel / Cancel + CancelDate); channel availability. Any fee → `Billing\PostFiscalException`   |
+| No-show confirmed              | `FrontDesk\ConfirmNoShow` (proposed by night audit)                                          | ZAN (Cancel / Cancel, guest count 0)                                                                |
+| Check-in                       | `FrontDesk\CheckIn` (requires identity documents for every guest under the Zanzibar profile) | ZAN (Modify / Checked In); VFMS (ACCOMMODATION_REQUEST, DIRECT, first night's rate)                 |
+| Room move, added guest, extras | `FrontDesk\MoveRoom`, `Guests\AddGuest`, `Billing\PostCharge`                                | VFMS (change room, add guest, services); ZAN where reported fields change                           |
+| Night audit                    | `FrontDesk\CloseBusinessDate`                                                                | VFMS (CHANGEROOM_PRICE) when the next night's rate differs                                          |
+| Check-out                      | `FrontDesk\CheckOut`                                                                         | ZAN (Modify / Checked Out); VFMS (ACCOMMODATION_CHECK_OUT). The fiscal report prints once delivered |
 
 Whether a property needs ZAN Gateway or VFMS rows is decided by its **jurisdiction profile**, inside the ZanReporting and FiscalReceipting domains. Core actions call `ZanReporter::record(...)` and `FiscalReceipter::record(...)`. For a mainland property these are no-ops.
 
@@ -286,9 +292,9 @@ Sketches, not final signatures:
 ```php
 interface ChannelConnector
 {
-    public function pushAvailability(ChannelConnection $c, AvailabilityChange $change): DeliveryResult;
-    public function pushRates(ChannelConnection $c, RateChange $change): DeliveryResult;
-    public function acknowledge(ChannelConnection $c, InboundMessage $message): DeliveryResult;
+    public function recordAvailability(ChannelConnection $c, AvailabilityChange $change): void;
+    public function recordRates(ChannelConnection $c, RateChange $change): void;
+    public function recordAcknowledgement(ChannelConnection $c, InboundMessage $message): void;
     /** @return iterable<ChannelReservation> */
     public function listReservations(ChannelConnection $c, DateRange $range): iterable; // daily reconciliation
 }
@@ -296,7 +302,7 @@ interface ChannelConnector
 interface ZanReporter
 {
     public function record(ReservationEvent $event): void;      // writes the outbox row (called inside the action's transaction)
-    public function syncHotelInfo(Property $property): void;
+    public function syncHotelInfo(Property $property): void;    // records an integration-owned snapshot, not an HTTP call
 }
 
 interface FiscalReceipter
@@ -306,12 +312,13 @@ interface FiscalReceipter
 }
 ```
 
-Each integration domain has two parts:
+Each integration domain owns recording semantics, transport and delivery policy data; the shared engine owns delivery mechanics:
 
-- **Recording** (`record`) writes outbox rows inside the caller's transaction.
-- **Delivery** is done by the domain's drainer through a transport adapter. The ZAN Gateway HTTP, VFMS HTTP and channel-manager adapters live behind it.
+- **Recording** writes through shared `record` inside the caller's transaction and subject lock; jurisdiction rules and payload builders stay in the integration domain.
+- **Delivery adapters** expose `send(messages)`, returning one accepted/rejected/retryable/unknown result per input with provider references and retry timing. Wire format and provider-specific response classification stay here; ordering, claiming, batching, quotas and retries do not.
+- **Policy data** declares batch group/size, quota identity/limit and ordering/latest-only keys (§5). Read/reconciliation operations such as `listReservations` and `exchangeRate` are separate from outbound recording.
 
-**Fakes** (`FakeChannelConnector`, `FakeZanTransport`, `FakeVfmsTransport`) are bound in tests. They record what was sent and can simulate 429s, timeouts, partial rejections and duplicates.
+**Fakes** (`FakeChannelConnector`, `FakeZanTransport`, `FakeVfmsTransport`) are bound in tests. They simulate partial results, retry timings, unknown acceptance, expired claims and duplicates. Their contracts validate the foundation only; real-provider compatibility requires staging contract tests.
 
 ## 9. Data conventions
 
@@ -334,7 +341,7 @@ The scheduler runs under Supervisor as `php artisan schedule:work`.
 | Schedule                                            | Task                                                                       |
 | --------------------------------------------------- | -------------------------------------------------------------------------- |
 | Every minute                                        | Outbox sweeper (§5.2)                                                      |
-| Every minute                                        | ZAN Gateway latency monitor (§5.4)                                         |
+| Every minute                                        | ZAN Gateway latency monitor (§5.5)                                         |
 | Every minute                                        | Night audit trigger: properties whose local business date is due for close |
 | Daily, per property, after the business date closes | Channel reconciliation (DST-07)                                            |
 | Daily                                               | VFMS exchange rate fetch (FSC-09)                                          |
@@ -343,16 +350,16 @@ The scheduler runs under Supervisor as `php artisan schedule:work`.
 
 ## 11. Deployment
 
-| Component | Production                                                                                                                |
-| --------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Region    | AWS `af-south-1` (opt-in region, ADR 0011). The code stays region-agnostic                                                |
-| App       | EC2 provisioned through Forge. Nginx and PHP-FPM 8.3                                                                      |
-| Workers   | Supervisor processes, named per queue so a slow integration can't starve the others: `zan`, `vfms`, `channels`, `default` |
-| Scheduler | `schedule:work` under Supervisor                                                                                          |
-| Database  | RDS MySQL 8 with automated backups and PITR. Same region, private subnet                                                  |
-| Files     | S3 private bucket, same region                                                                                            |
-| TLS       | Let's Encrypt through Forge                                                                                               |
-| Deploys   | Forge zero-downtime deploy, then `php artisan queue:restart`. Outbox rows make a restart mid-delivery safe                |
+| Component | Production                                                                                                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Region    | AWS `af-south-1` (opt-in region, ADR 0011). The code stays region-agnostic                                                                                                     |
+| App       | EC2 provisioned through Forge. Nginx and PHP-FPM 8.3                                                                                                                           |
+| Workers   | Supervisor processes, named per queue so a slow integration can't starve the others: `zan`, `vfms`, `channels`, `default`                                                      |
+| Scheduler | `schedule:work` under Supervisor                                                                                                                                               |
+| Database  | RDS MySQL 8 with automated backups and PITR. Same region, private subnet                                                                                                       |
+| Files     | S3 private bucket, same region                                                                                                                                                 |
+| TLS       | Let's Encrypt through Forge                                                                                                                                                    |
+| Deploys   | Forge zero-downtime deploy, then `php artisan queue:restart`. Mid-delivery crashes become unknown; fenced claims and verified retry/reconciliation (§5.2) prevent blind replay |
 
 **Environments**
 
@@ -366,24 +373,23 @@ The scheduler runs under Supervisor as `php artisan schedule:work`.
 
 ## 12. Runbook: restore and post-restore reconciliation
 
-PITR restores the database to a point in time. Outbox rows written before that point may show `pending` or `sending` even though the external system already received them. **Workers must not restart until these rows are reconciled.**
+PITR can restore pending/sending rows whose operations were already accepted externally, and erase newer domain changes, message identities, sequences and attempt history that providers have seen. **A persistent restore gate blocks both delivery and integration-producing writes**, across web, jobs and commands, until recovery is verified. Maintenance mode and stopped workers alone are not the gate.
 
-1. Put the app in maintenance mode and stop Supervisor workers and the scheduler.
-2. Restore RDS to the chosen point in time, and point the app at the restored instance.
-3. Run `php artisan outbox:reconcile-after-restore`. For every row in `pending` or `sending`:
+1. Put the app in maintenance mode, close the restore gate and stop Supervisor workers and the scheduler.
+2. Restore RDS and point the app at it with the gate still closed; verify the restored database has not reopened an older gate state before any app work resumes.
+3. Run the existing command sketch `php artisan outbox:reconcile-after-restore`, with an explicit actor, property scope and reason under the recovery policy (§5.4). Treat uncertain restored attempts as unknown and reconcile the affected window, not just rows currently pending.
 
-    | Integration     | Check                                                                                              | Result                                                                                                       |
-    | --------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-    | VFMS            | Query the accommodation report endpoint for the affected date range and match on `referenceNumber` | Found → mark `delivered` with the VFMS response number. Not found → leave `pending`                          |
-    | ZAN Gateway     | The public spec has no read endpoint                                                               | Leave `pending`. Re-sending is safe because ZAN upserts by hotel code plus reservation number                |
-    | Channel manager | List reservations and messages through the vendor API, if it offers one                            | Match → mark `delivered`. Otherwise leave `pending`. Coalescing makes re-sending availability and rates safe |
+    | Integration     | Required evidence                                                                                                                                                                                             |
+    | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | VFMS            | Reconcile accommodation reports against the original operation and `referenceNumber`; explicit acceptance records delivery and provider references. Absence is not proof that retry or identity reuse is safe |
+    | ZAN Gateway     | No read endpoint in the public spec. Keep unresolved work gated unless reconciliation or a verified contract establishes safe replay; upsert semantics alone are insufficient                                 |
+    | Channel manager | Use vendor delivery/history APIs where available. Unmatched operations stay unresolved unless a verified safe contract permits replay; latest-only coalescing is not sufficient                               |
 
-4. Review the reconciliation report: counts by integration and status, plus any rows that need a decision.
-5. Domain changes made after the restore point are lost from Thedream, but may already exist outside it. Bookings that the channel manager delivered in that window are re-pulled by the next channel reconciliation (DST-07).
-6. Restart workers and the scheduler, and leave maintenance mode.
-7. Open a `ComplianceIncident` covering the window, for the record.
+4. Recover **missing identities and delivery/history records** from after the restore point, or establish a **verified safe identity boundary** that cannot collide with externally seen operations. The restored maximum sequence alone is insufficient. Reconcile lost domain changes too; channel re-pull (DST-07) covers incoming bookings, not all outbound or fiscal history.
+5. Review scoped reconciliation evidence, unresolved work and identity safety. Keep the gate closed until both delivery reconciliation **and** missing identity/history recovery or a verified safe boundary are complete; audit the authorized decision to reopen it. Restart workers/scheduler and leave maintenance mode only then.
+6. Open a `ComplianceIncident` covering the window, for the record.
 
-A **restore exercise**, including this reconciliation, is a release gate for M4 (PRD §14).
+M1 implements the persistent gate and tests this process with fake contracts, not real provider recovery. VFMS reconciliation and verified ZAN/channel restore contracts are **M3** work. A **restore exercise**, including these contracts and identity recovery, is a release gate for M4 (PRD §14).
 
 ## 13. Fallback: cPanel hosting
 
@@ -391,18 +397,18 @@ This applies only if the client rejects a VPS (ADR 0006).
 
 **Changes**
 
-- **Delivery after commit runs inside the web request** (`dispatch(...)->afterResponse()` handled synchronously), because no long-running worker is waiting.
+- **Delivery after commit runs inside the web request** (`dispatch(...)->afterResponse()` handled synchronously), because no long-running worker is waiting. It uses the same fenced claims, restore gate, quota/retry policy and no-HTTP-in-transaction rule; ending a request is not proof of delivery.
 - **Cron** runs `schedule:run` every minute. The schedule starts `queue:work --max-time=55 --stop-when-empty` with `withoutOverlapping()`.
 - **Outbound port 6060** must be confirmed open with the host before choosing this option, or VFMS is unreachable.
 
-**Latency, worst case for one booking report**
+**Latency examples for one booking report**
 
-| Case                                                                | Delay                                                                                                                 |
-| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| In-request attempt succeeds                                         | about 1–3 s                                                                                                           |
-| In-request attempt fails, and the next cron worker picks the row up | up to 60 s for the cron tick, plus the backoff (30 s first retry), so about 90 s                                      |
-| A second failure                                                    | Next tick plus 2 minutes of backoff, so about 3 minutes                                                               |
-| The host kills the worker mid-batch                                 | The row stays `sending` until the stale-lock timeout (2 minutes), then is retried on the next tick: about 3–4 minutes |
+| Case                                  | Delay                                                                                                            |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| In-request attempt succeeds           | about 1–3 s                                                                                                      |
+| Confirmed retryable in-request result | Next cron tick (up to 60 s) plus policy backoff/provider retry timing                                            |
+| A second confirmed retryable result   | Next tick plus the applicable backoff/provider retry timing                                                      |
+| The host kills the worker mid-batch   | Expired claims become unknown. No bounded delivery time: verified idempotent retry or reconciliation is required |
 
 **Targets relaxed for this option**
 
@@ -416,15 +422,15 @@ This applies only if the client rejects a VPS (ADR 0006).
 
 ## 14. Testing strategy
 
-| Layer                                   | What                                                                                                                                                          |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Unit (Pest)                             | Money, reservation number sequences, payload builders for ZAN Gateway and VFMS (fixtures from the spec and guide), status mapping (PRD §7.9 table)            |
-| Feature (Pest)                          | Every action, with fake adapters. The **full Booking.com lifecycle** from PRD §8 as one scenario, asserting the exact outbox rows and their order             |
-| Failure                                 | Fakes simulate 429, 5xx, timeouts, partial rejection, duplicates and out-of-order inbound messages. Assert no loss, no duplicate effect, and correct ordering |
-| Cross-tenant                            | The suite in §4.3                                                                                                                                             |
-| Architecture (`arch()`)                 | Boundary rules in §3.2                                                                                                                                        |
-| Contract (staging, manual or scheduled) | Real calls to ZAN Gateway staging and the VFMS test server, verifying payloads and the duplicate-`referenceNumber` behaviour                                  |
-| Static                                  | Larastan (level agreed with the team), Pint in CI                                                                                                             |
+| Layer                                       | What                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Unit (Pest)                                 | Money, reservation number sequences, payload builders for ZAN Gateway and VFMS (fixtures from the spec and guide), status mapping (PRD §7.9 table)                                                                                                                                                     |
+| Feature (Pest)                              | Every action, with fake adapters. The **full Booking.com lifecycle** from PRD §8 as one scenario, asserting the exact outbox rows and their order                                                                                                                                                      |
+| Failure                                     | Fake-contract tests cover missed dispatch, expired claims/fencing, per-input partial results, quotas/retry timing, stream order, latest-only races, unknown delivery, atomic correction/audit rollback, scoped recovery, archival and restore identity gates. They do not prove provider compatibility |
+| Cross-tenant                                | The suite in §4.3                                                                                                                                                                                                                                                                                      |
+| Architecture (`arch()`)                     | Boundary rules in §3.2                                                                                                                                                                                                                                                                                 |
+| Contract (staging, manual or scheduled; M3) | Real-provider tests verify payloads, per-message acceptance, duplicate/corrected-key behaviour, and restore reconciliation/replay safety; fake contracts are not evidence                                                                                                                              |
+| Static                                      | Larastan (level agreed with the team), Pint in CI                                                                                                                                                                                                                                                      |
 
 ## 15. Go-live gates (technical)
 
@@ -433,7 +439,8 @@ This applies only if the client rejects a VPS (ADR 0006).
 - Thedream's own ZRA supplier key is issued, with the ZAN Gateway staging contract test passing.
 - VFMS test credentials are issued, and the VFMS production URL and transport are confirmed.
 - The channel manager is selected against PRD §9, with its sandbox contract test passing.
-- The restore exercise, including post-restore reconciliation, passes.
+- A production retention policy for encrypted outbox bodies and history is approved before real guest data; M1 never prunes them.
+- The restore exercise, including post-restore delivery reconciliation and missing identity/history recovery or a verified safe identity boundary, passes.
 - The cross-tenant suite and the Booking.com lifecycle scenario pass in CI.
 
 ## 16. Decision index
