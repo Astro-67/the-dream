@@ -23,6 +23,12 @@ final class DeliveryAdapters
         return isset($this->adapters[$integration]);
     }
 
+    /** @return array<string, DeliveryAdapter> */
+    public function all(): array
+    {
+        return $this->adapters;
+    }
+
     public function for(string $integration): DeliveryAdapter
     {
         return $this->adapters[$integration] ?? throw new LogicException("No outbox adapter is registered for [{$integration}].");

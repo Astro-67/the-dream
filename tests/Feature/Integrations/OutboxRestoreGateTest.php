@@ -7,10 +7,11 @@ use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxMessage;
 use App\Support\Outbox\RestoreGate;
+use App\Support\Outbox\RestoreIdentityRecovery;
 use App\Support\Outbox\RestoreReconciler;
 use App\Support\Outbox\RestoreReconciliationAdapter;
-use App\Support\Tenancy\TenantContext;
 use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -58,7 +59,13 @@ test('reconciliation-capable adapter resolves accepted work and identity evidenc
         ->and($message->fresh()->status)->toBe('delivered')
         ->and(DB::table('outbox_restore_evidence')->where('message_id', $message->id)->value('evidence_hash'))->toBe(hash('sha256', 'provider operation 872'));
     expect(Artisan::call('outbox:resume', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Delivery only completed']))->toBe(1);
-    Tenancy::within(TenantContext::forProperty($tenant->a->property), fn () => app(RestoreGate::class)->recordIdentitySafe($tenant->a->property, $actor, 'Verified identity ledger boundary', 'ledger-cutoff-2026-10-01', 'verified-boundary'));
+    $adapter->identityFloors = [[
+        'subject_type' => 'stay',
+        'subject_id' => 'stay-1',
+        'highest_sequence' => 1,
+        'evidence' => 'provider high-water mark 1',
+    ]];
+    Tenancy::within(TenantContext::forProperty($tenant->a->property), fn () => app(RestoreIdentityRecovery::class)->recover($tenant->a->property, $actor, 'Verified fake identity boundary'));
     expect(Artisan::call('outbox:resume', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Both checks completed']))->toBe(0);
     expect(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeFalse();
 });
@@ -85,11 +92,19 @@ test('older backup missing externally accepted history is reported and identity 
     expect(fn () => inTenant($tenant->a->property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
         'vfms-restore', (object) ['type' => 'stay', 'id' => 'stay-restore'], 'changed', ['sequence' => 6], 'new-key',
     ))))->toThrow(LogicException::class, 'restore gate');
-    expect(fn () => inTenant($tenant->a->property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
-        'vfms-restore', (object) ['type' => 'stay', 'id' => 'stay-restore'], 'changed', ['sequence' => 6], 'new-key',
-    ))))->toThrow(LogicException::class, 'restore gate');
-    expect(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeTrue();
     expect(Artisan::call('outbox:resume', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Identity boundary not yet verified']))->toBe(1);
+    $adapter->identityFloors = [[
+        'subject_type' => 'stay',
+        'subject_id' => 'stay-restore',
+        'highest_sequence' => 5,
+        'evidence' => 'provider confirms sequence 5 accepted, absent from restored database',
+    ]];
+    Tenancy::within(TenantContext::forProperty($tenant->a->property), fn () => app(RestoreIdentityRecovery::class)->recover($tenant->a->property, $actor, 'Recovered missing provider sequence history'));
+    expect(Artisan::call('outbox:resume', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Identity boundary verified']))->toBe(0);
+    $newMessage = inTenant($tenant->a->property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
+        'vfms-restore', (object) ['type' => 'stay', 'id' => 'stay-restore'], 'changed', ['sequence' => 6], 'new-key',
+    )));
+    expect($newMessage->sequence)->toBe(6);
 });
 
 // The system-facing safety checks run through public command and delivery seams.
@@ -178,18 +193,5 @@ test('optional reconciliation does not make a replay-only provider safe', functi
         ->toThrow(LogicException::class, 'ambiguous');
     expect(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeTrue();
 });
-
-// The system-facing safety checks run through public command and delivery seams.
-
-function restoreReplayMessage($property, string $integration = 'replay-fake'): OutboxMessage
-{
-    $message = inTenant($property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
-        $integration, (object) ['type' => 'reservation', 'id' => 'old-operation'], 'changed', ['version' => 1], 'restore-replay-key',
-    )));
-    $message->status = 'unknown';
-    $message->save();
-
-    return $message;
-}
 
 // The system-facing safety checks run through public command and delivery seams.

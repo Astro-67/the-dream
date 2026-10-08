@@ -2,18 +2,25 @@
 
 namespace Tests\Fakes;
 
+use App\Domains\Tenancy\Models\Property;
 use App\Support\Outbox\DeliveryAdapter;
 use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\DeliveryResult;
 use App\Support\Outbox\OutboxMessage;
+use App\Support\Outbox\RestoreIdentityBoundaryAdapter;
 use App\Support\Outbox\RestoreReconciliationAdapter;
 
-final class ReconcilingOutboxAdapter implements DeliveryAdapter, RestoreReconciliationAdapter
+final class ReconcilingOutboxAdapter implements DeliveryAdapter, RestoreIdentityBoundaryAdapter, RestoreReconciliationAdapter
 {
     /** @var array<string, array{outcome: 'accepted'|'not_found'|'unresolved', evidence: string, references?: array<string, string>}> */
     public array $reports = [];
 
+    /** @var list<array{subject_type: string, subject_id: string, highest_sequence: int, evidence: string}> */
+    public array $identityFloors = [];
+
     public bool $fail = false;
+
+    public bool $completeIdentityCoverage = true;
 
     public function policy(): DeliveryPolicy
     {
@@ -37,5 +44,15 @@ final class ReconcilingOutboxAdapter implements DeliveryAdapter, RestoreReconcil
         }
 
         return $reports;
+    }
+
+    public function identityCoverageComplete(): bool
+    {
+        return $this->completeIdentityCoverage;
+    }
+
+    public function identityBoundaries(Property $property): array
+    {
+        return $this->identityFloors;
     }
 }

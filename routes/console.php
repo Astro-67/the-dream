@@ -8,6 +8,7 @@ use App\Support\Outbox\OutboxPropertyLookup;
 use App\Support\Outbox\OutboxRecovery;
 use App\Support\Outbox\OutboxSweeper;
 use App\Support\Outbox\RestoreGate;
+use App\Support\Outbox\RestoreIdentityRecovery;
 use App\Support\Outbox\RestoreReconciler;
 use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
@@ -78,13 +79,12 @@ Artisan::command('outbox:reconcile-after-restore {--actor=} {--property=} {--rea
     }
 })->purpose('Reconcile outbox delivery after restore');
 
-Artisan::command('outbox:identity-safe {--actor=} {--property=} {--integration=} {--reason=}', function (\App\Support\Outbox\RestoreIdentityRecovery $recovery): int {
+Artisan::command('outbox:identity-safe {--actor=} {--property=} {--reason=}', function (RestoreIdentityRecovery $recovery): int {
     $actor = User::query()->find($this->option('actor'));
     $property = app(OutboxPropertyLookup::class)->find((string) $this->option('property'));
-    $integration = trim((string) $this->option('integration'));
     $reason = trim((string) $this->option('reason'));
-    if ($actor === null || $property === null || $integration === '' || $reason === '') {
-        $this->error('Actor, property, integration and reason are required.');
+    if ($actor === null || $property === null || $reason === '') {
+        $this->error('Actor, property and reason are required.');
 
         return self::FAILURE;
     }
@@ -94,7 +94,7 @@ Artisan::command('outbox:identity-safe {--actor=} {--property=} {--integration=}
                 throw new RuntimeException('Outbox recovery is not authorized.');
             }
         });
-        $count = Tenancy::within(TenantContext::forProperty($property), fn () => $recovery->recover($property, $actor, $integration, $reason));
+        $count = Tenancy::within(TenantContext::forProperty($property), fn () => $recovery->recover($property, $actor, $reason));
         $this->info("Recovered {$count} verified identity boundaries.");
 
         return self::SUCCESS;
