@@ -19,6 +19,7 @@ class CreateRoomType
     {
         return DB::transaction(function () use ($actor, $details) {
             $roomType = RoomType::query()->create($details);
+            app(RecalculateInventory::class)->handle($roomType);
 
             Audit::record($actor, 'created', $roomType, 'Room type created', [
                 'attributes' => $roomType->only(RoomType::FIELDS),
