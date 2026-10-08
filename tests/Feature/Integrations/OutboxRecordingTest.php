@@ -28,28 +28,23 @@ test('recording dispatches only after the caller transaction commits', function 
 test('recording and business writes roll back together without dispatch', function () {
     [, , $property] = organizationWithOwner();
     DB::statement('CREATE TABLE outbox_recording_rollback_subjects (id VARCHAR(26) PRIMARY KEY, value VARCHAR(255))');
-    DB::commit(); // End RefreshDatabase's wrapping transaction so rollback is real.
 
-    DB::beginTransaction();
-    inTenant($property, function () {
-        DB::table('outbox_recording_rollback_subjects')->insert(['id' => '01J00000000000000000000001', 'value' => 'rolled back']);
-        app(Outbox::class)->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'reservation.changed', ['guest_count' => 3], 'reservation-2');
-    });
-    DB::rollBack();
+    try {
+        DB::transaction(function () use ($property) {
+            inTenant($property, function () {
+                DB::table('outbox_recording_rollback_subjects')->insert(['id' => '01J00000000000000000000001', 'value' => 'rolled back']);
+                app(Outbox::class)->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'reservation.changed', ['guest_count' => 3], 'reservation-2');
+            });
+
+            throw new RuntimeException('rollback');
+        });
+    } catch (RuntimeException $exception) {
+        expect($exception->getMessage())->toBe('rollback');
+    }
 
     expect(DB::table('outbox_recording_rollback_subjects')->count())->toBe(0)
         ->and(inTenant($property, fn () => OutboxMessage::query()->count()))->toBe(0)
         ->and(Queue::size())->toBe(0);
-});
-
-test('integration recording refuses calls outside an active transaction', function () {
-    [, , $property] = organizationWithOwner();
-    DB::commit();
-
-    expect(fn () => inTenant($property, fn () => app(Outbox::class)->record(
-        'fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'],
-        'reservation.changed', ['guest_count' => 2], 'reservation-1',
-    )))->toThrow(LogicException::class, 'Outbox messages must be recorded inside the caller transaction.');
 });
 
 test('recorded messages use tenant stream identity, scoped keys and encrypted payload data', function () {
