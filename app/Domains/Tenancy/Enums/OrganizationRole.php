@@ -49,14 +49,14 @@ enum OrganizationRole: string
             self::Owner => P::cases(),
             self::GroupOperationsManager => [
                 P::PropertiesView, P::PropertiesManage, P::PropertiesUpdate,
-                P::MembersView,
+                P::MembersView, P::InventoryManage,
                 P::ReservationsView, P::ReservationsManage, P::RoomsAssign, P::GuestsView,
                 P::HousekeepingView, P::HousekeepingManage,
                 P::FinanceView, P::ReportsView,
             ],
             self::PropertyManager => [
                 P::PropertiesView, P::PropertiesUpdate,
-                P::MembersView, P::MembersInvite, P::OutboxRecover,
+                P::MembersView, P::MembersInvite, P::OutboxRecover, P::InventoryManage,
                 P::ReservationsView, P::ReservationsManage, P::RoomsAssign, P::GuestsView,
                 P::HousekeepingView, P::HousekeepingManage,
                 P::FiscalExceptionsReview, P::ReportsView,
