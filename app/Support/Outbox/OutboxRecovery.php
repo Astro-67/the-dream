@@ -23,6 +23,7 @@ final class OutboxRecovery
     {
         $this->authorized($actor, $propertyId, $messageId, 'outbox_recovery_refused', $reason, false, function (OutboxMessage $message) use ($actor, $reason): void {
             DB::transaction(function () use ($message, $actor, $reason): void {
+                Property::query()->whereKey($message->property_id)->lockForUpdate()->firstOrFail();
                 app(RestoreGate::class)->assertOpen($message->property_id);
                 $locked = OutboxMessage::query()->whereKey($message->id)->lockForUpdate()->firstOrFail();
                 if ($locked->claim_token !== null || ($locked->claim_expires_at !== null && CarbonImmutable::parse($locked->claim_expires_at)->isFuture()) || $locked->status === 'sending') {
@@ -59,8 +60,8 @@ final class OutboxRecovery
                 throw new RuntimeException('The adapter has not verified changed-payload idempotency-key reuse.');
             }
             DB::transaction(function () use ($message, $actor, $reason, $correction, $adapter): void {
-                app(RestoreGate::class)->assertOpen($message->property_id);
                 $property = Property::query()->whereKey($message->property_id)->lockForUpdate()->firstOrFail();
+                app(RestoreGate::class)->assertOpen($message->property_id);
                 if ($property->archived_at !== null) {
                     throw new RuntimeException('Archived property outbox operations cannot be corrected.');
                 }
