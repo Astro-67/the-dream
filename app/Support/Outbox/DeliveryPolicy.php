@@ -18,6 +18,7 @@ final readonly class DeliveryPolicy
         public ?string $quotaIdentity = null,
         public ?int $quotaLimit = null,
         public int $quotaWindowSeconds = 60,
+        public bool $changedPayloadKeyReuseSafe = false,
     ) {
         if ($maxAttempts < 1 || $retryDelaySeconds < 1 || $maxBatchSize < 1 || $quotaWindowSeconds < 1
             || ($quotaIdentity === null) !== ($quotaLimit === null) || ($quotaLimit !== null && $quotaLimit < 1)

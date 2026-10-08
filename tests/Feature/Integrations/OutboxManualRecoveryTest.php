@@ -41,9 +41,30 @@ function rejectedOutboxMessage($property, string $integration = 'fake'): OutboxM
     return $message->fresh();
 }
 
-test('retry command requires actor property and reason', function () {
+test('correction command requires actor property reason and correction payload', function () {
+    expect(Artisan::call('outbox:correct', ['message' => 'missing']))->not->toBe(0);
+});
+
+test('correction refuses adapters without a verified changed-payload key contract', function () {
+    $t = twoTenants();
+    $message = rejectedOutboxMessage($t->a->property);
+
+    $this->artisan('outbox:correct', [
+        'message' => $message->id,
+        '--actor' => $t->a->owner->id,
+        '--property' => $t->a->property->id,
+        '--reason' => 'Correct a rejected report',
+        '--payload' => json_encode(['guest_count' => 2]),
+    ])->assertFailed();
+
+    expect($message->fresh()->status)->toBe('rejected')
+        ->and($message->fresh()->payload)->toBe(['version' => 1]);
+});
+
+ test('retry command requires actor property and reason', function () {
     expect(Artisan::call('outbox:retry', ['message' => 'missing']))->not->toBe(0);
 });
+
 
 test('a property manager restarts unchanged retryable work and audit contains metadata only', function () {
     $t = twoTenants();

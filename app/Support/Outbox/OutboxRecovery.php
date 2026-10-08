@@ -49,6 +49,39 @@ final class OutboxRecovery
         });
     }
 
+    /** @param array<string, mixed> $correctedPayload */
+    public function correct(User $actor, string $propertyId, string $messageId, string $reason, array $correctedPayload): void
+    {
+        $this->authorized($actor, $propertyId, $messageId, 'outbox_recovery_refused', $reason, false, function (OutboxMessage $message) use ($actor, $reason, $correctedPayload): void {
+            $adapter = app(DeliveryAdapters::class)->for($message->integration);
+            if (! $adapter->policy()->changedPayloadKeyReuseSafe) {
+                throw new RuntimeException('The adapter has not verified changed-payload idempotency-key reuse.');
+            }
+            DB::transaction(function () use ($message, $actor, $reason, $correctedPayload, $adapter): void {
+                $locked = OutboxMessage::query()->whereKey($message->id)->lockForUpdate()->firstOrFail();
+                if ($locked->claim_token !== null || ($locked->claim_expires_at !== null && CarbonImmutable::parse($locked->claim_expires_at)->isFuture()) || $locked->status === 'sending') {
+                    throw new RuntimeException('An active delivery attempt prevents recovery.');
+                }
+                if ($locked->status !== 'rejected') {
+                    throw new RuntimeException('Only confirmed rejection can be corrected.');
+                }
+
+                $payload = $adapter->correct($locked, $correctedPayload);
+                $locked->payload = $payload;
+                $locked->status = 'pending';
+                $locked->setAttribute('next_attempt_at', null);
+                $locked->setAttribute('dispatch_claim_token', null);
+                $locked->setAttribute('dispatch_claim_expires_at', null);
+                $locked->save();
+                Audit::record($actor, 'outbox_recovery', $locked, 'Corrected rejected outbox operation', ['reason' => $reason, 'outcome' => 'corrected', 'payload_hash' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR))]);
+                $id = $locked->id;
+                $organizationId = $locked->organization_id;
+                $propertyId = $locked->property_id;
+                DB::afterCommit(fn () => $this->dispatch($id, $organizationId, $propertyId));
+            });
+        });
+    }
+
     public function confirmAccepted(User $actor, string $propertyId, string $messageId, string $reason, string $evidence): void
     {
         if (trim($evidence) === '') {
