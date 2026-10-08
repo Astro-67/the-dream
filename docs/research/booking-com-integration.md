@@ -60,13 +60,14 @@ The same page says Booking.com does not accept direct connections from individua
 - **Onboarding requirements.** "To become Booking.com Connectivity Partners, companies must meet specific onboarding requirements" ([About the Connectivity APIs](https://developers.booking.com/connectivity/docs)). These link to the Connectivity Hub at `portal.connectivity.booking.com`, which could not be read: its TLS certificate chain failed verification from this environment. **Unverified:** the content of those requirements.
 - **Compliance.** connect.booking.com says PCI and PII compliance is reviewed "based on regulations from the European Union and the PCI Security Standards Council" ([connect.booking.com](https://connect.booking.com/)). The Going Live page lists the compliance needed for each API. The Reservations API needs PCI and PII compliance. The Content, Contacts, Messaging, Property Details, Guest Review, Opportunities and Reporting APIs need PII compliance. The Payments API needs PCI compliance ([Going Live](https://developers.booking.com/connectivity/docs/going_live)).
 - **Ongoing expectations.** Partners are expected to:
-  - support all available API functions;
-  - load at least a full year of rates and availability;
-  - provide an easy room and rate mapping interface;
-  - minimise reservations falling back to email;
-  - keep up with continuous API changes.
+    - support all available API functions;
+    - load at least a full year of rates and availability;
+    - provide an easy room and rate mapping interface;
+    - minimise reservations falling back to email;
+    - keep up with continuous API changes.
 
-  Source: [About the Connectivity APIs](https://developers.booking.com/connectivity/docs).
+    Source: [About the Connectivity APIs](https://developers.booking.com/connectivity/docs).
+
 - **Minimum property counts or volume gates.** **Unverified.** None of the pages reviewed states a minimum. The Booking.com programme criteria page on `connectivity.booking.com` could not be read (same certificate failure).
 - **Tiers.** connect.booking.com describes a points-based "Partner Programme" ([connect.booking.com](https://connect.booking.com/)). **Unverified:** the tier names and criteria. Search results cite "Standard / Advanced / Premier" with new names for 2026, but the partner.booking.com articles behind them now redirect to an unrelated page ([Setting up and working with a Connectivity provider](https://partner.booking.com/en-gb/help/registration-getting-started/tools/setting-and-working-connectivity-provider)).
 
@@ -75,10 +76,11 @@ The same page says Booking.com does not accept direct connections from individua
 1. **Portal access.** Booking.com "typically shares access to the Connectivity Portal during the onboarding process". Machine accounts are created there ([Authentication](https://developers.booking.com/connectivity/docs/authentication)).
 2. **Test environment.** For the Content API: "you first need to go through a certification process to learn and test how to update rates, availability and reservations… you'll get access to a test account… you can start another certification process to activate your production account" ([Content API overview](https://developers.booking.com/connectivity/docs/content)).
 3. **Certification versus self-assessment.**
-   - Certification means "running several test requests on certain API endpoint(s)". Connectivity Support shares the steps and evaluates the requests and responses on test properties.
-   - Self-assessment follows a published tutorial. Support may ask for RUIDs (request IDs) and screenshots.
+    - Certification means "running several test requests on certain API endpoint(s)". Connectivity Support shares the steps and evaluates the requests and responses on test properties.
+    - Self-assessment follows a published tutorial. Support may ask for RUIDs (request IDs) and screenshots.
 
-   Source: [Going Live](https://developers.booking.com/connectivity/docs/going_live).
+    Source: [Going Live](https://developers.booking.com/connectivity/docs/going_live).
+
 4. **Beta rollout.** Booking.com advises offering a newly live API "to a small beta group for the first few weeks" ([Going Live](https://developers.booking.com/connectivity/docs/going_live)).
 5. **Property connection.** A property selects the provider in the Extranet and accepts terms. The provider then maps rooms and rates and completes the connection ([Setting up and working with a Connectivity provider](https://partner.booking.com/en-us/help/first-steps/online-bookable/setting-and-working-connectivity-provider)).
 
@@ -88,16 +90,16 @@ The same page says Booking.com does not accept direct connections from individua
 
 All from [Going Live](https://developers.booking.com/connectivity/docs/going_live).
 
-| API | Technical gate | Compliance gate |
-|---|---|---|
-| Reservations | Certification | PCI and PII |
-| Rates & Availability | Certification, tailored to pricing model | — |
-| Content API | Certification. Full Content API also requires Contracting, Licences and Photo APIs | PII |
-| Room type and rate plan management | Certification | — |
-| Rooms, Property Details, Property Settings, Property Status, Facilities, Charges | Certification, or self-assessment if already Content-certified | PII for Property Details |
-| Photo, Promotions, Reporting, Guest Review, Request to Book | Self-assessment | PII for Reporting and Guest Review |
-| Payments API | Self-assessment. Only for Payments by Booking.com properties already on the Reservations API | PCI |
-| Payments by Booking.com Onboarding, Connections, Licences, Credit Card Status | Self-assessment, no tutorial | — |
+| API                                                                              | Technical gate                                                                               | Compliance gate                    |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Reservations                                                                     | Certification                                                                                | PCI and PII                        |
+| Rates & Availability                                                             | Certification, tailored to pricing model                                                     | —                                  |
+| Content API                                                                      | Certification. Full Content API also requires Contracting, Licences and Photo APIs           | PII                                |
+| Room type and rate plan management                                               | Certification                                                                                | —                                  |
+| Rooms, Property Details, Property Settings, Property Status, Facilities, Charges | Certification, or self-assessment if already Content-certified                               | PII for Property Details           |
+| Photo, Promotions, Reporting, Guest Review, Request to Book                      | Self-assessment                                                                              | PII for Reporting and Guest Review |
+| Payments API                                                                     | Self-assessment. Only for Payments by Booking.com properties already on the Reservations API | PCI                                |
+| Payments by Booking.com Onboarding, Connections, Licences, Credit Card Status    | Self-assessment, no tutorial                                                                 | —                                  |
 
 Pricing-model rules:
 
@@ -114,30 +116,31 @@ Pricing-model rules:
 - **Base URLs.** `https://supply-xml.booking.com` serves non-PCI calls. `https://secure-supply-xml.booking.com` is the PCI host for reservation retrieval and confirmation. HTTPS with TLS 1.2 is required, and bodies must be UTF-8 ([About the Connectivity APIs](https://developers.booking.com/connectivity/docs)).
 - **Formats.** OTA XML (OTA 2003B), B.XML (Booking.com's own XML) and JSON. "In most cases… both", but "do not mix OTA and B.XML requests" within one process ([About the Connectivity APIs](https://developers.booking.com/connectivity/docs)).
 - **Authentication.**
-  - Machine accounts exchange credentials for a JWT at `POST https://connectivity-authentication.booking.com/token-based-authentication/exchange`.
-  - "The token expires after one hour. You can create up to 30 tokens per hour" ([Token-based authentication](https://developers.booking.com/connectivity/docs/token-based-authentication)).
-  - Credential-based (basic) authentication was sunset on 31 December 2025 ([Authentication](https://developers.booking.com/connectivity/docs/authentication)).
-  - Access requires all of the following: the property is linked to the machine account; the property has the right connection type; the endpoint is enabled; and any certification is passed ([Managing endpoint access](https://developers.booking.com/connectivity/docs/managing-endpoint-access)).
+    - Machine accounts exchange credentials for a JWT at `POST https://connectivity-authentication.booking.com/token-based-authentication/exchange`.
+    - "The token expires after one hour. You can create up to 30 tokens per hour" ([Token-based authentication](https://developers.booking.com/connectivity/docs/token-based-authentication)).
+    - Credential-based (basic) authentication was sunset on 31 December 2025 ([Authentication](https://developers.booking.com/connectivity/docs/authentication)).
+    - Access requires all of the following: the property is linked to the machine account; the property has the right connection type; the endpoint is enabled; and any certification is passed ([Managing endpoint access](https://developers.booking.com/connectivity/docs/managing-endpoint-access)).
 - **Rate limits.** Exceeding a limit returns HTTP 429. The published limits are:
-  - all endpoints: 10,000 calls per minute;
-  - `/xml/reservationssummary`: 700 per minute;
-  - `OTA_HotelDescriptiveContentNotif`, `OTA_HotelInvNotif`, `OTA_HotelProductNotif` and `OTA_HotelSummaryNotif`: 75 per minute each;
-  - `OTA_HotelDescriptiveInfo`: 100 per minute;
-  - Photos `POST pending_photos`: 100 per minute.
+    - all endpoints: 10,000 calls per minute;
+    - `/xml/reservationssummary`: 700 per minute;
+    - `OTA_HotelDescriptiveContentNotif`, `OTA_HotelInvNotif`, `OTA_HotelProductNotif` and `OTA_HotelSummaryNotif`: 75 per minute each;
+    - `OTA_HotelDescriptiveInfo`: 100 per minute;
+    - Photos `POST pending_photos`: 100 per minute.
 
-  Booking.com "reserves the right to… change these limits at any time… and… impose other limits on specific accounts" ([About the Connectivity APIs, Rate limiting](https://developers.booking.com/connectivity/docs)).
+    Booking.com "reserves the right to… change these limits at any time… and… impose other limits on specific accounts" ([About the Connectivity APIs, Rate limiting](https://developers.booking.com/connectivity/docs)).
+
 - **Connection types a provider can offer** to properties: Reservations; Rates & Availability; Guest reviews; Reporting; Content; Photos; Guest messages; Performance data; Payments by Booking.com onboarding; Promotions; Facilities; Property settings ([About the Connectivity APIs](https://developers.booking.com/connectivity/docs)).
 
 ### Reservations API: OTA XML versus B.XML
 
 All endpoints are **pull** (the PMS polls). There is no push for reservation content. The Notification Service sends alerts only, not reservation data (see the table below).
 
-| | OTA XML | B.XML |
-|---|---|---|
-| New bookings | `GET https://secure-supply-xml.booking.com/hotels/ota/OTA_HotelResNotif` | `POST https://secure-supply-xml.booking.com/hotels/xml/reservations` (all types) |
-| Modifications and cancellations | `GET …/OTA_HotelResModifyNotif` | Same endpoint, with `status` = `new` / `modified` / `cancelled` |
-| Acknowledge | `POST OTA_HotelResNotif` and `POST OTA_HotelResModifyNotif`, with a Success element or error code 193 | **Not supported**: "Once the endpoint call completes, Booking.com assumes that the partner will be prepared for the guest" |
-| Polling guidance | Once per 20 seconds, and 5 seconds after an acknowledgement before the next GET | Once per 20 seconds |
+|                                 | OTA XML                                                                                               | B.XML                                                                                                                      |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| New bookings                    | `GET https://secure-supply-xml.booking.com/hotels/ota/OTA_HotelResNotif`                              | `POST https://secure-supply-xml.booking.com/hotels/xml/reservations` (all types)                                           |
+| Modifications and cancellations | `GET …/OTA_HotelResModifyNotif`                                                                       | Same endpoint, with `status` = `new` / `modified` / `cancelled`                                                            |
+| Acknowledge                     | `POST OTA_HotelResNotif` and `POST OTA_HotelResModifyNotif`, with a Success element or error code 193 | **Not supported**: "Once the endpoint call completes, Booking.com assumes that the partner will be prepared for the guest" |
+| Polling guidance                | Once per 20 seconds, and 5 seconds after an acknowledgement before the next GET                       | Once per 20 seconds                                                                                                        |
 
 Sources: [Reservations overview](https://developers.booking.com/connectivity/docs/reservations-api/reservations-overview), [Retrieving new reservations](https://developers.booking.com/connectivity/docs/reservations-api/retrieving-new-reservations-ota), [Retrieving modified/cancelled](https://developers.booking.com/connectivity/docs/reservations-api/retrieving-modifcancel-reservations-ota), [Acknowledging modified/cancelled](https://developers.booking.com/connectivity/docs/reservations-api/acknowleding-modif-cancel-reservations-ota), [Managing reservations (B.XML)](https://developers.booking.com/connectivity/docs/reservations-api/managing-reservations-bxml).
 
@@ -145,47 +148,48 @@ Sources: [Reservations overview](https://developers.booking.com/connectivity/doc
 
 - **Re-delivery until acknowledged.** "`GET OTA_HotelResNotif` will repetitively return bookings until they are acknowledged… avoid creating duplicate bookings" ([Reservations overview](https://developers.booking.com/connectivity/docs/reservations-api/reservations-overview)). PRD DST acceptance already requires idempotency (PRD §7.9, p.7).
 - **Fallback to email.**
-  - If a reservation is not acknowledged (OTA) or retrieved (B.XML) within 30 minutes, it is emailed to the property.
-  - Support can extend the window to 24 hours, at the cost of more overbookings ([Reservations overview](https://developers.booking.com/connectivity/docs/reservations-api/reservations-overview)).
-  - The Reservation Recovery API (off by default) also moves fallback to 24 hours, except for check-ins within 48 hours ([Reservation Recovery overview](https://developers.booking.com/connectivity/docs/reservations-flow-control-api/reservations-recovery-overview)).
-  - Planned outage holds can last at most 8 hours ([General information FAQ](https://developers.booking.com/connectivity/docs/con-faq-reservations-general-information)).
+    - If a reservation is not acknowledged (OTA) or retrieved (B.XML) within 30 minutes, it is emailed to the property.
+    - Support can extend the window to 24 hours, at the cost of more overbookings ([Reservations overview](https://developers.booking.com/connectivity/docs/reservations-api/reservations-overview)).
+    - The Reservation Recovery API (off by default) also moves fallback to 24 hours, except for check-ins within 48 hours ([Reservation Recovery overview](https://developers.booking.com/connectivity/docs/reservations-flow-control-api/reservations-recovery-overview)).
+    - Planned outage holds can last at most 8 hours ([General information FAQ](https://developers.booking.com/connectivity/docs/con-faq-reservations-general-information)).
 - **Client settings.** Use a 5-minute HTTP timeout, parallel workers and about 40% capacity headroom ([Reservations overview](https://developers.booking.com/connectivity/docs/reservations-api/reservations-overview)).
 - **Modification raced with cancellation.** With `ota_res_response_token` enabled, acknowledging may return 409. Two `ResID_Value`s must then be acknowledged ([OTA reservations process](https://developers.booking.com/connectivity/docs/reservations-api/reservations-process-ota)).
 - **Modification after check-in.** Modifications can arrive after check-in, from the hotelier or Booking.com Customer Service ([General information FAQ](https://developers.booking.com/connectivity/docs/con-faq-reservations-general-information)).
 - **Cancellations.**
-  - The cancellation message includes any applicable cancellation fee, "although Booking.com won't charge the guest".
-  - For Payments by Booking.com, refunds are automatic within 10 business days.
-  - Cancelled rooms are added back to inventory automatically ([General information FAQ](https://developers.booking.com/connectivity/docs/con-faq-reservations-general-information)).
-  - B.XML adds `total_cancellation_fee`, and `total_price` becomes 0 ([Managing reservations (B.XML)](https://developers.booking.com/connectivity/docs/reservations-api/managing-reservations-bxml)).
-  - **Unverified:** the exact OTA element that marks a full cancellation. `HotelResModify/RoomStays` allows 0..* `RoomStay` ([RoomStays reference](https://developers.booking.com/connectivity/docs/api-reference/roomstays)). **Inference:** an empty `RoomStays` may signal a full cancellation. Confirm in the test environment.
+    - The cancellation message includes any applicable cancellation fee, "although Booking.com won't charge the guest".
+    - For Payments by Booking.com, refunds are automatic within 10 business days.
+    - Cancelled rooms are added back to inventory automatically ([General information FAQ](https://developers.booking.com/connectivity/docs/con-faq-reservations-general-information)).
+    - B.XML adds `total_cancellation_fee`, and `total_price` becomes 0 ([Managing reservations (B.XML)](https://developers.booking.com/connectivity/docs/reservations-api/managing-reservations-bxml)).
+    - **Unverified:** the exact OTA element that marks a full cancellation. `HotelResModify/RoomStays` allows 0..* `RoomStay` ([RoomStays reference](https://developers.booking.com/connectivity/docs/api-reference/roomstays)). **Inference:** an empty `RoomStays` may signal a full cancellation. Confirm in the test environment.
 - **No-shows** are reported by the PMS through the **Reporting API**, `POST https://supply-xml.booking.com/hotels/xml/reporting` with `report=is_no_show`. Fees can be waived, and room-level reporting is supported.
-  - The window runs from 00:00 on the check-in date to 48 hours after check-out.
-  - A no-show cancels the reservation, or modifies it for a partial no-show. It then "is no longer modifiable".
-  - "We do not automatically update the room's availability" after a no-show.
+    - The window runs from 00:00 on the check-in date to 48 hours after check-out.
+    - A no-show cancels the reservation, or modifies it for a partial no-show. It then "is no longer modifiable".
+    - "We do not automatically update the room's availability" after a no-show.
 
-  Source: [Reporting API](https://developers.booking.com/connectivity/docs/reporting-api/b_xml-reporting).
+    Source: [Reporting API](https://developers.booking.com/connectivity/docs/reporting-api/b_xml-reporting).
 
-  Booking.com charges full commission if changes are not marked within 48 hours of check-out ([Understanding our commission](https://partner.booking.com/en-us/help/commission-invoices-tax/commission/understanding-our-commission)).
+    Booking.com charges full commission if changes are not marked within 48 hours of check-out ([Understanding our commission](https://partner.booking.com/en-us/help/commission-invoices-tax/commission/understanding-our-commission)).
+
 - **Backfill.** `/reservationssummary` returns basic details of reservations made before connection. `last_change` recovery reaches back only 2 weeks ([Reservations overview](https://developers.booking.com/connectivity/docs/reservations-api/reservations-overview), [Retrieving new reservations](https://developers.booking.com/connectivity/docs/reservations-api/retrieving-new-reservations-ota)).
 - **Card data.** Full card details are sent "in the first pull only". A provider can choose XML with CVC, XML without CVC, or "display all information on the extranet" ([Payment data FAQ](https://developers.booking.com/connectivity/docs/con-faq-reservations-handling-payment-related-data)).
 - **Telephone.** The booker's telephone field "is omitted… now is unavailable for all Property IDs" ([Retrieving new reservations](https://developers.booking.com/connectivity/docs/reservations-api/retrieving-new-reservations-ota)).
 
 ### Other APIs
 
-| API | Protocol and endpoint | Direction | Notes |
-|---|---|---|---|
-| **Rates & Availability (ARI)** | OTA: `OTA_HotelAvailNotif` (inventory and restrictions), `OTA_HotelRateAmountNotif` (rates). B.XML: `/xml/availability` (inventory, restrictions and rates) | Push (PMS → Booking.com) | Pricing types: Standard, Derived (RLO), OBP, LOS. Prices outside €5–€50,000 are rejected ([Rates & Availability API overview](https://developers.booking.com/connectivity/docs/ari), [ARI FAQ](https://developers.booking.com/connectivity/docs/con-faq-rates-availability), [Foundational solutions](https://developers.booking.com/connectivity/docs/solutions/foundational/foundational)) |
-| **Room type and rate plan management** | OTA `OTA_HotelProductNotif` and B.XML `/xml/roomrates` | Push and read | Lighter alternative to the full Content API, but needs certification ([Going Live](https://developers.booking.com/connectivity/docs/going_live)) |
-| **Content / Property** | Legacy `OTA_HotelDescriptiveContentNotif` (HDCN) is deprecated and **sunsets 31 December 2026**. Replaced by modular JSON APIs: Property, Rooms, Facilities, Policies, Licences, Contracting, Charges | Push | "Full Content API" requires the Contracting, Licences and Photo APIs ([Implementing or disabling CVC collection](https://developers.booking.com/connectivity/docs/collecting-cvc), [Going Live](https://developers.booking.com/connectivity/docs/going_live)). **Inference:** do not build on HDCN |
-| **Photos** | REST/JSON Photo API | Push | Up to 299 photos per property. Rate limit 100 per minute on `pending_photos` ([Using the Photo API](https://developers.booking.com/connectivity/docs/photo-api/understanding-the-photo-api), [Rate limiting](https://developers.booking.com/connectivity/docs)) |
-| **Promotions** | B.XML `/promotions`, `/getpromotions` | Push and read | Percentage discounts only. Needs machine-account permissions from Support ([Understanding promotions](https://developers.booking.com/connectivity/docs/promotions)) |
-| **Reporting** | B.XML `/xml/reporting` | Push | Invalid card, stay change, no-show, cancellation for invalid card, guest misconduct ([Reporting API](https://developers.booking.com/connectivity/docs/reporting-api/b_xml-reporting)) |
-| **Payments API** | `https://payments-api.booking.com` | Pull, plus notifications | Payments by Booking.com reservations only. Payout status, VCC balances, price breakdown, 18 months of history ([Understanding the Payments API](https://developers.booking.com/connectivity/docs/payments-api/understanding-the-payments-api)) |
-| **Payments Clarity Package v2** | Feature flag on the Reservations API (`payment_clarity_package_v2`) | Within the reservation pull | Guest-view and hotel-view price breakdown, withheld tax, VCC activation, balance and expiry ([Retrieving new reservations](https://developers.booking.com/connectivity/docs/reservations-api/retrieving-new-reservations-ota)) |
-| **Payments by Booking.com Onboarding** | JSON | Push and read | Fresh enrolment only ([Onboarding API](https://developers.booking.com/connectivity/docs/payments-by-booking-onboarding-api/understanding-the-pbb-onboarding-api)) |
-| **Notification Service** | Provider-hosted endpoints | Push (Booking.com → PMS) | "Simple alerts and not… the detailed changes/data". The PMS must call the relevant API after each alert ([Notification Service](https://developers.booking.com/connectivity/docs/notification-service/notification-service-overview)) |
-| **Reservation Recovery** | `/reservations-flow-control/missed-reservations` | Pull | Off by default ([Reservation Recovery overview](https://developers.booking.com/connectivity/docs/reservations-flow-control-api/reservations-recovery-overview)) |
-| **Others** | Messaging, Guest Review, Licences, Market Insights, Property Scores, Opportunities, Request to Book | Various | Listed on [Going Live](https://developers.booking.com/connectivity/docs/going_live) |
+| API                                    | Protocol and endpoint                                                                                                                                                                                 | Direction                   | Notes                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Rates & Availability (ARI)**         | OTA: `OTA_HotelAvailNotif` (inventory and restrictions), `OTA_HotelRateAmountNotif` (rates). B.XML: `/xml/availability` (inventory, restrictions and rates)                                           | Push (PMS → Booking.com)    | Pricing types: Standard, Derived (RLO), OBP, LOS. Prices outside €5–€50,000 are rejected ([Rates & Availability API overview](https://developers.booking.com/connectivity/docs/ari), [ARI FAQ](https://developers.booking.com/connectivity/docs/con-faq-rates-availability), [Foundational solutions](https://developers.booking.com/connectivity/docs/solutions/foundational/foundational)) |
+| **Room type and rate plan management** | OTA `OTA_HotelProductNotif` and B.XML `/xml/roomrates`                                                                                                                                                | Push and read               | Lighter alternative to the full Content API, but needs certification ([Going Live](https://developers.booking.com/connectivity/docs/going_live))                                                                                                                                                                                                                                             |
+| **Content / Property**                 | Legacy `OTA_HotelDescriptiveContentNotif` (HDCN) is deprecated and **sunsets 31 December 2026**. Replaced by modular JSON APIs: Property, Rooms, Facilities, Policies, Licences, Contracting, Charges | Push                        | "Full Content API" requires the Contracting, Licences and Photo APIs ([Implementing or disabling CVC collection](https://developers.booking.com/connectivity/docs/collecting-cvc), [Going Live](https://developers.booking.com/connectivity/docs/going_live)). **Inference:** do not build on HDCN                                                                                           |
+| **Photos**                             | REST/JSON Photo API                                                                                                                                                                                   | Push                        | Up to 299 photos per property. Rate limit 100 per minute on `pending_photos` ([Using the Photo API](https://developers.booking.com/connectivity/docs/photo-api/understanding-the-photo-api), [Rate limiting](https://developers.booking.com/connectivity/docs))                                                                                                                              |
+| **Promotions**                         | B.XML `/promotions`, `/getpromotions`                                                                                                                                                                 | Push and read               | Percentage discounts only. Needs machine-account permissions from Support ([Understanding promotions](https://developers.booking.com/connectivity/docs/promotions))                                                                                                                                                                                                                          |
+| **Reporting**                          | B.XML `/xml/reporting`                                                                                                                                                                                | Push                        | Invalid card, stay change, no-show, cancellation for invalid card, guest misconduct ([Reporting API](https://developers.booking.com/connectivity/docs/reporting-api/b_xml-reporting))                                                                                                                                                                                                        |
+| **Payments API**                       | `https://payments-api.booking.com`                                                                                                                                                                    | Pull, plus notifications    | Payments by Booking.com reservations only. Payout status, VCC balances, price breakdown, 18 months of history ([Understanding the Payments API](https://developers.booking.com/connectivity/docs/payments-api/understanding-the-payments-api))                                                                                                                                               |
+| **Payments Clarity Package v2**        | Feature flag on the Reservations API (`payment_clarity_package_v2`)                                                                                                                                   | Within the reservation pull | Guest-view and hotel-view price breakdown, withheld tax, VCC activation, balance and expiry ([Retrieving new reservations](https://developers.booking.com/connectivity/docs/reservations-api/retrieving-new-reservations-ota))                                                                                                                                                               |
+| **Payments by Booking.com Onboarding** | JSON                                                                                                                                                                                                  | Push and read               | Fresh enrolment only ([Onboarding API](https://developers.booking.com/connectivity/docs/payments-by-booking-onboarding-api/understanding-the-pbb-onboarding-api))                                                                                                                                                                                                                            |
+| **Notification Service**               | Provider-hosted endpoints                                                                                                                                                                             | Push (Booking.com → PMS)    | "Simple alerts and not… the detailed changes/data". The PMS must call the relevant API after each alert ([Notification Service](https://developers.booking.com/connectivity/docs/notification-service/notification-service-overview))                                                                                                                                                        |
+| **Reservation Recovery**               | `/reservations-flow-control/missed-reservations`                                                                                                                                                      | Pull                        | Off by default ([Reservation Recovery overview](https://developers.booking.com/connectivity/docs/reservations-flow-control-api/reservations-recovery-overview))                                                                                                                                                                                                                              |
+| **Others**                             | Messaging, Guest Review, Licences, Market Insights, Property Scores, Opportunities, Request to Book                                                                                                   | Various                     | Listed on [Going Live](https://developers.booking.com/connectivity/docs/going_live)                                                                                                                                                                                                                                                                                                          |
 
 **Inference:** the minimum certifiable scope for a PMS is Reservations plus Rates & Availability, with Room/Rate management or the Content API for mapping. Booking.com's "Essentials" foundational solution is exactly Rates and Availability plus Reservations ([Foundational solutions](https://developers.booking.com/connectivity/docs/solutions/foundational/foundational)).
 
@@ -196,49 +200,51 @@ Sources: [Reservations overview](https://developers.booking.com/connectivity/doc
 ### What ZRA says about who must integrate
 
 - **Systems required to integrate:**
-  - PMS;
-  - CRS;
-  - booking engines;
-  - **channel managers**;
-  - reservation platforms;
-  - "Systems providing connectivity to Online Travel Agents (OTAs)".
+    - PMS;
+    - CRS;
+    - booking engines;
+    - **channel managers**;
+    - reservation platforms;
+    - "Systems providing connectivity to Online Travel Agents (OTAs)".
 
-  Source: ZAN GW guide §2, p.1.
+    Source: ZAN GW guide §2, p.1.
+
 - **Acceptable OTA connectivity:** a "live, integrated system, such as: Channel manager, CRS, Booking engine, PMS with direct OTA integrations". OTA bookings must be "automatically synchronized into the PMS or connected system" (ZAN GW guide §3.3, p.2).
 - **Responsibility stays with the PMS supplier.** PMS suppliers are responsible for completeness, accuracy and timeliness "regardless of booking source or system configuration" (ZAN GW guide §3.4, p.3).
 - **Compliance portal requirements.** ZRA's compliance portal states that a PMS vendor must:
-  1. register as a ZRA taxpayer (overseas vendors as a Non-Resident Business Entity);
-  2. integrate with ZAN Gateway;
-  3. obtain VFMS integration certification.
+    1. register as a ZRA taxpayer (overseas vendors as a Non-Resident Business Entity);
+    2. integrate with ZAN Gateway;
+    3. obtain VFMS integration certification.
 
-  A hotel is compliant only if its PMS vendor is compliant. The registry tracks "Does the property use a Channel Manager connected to a ZRA-approved PMS?", and the guidance tells hotels to "Connect your channel manager through your PMS".
+    A hotel is compliant only if its PMS vendor is compliant. The registry tracks "Does the property use a Channel Manager connected to a ZRA-approved PMS?", and the guidance tells hotels to "Connect your channel manager through your PMS".
 
-  Source: [compliance.zanrevenue.org](https://compliance.zanrevenue.org/), FAQ and registry text as rendered by the site's JavaScript. The page states two deadlines that have both passed: "24 April 2026" in the FAQ and "Compliance Deadline: 18 May 2026" in the banner.
+    Source: [compliance.zanrevenue.org](https://compliance.zanrevenue.org/), FAQ and registry text as rendered by the site's JavaScript. The page states two deadlines that have both passed: "24 April 2026" in the FAQ and "Compliance Deadline: 18 May 2026" in the banner.
+
 - **Conclusion (inference, from the text above):** choosing a channel manager does **not** move Thedream's ZRA obligation. The channel manager may carry its own parallel obligation, but Thedream still owns reporting for its properties.
 - **Unverified:**
-  - whether ZRA expects both systems to report the same booking, and how duplicates are reconciled;
-  - whether any specific channel manager is currently registered with ZRA. The registry data could not be read.
+    - whether ZRA expects both systems to report the same booking, and how duplicates are reconciled;
+    - whether any specific channel manager is currently registered with ZRA. The registry data could not be read.
 
 ### Options compared
 
-| | Direct Booking.com | Channex | SiteMinder (pmsXchange) | RateGain (RezGain, RG Bridge) | Cloudbeds |
-|---|---|---|---|---|---|
-| **Availability now** | Paused for new providers ([connect.booking.com](https://connect.booking.com/)) | Self-serve staging, "no sales call" ([Channex pricing](https://channex.io/pricing.md)) | Application, then a partnership agreement before integration starts ([Integration process](https://developer.siteminder.com/get-started/partner-lifecycle/integration-process.md)) | For "RateGain partner organizations" ([RG Bridge spec](https://developer.rategain.com/our-products/channel-manager/rg-bridge-supply-push/interface-specifications-reservation-notification-service.md)) | Public developer portal lists PMS, Data Insights, Accounting and Distribution (OTA-side) APIs ([Cloudbeds developers](https://developers.cloudbeds.com/page/home)). **Unverified:** whether any channel-manager API is offered to third-party PMSs |
-| **Published cost** | **Unverified** (none published) | $130 per month platform fee plus $7 per hotel per month (falling to $4 at 2,000+). Only properties with an active channel are billed. No minimums, no certification fee ([Channex pricing](https://channex.io/pricing.md)) | **Unverified** (not published on pages reviewed) | **Unverified** | **Unverified** |
-| **Time to market** | **Unverified** | Integration "in hours" (vendor claim), plus Channex certification with a live screen-share, plus OTA account authorisation ([Channex llms.txt](https://channex.io/llms.txt)) | "Most integrations are completed within 60 days": 1–3 days initiation, 4–6 weeks development, 1 week certification ([Integration process](https://developer.siteminder.com/get-started/partner-lifecycle/integration-process.md)) | **Unverified** | n/a |
-| **Protocol** | OTA XML, B.XML, JSON | REST/JSON with API key ([Channex llms.txt](https://channex.io/llms.txt)) | SOAP/XML (OTA) for reservations. REST for rooms and rates ([pmsXchange FAQ](https://developer.siteminder.com/pmsxchange-api/additional-resources/faq.md)) | PMS pushes ARI. The channel manager pushes reservations to an interface the PMS provides ([RG Bridge spec](https://developer.rategain.com/our-products/channel-manager/rg-bridge-supply-push/interface-specifications-reservation-notification-service.md)) | — |
-| **Reservation delivery** | Pull only, with a 30-minute email fallback | Webhook push plus Booking Revisions feed pull and acknowledge. Also poll every 15–20 minutes as backup ([Channex llms.txt](https://channex.io/llms.txt)) | PUSH in real time (recommended) or PULL every 2–5 minutes. Must certify Rooms & Rates, Availability, and Reservations PUSH or PULL. Modifications and cancellations are only "Recommended" ([pmsXchange FAQ](https://developer.siteminder.com/pmsxchange-api/additional-resources/faq.md)) | Push to PMS | — |
-| **Control** | Full access to Booking.com features (Reporting, Promotions, Payments API, Content) | Mediated by Channex. White-label, wholesale only ([Channex llms.txt](https://channex.io/llms.txt)) | Mediated by SiteMinder | Mediated by RateGain | — |
-| **PCI** | Thedream needs PCI and PII compliance | Channex "itself is not certified to PCI DSS". Card handling uses PCI-certified processors ([Channex llms.txt](https://channex.io/llms.txt)) | **Unverified** | **Unverified** | — |
-| **Tanzania / East Africa presence** | n/a | **Unverified** (no primary evidence found) | **Unverified** (no primary page found) | Not found | Not found |
+|                                     | Direct Booking.com                                                                 | Channex                                                                                                                                                                                                                    | SiteMinder (pmsXchange)                                                                                                                                                                                                                                                                    | RateGain (RezGain, RG Bridge)                                                                                                                                                                                                                               | Cloudbeds                                                                                                                                                                                                                                          |
+| ----------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Availability now**                | Paused for new providers ([connect.booking.com](https://connect.booking.com/))     | Self-serve staging, "no sales call" ([Channex pricing](https://channex.io/pricing.md))                                                                                                                                     | Application, then a partnership agreement before integration starts ([Integration process](https://developer.siteminder.com/get-started/partner-lifecycle/integration-process.md))                                                                                                         | For "RateGain partner organizations" ([RG Bridge spec](https://developer.rategain.com/our-products/channel-manager/rg-bridge-supply-push/interface-specifications-reservation-notification-service.md))                                                     | Public developer portal lists PMS, Data Insights, Accounting and Distribution (OTA-side) APIs ([Cloudbeds developers](https://developers.cloudbeds.com/page/home)). **Unverified:** whether any channel-manager API is offered to third-party PMSs |
+| **Published cost**                  | **Unverified** (none published)                                                    | $130 per month platform fee plus $7 per hotel per month (falling to $4 at 2,000+). Only properties with an active channel are billed. No minimums, no certification fee ([Channex pricing](https://channex.io/pricing.md)) | **Unverified** (not published on pages reviewed)                                                                                                                                                                                                                                           | **Unverified**                                                                                                                                                                                                                                              | **Unverified**                                                                                                                                                                                                                                     |
+| **Time to market**                  | **Unverified**                                                                     | Integration "in hours" (vendor claim), plus Channex certification with a live screen-share, plus OTA account authorisation ([Channex llms.txt](https://channex.io/llms.txt))                                               | "Most integrations are completed within 60 days": 1–3 days initiation, 4–6 weeks development, 1 week certification ([Integration process](https://developer.siteminder.com/get-started/partner-lifecycle/integration-process.md))                                                          | **Unverified**                                                                                                                                                                                                                                              | n/a                                                                                                                                                                                                                                                |
+| **Protocol**                        | OTA XML, B.XML, JSON                                                               | REST/JSON with API key ([Channex llms.txt](https://channex.io/llms.txt))                                                                                                                                                   | SOAP/XML (OTA) for reservations. REST for rooms and rates ([pmsXchange FAQ](https://developer.siteminder.com/pmsxchange-api/additional-resources/faq.md))                                                                                                                                  | PMS pushes ARI. The channel manager pushes reservations to an interface the PMS provides ([RG Bridge spec](https://developer.rategain.com/our-products/channel-manager/rg-bridge-supply-push/interface-specifications-reservation-notification-service.md)) | —                                                                                                                                                                                                                                                  |
+| **Reservation delivery**            | Pull only, with a 30-minute email fallback                                         | Webhook push plus Booking Revisions feed pull and acknowledge. Also poll every 15–20 minutes as backup ([Channex llms.txt](https://channex.io/llms.txt))                                                                   | PUSH in real time (recommended) or PULL every 2–5 minutes. Must certify Rooms & Rates, Availability, and Reservations PUSH or PULL. Modifications and cancellations are only "Recommended" ([pmsXchange FAQ](https://developer.siteminder.com/pmsxchange-api/additional-resources/faq.md)) | Push to PMS                                                                                                                                                                                                                                                 | —                                                                                                                                                                                                                                                  |
+| **Control**                         | Full access to Booking.com features (Reporting, Promotions, Payments API, Content) | Mediated by Channex. White-label, wholesale only ([Channex llms.txt](https://channex.io/llms.txt))                                                                                                                         | Mediated by SiteMinder                                                                                                                                                                                                                                                                     | Mediated by RateGain                                                                                                                                                                                                                                        | —                                                                                                                                                                                                                                                  |
+| **PCI**                             | Thedream needs PCI and PII compliance                                              | Channex "itself is not certified to PCI DSS". Card handling uses PCI-certified processors ([Channex llms.txt](https://channex.io/llms.txt))                                                                                | **Unverified**                                                                                                                                                                                                                                                                             | **Unverified**                                                                                                                                                                                                                                              | —                                                                                                                                                                                                                                                  |
+| **Tanzania / East Africa presence** | n/a                                                                                | **Unverified** (no primary evidence found)                                                                                                                                                                                 | **Unverified** (no primary page found)                                                                                                                                                                                                                                                     | Not found                                                                                                                                                                                                                                                   | Not found                                                                                                                                                                                                                                          |
 
 **Other notes**
 
 - **Card data through SiteMinder.** SiteMinder's reservation schema can carry guest ID documents (`Document DocID`, `DocType`, `DocHolderNationality`) ([pmsXchange push](https://developer.siteminder.com/pmsxchange-api/reference/reservations/push.md)). **Inference:** a channel manager cannot supply ID data that Booking.com does not send. The VFMS document gap in §5 remains whichever route is chosen.
 - **Commercial model.** **Inference:** with a channel manager, Booking.com's commission and payment models are unchanged. The channel manager is a pipe, and its fee adds to Booking.com's commission.
 - **ZRA timing.**
-  - **Inference:** SiteMinder PULL at a 5-minute interval could use the whole ZRA 5-minute budget on its own. PUSH or webhooks fit the ZRA timing better.
-  - **Unverified:** each channel manager's end-to-end latency from Booking.com.
+    - **Inference:** SiteMinder PULL at a 5-minute interval could use the whole ZRA 5-minute budget on its own. PUSH or webhooks fit the ZRA timing better.
+    - **Unverified:** each channel manager's end-to-end latency from Booking.com.
 
 ---
 
@@ -256,9 +262,9 @@ Sources: [Reservations overview](https://developers.booking.com/connectivity/doc
 - A per-booking temporary Mastercard holding "the exact amount that the guest paid" ([Understanding payouts](https://developers.booking.com/connectivity/docs/payments-by-booking-onboarding-api/understanding-payouts)).
 - VCC payouts are "almost always gross". Commission is then invoiced, and the hotel pays its own card-acquiring fee ([Understanding payouts](https://developers.booking.com/connectivity/docs/payments-by-booking-onboarding-api/understanding-payouts), [PbB costs](https://partner.booking.com/en-gb/help/policies-payments/payment-products/how-much-payments-bookingcom-costs)).
 - When the card can be charged:
-  - non-refundable bookings: from the booking date;
-  - other bookings: once at least 90% non-refundable;
-  - new properties: from 1 day after check-in.
+    - non-refundable bookings: from the booking date;
+    - other bookings: once at least 90% non-refundable;
+    - new properties: from 1 day after check-in.
 - The card can be charged for 12 months after check-out ([VCC guide](https://partner.booking.com/en-gb/help/policies-payments/payment-products/everything-you-need-know-about-virtual-credit-cards)).
 
 **Bank-transfer payouts**
@@ -301,15 +307,15 @@ Booking.com's position is set out in [Sending guest invoices](https://partner.bo
 
 ### Mapping to VFMS
 
-| Question | Hotel-collect | Payments by Booking.com (VCC or bank transfer) | Source / status |
-|---|---|---|---|
-| **Payer on the receipt** | Guest | Guest (Booking.com acts as agent) | Booking.com guidance above |
-| **VFMS source** | `DIRECT`: "All charges will be paid by the guests themselves" | No OTA value exists. `TOUR OPERATOR` needs a ZRA tour-operator registration number (`TourRegNo`) | VFMS API §2.1, p.4. **Unverified:** which value ZRA expects for an OTA booking, and whether Booking.com holds a ZRA tour-operator number |
-| **Amount receipted** | Total stay value at the tax-inclusive `accommodationPrice` per night, plus services | Booking.com says total reservation amount (gross), not the net payout | **Inference.** **Unverified:** ZRA's position on gross versus net for agent-collected bookings |
-| **Commission** | Booking.com's invoice to the hotel. Not a guest receipt | Same, or deducted from bank-transfer payout | Booking.com guidance. **Unverified:** how ZRA treats it (for example, VAT on imported services) |
-| **Currency** | Booking.com property currency | Payout may differ from load currency | VFMS accepts only `USD`, `TZS`, `EURO`. Note `EURO`, not ISO `EUR` (VFMS API §2.1 p.3, §2.2 p.9). VFMS provides an exchange-rate endpoint (USD→TZS, EUR→TZS, USD→EUR) (§2.4, p.12). **Gap:** any other Booking.com currency |
-| **Timing** | VFMS accommodation record at check-in. Fiscal check-out report at check-out | Money may arrive before check-in (VCC on non-refundable bookings) or after check-out (bank transfer) | VFMS API §2.1 p.3, §2.9 p.21. The Advance Payment Booking endpoint (§2.10, p.24) is built for B2B tour-operator prepayments (`customerType` "constant 2… B2B"). **Unverified:** whether it applies to OTA prepayments |
-| **Cancellation and no-show fees** | Hotel charges the card | Booking.com collects on the hotel's behalf | VFMS has no cancellation or no-show endpoint. **Inference:** a fee with no stay may only fit the general-customer services type (`WS`) (§2.7, p.17). **Unverified** with ZRA |
+| Question                          | Hotel-collect                                                                       | Payments by Booking.com (VCC or bank transfer)                                                       | Source / status                                                                                                                                                                                                             |
+| --------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Payer on the receipt**          | Guest                                                                               | Guest (Booking.com acts as agent)                                                                    | Booking.com guidance above                                                                                                                                                                                                  |
+| **VFMS source**                   | `DIRECT`: "All charges will be paid by the guests themselves"                       | No OTA value exists. `TOUR OPERATOR` needs a ZRA tour-operator registration number (`TourRegNo`)     | VFMS API §2.1, p.4. **Unverified:** which value ZRA expects for an OTA booking, and whether Booking.com holds a ZRA tour-operator number                                                                                    |
+| **Amount receipted**              | Total stay value at the tax-inclusive `accommodationPrice` per night, plus services | Booking.com says total reservation amount (gross), not the net payout                                | **Inference.** **Unverified:** ZRA's position on gross versus net for agent-collected bookings                                                                                                                              |
+| **Commission**                    | Booking.com's invoice to the hotel. Not a guest receipt                             | Same, or deducted from bank-transfer payout                                                          | Booking.com guidance. **Unverified:** how ZRA treats it (for example, VAT on imported services)                                                                                                                             |
+| **Currency**                      | Booking.com property currency                                                       | Payout may differ from load currency                                                                 | VFMS accepts only `USD`, `TZS`, `EURO`. Note `EURO`, not ISO `EUR` (VFMS API §2.1 p.3, §2.2 p.9). VFMS provides an exchange-rate endpoint (USD→TZS, EUR→TZS, USD→EUR) (§2.4, p.12). **Gap:** any other Booking.com currency |
+| **Timing**                        | VFMS accommodation record at check-in. Fiscal check-out report at check-out         | Money may arrive before check-in (VCC on non-refundable bookings) or after check-out (bank transfer) | VFMS API §2.1 p.3, §2.9 p.21. The Advance Payment Booking endpoint (§2.10, p.24) is built for B2B tour-operator prepayments (`customerType` "constant 2… B2B"). **Unverified:** whether it applies to OTA prepayments       |
+| **Cancellation and no-show fees** | Hotel charges the card                                                              | Booking.com collects on the hotel's behalf                                                           | VFMS has no cancellation or no-show endpoint. **Inference:** a fee with no stay may only fit the general-customer services type (`WS`) (§2.7, p.17). **Unverified** with ZRA                                                |
 
 PRD v1.0 relevance:
 
@@ -334,13 +340,13 @@ PRD v1.0 relevance:
 3. **Historical import** of all bookings, modifications, cancellations, check-ins and check-outs "from 1 January 2025 onward", by API bulk push or CSV/JSON upload (§4 Step 3, p.4).
 4. **Ongoing reporting**, on this timetable:
 
-| Event | Deadline |
-|---|---|
-| Booking created | Within 5 minutes |
-| Booking modified | Within 5 minutes |
+| Event             | Deadline         |
+| ----------------- | ---------------- |
+| Booking created   | Within 5 minutes |
+| Booking modified  | Within 5 minutes |
 | Booking cancelled | Within 5 minutes |
-| Guest check-in | "Immediately" |
-| Guest check-out | "Immediately" |
+| Guest check-in    | "Immediately"    |
+| Guest check-out   | "Immediately"    |
 
 These timings apply "to all booking sources, including OTAs" (§4 Step 4, p.4).
 
@@ -373,27 +379,27 @@ These timings apply "to all booking sources, including OTAs" (§4 Step 4, p.4).
 - **Compression:** optional `Content-Encoding` of `gzip` or `br`.
 - **Field names:** eZee-style PascalCase (`ReservationNo`, `FirstName`) and snake_case (`reservation_no`, `guest_first_name`) are both accepted. Send one style, not both.
 - **Required for a 200:**
-  - a reservation number;
-  - a first or last name;
-  - arrival and departure dates;
-  - a guest count: `NoOfGuest`, `guest_count`, or `Adult`/`Child`. "Explicit 0 allowed for cancel/no-show."
+    - a reservation number;
+    - a first or last name;
+    - arrival and departure dates;
+    - a guest count: `NoOfGuest`, `guest_count`, or `Adult`/`Child`. "Explicit 0 allowed for cancel/no-show."
 - **Not required, but should be sent "so tax reporting is complete":** amounts and currency (`CurrencyCode`, `TotalInclusiveTax`/`amount_total`).
 - **Optional fields:**
-  - `ReservationDate`, `FolioNo`, `RoomNo`. `RoomNo` is "used for property-specific rules (e.g. underwater-room infra tax)".
-  - `TotalTax`, `TotalExclusivTax` (vendor spelling), `OtherRevenue*`, `DueAmount`, `Deposit`.
-  - `CancelDate` (also accepted as `CancellationDate`).
-  - `ArrivalTime`, `DepartureTime`, `NoOfNights`.
+    - `ReservationDate`, `FolioNo`, `RoomNo`. `RoomNo` is "used for property-specific rules (e.g. underwater-room infra tax)".
+    - `TotalTax`, `TotalExclusivTax` (vendor spelling), `OtherRevenue*`, `DueAmount`, `Deposit`.
+    - `CancelDate` (also accepted as `CancellationDate`).
+    - `ArrivalTime`, `DepartureTime`, `NoOfNights`.
 - **Extra fields:** `additionalProperties: true`, so fields outside the schema are allowed.
 
 **Event and status model**
 
-| Situation | `Status` | `CurrentStatus` |
-|---|---|---|
-| New booking | `New` | `Confirmed Reservation` |
-| Arrival or check-in | `Modify` | `Arrived` or `Checked In` |
-| Check-out | `Modify` | `Checked Out` |
-| Cancellation (also send `CancelDate`) | `Cancel` | `Cancel` |
-| Void | `Modify` or `Cancel` | `Void` |
+| Situation                             | `Status`             | `CurrentStatus`           |
+| ------------------------------------- | -------------------- | ------------------------- |
+| New booking                           | `New`                | `Confirmed Reservation`   |
+| Arrival or check-in                   | `Modify`             | `Arrived` or `Checked In` |
+| Check-out                             | `Modify`             | `Checked Out`             |
+| Cancellation (also send `CancelDate`) | `Cancel`             | `Cancel`                  |
+| Void                                  | `Modify` or `Cancel` | `Void`                    |
 
 - `CurrentStatus` wins when both fields are sent.
 - "`Status` is not an OTA create/update flag: identity is hotel_code + reservation number." **Inference:** every push upserts the record for that reservation number. A correction is a re-push of the same reservation number. That matches the guide's "Corrections must be submitted through the API" (§11).
@@ -401,14 +407,14 @@ These timings apply "to all booking sources, including OTAs" (§4 Step 4, p.4).
 
 **Responses**
 
-| Code | Meaning |
-|---|---|
-| 200 | Accepted. Returns `id`, `booking_count`, `rejected_booking_count`, `skipped_non_actionable_count` and `validation_errors[]` |
-| 400 | Missing `hotel_code` or `bookings`, or every booking failed validation |
-| 401 | Bad or missing API key |
-| 415 | Unsupported content encoding |
-| 429 | Rate limited ("default 500/minute per API key") |
-| 502 | "Failed to forward to sync service after retries" |
+| Code | Meaning                                                                                                                     |
+| ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| 200  | Accepted. Returns `id`, `booking_count`, `rejected_booking_count`, `skipped_non_actionable_count` and `validation_errors[]` |
+| 400  | Missing `hotel_code` or `bookings`, or every booking failed validation                                                      |
+| 401  | Bad or missing API key                                                                                                      |
+| 415  | Unsupported content encoding                                                                                                |
+| 429  | Rate limited ("default 500/minute per API key")                                                                             |
+| 502  | "Failed to forward to sync service after retries"                                                                           |
 
 - The 200 `id` is a submission (batch) id, "not a stable booking key".
 - **Inference:** a 200 can still contain rejected bookings. Thedream must read `rejected_booking_count` and `validation_errors` on each booking, not treat the 200 as success for the whole batch.
@@ -418,8 +424,8 @@ These timings apply "to all booking sources, including OTAs" (§4 Step 4, p.4).
 - Upserts the property profile.
 - **Required:** `Hotel_Code`, `Hotel_Name`, `City`, `State`, `Zipcode`, `Country`, `Property_Type`, `Address`, `CurrencyCode`.
 - **Optional:**
-  - `tax_region` (several aliases).
-  - `star_rating`: 1–5, or the grades `A`, `AA`, `AP`, `APP`, `HOS`, `SI`.
+    - `tax_region` (several aliases).
+    - `star_rating`: 1–5, or the grades `A`, `AA`, `AP`, `APP`, `HOS`, `SI`.
 - **Response:** includes `ztn_number`, "null until ZRA registers the taxpayer". **Inference:** a property can push hotel info before its ZRA taxpayer registration is linked.
 
 **Still not in the spec**
@@ -454,19 +460,19 @@ Source: §12, p.7.
 
 **Endpoints**
 
-| # | Endpoint | `vfms-request-type` | When it is used |
-|---|---|---|---|
-| 2.1 | Accommodation | `ACCOMMODATION_REQUEST` | At check-in. "VFMS will determine the infrastructure tax and the total tax amount per guest per night until the guest checks out" (p.3) |
-| 2.2 | Change room | `ACCOMMODATION_CHANGE_ROOM` | Room move (p.9) |
-| 2.3 | Change room price | `CHANGEROOM_PRICE` | Rate change (p.11) |
-| 2.4 | Exchange rate | `CURRENCY_EXCHANGE` | Rate lookup (p.12) |
-| 2.5 | Accommodation report | `ACCOMMODATION_REPORT` | Fetch records by date range. Response includes `source`, `isCanceled`, `isClosed` (pp.13–14) |
-| 2.6 | Add guest | `ACCOMMODATION_ADD_GUEST` | Extra guest in an occupied room (p.15) |
-| 2.7 | Services | `ACCOMMODATION_ADD_SERVICE` | Extras. Returns `receiptNumber` (pp.16–18) |
-| 2.8 | Change profile | `GUEST_PROFILE` | Correct guest details (p.19) |
-| 2.9 | Check-out | `ACCOMMODATION_CHECK_OUT` | Returns the check-out report with `reportNumber`, totals, tax and `totalInfrastructure` (pp.21–23) |
-| 2.10 | Advance payment booking | `RESERVATION_BOOKING` | B2B tour-operator prepayment. Returns `receiptNumber` and a `bookingNumber` (pp.24–27) |
-| 2.11 | Advance payment accommodation | `ACCOMMODATION_BOOKING_REQUEST` | Check-in against an advance booking (pp.28–31) |
+| #    | Endpoint                      | `vfms-request-type`             | When it is used                                                                                                                         |
+| ---- | ----------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.1  | Accommodation                 | `ACCOMMODATION_REQUEST`         | At check-in. "VFMS will determine the infrastructure tax and the total tax amount per guest per night until the guest checks out" (p.3) |
+| 2.2  | Change room                   | `ACCOMMODATION_CHANGE_ROOM`     | Room move (p.9)                                                                                                                         |
+| 2.3  | Change room price             | `CHANGEROOM_PRICE`              | Rate change (p.11)                                                                                                                      |
+| 2.4  | Exchange rate                 | `CURRENCY_EXCHANGE`             | Rate lookup (p.12)                                                                                                                      |
+| 2.5  | Accommodation report          | `ACCOMMODATION_REPORT`          | Fetch records by date range. Response includes `source`, `isCanceled`, `isClosed` (pp.13–14)                                            |
+| 2.6  | Add guest                     | `ACCOMMODATION_ADD_GUEST`       | Extra guest in an occupied room (p.15)                                                                                                  |
+| 2.7  | Services                      | `ACCOMMODATION_ADD_SERVICE`     | Extras. Returns `receiptNumber` (pp.16–18)                                                                                              |
+| 2.8  | Change profile                | `GUEST_PROFILE`                 | Correct guest details (p.19)                                                                                                            |
+| 2.9  | Check-out                     | `ACCOMMODATION_CHECK_OUT`       | Returns the check-out report with `reportNumber`, totals, tax and `totalInfrastructure` (pp.21–23)                                      |
+| 2.10 | Advance payment booking       | `RESERVATION_BOOKING`           | B2B tour-operator prepayment. Returns `receiptNumber` and a `bookingNumber` (pp.24–27)                                                  |
+| 2.11 | Advance payment accommodation | `ACCOMMODATION_BOOKING_REQUEST` | Check-in against an advance booking (pp.28–31)                                                                                          |
 
 **Receipt requirements**
 
@@ -502,38 +508,38 @@ The document does not state either rate. **Unverified.**
 
 Booking.com element paths come from [Retrieving new reservations](https://developers.booking.com/connectivity/docs/reservations-api/retrieving-new-reservations-ota). B.XML equivalents come from [Managing reservations (B.XML)](https://developers.booking.com/connectivity/docs/reservations-api/managing-reservations-bxml).
 
-| Booking.com source | ZAN GATEWAY field (§7) | VFMS field | Notes and gaps |
-|---|---|---|---|
-| `BasicPropertyInfo@HotelCode` (Booking.com property ID) | `hotel_code` | none (the business unit is set by credentials) | **Inference:** map to Thedream's property, then to the "PMS hotel code" registered with ZRA (§4 Step 2). Not the Booking.com ID itself |
-| `HotelReservationID@ResID_Value` | `reservation_no` | `referenceNumber` ("A unique transaction no.") | Decision needed: Booking.com ID or Thedream ID. VFMS `referenceNumber` is per transaction, so each VFMS call needs its own unique value (**inference** from §2.1–2.9 examples) |
-| `ResGuest/…/PersonName` `GivenName` and `Surname`. Split names need the `ota_res_split_names` feature, otherwise `Surname` holds the full name | `guest_first_name`, `guest_last_name` | `guest[].fullName` | The guest can differ from the booker (`ResGlobalInfo/Profiles`). Multi-room guest assignment is approximate ([General information FAQ](https://developers.booking.com/connectivity/docs/con-faq-reservations-general-information)) |
-| `ResGlobalInfo/…/Address/CountryName@Code` (booker's residence, ISO 3166 alpha-2). B.XML `countrycode` | `guest_country` (example "DE") | `guest[].country` (examples use names: "KENYA", "INDIA", "TANZANIA"; report response shows "IT") | **Gap:** booker's residence is not each guest's nationality. **Gap:** VFMS uses country names in requests, ZAN uses ISO codes |
-| none | none | `guest[].documentName`, `guest[].documentNo` | **Gap:** not supplied by Booking.com. Must be captured at check-in. VFMS keys check-out, services and profile on `documentNo` |
-| `RoomRate@EffectiveDate` per night (OTA). `arrival_date` / `departure_date` (B.XML) | `checkin`, `checkout` | `checkInDate` (actual check-in) | **Inference:** for OTA, check-out = last `EffectiveDate` + 1 day. VFMS uses the actual check-in time, not the booked date |
-| `RoomStay/GuestCounts/GuestCount@Count` (room-level counts and ages need feature flags) | `guest_count` | number of `guest[]` entries | Booked occupancy can differ from arrivals. Children under the property's free age limit may not be counted ([General information FAQ](https://developers.booking.com/connectivity/docs/con-faq-reservations-general-information)) |
-| `Total@CurrencyCode` | `currency_code` | `currency` (`USD`/`TZS`/`EURO`) | Map `EUR` to `EURO`. **Gap:** other currencies are unsupported by VFMS |
-| `ResGlobalInfo/Total@AmountAfterTax` or `@AmountBeforeTax`, divided by 10^`DecimalPlaces` | `amount_total` | none at booking. VFMS totals are computed | Which attribute appears depends on the property's Extranet VAT settings. Some charges may be excluded. Payments Clarity Package v2 gives the breakdown |
-| `RoomRate/Rates/Rate/Total` per night | none | `accommodationPrice` ("A tax-inclusive amount") | **Gap:** VFMS takes one price per check-in, and changes go through §2.3. Varying nightly rates need a rule. If Booking.com returns `AmountBeforeTax`, a tax-inclusive figure must be derived |
-| Discount not itemised (price already discounted) | none | `accommodationDiscount` | **Unverified:** how to populate it for Genius or promotion pricing |
-| `RoomType@RoomTypeCode`, `RoomDescription@Name` | none | `roomId`, `roomName` | VFMS wants the physical room. Booking.com gives the room type only. Assigned at check-in |
-| `RoomDescription/MealPlan` (free text) | none | `paymentPackage` (example "AI") | **Gap:** the VFMS code list is not documented |
-| Endpoint (`OTA_HotelResNotif` versus `OTA_HotelResModifyNotif`). B.XML `status` | `Status` (`New`/`Modify`/`Cancel`) + `CurrentStatus`; `CancelDate` on cancellation (ZAN OpenAPI) | none (no cancellation endpoint) | Cancellation reporting exists only on the ZAN side. Check-in and check-out are PMS events (`Modify` + `Checked In`/`Checked Out`), not Booking.com events |
-| none | none (no channel field in ZAN OpenAPI) | `accommodationSource` | **Gap:** neither ZRA system has a field marking the booking as coming from Booking.com |
-| `RatePlan/Commission/CommissionPayableAmount`, `DepositPayments`, `PriceDetails` (PCP v2) | none in example | none | Useful for reconciliation. Not needed by either ZRA example |
-| none | none | `accommodationSource`, `tourRegNo`, `costOptions` | **Gap:** no OTA value (see §4) |
+| Booking.com source                                                                                                                             | ZAN GATEWAY field (§7)                                                                           | VFMS field                                                                                       | Notes and gaps                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BasicPropertyInfo@HotelCode` (Booking.com property ID)                                                                                        | `hotel_code`                                                                                     | none (the business unit is set by credentials)                                                   | **Inference:** map to Thedream's property, then to the "PMS hotel code" registered with ZRA (§4 Step 2). Not the Booking.com ID itself                                                                                             |
+| `HotelReservationID@ResID_Value`                                                                                                               | `reservation_no`                                                                                 | `referenceNumber` ("A unique transaction no.")                                                   | Decision needed: Booking.com ID or Thedream ID. VFMS `referenceNumber` is per transaction, so each VFMS call needs its own unique value (**inference** from §2.1–2.9 examples)                                                     |
+| `ResGuest/…/PersonName` `GivenName` and `Surname`. Split names need the `ota_res_split_names` feature, otherwise `Surname` holds the full name | `guest_first_name`, `guest_last_name`                                                            | `guest[].fullName`                                                                               | The guest can differ from the booker (`ResGlobalInfo/Profiles`). Multi-room guest assignment is approximate ([General information FAQ](https://developers.booking.com/connectivity/docs/con-faq-reservations-general-information)) |
+| `ResGlobalInfo/…/Address/CountryName@Code` (booker's residence, ISO 3166 alpha-2). B.XML `countrycode`                                         | `guest_country` (example "DE")                                                                   | `guest[].country` (examples use names: "KENYA", "INDIA", "TANZANIA"; report response shows "IT") | **Gap:** booker's residence is not each guest's nationality. **Gap:** VFMS uses country names in requests, ZAN uses ISO codes                                                                                                      |
+| none                                                                                                                                           | none                                                                                             | `guest[].documentName`, `guest[].documentNo`                                                     | **Gap:** not supplied by Booking.com. Must be captured at check-in. VFMS keys check-out, services and profile on `documentNo`                                                                                                      |
+| `RoomRate@EffectiveDate` per night (OTA). `arrival_date` / `departure_date` (B.XML)                                                            | `checkin`, `checkout`                                                                            | `checkInDate` (actual check-in)                                                                  | **Inference:** for OTA, check-out = last `EffectiveDate` + 1 day. VFMS uses the actual check-in time, not the booked date                                                                                                          |
+| `RoomStay/GuestCounts/GuestCount@Count` (room-level counts and ages need feature flags)                                                        | `guest_count`                                                                                    | number of `guest[]` entries                                                                      | Booked occupancy can differ from arrivals. Children under the property's free age limit may not be counted ([General information FAQ](https://developers.booking.com/connectivity/docs/con-faq-reservations-general-information))  |
+| `Total@CurrencyCode`                                                                                                                           | `currency_code`                                                                                  | `currency` (`USD`/`TZS`/`EURO`)                                                                  | Map `EUR` to `EURO`. **Gap:** other currencies are unsupported by VFMS                                                                                                                                                             |
+| `ResGlobalInfo/Total@AmountAfterTax` or `@AmountBeforeTax`, divided by 10^`DecimalPlaces`                                                      | `amount_total`                                                                                   | none at booking. VFMS totals are computed                                                        | Which attribute appears depends on the property's Extranet VAT settings. Some charges may be excluded. Payments Clarity Package v2 gives the breakdown                                                                             |
+| `RoomRate/Rates/Rate/Total` per night                                                                                                          | none                                                                                             | `accommodationPrice` ("A tax-inclusive amount")                                                  | **Gap:** VFMS takes one price per check-in, and changes go through §2.3. Varying nightly rates need a rule. If Booking.com returns `AmountBeforeTax`, a tax-inclusive figure must be derived                                       |
+| Discount not itemised (price already discounted)                                                                                               | none                                                                                             | `accommodationDiscount`                                                                          | **Unverified:** how to populate it for Genius or promotion pricing                                                                                                                                                                 |
+| `RoomType@RoomTypeCode`, `RoomDescription@Name`                                                                                                | none                                                                                             | `roomId`, `roomName`                                                                             | VFMS wants the physical room. Booking.com gives the room type only. Assigned at check-in                                                                                                                                           |
+| `RoomDescription/MealPlan` (free text)                                                                                                         | none                                                                                             | `paymentPackage` (example "AI")                                                                  | **Gap:** the VFMS code list is not documented                                                                                                                                                                                      |
+| Endpoint (`OTA_HotelResNotif` versus `OTA_HotelResModifyNotif`). B.XML `status`                                                                | `Status` (`New`/`Modify`/`Cancel`) + `CurrentStatus`; `CancelDate` on cancellation (ZAN OpenAPI) | none (no cancellation endpoint)                                                                  | Cancellation reporting exists only on the ZAN side. Check-in and check-out are PMS events (`Modify` + `Checked In`/`Checked Out`), not Booking.com events                                                                          |
+| none                                                                                                                                           | none (no channel field in ZAN OpenAPI)                                                           | `accommodationSource`                                                                            | **Gap:** neither ZRA system has a field marking the booking as coming from Booking.com                                                                                                                                             |
+| `RatePlan/Commission/CommissionPayableAmount`, `DepositPayments`, `PriceDetails` (PCP v2)                                                      | none in example                                                                                  | none                                                                                             | Useful for reconciliation. Not needed by either ZRA example                                                                                                                                                                        |
+| none                                                                                                                                           | none                                                                                             | `accommodationSource`, `tourRegNo`, `costOptions`                                                | **Gap:** no OTA value (see §4)                                                                                                                                                                                                     |
 
 ---
 
 ## Decisions the PRD must make
 
 1. **Connectivity route for launch.** Options:
-   - a channel manager, such as Channex, SiteMinder or RateGain;
-   - waiting for Booking.com to reopen partner onboarding;
-   - both, in sequence.
+    - a channel manager, such as Channex, SiteMinder or RateGain;
+    - waiting for Booking.com to reopen partner onboarding;
+    - both, in sequence.
 2. **Release stage for ZRA and OTA connectivity.** PRD v1.0 places distribution and local reporting in P1. ZRA bars onboarding Zanzibar properties without full channel integration and transmission. Options:
-   - move ZAN GATEWAY, VFMS and OTA connectivity into P0 for Zanzibar;
-   - exclude Zanzibar properties from P0;
-   - something else.
+    - move ZAN GATEWAY, VFMS and OTA connectivity into P0 for Zanzibar;
+    - exclude Zanzibar properties from P0;
+    - something else.
 3. **Manual export fallback.** Whether LOC-03's "approved manual export workflows" remains, and for which jurisdictions. ZAN GW guide §3.3 and §12 classify manual or delayed OTA data as non-compliant.
 4. **Which channels at launch.** Booking.com only, or all OTAs the pilot hotels use. ZRA requires all channels.
 5. **Booking.com API scope.** Reservations and ARI only, or also Content, Photos, Promotions, Reporting (no-shows), Payments API and Payments Clarity Package v2.

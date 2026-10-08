@@ -117,3 +117,6 @@ jobs:
       # Runs after the build, because the build generates the Wayfinder files the type check needs.
       - name: Type check
         run: bun run types:check
+
+      - name: Lint and format
+        run: bun run check

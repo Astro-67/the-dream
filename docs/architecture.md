@@ -5,7 +5,7 @@
 - **Vocabulary:** [`docs/GLOSSARY.md`](GLOSSARY.md)
 - **Decisions:** [`docs/adr/`](adr/), ADRs 0001–0012
 
-This document describes how Thedream is built: the domains, their boundaries, how integration messages move, and how the system is deployed and recovered. The ADRs record *why* each decision was made. This document records *what* the shape is. When the two disagree, the ADR wins and this document gets fixed.
+This document describes how Thedream is built: the domains, their boundaries, how integration messages move, and how the system is deployed and recovered. The ADRs record _why_ each decision was made. This document records _what_ the shape is. When the two disagree, the ADR wins and this document gets fixed.
 
 ---
 
@@ -27,25 +27,25 @@ This document describes how Thedream is built: the domains, their boundaries, ho
 
 External systems:
 
-| System | Direction | Purpose | Reference |
-|---|---|---|---|
-| Channel manager | Both ways | Availability, rates and restrictions out; reservations in | ADR 0001, PRD §7.8 |
-| ZAN Gateway | Out | Booking reports, and property profile (hotel info) | ADR 0003, PRD §7.9, [`docs/research/sources/zan-gateway-openapi.yaml`](research/sources/zan-gateway-openapi.yaml) |
-| VFMS | Out (request and response) | Fiscal receipting from check-in to check-out | ADR 0005, PRD §7.10, VFMS guide |
+| System          | Direction                  | Purpose                                                   | Reference                                                                                                         |
+| --------------- | -------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Channel manager | Both ways                  | Availability, rates and restrictions out; reservations in | ADR 0001, PRD §7.8                                                                                                |
+| ZAN Gateway     | Out                        | Booking reports, and property profile (hotel info)        | ADR 0003, PRD §7.9, [`docs/research/sources/zan-gateway-openapi.yaml`](research/sources/zan-gateway-openapi.yaml) |
+| VFMS            | Out (request and response) | Fiscal receipting from check-in to check-out              | ADR 0005, PRD §7.10, VFMS guide                                                                                   |
 
 ## 2. Technology stack
 
-| Layer | Choice |
-|---|---|
-| Backend | Laravel 13, PHP 8.3, a modular monolith with an Actions layer |
-| Database | MySQL 8 (RDS), ULID primary keys |
-| Auth | Session auth from the Laravel React starter kit (Fortify) |
-| Authorization | spatie/laravel-permission in teams mode (team = organization, ADR 0007), plus Laravel Policies |
-| Audit | spatie/laravel-activitylog |
-| Queue and cache | Database drivers. Redis only when load requires it (ADR 0006) |
-| Frontend | Inertia.js 3, React 19, TypeScript, Tailwind CSS 4, shadcn/ui, Wayfinder, built with Bun |
-| Quality | Pest 4 (including architecture tests), Pint, Larastan |
-| Hosting | AWS `af-south-1`: EC2 provisioned through Forge, RDS MySQL with PITR, S3. Workers under Supervisor, scheduler as a daemon (ADR 0006, 0011) |
+| Layer           | Choice                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Backend         | Laravel 13, PHP 8.3, a modular monolith with an Actions layer                                                                              |
+| Database        | MySQL 8 (RDS), ULID primary keys                                                                                                           |
+| Auth            | Session auth from the Laravel React starter kit (Fortify)                                                                                  |
+| Authorization   | spatie/laravel-permission in teams mode (team = organization, ADR 0007), plus Laravel Policies                                             |
+| Audit           | spatie/laravel-activitylog                                                                                                                 |
+| Queue and cache | Database drivers. Redis only when load requires it (ADR 0006)                                                                              |
+| Frontend        | Inertia.js 3, React 19, TypeScript, Tailwind CSS 4, shadcn/ui, Wayfinder, built with Bun                                                   |
+| Quality         | Pest 4 (including architecture tests), Pint, Larastan                                                                                      |
+| Hosting         | AWS `af-south-1`: EC2 provisioned through Forge, RDS MySQL with PITR, S3. Workers under Supervisor, scheduler as a daemon (ADR 0006, 0011) |
 
 The project was scaffolded on Laravel 13 and Inertia 3, the versions the current React starter kit ships. Composer is pinned to PHP 8.3 (`config.platform.php`), so Pest is held at v4 because Pest 5 needs PHP 8.4.
 
@@ -53,21 +53,21 @@ The project was scaffolded on Laravel 13 and Inertia 3, the versions the current
 
 The application is one Laravel app divided into domains under `app/Domains/<Domain>/`. Each domain owns its models, actions, events, policies, data objects and enums. Shared building blocks live in `app/Support/`.
 
-| Domain | Owns | PRD |
-|---|---|---|
-| **Tenancy** | Organization, Property, memberships, jurisdiction profile | §4, §6, §7.2 |
-| **Platform** | Platform roles (platform administrator, compliance operator) and the platform pages' read models. Later also support sessions and platform secrets | §5, §7.3 |
-| **Inventory** | Room types, rooms, out-of-service periods, availability | §7.4 (PMS-01) |
-| **Rates** | Rate plans, prices, restrictions (minimum stay, closed to arrival, stop-sell) | §7.4 (PMS-01) |
-| **Reservations** | Reservations, stays, reservation numbers, channel references, no-shows | §7.4 |
-| **Guests** | Guests, bookers, identity documents | §7.5 |
-| **FrontDesk** | Check-in, check-out, room moves, night audit | §7.4 (PMS-04–06) |
-| **Billing** | Folios, charges, payments, adjustments, receipts, channel-collected amounts, fiscal exceptions | §7.6 |
-| **Housekeeping** | Room status and tasks | §7.7 |
-| **Distribution** | Channel connections, mappings, inbound and outbound channel messages, reconciliation. Interface: `ChannelConnector` | §7.8 |
-| **ZanReporting** | Booking reports and hotel-info sync. Interface: `ZanReporter` | §7.9 |
-| **FiscalReceipting** | VFMS transactions. Interface: `FiscalReceipter` | §7.10 |
-| **Reports** | Occupancy, ADR, RevPAR, channel mix, group reports, and the compliance dashboard | §7.11 |
+| Domain               | Owns                                                                                                                                               | PRD              |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **Tenancy**          | Organization, Property, memberships, jurisdiction profile                                                                                          | §4, §6, §7.2     |
+| **Platform**         | Platform roles (platform administrator, compliance operator) and the platform pages' read models. Later also support sessions and platform secrets | §5, §7.3         |
+| **Inventory**        | Room types, rooms, out-of-service periods, availability                                                                                            | §7.4 (PMS-01)    |
+| **Rates**            | Rate plans, prices, restrictions (minimum stay, closed to arrival, stop-sell)                                                                      | §7.4 (PMS-01)    |
+| **Reservations**     | Reservations, stays, reservation numbers, channel references, no-shows                                                                             | §7.4             |
+| **Guests**           | Guests, bookers, identity documents                                                                                                                | §7.5             |
+| **FrontDesk**        | Check-in, check-out, room moves, night audit                                                                                                       | §7.4 (PMS-04–06) |
+| **Billing**          | Folios, charges, payments, adjustments, receipts, channel-collected amounts, fiscal exceptions                                                     | §7.6             |
+| **Housekeeping**     | Room status and tasks                                                                                                                              | §7.7             |
+| **Distribution**     | Channel connections, mappings, inbound and outbound channel messages, reconciliation. Interface: `ChannelConnector`                                | §7.8             |
+| **ZanReporting**     | Booking reports and hotel-info sync. Interface: `ZanReporter`                                                                                      | §7.9             |
+| **FiscalReceipting** | VFMS transactions. Interface: `FiscalReceipter`                                                                                                    | §7.10            |
+| **Reports**          | Occupancy, ADR, RevPAR, channel mix, group reports, and the compliance dashboard                                                                   | §7.11            |
 
 Not yet a domain folder, and added when their first ticket needs them:
 
@@ -154,8 +154,8 @@ Tenancy::within(TenantContext::platform('ZAN Gateway drain'), fn () => ...);  //
 - spatie teams mode: **team = organization**. Roles such as owner, group manager, property manager, front desk, finance, housekeeping and auditor are assigned within an organization.
 - `property_memberships` lists the properties each organization member may act in.
 - **Policies** check both: the role has the permission, **and** the record's property is in the user's property memberships. Organization-level roles (owner, group manager) may be granted all properties.
-  - Every policy does this through one helper, `App\Support\Tenancy\Access::allows($user, $permission, $propertyOrRecord = null)`, judged in the current organization (null = an organization-wide action).
-  - Permission names live in the `OrganizationPermission` enum; each role's set is `OrganizationRole::permissions()`, seeded per organization by `ProvisionOrganizationRoles`. After changing a set, run `php artisan organizations:sync-roles` to update existing organizations.
+    - Every policy does this through one helper, `App\Support\Tenancy\Access::allows($user, $permission, $propertyOrRecord = null)`, judged in the current organization (null = an organization-wide action).
+    - Permission names live in the `OrganizationPermission` enum; each role's set is `OrganizationRole::permissions()`, seeded per organization by `ProvisionOrganizationRoles`. After changing a set, run `php artisan organizations:sync-roles` to update existing organizations.
 - **Platform roles** (platform administrator, compliance operator) are separate and never come from organization membership (#11). They live in the `platform_role_assignments` table, not in spatie's teams, so no organization role or invitation can carry one; an architecture test keeps the model inside the Platform domain. `AssignPlatformRole` / `RevokePlatformRole` are the only way in: called by a platform administrator (from the Platform staff page) or with no actor by a seed or `php artisan platform:assign-role {email} {role}` / `platform:revoke-role`. Each change is written to the activity log (`log_name` `platform`). Read with `$user->hasPlatformRole(PlatformRole::Administrator)`, checked against the database on every call.
 - **Platform pages** (`routes/web/platform.php`, under `/platform`) use the route middleware `platform:<role>` (403 for anyone without that platform role, organization owners included) followed by `two-factor`. They sit outside the `tenant` middleware, and anything they read across organizations runs in `TenantContext::platform($reason)`, so each view is logged. The organization list shows name, owners, active property count and created date, and nothing from inside organizations. A platform administrator with no membership who opens an operational page is sent to the platform pages instead of organization setup.
 - **`two-factor` route middleware** (`RequireTwoFactor`): the user must have confirmed two-factor authentication. Otherwise a page visit or form post is redirected to `security.edit` with an error toast, and a JSON request gets 403. Put it after the middleware that decides access, so people without access get 403 rather than a 2FA prompt. Platform pages use it.
@@ -191,25 +191,25 @@ $this->app->tag([NoFutureBookings::class], PreArchiveCheck::TAG); // e.g. Reserv
 
 Each outbound integration has its own outbox table:
 
-| Table | Integration |
-|---|---|
-| `booking_reports` | ZAN Gateway |
-| `fiscal_transactions` | VFMS |
+| Table                       | Integration                                             |
+| --------------------------- | ------------------------------------------------------- |
+| `booking_reports`           | ZAN Gateway                                             |
+| `fiscal_transactions`       | VFMS                                                    |
 | `channel_outbound_messages` | Channel manager (availability, rates, acknowledgements) |
 
 Common columns:
 
-| Column | Meaning |
-|---|---|
-| `id` | ULID |
-| `organization_id`, `property_id` | Tenant scope |
-| `subject_type`, `subject_id` | Usually the reservation |
-| `sequence` | Increases per subject. Defines delivery order |
-| `idempotency_key` | Subject ULID + sequence (for example `01JA…:7`) |
-| `event` | For example `checked_in` |
-| `payload` | JSON, built at write time from the committed state |
-| `status` | `pending` → `sending` → `delivered`, or `rejected` (permanent, needs a person) or `failed` (retries exhausted) |
-| `attempts`, `next_attempt_at`, `last_response`, `delivered_at` | Delivery state |
+| Column                                                         | Meaning                                                                                                        |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `id`                                                           | ULID                                                                                                           |
+| `organization_id`, `property_id`                               | Tenant scope                                                                                                   |
+| `subject_type`, `subject_id`                                   | Usually the reservation                                                                                        |
+| `sequence`                                                     | Increases per subject. Defines delivery order                                                                  |
+| `idempotency_key`                                              | Subject ULID + sequence (for example `01JA…:7`)                                                                |
+| `event`                                                        | For example `checked_in`                                                                                       |
+| `payload`                                                      | JSON, built at write time from the committed state                                                             |
+| `status`                                                       | `pending` → `sending` → `delivered`, or `rejected` (permanent, needs a person) or `failed` (retries exhausted) |
+| `attempts`, `next_attempt_at`, `last_response`, `delivered_at` | Delivery state                                                                                                 |
 
 These rows are the **record of truth** for delivery. The delivery log (ZAN-08), compliance dashboard (RPT-04) and latency alerts all read them. The queue's `jobs` table is just transport.
 
@@ -220,9 +220,9 @@ These rows are the **record of truth** for delivery. The delivery log (ZAN-08), 
 3. A **sweeper** runs every minute from the scheduler and dispatches drains for any row still `pending` with `next_attempt_at` in the past. That covers crashes, deploys and failed attempts.
 4. **Ordering:** a row is sent only when every lower `sequence` for the same subject is `delivered` or terminal. The drain takes a cache lock per subject (database cache driver) so two workers never send the same subject in parallel.
 5. **Responses:**
-   - success → `delivered`;
-   - validation error or other 4xx → `rejected`, with an alert to the compliance operator and property manager;
-   - 429, 5xx or timeout → back to `pending` with exponential backoff.
+    - success → `delivered`;
+    - validation error or other 4xx → `rejected`, with an alert to the compliance operator and property manager;
+    - 429, 5xx or timeout → back to `pending` with exponential backoff.
 
 ### 5.3 Per-integration rules
 
@@ -266,16 +266,16 @@ Delivery latency (event time to `delivered_at`) is recorded for the p95 target.
 
 How PRD §8 maps onto actions and outbox rows at a Zanzibar property:
 
-| Step | Action | Outbox rows written in the same transaction |
-|---|---|---|
-| Booking arrives | `Distribution\ProcessInboundReservation` → `Reservations\CreateReservation` | `booking_reports` (New / Confirmed Reservation); `channel_outbound_messages` (availability) |
-| Guest changes the booking | `Reservations\ModifyReservation` | `booking_reports` (Modify); `channel_outbound_messages` if dates or room type changed |
-| Guest cancels | `Reservations\CancelReservation` | `booking_reports` (Cancel / Cancel + CancelDate); availability. Any fee → `Billing\PostFiscalException` |
-| No-show confirmed | `FrontDesk\ConfirmNoShow` (proposed by night audit) | `booking_reports` (Cancel / Cancel, guest count 0) |
-| Check-in | `FrontDesk\CheckIn` (requires identity documents for every guest under the Zanzibar profile) | `booking_reports` (Modify / Checked In); `fiscal_transactions` (ACCOMMODATION_REQUEST, DIRECT, first night's rate) |
-| Room move, added guest, extras | `FrontDesk\MoveRoom`, `Guests\AddGuest`, `Billing\PostCharge` | `fiscal_transactions` (change room, add guest, services); `booking_reports` where reported fields change |
-| Night audit | `FrontDesk\CloseBusinessDate` | `fiscal_transactions` (CHANGEROOM_PRICE) when the next night's rate differs |
-| Check-out | `FrontDesk\CheckOut` | `booking_reports` (Modify / Checked Out); `fiscal_transactions` (ACCOMMODATION_CHECK_OUT). The fiscal report prints once delivered |
+| Step                           | Action                                                                                       | Outbox rows written in the same transaction                                                                                        |
+| ------------------------------ | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Booking arrives                | `Distribution\ProcessInboundReservation` → `Reservations\CreateReservation`                  | `booking_reports` (New / Confirmed Reservation); `channel_outbound_messages` (availability)                                        |
+| Guest changes the booking      | `Reservations\ModifyReservation`                                                             | `booking_reports` (Modify); `channel_outbound_messages` if dates or room type changed                                              |
+| Guest cancels                  | `Reservations\CancelReservation`                                                             | `booking_reports` (Cancel / Cancel + CancelDate); availability. Any fee → `Billing\PostFiscalException`                            |
+| No-show confirmed              | `FrontDesk\ConfirmNoShow` (proposed by night audit)                                          | `booking_reports` (Cancel / Cancel, guest count 0)                                                                                 |
+| Check-in                       | `FrontDesk\CheckIn` (requires identity documents for every guest under the Zanzibar profile) | `booking_reports` (Modify / Checked In); `fiscal_transactions` (ACCOMMODATION_REQUEST, DIRECT, first night's rate)                 |
+| Room move, added guest, extras | `FrontDesk\MoveRoom`, `Guests\AddGuest`, `Billing\PostCharge`                                | `fiscal_transactions` (change room, add guest, services); `booking_reports` where reported fields change                           |
+| Night audit                    | `FrontDesk\CloseBusinessDate`                                                                | `fiscal_transactions` (CHANGEROOM_PRICE) when the next night's rate differs                                                        |
+| Check-out                      | `FrontDesk\CheckOut`                                                                         | `booking_reports` (Modify / Checked Out); `fiscal_transactions` (ACCOMMODATION_CHECK_OUT). The fiscal report prints once delivered |
 
 Whether a property needs ZAN Gateway or VFMS rows is decided by its **jurisdiction profile**, inside the ZanReporting and FiscalReceipting domains. Core actions call `ZanReporter::record(...)` and `FiscalReceipter::record(...)`. For a mainland property these are no-ops.
 
@@ -307,6 +307,7 @@ interface FiscalReceipter
 ```
 
 Each integration domain has two parts:
+
 - **Recording** (`record`) writes outbox rows inside the caller's transaction.
 - **Delivery** is done by the domain's drainer through a transport adapter. The ZAN Gateway HTTP, VFMS HTTP and channel-manager adapters live behind it.
 
@@ -314,52 +315,52 @@ Each integration domain has two parts:
 
 ## 9. Data conventions
 
-| Concern | Convention |
-|---|---|
-| Primary keys | ULIDs (`HasUlids`) for application-owned models, including users, tenancy and platform tables. Framework/vendor storage tables retain their package-defined key types: passkeys, Spatie roles and permissions, activity log, and queue tables (`jobs`). Permission team and model morph keys are ULID-compatible. |
-| Money | Integer minor units plus an ISO currency code. A value object, never floats. VFMS "EURO" is mapped to and from EUR at the adapter |
-| Reservation number | A `reservation_number_sequences` row per property, incremented under `SELECT … FOR UPDATE` in the creating transaction. Formatted per property, never reused (PRD PMS-03). Separate from the ULID |
-| Channel reference | Stored on the reservation, unique per channel connection |
-| Business date | Stored per property, as the property's local business date. Timestamps are UTC |
-| Secrets | ZRA supplier key in the server environment (Forge), read through config. VFMS and channel-manager credentials use Laravel's `encrypted` cast. Key rotation uses `APP_PREVIOUS_KEYS` |
-| Identity documents | Stored on Guest with the `encrypted` cast. Visible only through policy-checked resources. Never written to logs or analytics |
-| Audit | activitylog on sensitive models and actions, with organization and property IDs as properties. Secrets and document numbers excluded |
-| Files | S3 private bucket, with tenant-prefixed paths and short-lived signed URLs checked against policy |
+| Concern            | Convention                                                                                                                                                                                                                                                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary keys       | ULIDs (`HasUlids`) for application-owned models, including users, tenancy and platform tables. Framework/vendor storage tables retain their package-defined key types: passkeys, Spatie roles and permissions, activity log, and queue tables (`jobs`). Permission team and model morph keys are ULID-compatible. |
+| Money              | Integer minor units plus an ISO currency code. A value object, never floats. VFMS "EURO" is mapped to and from EUR at the adapter                                                                                                                                                                                 |
+| Reservation number | A `reservation_number_sequences` row per property, incremented under `SELECT … FOR UPDATE` in the creating transaction. Formatted per property, never reused (PRD PMS-03). Separate from the ULID                                                                                                                 |
+| Channel reference  | Stored on the reservation, unique per channel connection                                                                                                                                                                                                                                                          |
+| Business date      | Stored per property, as the property's local business date. Timestamps are UTC                                                                                                                                                                                                                                    |
+| Secrets            | ZRA supplier key in the server environment (Forge), read through config. VFMS and channel-manager credentials use Laravel's `encrypted` cast. Key rotation uses `APP_PREVIOUS_KEYS`                                                                                                                               |
+| Identity documents | Stored on Guest with the `encrypted` cast. Visible only through policy-checked resources. Never written to logs or analytics                                                                                                                                                                                      |
+| Audit              | activitylog on sensitive models and actions, with organization and property IDs as properties. Secrets and document numbers excluded                                                                                                                                                                              |
+| Files              | S3 private bucket, with tenant-prefixed paths and short-lived signed URLs checked against policy                                                                                                                                                                                                                  |
 
 ## 10. Scheduled work
 
 The scheduler runs under Supervisor as `php artisan schedule:work`.
 
-| Schedule | Task |
-|---|---|
-| Every minute | Outbox sweeper (§5.2) |
-| Every minute | ZAN Gateway latency monitor (§5.4) |
-| Every minute | Night audit trigger: properties whose local business date is due for close |
-| Daily, per property, after the business date closes | Channel reconciliation (DST-07) |
-| Daily | VFMS exchange rate fetch (FSC-09) |
-| Daily | Fiscal exceptions digest to property managers |
-| Hourly | Subscription lifecycle transitions |
+| Schedule                                            | Task                                                                       |
+| --------------------------------------------------- | -------------------------------------------------------------------------- |
+| Every minute                                        | Outbox sweeper (§5.2)                                                      |
+| Every minute                                        | ZAN Gateway latency monitor (§5.4)                                         |
+| Every minute                                        | Night audit trigger: properties whose local business date is due for close |
+| Daily, per property, after the business date closes | Channel reconciliation (DST-07)                                            |
+| Daily                                               | VFMS exchange rate fetch (FSC-09)                                          |
+| Daily                                               | Fiscal exceptions digest to property managers                              |
+| Hourly                                              | Subscription lifecycle transitions                                         |
 
 ## 11. Deployment
 
-| Component | Production |
-|---|---|
-| Region | AWS `af-south-1` (opt-in region, ADR 0011). The code stays region-agnostic |
-| App | EC2 provisioned through Forge. Nginx and PHP-FPM 8.3 |
-| Workers | Supervisor processes, named per queue so a slow integration can't starve the others: `zan`, `vfms`, `channels`, `default` |
-| Scheduler | `schedule:work` under Supervisor |
-| Database | RDS MySQL 8 with automated backups and PITR. Same region, private subnet |
-| Files | S3 private bucket, same region |
-| TLS | Let's Encrypt through Forge |
-| Deploys | Forge zero-downtime deploy, then `php artisan queue:restart`. Outbox rows make a restart mid-delivery safe |
+| Component | Production                                                                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Region    | AWS `af-south-1` (opt-in region, ADR 0011). The code stays region-agnostic                                                |
+| App       | EC2 provisioned through Forge. Nginx and PHP-FPM 8.3                                                                      |
+| Workers   | Supervisor processes, named per queue so a slow integration can't starve the others: `zan`, `vfms`, `channels`, `default` |
+| Scheduler | `schedule:work` under Supervisor                                                                                          |
+| Database  | RDS MySQL 8 with automated backups and PITR. Same region, private subnet                                                  |
+| Files     | S3 private bucket, same region                                                                                            |
+| TLS       | Let's Encrypt through Forge                                                                                               |
+| Deploys   | Forge zero-downtime deploy, then `php artisan queue:restart`. Outbox rows make a restart mid-delivery safe                |
 
 **Environments**
 
-| Environment | ZRA endpoints | Channel manager |
-|---|---|---|
-| Local | Fakes | Fake |
-| Staging | ZAN Gateway staging, VFMS test | Vendor sandbox |
-| Production | ZAN Gateway production, VFMS production | Live |
+| Environment | ZRA endpoints                           | Channel manager |
+| ----------- | --------------------------------------- | --------------- |
+| Local       | Fakes                                   | Fake            |
+| Staging     | ZAN Gateway staging, VFMS test          | Vendor sandbox  |
+| Production  | ZAN Gateway production, VFMS production | Live            |
 
 **Unverified:** the VFMS production URL, and whether it uses TLS. The test endpoint is plain HTTP on port 6060, so the security group's outbound rules must allow it.
 
@@ -371,11 +372,11 @@ PITR restores the database to a point in time. Outbox rows written before that p
 2. Restore RDS to the chosen point in time, and point the app at the restored instance.
 3. Run `php artisan outbox:reconcile-after-restore`. For every row in `pending` or `sending`:
 
-   | Integration | Check | Result |
-   |---|---|---|
-   | VFMS | Query the accommodation report endpoint for the affected date range and match on `referenceNumber` | Found → mark `delivered` with the VFMS response number. Not found → leave `pending` |
-   | ZAN Gateway | The public spec has no read endpoint | Leave `pending`. Re-sending is safe because ZAN upserts by hotel code plus reservation number |
-   | Channel manager | List reservations and messages through the vendor API, if it offers one | Match → mark `delivered`. Otherwise leave `pending`. Coalescing makes re-sending availability and rates safe |
+    | Integration     | Check                                                                                              | Result                                                                                                       |
+    | --------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+    | VFMS            | Query the accommodation report endpoint for the affected date range and match on `referenceNumber` | Found → mark `delivered` with the VFMS response number. Not found → leave `pending`                          |
+    | ZAN Gateway     | The public spec has no read endpoint                                                               | Leave `pending`. Re-sending is safe because ZAN upserts by hotel code plus reservation number                |
+    | Channel manager | List reservations and messages through the vendor API, if it offers one                            | Match → mark `delivered`. Otherwise leave `pending`. Coalescing makes re-sending availability and rates safe |
 
 4. Review the reconciliation report: counts by integration and status, plus any rows that need a decision.
 5. Domain changes made after the restore point are lost from Thedream, but may already exist outside it. Bookings that the channel manager delivered in that window are re-pulled by the next channel reconciliation (DST-07).
@@ -396,34 +397,34 @@ This applies only if the client rejects a VPS (ADR 0006).
 
 **Latency, worst case for one booking report**
 
-| Case | Delay |
-|---|---|
-| In-request attempt succeeds | about 1–3 s |
-| In-request attempt fails, and the next cron worker picks the row up | up to 60 s for the cron tick, plus the backoff (30 s first retry), so about 90 s |
-| A second failure | Next tick plus 2 minutes of backoff, so about 3 minutes |
-| The host kills the worker mid-batch | The row stays `sending` until the stale-lock timeout (2 minutes), then is retried on the next tick: about 3–4 minutes |
+| Case                                                                | Delay                                                                                                                 |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| In-request attempt succeeds                                         | about 1–3 s                                                                                                           |
+| In-request attempt fails, and the next cron worker picks the row up | up to 60 s for the cron tick, plus the backoff (30 s first retry), so about 90 s                                      |
+| A second failure                                                    | Next tick plus 2 minutes of backoff, so about 3 minutes                                                               |
+| The host kills the worker mid-batch                                 | The row stays `sending` until the stale-lock timeout (2 minutes), then is retried on the next tick: about 3–4 minutes |
 
 **Targets relaxed for this option**
 
-| PRD target | VPS | cPanel fallback |
-|---|---|---|
-| Booking report delivered (p95) | 1 minute | 2 minutes |
-| Alert threshold | 3 minutes | 3 minutes (unchanged) |
-| Compliance incident | 5 minutes | 5 minutes (unchanged; more likely to trigger) |
-| Availability | 99.9% | 99.5% |
-| Recovery point | 15 minutes (RDS PITR) | 15 minutes only if the database is still a managed external one. Shared-host MySQL backups are typically daily, which means a 24-hour recovery point |
+| PRD target                     | VPS                   | cPanel fallback                                                                                                                                      |
+| ------------------------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Booking report delivered (p95) | 1 minute              | 2 minutes                                                                                                                                            |
+| Alert threshold                | 3 minutes             | 3 minutes (unchanged)                                                                                                                                |
+| Compliance incident            | 5 minutes             | 5 minutes (unchanged; more likely to trigger)                                                                                                        |
+| Availability                   | 99.9%                 | 99.5%                                                                                                                                                |
+| Recovery point                 | 15 minutes (RDS PITR) | 15 minutes only if the database is still a managed external one. Shared-host MySQL backups are typically daily, which means a 24-hour recovery point |
 
 ## 14. Testing strategy
 
-| Layer | What |
-|---|---|
-| Unit (Pest) | Money, reservation number sequences, payload builders for ZAN Gateway and VFMS (fixtures from the spec and guide), status mapping (PRD §7.9 table) |
-| Feature (Pest) | Every action, with fake adapters. The **full Booking.com lifecycle** from PRD §8 as one scenario, asserting the exact outbox rows and their order |
-| Failure | Fakes simulate 429, 5xx, timeouts, partial rejection, duplicates and out-of-order inbound messages. Assert no loss, no duplicate effect, and correct ordering |
-| Cross-tenant | The suite in §4.3 |
-| Architecture (`arch()`) | Boundary rules in §3.2 |
-| Contract (staging, manual or scheduled) | Real calls to ZAN Gateway staging and the VFMS test server, verifying payloads and the duplicate-`referenceNumber` behaviour |
-| Static | Larastan (level agreed with the team), Pint in CI |
+| Layer                                   | What                                                                                                                                                          |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit (Pest)                             | Money, reservation number sequences, payload builders for ZAN Gateway and VFMS (fixtures from the spec and guide), status mapping (PRD §7.9 table)            |
+| Feature (Pest)                          | Every action, with fake adapters. The **full Booking.com lifecycle** from PRD §8 as one scenario, asserting the exact outbox rows and their order             |
+| Failure                                 | Fakes simulate 429, 5xx, timeouts, partial rejection, duplicates and out-of-order inbound messages. Assert no loss, no duplicate effect, and correct ordering |
+| Cross-tenant                            | The suite in §4.3                                                                                                                                             |
+| Architecture (`arch()`)                 | Boundary rules in §3.2                                                                                                                                        |
+| Contract (staging, manual or scheduled) | Real calls to ZAN Gateway staging and the VFMS test server, verifying payloads and the duplicate-`referenceNumber` behaviour                                  |
+| Static                                  | Larastan (level agreed with the team), Pint in CI                                                                                                             |
 
 ## 15. Go-live gates (technical)
 
@@ -437,17 +438,17 @@ This applies only if the client rejects a VPS (ADR 0006).
 
 ## 16. Decision index
 
-| ADR | Decision |
-|---|---|
-| [0001](adr/0001-channel-manager-before-direct-booking-com.md) | Connect to Booking.com through a channel manager first |
-| [0002](adr/0002-zanzibar-compliance-pack-is-p0.md) | The Zanzibar compliance pack is P0, only for Zanzibar properties |
-| [0003](adr/0003-thedream-is-the-single-zra-pms-supplier.md) | Thedream is the single ZRA PMS supplier |
-| [0004](adr/0004-thedream-never-receives-raw-card-data.md) | Thedream never receives raw card data |
-| [0005](adr/0005-ota-stays-are-receipted-as-direct-in-vfms.md) | OTA stays are receipted as DIRECT in VFMS |
-| [0006](adr/0006-vps-hosting-with-long-running-workers.md) | VPS hosting with long-running workers; cPanel as fallback |
-| [0007](adr/0007-permission-teams-are-organizations.md) | Permission teams are organizations |
-| [0008](adr/0008-tenant-scoping-by-global-scope-and-job-context.md) | Tenant isolation by global scope and job context |
-| [0009](adr/0009-transactional-outbox-for-integrations.md) | Transactional outbox for integrations |
-| [0010](adr/0010-integrations-are-modules-behind-interfaces.md) | Integrations are modules behind interfaces |
-| [0011](adr/0011-aws-af-south-1-with-managed-mysql.md) | AWS af-south-1 with managed MySQL and PITR |
-| [0012](adr/0012-one-tenancy-entry-point-with-platform-as-a-context.md) | One Tenancy entry point, with platform as a kind of context |
+| ADR                                                                    | Decision                                                         |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [0001](adr/0001-channel-manager-before-direct-booking-com.md)          | Connect to Booking.com through a channel manager first           |
+| [0002](adr/0002-zanzibar-compliance-pack-is-p0.md)                     | The Zanzibar compliance pack is P0, only for Zanzibar properties |
+| [0003](adr/0003-thedream-is-the-single-zra-pms-supplier.md)            | Thedream is the single ZRA PMS supplier                          |
+| [0004](adr/0004-thedream-never-receives-raw-card-data.md)              | Thedream never receives raw card data                            |
+| [0005](adr/0005-ota-stays-are-receipted-as-direct-in-vfms.md)          | OTA stays are receipted as DIRECT in VFMS                        |
+| [0006](adr/0006-vps-hosting-with-long-running-workers.md)              | VPS hosting with long-running workers; cPanel as fallback        |
+| [0007](adr/0007-permission-teams-are-organizations.md)                 | Permission teams are organizations                               |
+| [0008](adr/0008-tenant-scoping-by-global-scope-and-job-context.md)     | Tenant isolation by global scope and job context                 |
+| [0009](adr/0009-transactional-outbox-for-integrations.md)              | Transactional outbox for integrations                            |
+| [0010](adr/0010-integrations-are-modules-behind-interfaces.md)         | Integrations are modules behind interfaces                       |
+| [0011](adr/0011-aws-af-south-1-with-managed-mysql.md)                  | AWS af-south-1 with managed MySQL and PITR                       |
+| [0012](adr/0012-one-tenancy-entry-point-with-platform-as-a-context.md) | One Tenancy entry point, with platform as a kind of context      |

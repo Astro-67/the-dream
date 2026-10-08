@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Settings;
 
-use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileDeleteRequest;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -61,14 +61,14 @@ class ProfileController extends Controller
                 ->where('user_id', $user->getKey())
                 ->lockForUpdate()
                 ->get()
-                ->filter(fn (OrganizationMembership $membership) => Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => $membership->user->hasRole(OrganizationRole::Owner->value))));
+                ->filter(fn (OrganizationMembership $membership) => Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => Access::isOwner($membership->user))));
 
             foreach ($ownedMemberships as $membership) {
                 $hasAnotherOwner = Tenancy::within(TenantContext::forOrganization($membership->organization_id), fn () => OrganizationMembership::query()
                     ->where('user_id', '!=', $user->getKey())
                     ->lockForUpdate()
                     ->get()
-                    ->contains(fn (OrganizationMembership $other) => $other->user->hasRole(OrganizationRole::Owner->value)));
+                    ->contains(fn (OrganizationMembership $other) => Access::isOwner($other->user)));
 
                 if (! $hasAnotherOwner) {
                     throw ValidationException::withMessages([
