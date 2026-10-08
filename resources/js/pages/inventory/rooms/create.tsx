@@ -22,8 +22,8 @@ export default function CreateRoom({
                         Add room
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        A physical room of this property and the room type it
-                        is sold as.
+                        A physical room of this property and the room type it is
+                        sold as.
                     </p>
                 </header>
 

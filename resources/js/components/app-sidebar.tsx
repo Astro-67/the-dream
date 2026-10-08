@@ -1,7 +1,9 @@
 import { usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    BedDouble,
     Building2,
+    DoorOpen,
     FolderGit2,
     Hotel,
     LayoutGrid,
@@ -28,6 +30,8 @@ import { index as members } from '@/routes/members';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
 import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
+import { index as roomTypes } from '@/routes/room-types';
+import { index as rooms } from '@/routes/rooms';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -78,6 +82,12 @@ export function AppSidebar() {
         ...mainNavItems,
         ...(can('properties.view')
             ? [{ title: 'Properties', href: properties(), icon: Hotel }]
+            : []),
+        ...(can('reservations.view')
+            ? [
+                  { title: 'Room types', href: roomTypes(), icon: BedDouble },
+                  { title: 'Rooms', href: rooms(), icon: DoorOpen },
+              ]
             : []),
         ...(can('members.view')
             ? [{ title: 'Members', href: members(), icon: Users }]
