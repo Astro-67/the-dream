@@ -86,7 +86,14 @@ final class Outbox
             ->where('subject_type', $subjectType)
             ->where('subject_id', $subjectId);
 
-        $sequence = ((int) (clone $query)->max('sequence')) + 1;
+        $floor = (int) DB::table('outbox_identity_floors')
+            ->where('organization_id', $context->organizationId)
+            ->where('property_id', $context->propertyId)
+            ->where('integration', $integration)
+            ->where('subject_type', $subjectType)
+            ->where('subject_id', $subjectId)
+            ->value('highest_sequence');
+        $sequence = max((int) (clone $query)->max('sequence'), $floor) + 1;
         $message = new OutboxMessage([
             'integration' => $integration,
             'subject_type' => $subjectType,

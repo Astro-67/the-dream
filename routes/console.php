@@ -1,18 +1,20 @@
 <?php
 
-use App\Models\User;
-use App\Support\Outbox\OutboxRecovery;
-use App\Support\Outbox\RestoreGate;
-use App\Support\Tenancy\Access;
-use App\Support\Tenancy\TenantContext;
-use App\Support\Tenancy\Tenancy;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;
+use App\Models\User;
 use App\Support\Audit\Audit;
-use Illuminate\Support\Facades\DB;
+use App\Support\Outbox\OutboxPropertyLookup;
+use App\Support\Outbox\OutboxRecovery;
 use App\Support\Outbox\OutboxSweeper;
+use App\Support\Outbox\RestoreGate;
+use App\Support\Outbox\RestoreReconciler;
+use App\Support\Tenancy\Access;
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -21,7 +23,7 @@ Artisan::command('inspire', function () {
 
 Artisan::command('outbox:gate {--actor=} {--property=} {--reason=}', function (RestoreGate $gate): int {
     $actor = User::query()->find($this->option('actor'));
-    $property = app(\App\Support\Outbox\OutboxPropertyLookup::class)->find((string) $this->option('property'));
+    $property = app(OutboxPropertyLookup::class)->find((string) $this->option('property'));
     $reason = trim((string) $this->option('reason'));
     if ($actor === null || $property === null || $reason === '') {
         $this->error('Actor, property and reason are required.');
@@ -49,6 +51,87 @@ Artisan::command('outbox:gate {--actor=} {--property=} {--reason=}', function (R
         return self::FAILURE;
     }
 })->purpose('Close the persistent outbox restore gate');
+
+Artisan::command('outbox:reconcile-after-restore {--actor=} {--property=} {--reason=}', function (RestoreReconciler $reconciler): int {
+    $actor = User::query()->find($this->option('actor'));
+    $property = app(OutboxPropertyLookup::class)->find((string) $this->option('property'));
+    $reason = trim((string) $this->option('reason'));
+    if ($actor === null || $property === null || $reason === '') {
+        $this->error('Actor, property and reason are required.');
+
+        return self::FAILURE;
+    }
+    try {
+        $report = $reconciler->reconcile($actor, $property, $reason);
+        $this->line(json_encode($report, JSON_THROW_ON_ERROR));
+        if ($report['unresolved'] > 0) {
+            $this->error('Unresolved outbox work remains; gate stays closed.');
+
+            return self::FAILURE;
+        }
+
+        return self::SUCCESS;
+    } catch (Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return self::FAILURE;
+    }
+})->purpose('Reconcile outbox delivery after restore');
+
+Artisan::command('outbox:identity-safe {--actor=} {--property=} {--integration=} {--reason=}', function (\App\Support\Outbox\RestoreIdentityRecovery $recovery): int {
+    $actor = User::query()->find($this->option('actor'));
+    $property = app(OutboxPropertyLookup::class)->find((string) $this->option('property'));
+    $integration = trim((string) $this->option('integration'));
+    $reason = trim((string) $this->option('reason'));
+    if ($actor === null || $property === null || $integration === '' || $reason === '') {
+        $this->error('Actor, property, integration and reason are required.');
+
+        return self::FAILURE;
+    }
+    try {
+        Tenancy::within(TenantContext::forProperty($property), function () use ($actor, $property): void {
+            if (! Access::allows($actor, OrganizationPermission::OutboxRecover, $property)) {
+                throw new RuntimeException('Outbox recovery is not authorized.');
+            }
+        });
+        $count = Tenancy::within(TenantContext::forProperty($property), fn () => $recovery->recover($property, $actor, $integration, $reason));
+        $this->info("Recovered {$count} verified identity boundaries.");
+
+        return self::SUCCESS;
+    } catch (Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return self::FAILURE;
+    }
+})->purpose('Recover verified outbox identity boundaries');
+
+Artisan::command('outbox:resume {--actor=} {--property=} {--reason=}', function (RestoreGate $gate): int {
+    $actor = User::query()->find($this->option('actor'));
+    $property = app(OutboxPropertyLookup::class)->find((string) $this->option('property'));
+    $reason = trim((string) $this->option('reason'));
+    if ($actor === null || $property === null || $reason === '') {
+        $this->error('Actor, property and reason are required.');
+
+        return self::FAILURE;
+    }
+    try {
+        Tenancy::within(TenantContext::forProperty($property), function () use ($actor, $property, $reason, $gate): void {
+            if (! Access::allows($actor, OrganizationPermission::OutboxRecover, $property)) {
+                throw new RuntimeException('Outbox recovery is not authorized.');
+            }
+            DB::transaction(function () use ($actor, $property, $reason, $gate): void {
+                $gate->open(Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail(), $actor, $reason);
+            });
+        });
+        $this->info('Restore gate reopened.');
+
+        return self::SUCCESS;
+    } catch (Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return self::FAILURE;
+    }
+})->purpose('Reopen the outbox restore gate after verified recovery');
 
 Artisan::command('outbox:sweep', function (OutboxSweeper $sweeper): void {
     $this->info('Queued '.$sweeper->sweep().' outbox messages.');
