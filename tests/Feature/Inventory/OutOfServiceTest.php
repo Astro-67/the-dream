@@ -147,6 +147,23 @@ test('lengthening a period is refused when it would strand sold rooms', function
     expect(inTenant($t->a->property, fn () => $period->fresh()->returns_on->toDateString()))->toBe('2026-10-12');
 });
 
+test('the daily extension reports a refused room type and still extends every other property', function () {
+    $t = twoTenants();
+    [$stranded, $room] = twoRoomsIn($t->a->property);
+    [$fine] = twoRoomsIn($t->b->property);
+    seedSold($t->a->property, $stranded, '2026-10-20', 2);
+    // A change made outside the actions, which the extension would now apply.
+    inTenant($t->a->property, fn () => $room->forceFill(['deactivated_at' => now()])->save());
+
+    $this->travelTo(now()->addDay());
+    $this->artisan('inventory:extend')
+        ->expectsOutputToContain('DLX would have fewer sellable rooms than are already sold on 2026-10-20.')
+        ->assertFailed();
+
+    expect(sellableOn($t->b->property, $fine, ['2027-10-09']))->toBe(['2027-10-09' => 2])
+        ->and(sellableOn($t->a->property, $stranded, ['2026-10-20']))->toBe(['2026-10-20' => 2]);
+});
+
 test('front desk and auditors cannot take rooms out of service or change periods', function (OrganizationRole $role) {
     $t = twoTenants();
     [$type, $room] = twoRoomsIn($t->a->property);
