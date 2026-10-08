@@ -20,8 +20,10 @@ final readonly class DeliveryPolicy
         public int $quotaWindowSeconds = 60,
     ) {
         if ($maxAttempts < 1 || $retryDelaySeconds < 1 || $maxBatchSize < 1 || $quotaWindowSeconds < 1
-            || ($quotaIdentity === null) !== ($quotaLimit === null) || ($quotaLimit !== null && $quotaLimit < 1)) {
-            throw new InvalidArgumentException('Outbox retry limits must be positive.');
+            || ($quotaIdentity === null) !== ($quotaLimit === null) || ($quotaLimit !== null && $quotaLimit < 1)
+            || ($quotaIdentity !== null && trim($quotaIdentity) === '')
+            || array_diff($batchGrouping, ['organization_id', 'property_id', 'integration']) !== []) {
+            throw new InvalidArgumentException('Outbox policy values must be valid and positive.');
         }
     }
 }

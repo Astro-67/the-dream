@@ -3,8 +3,6 @@
 use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\QuotaLimiter;
 use Illuminate\Support\Facades\DB;
-use InvalidArgumentException;
-use LogicException;
 
 test('a provider quota identity shares allowance across properties', function () {
     [, , $propertyA] = organizationWithOwner(['organization_name' => 'Alpha']);

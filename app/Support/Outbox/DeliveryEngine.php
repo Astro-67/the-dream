@@ -40,6 +40,7 @@ final class DeliveryEngine
         }
     }
 
+    /** @param list<string> $fields */
     private function matchesGrouping(OutboxMessage $first, OutboxMessage $message, array $fields): bool
     {
         foreach ($fields as $field) {
@@ -55,7 +56,7 @@ final class DeliveryEngine
     /** @param list<string> $messageIds */
     private function deliverGroup(array $messageIds, DeliveryPolicy $policy): void
     {
-        if ($policy->quotaIdentity !== null && ! app(QuotaLimiter::class)->acquire($policy, count($messageIds))) {
+        if ($policy->quotaIdentity !== null && ! app(QuotaLimiter::class)->acquire($policy)) {
             return;
         }
         if ($policy->maxBatchSize === 1) {
@@ -244,7 +245,11 @@ final class DeliveryEngine
         }
     }
 
-    /** @param list<mixed> $results */
+    /**
+     * @param  list<mixed>  $results
+     * @param  list<OutboxMessage>  $claims
+     * @return list<DeliveryResult>
+     */
     private function mapBatchResults(array $results, array $claims): array
     {
         $unknown = array_fill(0, count($claims), new DeliveryResult('unknown'));
