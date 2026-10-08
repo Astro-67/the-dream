@@ -9,12 +9,21 @@ use Illuminate\Support\Facades\DB;
 
 class CreateRatePlan
 {
-    /** @param array{name: string, code: string, currency: string, room_type_ids: list<string>} $details */
+    /**
+     * A derived plan names an active, non-derived base plan and takes its currency and room types.
+     *
+     * @param  array{name: string, code: string, currency?: string, room_type_ids?: list<string>, base_rate_plan_id?: string, adjustment_kind?: string, adjustment?: int}  $details
+     */
     public function handle(?User $actor, array $details): RatePlan
     {
         return DB::transaction(function () use ($actor, $details) {
+            if (isset($details['base_rate_plan_id'])) {
+                // Locked so the base can't be deactivated while a plan derives from it.
+                $base = RatePlan::query()->whereKey($details['base_rate_plan_id'])->whereNull('base_rate_plan_id')->whereNull('deactivated_at')->lockForUpdate()->firstOrFail();
+                $details = [...$details, 'currency' => $base->currency->value, 'room_type_ids' => $base->roomTypes()->pluck('room_types.id')->all()];
+            }
             $plan = RatePlan::query()->create(collect($details)->except('room_type_ids')->all());
-            $plan->roomTypes()->sync($details['room_type_ids']);
+            $plan->roomTypes()->sync($details['room_type_ids'] ?? []);
             Audit::record($actor, 'created', $plan, 'Rate plan created', ['attributes' => $details]);
 
             return $plan;
