@@ -38,6 +38,14 @@ final class DeliveryEngine
             $message->claim_expires_at = now()->addMinutes(2);
             $message->attempt_count++;
             $message->save();
+            OutboxAttempt::query()->create([
+                'organization_id' => $message->organization_id,
+                'property_id' => $message->property_id,
+                'outbox_message_id' => $message->id,
+                'attempt_number' => $message->attempt_count,
+                'outcome' => 'sending',
+                'request_body' => json_encode($message->payload, JSON_THROW_ON_ERROR),
+            ]);
 
             return $message;
         });
@@ -54,7 +62,7 @@ final class DeliveryEngine
         $result = null;
         try {
             $results = $this->adapters->for($snapshot->integration)->send([$snapshot]);
-            if (count($results) === 1) {
+            if (count($results) === 1 && $results[0] instanceof DeliveryResult) {
                 $result = $results[0];
             }
         } catch (Throwable) {
@@ -62,21 +70,25 @@ final class DeliveryEngine
         }
         $result ??= new DeliveryResult('unknown');
 
-        $released = DB::transaction(function () use ($claim, $claimToken, $result, $requestBody): bool {
+        $accepted = DB::transaction(function () use ($claim, $claimToken, $result): bool {
             $current = OutboxMessage::query()->whereKey($claim->id)->lockForUpdate()->first();
+            $attempt = OutboxAttempt::query()
+                ->where('outbox_message_id', $claim->id)
+                ->where('attempt_number', $claim->attempt_count)
+                ->lockForUpdate()
+                ->first();
+
+            if ($attempt !== null) {
+                $attempt->outcome = $result->outcome;
+                $attempt->response_body = $result->responseBody === null ? null : json_encode($result->responseBody, JSON_THROW_ON_ERROR);
+                $attempt->provider_references = $result->references ?: null;
+                $attempt->retry_at = $result->retryAt;
+                $attempt->save();
+            }
+
             if ($current === null || $current->claim_token !== $claimToken) {
                 return false;
             }
-
-            OutboxAttempt::query()->create([
-                'outbox_message_id' => $current->id,
-                'attempt_number' => $current->attempt_count,
-                'outcome' => $result->outcome,
-                'request_body' => json_encode($requestBody, JSON_THROW_ON_ERROR),
-                'response_body' => $result->responseBody === null ? null : json_encode($result->responseBody, JSON_THROW_ON_ERROR),
-                'provider_references' => $result->references ?: null,
-                'retry_at' => $result->retryAt,
-            ]);
 
             $current->status = $result->outcome === 'accepted' ? 'delivered' : $result->outcome;
             $current->setAttribute('provider_references', $result->references ?: null);
@@ -89,7 +101,7 @@ final class DeliveryEngine
             return $result->outcome === 'accepted';
         });
 
-        if ($released) {
+        if ($accepted) {
             $this->releaseNext($claim->stream_key, $claim->sequence);
         }
     }
@@ -120,7 +132,9 @@ final class DeliveryEngine
             $next->status = 'pending';
             $next->save();
             $messageId = $next->id;
-            DB::afterCommit(fn () => $this->dispatch($messageId, $next->organization_id, $next->property_id));
+            $organizationId = $next->organization_id;
+            $propertyId = $next->property_id;
+            DB::afterCommit(fn () => $this->dispatch($messageId, $organizationId, $propertyId));
         });
     }
 

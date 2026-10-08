@@ -36,6 +36,15 @@ final class Outbox
 
         $subjectType = $subject instanceof Model ? $subject->getMorphClass() : $subject->type;
         $subjectId = $subject instanceof Model ? (string) $subject->getKey() : $subject->id;
+        if ($subject instanceof Model) {
+            foreach (['organization_id' => $context->organizationId, 'property_id' => $context->propertyId] as $column => $expected) {
+                if ($subject->getAttribute($column) !== $expected) {
+                    throw new LogicException('Outbox subject must belong to the current property tenant.');
+                }
+            }
+        } elseif ($subjectType === '' || $subjectId === '') {
+            throw new LogicException('Outbox subject type and ID must not be empty.');
+        }
         $streamKey = hash('sha256', json_encode([$context->organizationId, $context->propertyId, $integration, $subjectType, $subjectId], JSON_THROW_ON_ERROR));
         $query = OutboxMessage::query()
             ->where('organization_id', $context->organizationId)

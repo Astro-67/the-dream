@@ -29,6 +29,7 @@ return new class extends Migration
             $table->timestamp('delivered_at')->nullable();
             $table->timestamps();
 
+            $table->unique(['organization_id', 'property_id', 'id'], 'outbox_message_tenant_unique');
             $table->unique(['organization_id', 'property_id', 'integration', 'subject_type', 'subject_id', 'sequence'], 'outbox_stream_sequence_unique');
             $table->unique(['organization_id', 'property_id', 'integration', 'subject_type', 'subject_id', 'idempotency_key'], 'outbox_stream_idempotency_unique');
             $table->index(['status', 'next_attempt_at']);
@@ -37,7 +38,15 @@ return new class extends Migration
 
         Schema::create('outbox_attempts', function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->foreignUlid('outbox_message_id')->constrained('outbox_messages')->cascadeOnDelete();
+            $table->foreignUlid('organization_id')->constrained()->cascadeOnDelete();
+            $table->foreignUlid('property_id')->constrained()->cascadeOnDelete();
+            $table->foreignUlid('outbox_message_id');
+            $table->foreign(['organization_id', 'property_id', 'outbox_message_id'], 'outbox_attempt_message_tenant_fk')
+                ->references(['organization_id', 'property_id', 'id'])
+                ->on('outbox_messages')->cascadeOnDelete();
+
+            $table->index(['organization_id', 'property_id', 'outbox_message_id']);
+
             $table->unsignedInteger('attempt_number');
             $table->string('outcome', 32);
             $table->text('request_body');

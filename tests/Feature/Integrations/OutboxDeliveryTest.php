@@ -39,7 +39,7 @@ test('a fake adapter delivers outside the claim transaction and records encrypte
     inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
 
     $message->refresh();
-    $attempt = OutboxAttempt::query()->sole();
+    $attempt = inTenant($property, fn () => OutboxAttempt::query()->sole());
     expect($adapter->observed)->toHaveCount(1)
         ->and($adapter->transactionLevel)->toBe($outsideTransactionLevel)
         ->and($message->status)->toBe('delivered')
@@ -108,11 +108,11 @@ test('only one ordered message in a stream is sent, and successors wait for acce
     // A confirmed rejection holds successors; a later acceptance is only possible through an authorized recovery path (#21).
 });
 
-test('unmappable adapter results become unknown outcomes', function (array $results) {
+test('unmappable adapter results become unknown outcomes', function (mixed $results) {
     [, , $property] = organizationWithOwner();
     $adapter = new class($results) implements DeliveryAdapter
     {
-        public function __construct(private array $results) {}
+        public function __construct(private mixed $results) {}
 
         public function send(array $messages): array
         {
@@ -127,10 +127,11 @@ test('unmappable adapter results become unknown outcomes', function (array $resu
 
     inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
     expect($message->fresh()->status)->toBe('unknown')
-        ->and(OutboxAttempt::query()->sole()->outcome)->toBe('unknown');
+        ->and(inTenant($property, fn () => OutboxAttempt::query()->sole()->outcome))->toBe('unknown');
 })->with([
     'no result' => ['results' => []],
     'extra result' => ['results' => [new DeliveryResult('accepted'), new DeliveryResult('accepted')]],
+    'wrong result type' => ['results' => ['accepted']],
 ]);
 
 test('delivery for one property is invisible from another property', function () {
