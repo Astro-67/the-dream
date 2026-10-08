@@ -187,7 +187,7 @@ $this->app->tag([NoFutureBookings::class], PreArchiveCheck::TAG); // e.g. Reserv
 
 ## 5. Integration messaging: the outbox (ADR 0009)
 
-The confirmed M1 scope and acceptance criteria are in [Spec 2: integration outbox foundation](spec-2-integration-outbox.md).
+The confirmed M1 scope and acceptance criteria are in [Spec 2: integration outbox foundation](spec-2-integration-outbox.md). Operational restore steps are in the [outbox restore runbook](outbox-restore-runbook.md).
 
 ### 5.1 Record and ownership
 
