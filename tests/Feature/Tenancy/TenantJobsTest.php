@@ -23,7 +23,8 @@ beforeEach(function () {
 
 function runQueuedJobs(): void
 {
-    test()->artisan('queue:work', ['--stop-when-empty' => true, '--sleep' => 0]);
+    // The worker shares the test process, so its default 128 MB limit counts the whole suite's memory.
+    test()->artisan('queue:work', ['--stop-when-empty' => true, '--sleep' => 0, '--memory' => 1024]);
 }
 
 test('a tenant-scoped job sees only the organization and property it was dispatched for, with matching permissions', function () {
@@ -122,7 +123,7 @@ test('a tenant-scoped job dispatched without a tenant fails with a clear error i
     [$owner] = organizationWithOwner();
 
     $dispatchOutsideTenant($owner);
-    test()->artisan('queue:work', ['--stop-when-empty' => true, '--sleep' => 0, '--tries' => 3]);
+    test()->artisan('queue:work', ['--stop-when-empty' => true, '--sleep' => 0, '--tries' => 3, '--memory' => 1024]);
 
     $failed = app('queue.failer')->all();
 
