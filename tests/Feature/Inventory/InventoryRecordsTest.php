@@ -5,6 +5,22 @@ use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Models\InventoryRecord;
 use Tests\Support\InventoryForm;
 
+test('deactivating a room reduces every sellable count once and preserves sold inventory', function () {
+    [, , $property] = organizationWithOwner();
+    inTenant($property, function () {
+        $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle(null, InventoryForm::room($type->id));
+        $record = InventoryRecord::query()->firstOrFail();
+        $record->sold_count = 1;
+        $record->save();
+        app(\App\Domains\Inventory\Actions\DeactivateRoom::class)->handle(null, $room);
+        app(\App\Domains\Inventory\Actions\DeactivateRoom::class)->handle(null, $room);
+
+        expect(InventoryRecord::query()->pluck('sellable_count')->unique()->all())->toBe([0])
+            ->and($record->fresh()->sold_count)->toBe(1);
+    });
+});
+
 test('adding a room updates every date without changing sold counts or other properties', function () {
     config(['inventory.horizon_years' => 1]);
     $t = twoTenants();

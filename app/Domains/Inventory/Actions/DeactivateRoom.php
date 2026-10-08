@@ -19,8 +19,10 @@ class DeactivateRoom
         }
 
         return DB::transaction(function () use ($actor, $room) {
+            $type = $room->roomType()->lockForUpdate()->firstOrFail();
             $room->deactivated_at = now();
             $room->save();
+            app(RecalculateInventory::class)->handle($type);
 
             Audit::record($actor, 'deactivated', $room, 'Room deactivated', [
                 'old' => ['deactivated_at' => null],
