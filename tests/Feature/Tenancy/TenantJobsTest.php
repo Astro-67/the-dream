@@ -23,7 +23,8 @@ beforeEach(function () {
 
 function runQueuedJobs(): void
 {
-    test()->artisan('queue:work', ['--stop-when-empty' => true, '--sleep' => 0]);
+    // The worker runs in the test process; its default 128 MB cap would stop it after one job late in a full run.
+    test()->artisan('queue:work', ['--stop-when-empty' => true, '--sleep' => 0, '--memory' => 1024]);
 }
 
 test('a tenant-scoped job sees only the organization and property it was dispatched for, with matching permissions', function () {
