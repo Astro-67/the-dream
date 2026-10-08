@@ -2,6 +2,7 @@
 
 namespace App\Domains\Inventory\Policies;
 
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Models\User;
 use App\Support\Tenancy\Access;
@@ -28,8 +29,12 @@ class InventoryPolicy
         return Tenancy::property() !== null && Access::allows($user, OrganizationPermission::InventoryManage, Tenancy::property());
     }
 
+    /**
+     * A deactivated room is kept for history only: it is never changed again.
+     */
     public function update(User $user, Model $record): bool
     {
-        return Access::allows($user, OrganizationPermission::InventoryManage, $record);
+        return ! ($record instanceof Room && $record->deactivated_at !== null)
+            && Access::allows($user, OrganizationPermission::InventoryManage, $record);
     }
 }
