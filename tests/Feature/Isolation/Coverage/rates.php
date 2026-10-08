@@ -4,8 +4,10 @@ use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Actions\CreateRatePlan;
 use App\Domains\Rates\Actions\SetRatePrices;
+use App\Domains\Rates\Actions\SetRateRestrictions;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\RatePrice;
+use App\Domains\Rates\Models\RateRestriction;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Tests\Support\InventoryForm;
 use Tests\Support\Isolation\RouteCoverage;
@@ -16,6 +18,7 @@ $bravoPlan = fn (TwoTenants $t): array => inTenant($t->b->property, function () 
     $roomType = app(CreateRoomType::class)->handle($t->b->owner, InventoryForm::roomType(['name' => 'Bravo Secret Suite', 'code' => 'BRVX']));
     $plan = app(CreateRatePlan::class)->handle($t->b->owner, ['name' => 'Bravo Secret Rate', 'code' => 'BRVRATE', 'currency' => 'USD', 'room_type_ids' => [$roomType->id]]);
     app(SetRatePrices::class)->handle($t->b->owner, $plan, ['room_type_id' => $roomType->id, 'from' => '2026-12-01', 'to' => '2026-12-03', 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'base_price' => 987654, 'extra_adult' => 0, 'extra_child' => 0]);
+    app(SetRateRestrictions::class)->handle($t->b->owner, $plan, ['room_type_id' => $roomType->id, 'from' => '2026-12-01', 'to' => '2026-12-03', 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'min_stay' => 97, 'closed_to_arrival' => true, 'stop_sell' => true]);
 
     return [$plan, $roomType];
 });
@@ -31,11 +34,14 @@ $alphaPlan = fn (TwoTenants $t): RatePlan => inTenant($t->a->property, function 
 $bravoSnapshot = fn (TwoTenants $t): array => inTenant($t->b->organization, fn () => [
     'plans' => RatePlan::query()->with('roomTypes:id')->orderBy('id')->get()->map(fn (RatePlan $p) => [...$p->only(['id', 'property_id', 'name', 'code']), 'roomTypes' => $p->roomTypes->pluck('id')->all()])->all(),
     'prices' => RatePrice::query()->orderBy('id')->get()->map->only(['id', 'rate_plan_id', 'room_type_id', 'base_price', 'extra_adult', 'extra_child'])->all(),
+    'restrictions' => RateRestriction::query()->orderBy('id')->get()->map->only(['id', 'rate_plan_id', 'room_type_id', 'min_stay', 'closed_to_arrival', 'stop_sell'])->all(),
 ]);
 
 $prices = fn (string $roomTypeId, string $propertyId) => ['_property' => $propertyId, 'room_type_id' => $roomTypeId, 'from' => '2026-12-01', 'to' => '2026-12-03', 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'base_price' => 1, 'extra_adult' => 0, 'extra_child' => 0];
 
-// Writes leave Bravo's plans and prices unchanged.
+$restrictions = fn (string $roomTypeId, string $propertyId) => ['_property' => $propertyId, 'room_type_id' => $roomTypeId, 'from' => '2026-12-01', 'to' => '2026-12-03', 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'min_stay' => 1];
+
+// Writes leave Bravo's plans, prices and restrictions unchanged.
 $writeAttempt = fn (Closure $send) => function (TwoTenants $t) use ($send, $bravoPlan, $bravoSnapshot) {
     [$plan, $roomType] = $bravoPlan($t);
     $before = $bravoSnapshot($t);
@@ -86,6 +92,21 @@ return [
             $this->actingAs($t->a->owner)->put(route('rate-plans.prices.update', $plan->id), $prices($roomType->id, $t->b->property->id))->assertForbidden(),
             // Alpha's plan can't be priced on Bravo's room type.
             $this->actingAs($t->a->owner)->put(route('rate-plans.prices.update', $alpha->id), $prices($roomType->id, $t->a->property->id))->assertSessionHasErrors('room_type_id'),
+        ];
+    })),
+    'rate-plans.restrictions' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoPlan) {
+        [$plan] = $bravoPlan($t);
+
+        return $this->actingAs($t->a->owner)->get(route('rate-plans.restrictions', $plan->id))->assertNotFound();
+    }),
+    'rate-plans.restrictions.update' => RouteCoverage::attempt($writeAttempt(function (TwoTenants $t, RatePlan $plan, RoomType $roomType) use ($alphaPlan, $restrictions) {
+        $alpha = $alphaPlan($t);
+
+        return [
+            $this->actingAs($t->a->owner)->put(route('rate-plans.restrictions.update', $plan->id), $restrictions($roomType->id, $t->a->property->id))->assertNotFound(),
+            $this->actingAs($t->a->owner)->put(route('rate-plans.restrictions.update', $plan->id), $restrictions($roomType->id, $t->b->property->id))->assertForbidden(),
+            // Alpha's plan can't restrict Bravo's room type.
+            $this->actingAs($t->a->owner)->put(route('rate-plans.restrictions.update', $alpha->id), $restrictions($roomType->id, $t->a->property->id))->assertSessionHasErrors('room_type_id'),
         ];
     })),
     'rate-plans.deactivate' => RouteCoverage::attempt($writeAttempt(fn (TwoTenants $t, RatePlan $plan) => [
