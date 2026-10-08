@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * A physical room of a property. Deactivated rooms are no longer sold but are
@@ -57,5 +58,13 @@ class Room extends Model
     public function roomType(): BelongsTo
     {
         return $this->belongsTo(RoomType::class);
+    }
+
+    /**
+     * @return HasMany<OutOfServicePeriod, $this>
+     */
+    public function outOfServicePeriods(): HasMany
+    {
+        return $this->hasMany(OutOfServicePeriod::class);
     }
 }
