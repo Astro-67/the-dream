@@ -24,6 +24,11 @@ final class DeliveryEngine
 
                 continue;
             }
+            if (app(RestoreGate::class)->isClosed($first->property_id)) {
+                array_shift($messageIds);
+
+                continue;
+            }
             $policy = $this->adapters->for($first->integration)->policy();
             $group = [$messageIds[0]];
             $remainder = [];
@@ -141,7 +146,7 @@ final class DeliveryEngine
 
         return DB::transaction(function () use ($messageId, $claimToken, $dispatchClaimToken): ?OutboxMessage {
             $message = OutboxMessage::query()->whereKey($messageId)->lockForUpdate()->first();
-            if ($message === null) {
+            if ($message === null || app(RestoreGate::class)->isClosed($message->property_id)) {
                 return null;
             }
             if ($dispatchClaimToken !== null) {

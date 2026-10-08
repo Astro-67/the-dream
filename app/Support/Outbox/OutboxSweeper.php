@@ -32,7 +32,7 @@ final class OutboxSweeper
             $context = TenantContext::fromIds($row->organization_id, $row->property_id);
             Tenancy::within($context, function () use ($row, &$count): void {
                 $message = OutboxMessage::query()->whereKey($row->id)->lockForUpdate()->first();
-                if ($message === null) {
+                if ($message === null || app(RestoreGate::class)->isClosed($message->property_id)) {
                     return;
                 }
 

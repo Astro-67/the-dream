@@ -15,8 +15,6 @@ test('restore gate command persistently blocks integration writes and delivery',
     $tenant = twoTenants();
     $actor = $tenant->a->owner;
 
-    expect(Artisan::all())->toHaveKey('outbox:gate');
-
     expect(Artisan::call('outbox:gate', [
         '--actor' => $actor->id,
         '--property' => $tenant->a->property->id,

@@ -48,6 +48,7 @@ final class Outbox
             throw new LogicException('Outbox subject type and ID must not be empty.');
         }
         $property = Property::query()->whereKey($context->propertyId)->lockForUpdate()->first();
+        app(RestoreGate::class)->assertOpen($context->propertyId);
         if ($property === null || $property->archived_at !== null) {
             throw new LogicException('Outbox messages cannot be recorded for an archived property.');
         }

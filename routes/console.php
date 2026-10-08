@@ -2,6 +2,14 @@
 
 use App\Models\User;
 use App\Support\Outbox\OutboxRecovery;
+use App\Support\Outbox\RestoreGate;
+use App\Support\Tenancy\Access;
+use App\Support\Tenancy\TenantContext;
+use App\Support\Tenancy\Tenancy;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
+use App\Domains\Tenancy\Models\Property;
+use App\Support\Audit\Audit;
+use Illuminate\Support\Facades\DB;
 use App\Support\Outbox\OutboxSweeper;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -10,6 +18,37 @@ use Illuminate\Support\Facades\Schedule;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('outbox:gate {--actor=} {--property=} {--reason=}', function (RestoreGate $gate): int {
+    $actor = User::query()->find($this->option('actor'));
+    $property = app(\App\Support\Outbox\OutboxPropertyLookup::class)->find((string) $this->option('property'));
+    $reason = trim((string) $this->option('reason'));
+    if ($actor === null || $property === null || $reason === '') {
+        $this->error('Actor, property and reason are required.');
+
+        return self::FAILURE;
+    }
+    try {
+        Tenancy::within(TenantContext::forProperty($property), function () use ($actor, $property, $reason, $gate): void {
+            if (! Access::allows($actor, OrganizationPermission::OutboxRecover, $property)) {
+                throw new RuntimeException('Outbox recovery is not authorized.');
+            }
+            DB::transaction(function () use ($actor, $property, $reason, $gate): void {
+                $locked = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
+                $gate->close($locked, $reason);
+                $row = DB::table('outbox_restore_gates')->where('property_id', $locked->id)->first();
+                Audit::record($actor, 'outbox_restore_gate_closed', $locked, 'Closed outbox restore gate', ['reason' => $reason, 'gate_id' => $row->id]);
+            });
+        });
+        $this->info('Restore gate closed.');
+
+        return self::SUCCESS;
+    } catch (Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return self::FAILURE;
+    }
+})->purpose('Close the persistent outbox restore gate');
 
 Artisan::command('outbox:sweep', function (OutboxSweeper $sweeper): void {
     $this->info('Queued '.$sweeper->sweep().' outbox messages.');
