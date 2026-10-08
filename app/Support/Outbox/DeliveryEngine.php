@@ -12,6 +12,9 @@ use Throwable;
 
 final class DeliveryEngine
 {
+    /** @var array<string, array{status: string, next_attempt_at: mixed}> pre-claim state by claim token, for unclaim */
+    private array $claimOrigins = [];
+
     public function __construct(private DeliveryAdapters $adapters) {}
 
     /** @param list<string> $messageIds */
@@ -62,9 +65,6 @@ final class DeliveryEngine
     /** @param list<string> $messageIds */
     private function deliverGroup(array $messageIds, DeliveryPolicy $policy): void
     {
-        if ($policy->quotaIdentity !== null && ! app(QuotaLimiter::class)->acquire($policy)) {
-            return;
-        }
         if ($policy->maxBatchSize === 1) {
             foreach ($messageIds as $messageId) {
                 $this->deliverOne($messageId, null, false);
@@ -86,6 +86,13 @@ final class DeliveryEngine
             }
         }
         if ($claims === []) {
+            return;
+        }
+        if ($policy->quotaIdentity !== null && ! app(QuotaLimiter::class)->acquire($policy)) {
+            foreach ($claims as $claim) {
+                $this->unclaim($claim);
+            }
+
             return;
         }
 
@@ -116,16 +123,15 @@ final class DeliveryEngine
 
     private function deliverOne(string $messageId, ?string $dispatchClaimToken, bool $releaseSuccessor): void
     {
-        $message = OutboxMessage::query()->whereKey($messageId)->first();
-        if ($message === null) {
-            return;
-        }
-        $policy = $this->adapters->for($message->integration)->policy();
-        if ($policy->quotaIdentity !== null && ! app(QuotaLimiter::class)->acquire($policy)) {
-            return;
-        }
         $claim = $this->claim($messageId, $dispatchClaimToken);
         if ($claim === null) {
+            return;
+        }
+        // Charge quota per provider request, only once the claim holds.
+        $policy = $this->adapters->for($claim->integration)->policy();
+        if ($policy->quotaIdentity !== null && ! app(QuotaLimiter::class)->acquire($policy)) {
+            $this->unclaim($claim);
+
             return;
         }
         $result = null;
@@ -139,6 +145,26 @@ final class DeliveryEngine
             // A transport exception does not prove whether the provider accepted the request.
         }
         $this->finish($claim, $result ?? new DeliveryResult('unknown'));
+    }
+
+    private function unclaim(OutboxMessage $claim): void
+    {
+        DB::transaction(function () use ($claim): void {
+            OutboxMessage::query()->whereKey($claim->id)
+                ->where('claim_token', $claim->claim_token)
+                ->update([
+                    // Return to the pre-claim state so a due retry or unknown hold is not lost.
+                    'status' => $this->claimOrigins[$claim->claim_token]['status'] ?? 'pending',
+                    'next_attempt_at' => $this->claimOrigins[$claim->claim_token]['next_attempt_at'] ?? null,
+                    'attempt_count' => $claim->attempt_count - 1,
+                    'claim_token' => null,
+                    'claim_expires_at' => null,
+                ]);
+            OutboxAttempt::query()->where('outbox_message_id', $claim->id)
+                ->where('attempt_number', $claim->attempt_count)
+                ->where('outcome', 'sending')
+                ->delete();
+        });
     }
 
     private function claim(string $messageId, ?string $dispatchClaimToken = null): ?OutboxMessage
@@ -210,6 +236,7 @@ final class DeliveryEngine
                 throw new \LogicException('Latest-only messages require a coalesce key.');
             }
 
+            $this->claimOrigins[$claimToken] = ['status' => $message->status, 'next_attempt_at' => $message->getRawOriginal('next_attempt_at')];
             $message->status = 'sending';
             $message->claim_token = $claimToken;
             $message->claim_expires_at = now()->addMinutes(2);

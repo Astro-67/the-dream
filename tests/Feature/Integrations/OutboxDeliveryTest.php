@@ -9,6 +9,7 @@ use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxAttempt;
 use App\Support\Outbox\OutboxMessage;
 use App\Support\Outbox\OutboxSweeper;
+use App\Support\Outbox\QuotaLimiter;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -190,6 +191,99 @@ test('a batch contains no more than one message from an ordered stream', functio
         ->and($first->fresh()->status)->toBe('delivered')
         ->and($successor->fresh()->status)->toBe('pending')
         ->and($successor->fresh()->attempt_count)->toBe(0);
+});
+
+test('single-message provider requests consume one quota unit each after successful claims', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public array $calls = [];
+
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(quotaIdentity: 'single-requests', quotaLimit: 2);
+        }
+
+        public function send(array $messages): array
+        {
+            $this->calls[] = $messages;
+
+            return [new DeliveryResult('accepted')];
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    $messages = inTenant($property, fn () => DB::transaction(function () {
+        $outbox = app(Outbox::class);
+
+        return [
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', [], 'one'),
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'changed', [], 'two'),
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000002'], 'changed', [], 'three'),
+        ];
+    }));
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliverBatch(array_map(fn ($message) => $message->id, $messages)));
+
+    expect($adapter->calls)->toHaveCount(2)
+        ->and(array_map(fn ($message) => $message->fresh()->status, $messages))->toBe(['delivered', 'delivered', 'pending'])
+        ->and(DB::table('outbox_quotas')->where('identity_hash', hash('sha256', 'single-requests'))->value('used'))->toBe(2);
+});
+
+test('a refused quota leaves single messages pending without burning allowance', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(quotaIdentity: 'full-quota', quotaLimit: 1);
+        }
+
+        public function send(array $messages): array
+        {
+            return [new DeliveryResult('accepted')];
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    $messages = inTenant($property, fn () => DB::transaction(function () {
+        $outbox = app(Outbox::class);
+
+        return [
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', [], 'one'),
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'changed', [], 'two'),
+        ];
+    }));
+    app(QuotaLimiter::class)->acquire($adapter->policy());
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliverBatch(array_map(fn ($message) => $message->id, $messages)));
+
+    expect(array_map(fn ($message) => $message->fresh()->status, $messages))->toBe(['pending', 'pending'])
+        ->and(DB::table('outbox_quotas')->where('identity_hash', hash('sha256', 'full-quota'))->value('used'))->toBe(1);
+});
+
+test('a refused quota returns a claimed retry to its retryable state', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(quotaIdentity: 'retry-quota', quotaLimit: 1);
+        }
+
+        public function send(array $messages): array
+        {
+            return [new DeliveryResult('accepted')];
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    $message = inTenant($property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
+        'fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', [], 'one',
+    )));
+    $message->forceFill(['status' => 'retryable', 'attempt_count' => 1, 'next_attempt_at' => now()->subMinute()])->save();
+    app(QuotaLimiter::class)->acquire($adapter->policy());
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+
+    expect($message->fresh())->status->toBe('retryable')->attempt_count->toBe(1);
 });
 
 test('a fake adapter delivers outside the claim transaction and records encrypted attempt history', function () {
