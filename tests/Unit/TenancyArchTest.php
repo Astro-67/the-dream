@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Support\Tenancy\TenancyManager;
 use App\Support\Tenancy\TenantScope;
 
@@ -32,6 +33,27 @@ test('tenant bypass calls are limited to tenancy or platform code', function () 
 
         if (preg_match('/DB::table\s*\(/', $source) && preg_match('/'.implode('|', $tenantTables).'/', $source)) {
             $violations[] = $path.' uses DB::table against a tenant table outside tenancy/platform code';
+        }
+    }
+
+    expect($violations)->toBeEmpty(implode("\n", $violations));
+});
+
+test('only JurisdictionRules names a jurisdiction profile case (ADR 0014)', function () {
+    $names = array_map(fn (JurisdictionProfile $profile) => preg_quote($profile->name, '/'), JurisdictionProfile::cases());
+    $values = array_map(fn (JurisdictionProfile $profile) => preg_quote($profile->value, '/'), JurisdictionProfile::cases());
+    $comparison = '/JurisdictionProfile::('.implode('|', $names).')\b|[\'"]('.implode('|', $values).')[\'"]/';
+    $violations = [];
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__, 2).'/app')) as $file) {
+        $path = str_replace('\\', '/', $file->getPathname());
+
+        if (! $file->isFile() || $file->getExtension() !== 'php' || preg_match('#/Domains/Tenancy/(Jurisdiction/|Enums/JurisdictionProfile\.php$)#', $path)) {
+            continue;
+        }
+
+        if (preg_match($comparison, (string) file_get_contents($file->getPathname()))) {
+            $violations[] = $path.' names a jurisdiction profile case; ask JurisdictionRules instead';
         }
     }
 

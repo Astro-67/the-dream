@@ -4,6 +4,7 @@ namespace App\Domains\Tenancy\Data;
 
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\PropertyType;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Support\Money\Currency;
 
 /**
@@ -30,7 +31,7 @@ final readonly class PropertyDetails
         public JurisdictionProfile $jurisdictionProfile,
         ?string $zraHotelCode = null,
     ) {
-        $this->zraHotelCode = $jurisdictionProfile === JurisdictionProfile::Zanzibar && filled($zraHotelCode)
+        $this->zraHotelCode = JurisdictionRules::hasZraHotelCode($jurisdictionProfile) && filled($zraHotelCode)
             ? $zraHotelCode
             : null;
     }
