@@ -10,6 +10,7 @@ final class PreventArchivingWithUnresolvedMessages implements PreArchiveCheck
     public function blockingReason(Property $property): ?string
     {
         $unresolved = OutboxMessage::query()
+            ->where('property_id', $property->getKey())
             // Allowlist the resolved states so any new status blocks archival by default.
             ->whereNotIn('status', ['delivered', 'superseded'])
             ->exists();

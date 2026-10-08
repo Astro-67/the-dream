@@ -43,6 +43,16 @@ test('unresolved outbox messages prevent archiving without exposing payloads or 
         ->and(Activity::query()->where('event', 'archive_refused')->where('subject_id', $t->a->otherProperty->id)->first()?->description)->not->toContain('guest name');
 })->with(['pending', 'sending', 'retryable', 'rejected', 'exhausted', 'blocked', 'unknown', 'exhausted_unknown']);
 
+test('unresolved messages on another property in the same organization do not prevent archiving', function () {
+    $t = twoTenants();
+    outboxMessageForArchiveGuard($t->a->property, 'pending');
+
+    expect(fn () => inTenant($t->a->organization, fn () => app(ArchiveProperty::class)->handle($t->a->owner, $t->a->otherProperty)))
+        ->not->toThrow(ArchiveRefused::class);
+
+    expect($t->a->otherProperty->fresh()->archived_at)->not->toBeNull();
+});
+
 test('delivered and superseded outbox messages do not prevent archiving', function (string $status) {
     $t = twoTenants();
     outboxMessageForArchiveGuard($t->a->otherProperty, $status);
