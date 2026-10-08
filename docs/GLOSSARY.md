@@ -12,6 +12,98 @@ _Avoid_: Account, customer, client
 One hotel operated by an organization, with its own rooms, settings and jurisdiction.
 _Avoid_: Hotel (in formal requirements), site, unit
 
+## Reservations and front desk
+
+**Reservation**:
+A booking of one room type at one property for a range of nights. A booking for several rooms becomes one reservation per room.
+_Avoid_: Booking (in formal requirements)
+
+**Booking group**:
+The reservations created from one booking for several rooms, such as one Booking.com reservation for two rooms. Each member keeps its own reservation number.
+_Avoid_: Group block, multi-room reservation
+
+**Stay**:
+The in-house phase of a reservation, from check-in to check-out. Not a separate record from the reservation.
+_Avoid_: Visit
+
+**Room assignment**:
+Choosing the specific room for a reservation. Optional when booking, required by check-in.
+
+**Business date**:
+The property's current operating day, which ends only when night audit closes it, not at midnight.
+_Avoid_: Today, system date
+
+**Night audit**:
+Closing a property's business date: posting the night's room charges, proposing no-shows, and opening the next business date. Runs automatically at the property's close time; unresolved items carry forward rather than block.
+_Avoid_: End of day
+
+**Rate plan**:
+A named way of selling a room type, such as "Bed and breakfast" or "Non-refundable", with one currency and a price per room type per date. A derived rate plan takes its prices from one base plan with a fixed percentage or amount difference.
+_Avoid_: Tariff, price list
+
+**Room charge**:
+The charge for one night of a stay, posted to the folio when night audit closes that night's business date.
+_Avoid_: Room revenue (a report figure)
+
+**Ready room**:
+A room clean enough to check a guest into. Only a clean room is ready, unless the property skips inspection or a manager overrides with a reason.
+
+**Overbooking conflict**:
+A channel reservation that arrived when its room type had no inventory left on some night. It is accepted and flagged for staff, never refused. Staff can never overbook deliberately.
+_Avoid_: Overbooking (as a feature)
+
+**Folio**:
+The guest account for one reservation in one currency, open from booking until its balance is settled, which may be after departure. Charges move between folios only by a linked transfer.
+_Avoid_: Bill, invoice, guest ledger
+
+**Deposit**:
+A payment posted to a folio before the guest arrives.
+_Avoid_: Prepayment (when a channel collected it, that is a channel-collected amount)
+
+**Cashier shift**:
+One user's period of handling cash at one property, closed by counting the cash in each currency against what Thedream expects.
+_Avoid_: Till, session
+
+**Cancellation policy**:
+The rule on a rate plan that proposes a fee when a reservation is cancelled or becomes a no-show. Staff post or waive the proposed fee with a reason.
+
+**Open balance after departure**:
+A balance left on a folio when a manager let the guest check out without settling it. It stays on the folio until paid or written off.
+_Avoid_: Bad debt (until written off), city ledger
+
+**Guest**:
+A person staying at the property, held per property. Repeat guests are linked by staff choice, never matched automatically.
+_Avoid_: Customer, client
+
+**Booker**:
+The person who made a reservation, who need not be a guest on it.
+_Avoid_: Contact, lead guest (when not staying)
+
+**Imported reservation**:
+A future reservation brought in from a property's previous system before go-live.
+_Avoid_: Migrated booking
+
+**Demo property**:
+A property flagged for demonstration, holding sample data. Excluded from reports and plan limits, and never reported to channels or authorities.
+_Avoid_: Sandbox, test property
+
+**Write-off**:
+Clearing an unpaid folio balance as uncollectable. Needs a permission and a reason, and a second approver above the property's threshold.
+
+**Receipt**:
+A Thedream-numbered record of payment, always labelled non-fiscal. Distinct from a fiscal receipt, which VFMS issues.
+
+**Restriction**:
+A selling rule on a rate plan and date: minimum stay, closed to arrival or stop-sell. Binding for channels; staff may override with a reason. Never overrides inventory.
+
+**Go-live**:
+A property moving from setup to live once its go-live gates pass. Before go-live, a property can be configured and take test reservations but cannot check guests in, and nothing is reported to authorities.
+_Avoid_: Activation, launch
+
+**Reservation lifecycle event**:
+A record that something happened to a reservation that authorities may need to know about: created, modified, cancelled, no-show confirmed, checked in, room moved, guest added, nightly price changed, checked out.
+_Avoid_: Booking report (that is ZAN Gateway's message, derived from the event)
+
 ## Jurisdiction and compliance
 
 **Jurisdiction profile**:

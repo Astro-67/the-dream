@@ -3,7 +3,7 @@
 - **Status:** draft 1, 6 October 2026
 - **Implements:** [`docs/prd/PRD.md`](prd/PRD.md) v1.1
 - **Vocabulary:** [`docs/GLOSSARY.md`](GLOSSARY.md)
-- **Decisions:** [`docs/adr/`](adr/), ADRs 0001–0012
+- **Decisions:** [`docs/adr/`](adr/), ADRs 0001–0014
 
 This document describes how Thedream is built: the domains, their boundaries, how integration messages move, and how the system is deployed and recovered. The ADRs record _why_ each decision was made. This document records _what_ the shape is. When the two disagree, the ADR wins and this document gets fixed.
 
@@ -107,7 +107,7 @@ database/migrations/           One folder, migration names prefixed by domain
 These are enforced by Pest architecture tests (`arch()`), so a violation fails CI:
 
 1. **Writes go through the owning domain's actions.** Another domain may read a model, but it changes data only by calling that domain's action.
-2. **Core domains never touch adapters or write outbox rows directly.** Reservations, FrontDesk and Billing call integration-owned recording operations through `ChannelConnector`, `ZanReporter` and `FiscalReceipter`. Only integration domains call the shared outbox `record`; an architecture test enforces this boundary. Core domains never reference an adapter class or an HTTP client (ADR 0010).
+2. **Core domains never touch adapters or write outbox rows directly.** Reservations, FrontDesk and Billing record one reservation lifecycle event per action; integration translators turn it into outbox rows in the same transaction (ADR 0013). Core domains never call `ZanReporter` or `FiscalReceipter`. Only integration domains call the shared outbox `record`; an architecture test enforces this boundary. Core domains never reference an adapter class or an HTTP client (ADR 0010).
 3. **Every tenant-owned model uses `BelongsToTenant`** (§4).
 4. **Controllers stay thin.** They authorize through a Policy, validate through a Form Request, call one action, and return an Inertia response.
 5. **No `env()` outside config files.** Secrets are read through config.
@@ -119,7 +119,7 @@ One class per use case, with a single `handle()` method. An action:
 1. receives an already-authorized, validated input (a DTO or Form Request data);
 2. opens a database transaction;
 3. changes domain state;
-4. calls integration recording operations for every integration effect (§5) in the **same transaction**, holding the subject lock used to allocate its stream sequence; recording requires the caller's transaction and never opens an independent one;
+4. for reservation lifecycle actions, records one lifecycle event (ADR 0013), whose translators write integration effects (§5) in the **same transaction**; other actions with integration effects (for example rate or availability changes) call integration recording operations directly. Either way recording happens holding the subject lock used to allocate its stream sequence; recording requires the caller's transaction and never opens an independent one;
 5. records activity through activitylog;
 6. dispatches domain events after commit.
 
@@ -283,7 +283,7 @@ All rows below are `outbox_messages`, distinguished by integration; integration 
 | Night audit                    | `FrontDesk\CloseBusinessDate`                                                                | VFMS (CHANGEROOM_PRICE) when the next night's rate differs                                          |
 | Check-out                      | `FrontDesk\CheckOut`                                                                         | ZAN (Modify / Checked Out); VFMS (ACCOMMODATION_CHECK_OUT). The fiscal report prints once delivered |
 
-Whether a property needs ZAN Gateway or VFMS rows is decided by its **jurisdiction profile**, inside the ZanReporting and FiscalReceipting domains. Core actions call `ZanReporter::record(...)` and `FiscalReceipter::record(...)`. For a mainland property these are no-ops.
+Each action records one **reservation lifecycle event**; the ZanReporting and FiscalReceipting translators turn it into the rows above in the same transaction (ADR 0013). Whether a property needs ZAN Gateway or VFMS rows is answered by `JurisdictionRules` (ADR 0014); for a mainland property the translators write nothing.
 
 ## 8. Integration interfaces (ADR 0010)
 
@@ -459,3 +459,5 @@ This applies only if the client rejects a VPS (ADR 0006).
 | [0010](adr/0010-integrations-are-modules-behind-interfaces.md)         | Integrations are modules behind interfaces                       |
 | [0011](adr/0011-aws-af-south-1-with-managed-mysql.md)                  | AWS af-south-1 with managed MySQL and PITR                       |
 | [0012](adr/0012-one-tenancy-entry-point-with-platform-as-a-context.md) | One Tenancy entry point, with platform as a kind of context      |
+| [0013](adr/0013-core-actions-record-lifecycle-events.md)               | Core actions record lifecycle events; integrations translate them |
+| [0014](adr/0014-jurisdiction-rules-answer-named-questions.md)          | Jurisdiction rules answer named questions in one module          |
