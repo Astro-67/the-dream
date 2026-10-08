@@ -14,6 +14,11 @@ test('outbox attempt history is scoped to its property', function () {
     [, , $propertyB] = organizationWithOwner(['organization_name' => 'Bravo']);
     $adapter = new class implements DeliveryAdapter
     {
+        public function policy(): \App\Support\Outbox\DeliveryPolicy
+        {
+            return new \App\Support\Outbox\DeliveryPolicy();
+        }
+
         public function send(array $messages): array
         {
             return [new DeliveryResult('accepted', [], ['identity' => 'private'])];

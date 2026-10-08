@@ -15,6 +15,8 @@ test('a successor blocked behind an accepted predecessor is released for deliver
     {
         public array $sent = [];
 
+        public function policy(): \App\Support\Outbox\DeliveryPolicy { return new \App\Support\Outbox\DeliveryPolicy(); }
+
         public function send(array $messages): array
         {
             $this->sent[] = $messages[0]->sequence;

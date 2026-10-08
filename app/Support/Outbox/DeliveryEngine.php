@@ -17,9 +17,27 @@ final class DeliveryEngine
         $claimToken = bin2hex(random_bytes(32));
         $claim = DB::transaction(function () use ($messageId, $claimToken): ?OutboxMessage {
             $message = OutboxMessage::query()->whereKey($messageId)->lockForUpdate()->first();
-            if ($message === null || $message->status !== 'pending') {
+            if ($message === null) {
                 return null;
             }
+
+            $adapter = $this->adapters->for($message->integration);
+            $policy = $adapter->policy();
+            $dueRetry = $message->status === 'retryable'
+                && ($message->next_attempt_at === null || $message->next_attempt_at->isPast());
+            $safeUnknownRetry = $message->status === 'unknown'
+                && $policy->unknownRetrySafe
+                && ($message->next_attempt_at === null || $message->next_attempt_at->isPast());
+            if (! in_array($message->status, ['pending'], true) && ! $dueRetry && ! $safeUnknownRetry) {
+                return null;
+            }
+            if ($message->attempt_count >= $policy->maxAttempts) {
+                $message->status = $message->status === 'unknown' ? 'exhausted_unknown' : 'exhausted';
+                $message->save();
+
+                return null;
+            }
+
 
             $predecessor = OutboxMessage::query()
                 ->where('stream_key', $message->stream_key)
@@ -58,7 +76,6 @@ final class DeliveryEngine
         $snapshot->id = $claim->id;
         $snapshot->organization_id = $claim->organization_id;
         $snapshot->property_id = $claim->property_id;
-        $requestBody = $snapshot->payload;
         $result = null;
         try {
             $results = $this->adapters->for($snapshot->integration)->send([$snapshot]);
@@ -76,6 +93,10 @@ final class DeliveryEngine
                 ->lockForUpdate()
                 ->first();
 
+            if ($current === null || $current->claim_token !== $claimToken) {
+                return false;
+            }
+
             if ($attempt !== null) {
                 $attempt->outcome = $result->outcome;
                 $attempt->response_body = $result->responseBody === null ? null : json_encode($result->responseBody, JSON_THROW_ON_ERROR);
@@ -84,13 +105,19 @@ final class DeliveryEngine
                 $attempt->save();
             }
 
-            if ($current === null || $current->claim_token !== $claimToken) {
-                return false;
+            $policy = $this->adapters->for($current->integration)->policy();
+            $retryable = $result->outcome === 'retryable'
+                && $current->attempt_count < $policy->maxAttempts;
+            $outcome = $result->outcome;
+            if ($result->outcome === 'unknown' && $current->attempt_count >= $policy->maxAttempts) {
+                $outcome = 'exhausted_unknown';
+            } elseif ($result->outcome === 'retryable' && ! $retryable) {
+                $outcome = 'exhausted';
             }
-
-            $current->status = $result->outcome === 'accepted' ? 'delivered' : $result->outcome;
+            $current->status = $outcome === 'accepted' ? 'delivered' : $outcome;
             $current->setAttribute('provider_references', $result->references ?: null);
-            $current->setAttribute('next_attempt_at', $result->outcome === 'retryable' ? ($result->retryAt ?? now()->addMinute()) : null);
+            $retryAt = $result->retryAt ?? now()->addSeconds($policy->retryDelaySeconds);
+            $current->setAttribute('next_attempt_at', in_array($outcome, ['retryable', 'unknown'], true) ? $retryAt : null);
             $current->delivered_at = $result->outcome === 'accepted' ? now() : null;
             $current->claim_token = null;
             $current->claim_expires_at = null;

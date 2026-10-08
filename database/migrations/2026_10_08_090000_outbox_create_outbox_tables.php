@@ -25,6 +25,8 @@ return new class extends Migration
             $table->string('claim_token', 64)->nullable();
             $table->timestamp('claim_expires_at')->nullable();
             $table->timestamp('next_attempt_at')->nullable();
+            $table->timestamp('dispatch_claim_expires_at')->nullable();
+            $table->string('dispatch_claim_token', 64)->nullable();
             $table->json('provider_references')->nullable();
             $table->timestamp('delivered_at')->nullable();
             $table->timestamps();

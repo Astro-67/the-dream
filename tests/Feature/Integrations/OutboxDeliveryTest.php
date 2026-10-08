@@ -3,6 +3,7 @@
 use App\Support\Outbox\DeliveryAdapter;
 use App\Support\Outbox\DeliveryAdapters;
 use App\Support\Outbox\DeliveryEngine;
+use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\DeliveryResult;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxAttempt;
@@ -20,6 +21,11 @@ test('a fake adapter delivers outside the claim transaction and records encrypte
         public array $observed = [];
 
         public int $transactionLevel = -1;
+
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy();
+        }
 
         public function send(array $messages): array
         {
@@ -51,11 +57,46 @@ test('a fake adapter delivers outside the claim transaction and records encrypte
         ->and(DB::table('outbox_attempts')->value('response_body'))->not->toContain('private response');
 });
 
+test('retryable delivery preserves message identity and waits until its retry time', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public array $payloads = [];
+
+        public function policy(): \App\Support\Outbox\DeliveryPolicy { return new \App\Support\Outbox\DeliveryPolicy(maxAttempts: 3); }
+
+        public function send(array $messages): array
+        {
+            $this->payloads[] = $messages[0]->payload;
+
+            return [new DeliveryResult(count($this->payloads) === 1 ? 'retryable' : 'accepted')];
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    $message = inTenant($property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
+        'fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed',
+        ['version' => 1], 'stable-key',
+    )));
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    expect($message->fresh()->status)->toBe('retryable')
+        ->and($message->fresh()->attempt_count)->toBe(1)
+        ->and($adapter->payloads)->toBe([['version' => 1]]);
+
+    $message->setAttribute('next_attempt_at', now()->subSecond())->save();
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    expect($message->fresh()->status)->toBe('delivered')
+        ->and($message->fresh()->attempt_count)->toBe(2)
+        ->and($adapter->payloads)->toBe([['version' => 1], ['version' => 1]]);
+});
+
 test('rejected, retryable and unknown results never mark a message delivered', function (string $outcome) {
     [, , $property] = organizationWithOwner();
     $adapter = new class($outcome) implements DeliveryAdapter
     {
         public function __construct(private string $outcome) {}
+
+        public function policy(): DeliveryPolicy { return new DeliveryPolicy(); }
 
         public function send(array $messages): array
         {
@@ -79,6 +120,8 @@ test('only one ordered message in a stream is sent, and successors wait for acce
     $adapter = new class implements DeliveryAdapter
     {
         public array $calls = [];
+
+        public function policy(): DeliveryPolicy { return new DeliveryPolicy(); }
 
         public function send(array $messages): array
         {
@@ -113,6 +156,8 @@ test('unmappable adapter results become unknown outcomes', function (mixed $resu
     $adapter = new class($results) implements DeliveryAdapter
     {
         public function __construct(private mixed $results) {}
+
+        public function policy(): DeliveryPolicy { return new DeliveryPolicy(); }
 
         public function send(array $messages): array
         {
