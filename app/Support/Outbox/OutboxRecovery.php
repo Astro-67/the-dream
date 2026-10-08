@@ -3,7 +3,7 @@
 namespace App\Support\Outbox;
 
 use App\Domains\Platform\Enums\PlatformRole;
-use App\Domains\Platform\Models\PlatformRoleAssignment;
+use App\Domains\Platform\Policies\StaffPolicy;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -87,7 +87,7 @@ final class OutboxRecovery
         if (trim($reason) === '') {
             throw new RuntimeException('A reason is required.');
         }
-        $property = Property::withoutGlobalScopes()->find($propertyId);
+        $property = app(OutboxPropertyLookup::class)->find($propertyId);
         if ($property === null) {
             throw new RuntimeException('The property does not exist.');
         }
@@ -97,6 +97,7 @@ final class OutboxRecovery
             if ($message === null) {
                 throw new RuntimeException('Outbox message not found in the requested property.');
             }
+
             return Tenancy::within($context, function () use ($actor, $property, $message, $operation, $raw): mixed {
                 if ($raw) {
                     if (! $actor->can('outbox.raw.read')) {
@@ -127,10 +128,8 @@ final class OutboxRecovery
         if ($message->property_id !== $property->id) {
             return false;
         }
-        $platformCompliance = PlatformRoleAssignment::query()->withoutGlobalScopes()
-            ->where('user_id', $actor->id)->where('role', PlatformRole::ComplianceOperator->value)->exists();
-        if ($platformCompliance) {
-            return in_array($message->integration, ['zan', 'vfms'], true);
+        if ($actor->hasPlatformRole(PlatformRole::ComplianceOperator)) {
+            return app(StaffPolicy::class)->recoverComplianceOutbox($actor, $message);
         }
 
         return Access::allows($actor, OrganizationPermission::OutboxRecover, $property);

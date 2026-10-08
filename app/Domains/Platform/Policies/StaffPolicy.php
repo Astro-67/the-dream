@@ -4,6 +4,7 @@ namespace App\Domains\Platform\Policies;
 
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Models\User;
+use App\Support\Outbox\OutboxMessage;
 
 /** Authorization for platform staff administration. */
 final class StaffPolicy
@@ -26,5 +27,11 @@ final class StaffPolicy
     public function revokePlatformRole(User $user): bool
     {
         return $this->managePlatformStaff($user);
+    }
+
+    public function recoverComplianceOutbox(User $user, OutboxMessage $message): bool
+    {
+        return $user->hasPlatformRole(PlatformRole::ComplianceOperator)
+            && in_array($message->integration, ['zan', 'vfms'], true);
     }
 }
