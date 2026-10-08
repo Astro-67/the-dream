@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/utils';
-import { prices as pricesOf, quote } from '@/routes/rate-plans';
+import { prices as pricesOf, quote, restrictions } from '@/routes/rate-plans';
 import { update } from '@/routes/rate-plans/prices';
 type Price = {
     room_type_id: string;
@@ -37,9 +37,16 @@ export default function Prices({
                     <h1 className="text-2xl font-semibold tracking-tight">
                         {plan.name} prices
                     </h1>
-                    <Button variant="outline" asChild>
-                        <Link href={quote(plan.id)}>Preview a quote</Link>
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" asChild>
+                            <Link href={restrictions(plan.id)}>
+                                Restrictions
+                            </Link>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <Link href={quote(plan.id)}>Preview a quote</Link>
+                        </Button>
+                    </div>
                 </header>
                 {base && (
                     <p className="text-sm text-muted-foreground">
