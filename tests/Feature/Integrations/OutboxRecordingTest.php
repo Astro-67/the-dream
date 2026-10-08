@@ -12,7 +12,7 @@ beforeEach(function () {
 
 test('recording dispatches only after the caller transaction commits', function () {
     [, , $property] = organizationWithOwner();
-    DB::statement('CREATE TABLE outbox_recording_test_subjects (id VARCHAR(26) PRIMARY KEY, value VARCHAR(255))');
+    DB::statement('CREATE TEMPORARY TABLE outbox_recording_test_subjects (id VARCHAR(26) PRIMARY KEY, value VARCHAR(255))');
 
     inTenant($property, function () {
         DB::transaction(function () {
@@ -27,7 +27,7 @@ test('recording dispatches only after the caller transaction commits', function 
 
 test('recording and business writes roll back together without dispatch', function () {
     [, , $property] = organizationWithOwner();
-    DB::statement('CREATE TABLE outbox_recording_rollback_subjects (id VARCHAR(26) PRIMARY KEY, value VARCHAR(255))');
+    DB::statement('CREATE TEMPORARY TABLE outbox_recording_rollback_subjects (id VARCHAR(26) PRIMARY KEY, value VARCHAR(255))');
 
     try {
         DB::transaction(function () use ($property) {

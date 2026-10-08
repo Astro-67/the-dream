@@ -45,13 +45,13 @@ return new class extends Migration
                 ->references(['organization_id', 'property_id', 'id'])
                 ->on('outbox_messages')->cascadeOnDelete();
 
-            $table->index(['organization_id', 'property_id', 'outbox_message_id']);
+            $table->index(['organization_id', 'property_id', 'outbox_message_id'], 'outbox_attempt_message_tenant_index');
 
             $table->unsignedInteger('attempt_number');
             $table->string('outcome', 32);
             $table->text('request_body');
             $table->text('response_body')->nullable();
-            $table->json('provider_references')->nullable();
+            $table->text('provider_references')->nullable(); // encrypted, so not valid JSON
             $table->timestamp('retry_at')->nullable();
             $table->timestamps();
 
