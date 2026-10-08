@@ -11,6 +11,8 @@ use App\Support\Audit\Audit;
 use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use RuntimeException;
@@ -22,7 +24,7 @@ final class OutboxRecovery
         $this->authorized($actor, $propertyId, $messageId, 'outbox_recovery_refused', $reason, false, function (OutboxMessage $message) use ($actor, $reason): void {
             DB::transaction(function () use ($message, $actor, $reason): void {
                 $locked = OutboxMessage::query()->whereKey($message->id)->lockForUpdate()->firstOrFail();
-                if ($locked->claim_token !== null || $locked->claim_expires_at?->isFuture() || $locked->status === 'sending') {
+                if ($locked->claim_token !== null || ($locked->claim_expires_at !== null && CarbonImmutable::parse($locked->claim_expires_at)->isFuture()) || $locked->status === 'sending') {
                     throw new RuntimeException('An active delivery attempt prevents recovery.');
                 }
                 if (! in_array($locked->status, ['retryable', 'unknown', 'exhausted', 'exhausted_unknown'], true)) {
@@ -55,7 +57,7 @@ final class OutboxRecovery
         $this->authorized($actor, $propertyId, $messageId, 'outbox_recovery_refused', $reason, false, function (OutboxMessage $message) use ($actor, $reason, $evidence): void {
             DB::transaction(function () use ($message, $actor, $reason, $evidence): void {
                 $locked = OutboxMessage::query()->whereKey($message->id)->lockForUpdate()->firstOrFail();
-                if ($locked->claim_token !== null || $locked->claim_expires_at?->isFuture() || $locked->status === 'sending') {
+                if ($locked->claim_token !== null || ($locked->claim_expires_at !== null && CarbonImmutable::parse($locked->claim_expires_at)->isFuture()) || $locked->status === 'sending') {
                     throw new RuntimeException('An active delivery attempt prevents recovery.');
                 }
                 if (! in_array($locked->status, ['unknown', 'exhausted_unknown'], true)) {
@@ -73,12 +75,18 @@ final class OutboxRecovery
         });
     }
 
+    /** @return array<string, mixed> */
     public function showBody(User $actor, string $propertyId, string $messageId, string $reason): array
     {
         return $this->authorized($actor, $propertyId, $messageId, 'outbox_body_read_refused', $reason, true, function (OutboxMessage $message) use ($actor, $reason): array {
-            Audit::record($actor, 'outbox_body_read', $message, 'Read outbox payload', ['reason' => $reason, 'payload_hash' => hash('sha256', json_encode($message->payload, JSON_THROW_ON_ERROR))]);
+            $payload = json_decode(Crypt::decryptString($message->getRawOriginal('payload')), true, flags: JSON_THROW_ON_ERROR);
+            if (! is_array($payload)) {
+                throw new RuntimeException('The outbox payload is not a JSON object.');
+            }
 
-            return $message->payload;
+            Audit::record($actor, 'outbox_body_read', $message, 'Read outbox payload', ['reason' => $reason, 'payload_hash' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR))]);
+
+            return $payload;
         });
     }
 

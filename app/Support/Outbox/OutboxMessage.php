@@ -17,6 +17,7 @@ class OutboxMessage extends Model
         'idempotency_key', 'event', 'payload', 'status', 'attempt_count',
     ];
 
+    /** @return array<string, string> */
     protected function casts(): array
     {
         return [
