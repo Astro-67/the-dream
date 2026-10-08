@@ -18,7 +18,9 @@ class CreateRoom
     public function handle(?User $actor, array $details): Room
     {
         return DB::transaction(function () use ($actor, $details) {
+            $type = \App\Domains\Inventory\Models\RoomType::query()->whereKey($details['room_type_id'])->lockForUpdate()->firstOrFail();
             $room = Room::query()->create($details);
+            app(RecalculateInventory::class)->handle($type);
 
             Audit::record($actor, 'created', $room, 'Room created', [
                 'attributes' => $room->only(['number', 'floor', 'room_type_id']),
