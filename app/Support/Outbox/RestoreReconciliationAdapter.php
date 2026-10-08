@@ -5,7 +5,7 @@ namespace App\Support\Outbox;
 interface RestoreReconciliationAdapter
 {
     /** @param list<OutboxMessage> $messages
-     * @return array<string, array{outcome: 'accepted'|'not_found'|'unresolved', evidence: string, references?: array<string, string>}> keyed by message ID
+     * @return array<string, mixed> keyed by message ID; integration output is validated at runtime
      */
     public function reconcile(array $messages): array;
 }

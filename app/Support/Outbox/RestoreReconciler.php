@@ -23,7 +23,7 @@ final class RestoreReconciler
         }
 
         $context = TenantContext::forProperty($property);
-        $messages = Tenancy::within($context, function () use ($actor, $property): array {
+        $messages = Tenancy::within($context, function () use ($actor, $property) {
             if (! Access::allows($actor, OrganizationPermission::OutboxRecover, $property)) {
                 throw new LogicException('Outbox recovery is not authorized.');
             }
@@ -31,11 +31,11 @@ final class RestoreReconciler
                 throw new LogicException('Close the restore gate before reconciliation.');
             }
 
-            return OutboxMessage::query()->where('property_id', $property->id)->whereNotIn('status', ['delivered', 'superseded'])->orderBy('created_at')->get()->all();
+            return OutboxMessage::query()->where('property_id', $property->id)->whereNotIn('status', ['delivered', 'superseded'])->orderBy('created_at')->get();
         });
 
         $reports = [];
-        foreach (collect($messages)->groupBy('integration') as $integration => $group) {
+        foreach ($messages->groupBy('integration') as $integration => $group) {
             $adapter = app(DeliveryAdapters::class)->for($integration);
             if (! $adapter instanceof RestoreReconciliationAdapter) {
                 if (! $adapter instanceof VerifiedSafeReplayAdapter || trim($adapter->safeReplayContract()) === '') {
@@ -58,10 +58,7 @@ final class RestoreReconciler
                 throw new LogicException("Integration [{$integration}] returned ambiguous reconciliation results.");
             }
             foreach ($adapterReports as $messageId => $report) {
-                if (! in_array($report['outcome'] ?? null, ['accepted', 'not_found', 'unresolved'], true) || trim((string) ($report['evidence'] ?? '')) === '') {
-                    throw new LogicException("Integration [{$integration}] returned invalid reconciliation evidence.");
-                }
-                $reports[$messageId] = ['integration' => $integration] + $report;
+                $reports[$messageId] = $this->validatedReport($integration, $report);
             }
         }
 
@@ -140,5 +137,26 @@ final class RestoreReconciler
 
             return ['reconciled' => count($messages), 'unresolved' => 0];
         }));
+    }
+
+    /** @return array{integration: string, outcome: 'accepted'|'not_found'|'unresolved', evidence: string, references?: array<string, string>} */
+    private function validatedReport(string $integration, mixed $report): array
+    {
+        if (! is_array($report) || ! is_string($report['outcome'] ?? null)
+            || ! in_array($report['outcome'], ['accepted', 'not_found', 'unresolved'], true)
+            || ! is_string($report['evidence'] ?? null) || trim($report['evidence']) === '') {
+            throw new LogicException("Integration [{$integration}] returned invalid reconciliation evidence.");
+        }
+        $references = $report['references'] ?? null;
+        if ($references !== null && (! is_array($references) || array_filter($references, static fn (mixed $value): bool => ! is_string($value)) !== [])) {
+            throw new LogicException("Integration [{$integration}] returned invalid provider references.");
+        }
+
+        return [
+            'integration' => $integration,
+            'outcome' => $report['outcome'],
+            'evidence' => $report['evidence'],
+            ...($references === null ? [] : ['references' => $references]),
+        ];
     }
 }

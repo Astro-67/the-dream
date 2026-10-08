@@ -70,7 +70,7 @@ final class RestoreGate
         if ($gate === null || ! $gate->is_closed) {
             throw new LogicException('The restore gate is not closed.');
         }
-        if ($gate === null || $gate->delivery_reconciled_at === null || $gate->identity_safe_at === null) {
+        if ($gate->delivery_reconciled_at === null || $gate->identity_safe_at === null) {
             throw new LogicException('Delivery reconciliation and identity safety are required before reopening the restore gate.');
         }
         $unsafe = DB::table('outbox_messages as messages')

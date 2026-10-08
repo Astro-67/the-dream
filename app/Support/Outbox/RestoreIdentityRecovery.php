@@ -53,8 +53,10 @@ final class RestoreIdentityRecovery
                 throw new LogicException('Complete delivery reconciliation before identity recovery.');
             }
             foreach ($reports as [$integration, $boundary]) {
-                if (trim($boundary['evidence']) === '' || ! is_int($boundary['highest_sequence']) || $boundary['highest_sequence'] < 0
-                    || trim($boundary['subject_type']) === '' || trim($boundary['subject_id']) === '') {
+                if (! is_string($boundary['evidence']) || trim($boundary['evidence']) === ''
+                    || ! is_int($boundary['highest_sequence']) || $boundary['highest_sequence'] < 0
+                    || ! is_string($boundary['subject_type']) || trim($boundary['subject_type']) === ''
+                    || ! is_string($boundary['subject_id']) || trim($boundary['subject_id']) === '') {
                     throw new LogicException('Provider returned an invalid identity boundary.');
                 }
                 $streamKey = hash('sha256', json_encode([
