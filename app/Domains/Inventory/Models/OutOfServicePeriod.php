@@ -63,7 +63,7 @@ class OutOfServicePeriod extends Model
     {
         $overlapping = self::query()->where('room_id', $room->id)
             ->when($except, fn ($query, self $period) => $query->whereKeyNot($period->id))
-            ->where('starts_on', '<', $returnsOn)->where('returns_on', '>', $startsOn)
+            ->whereDate('starts_on', '<', $returnsOn)->whereDate('returns_on', '>', $startsOn)
             ->orderBy('starts_on')->first();
 
         if ($overlapping !== null) {

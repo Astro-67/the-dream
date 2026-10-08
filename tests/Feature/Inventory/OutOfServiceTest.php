@@ -59,3 +59,18 @@ test('a property manager takes a room out of service and sellable drops on those
     $audit = Activity::query()->where('description', 'Room taken out of service')->sole();
     expect($audit->getExtraProperty('attributes'))->toEqual(['room_id' => $room->id, 'starts_on' => '2026-10-10', 'returns_on' => '2026-10-12', 'reason' => 'Leaking shower']);
 });
+
+test('out-of-service periods of one room never overlap', function () {
+    $t = twoTenants();
+    [, $room] = twoRoomsIn($t->a->property);
+    $p = ['_property' => $t->a->property->id, 'reason' => 'Repainting'];
+    $this->actingAs($t->a->owner);
+
+    $this->post(route('out-of-service.store', $room), [...$p, 'starts_on' => '2026-10-10', 'returns_on' => '2026-10-15'])->assertSessionHasNoErrors();
+    $this->post(route('out-of-service.store', $room), [...$p, 'starts_on' => '2026-10-14', 'returns_on' => '2026-10-20'])
+        ->assertSessionHasErrors(['starts_on' => 'Room 101 is already out of service from 2026-10-10 until 2026-10-15.']);
+    // Back in service on the 15th, so another period can start that day.
+    $this->post(route('out-of-service.store', $room), [...$p, 'starts_on' => '2026-10-15', 'returns_on' => '2026-10-20'])->assertSessionHasNoErrors();
+
+    expect(inTenant($t->a->property, fn () => $room->outOfServicePeriods()->count()))->toBe(2);
+});

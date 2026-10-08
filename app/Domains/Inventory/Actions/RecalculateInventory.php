@@ -68,8 +68,8 @@ class RecalculateInventory
 
         $periods = OutOfServicePeriod::query()
             ->whereIn('room_id', $type->rooms()->active()->select('id'))
-            ->where('returns_on', '>', $today->toDateString())
-            ->where('starts_on', '<=', $end->toDateString())
+            ->whereDate('returns_on', '>', $today->toDateString())
+            ->whereDate('starts_on', '<=', $end->toDateString())
             ->get();
 
         foreach ($periods as $period) {
@@ -93,7 +93,7 @@ class RecalculateInventory
     {
         $stranded = [];
         $sold = InventoryRecord::query()->where('room_type_id', $type->id)->where('sold_count', '>', 0)
-            ->whereBetween('date', [array_key_first($sellable), array_key_last($sellable)])
+            ->whereDate('date', '>=', (string) array_key_first($sellable))
             ->orderBy('date')->get();
 
         foreach ($sold as $record) {
