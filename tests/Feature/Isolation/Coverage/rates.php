@@ -88,4 +88,8 @@ return [
             $this->actingAs($t->a->owner)->put(route('rate-plans.prices.update', $alpha->id), $prices($roomType->id, $t->a->property->id))->assertSessionHasErrors('room_type_id'),
         ];
     })),
+    'rate-plans.deactivate' => RouteCoverage::attempt($writeAttempt(fn (TwoTenants $t, RatePlan $plan) => [
+        $this->actingAs($t->a->owner)->post(route('rate-plans.deactivate', $plan->id), ['_property' => $t->a->property->id])->assertNotFound(),
+        $this->actingAs($t->a->owner)->post(route('rate-plans.deactivate', $plan->id), ['_property' => $t->b->property->id])->assertForbidden(),
+    ])),
 ];

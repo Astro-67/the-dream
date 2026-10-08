@@ -5,6 +5,7 @@ use App\Domains\Rates\Actions\CreateRatePlan;
 use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Illuminate\Database\QueryException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\InventoryForm;
@@ -118,4 +119,28 @@ test('a derived plan takes its base plan\'s currency and room types and derives 
     $this->get(route('rate-plans.prices', $nonRefundable))->assertInertia(fn (Assert $page) => $page
         ->where('canManage', false)->where('base.name', 'Breakfast')
         ->where('prices', [['room_type_id' => $room->id, 'date' => '2026-12-01', 'base_price' => 9000, 'extra_adult' => 1800, 'extra_child' => 900]]));
+});
+
+test('a base plan with active derived plans can be neither deactivated nor deleted until they are handled', function () {
+    $t = twoTenants();
+    [$base, $derived] = inTenant($t->a->property, function () use ($t) {
+        $room = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        $base = app(CreateRatePlan::class)->handle($t->a->owner, ['name' => 'Breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id]]);
+
+        return [$base, app(CreateRatePlan::class)->handle($t->a->owner, ['name' => 'Non-refundable', 'code' => 'NR', 'base_rate_plan_id' => $base->id, 'adjustment_kind' => 'percent', 'adjustment' => -10])];
+    });
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager));
+    $deactivate = fn (RatePlan $plan) => $this->post(route('rate-plans.deactivate', $plan), ['_property' => $t->a->property->id]);
+
+    $deactivate($base)->assertSessionHasErrors(['plan' => 'Deactivate the plans derived from Breakfast first: Non-refundable.']);
+    expect(fn () => inTenant($t->a->property, fn () => $base->delete()))->toThrow(QueryException::class);
+
+    $deactivate($derived)->assertSessionHasNoErrors()->assertRedirect(route('rate-plans.index'));
+    $deactivate($base)->assertSessionHasNoErrors();
+    $this->get(route('rate-plans.index'))->assertInertia(fn (Assert $page) => $page->where('ratePlans.0.active', false)->where('ratePlans.1.active', false));
+    // An inactive plan can't become a base.
+    $this->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Late', 'code' => 'LT', 'base_rate_plan_id' => $base->id, 'adjustment_kind' => 'percent', 'adjustment' => 5])
+        ->assertSessionHasErrors('base_rate_plan_id');
+    expect(Activity::query()->where('description', 'Rate plan deactivated')->count())->toBe(2);
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->post(route('rate-plans.deactivate', $base), ['_property' => $t->a->property->id])->assertForbidden();
 });
