@@ -3,7 +3,6 @@
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
-use App\Support\Audit\Audit;
 use App\Support\Outbox\OutboxPropertyLookup;
 use App\Support\Outbox\OutboxRecovery;
 use App\Support\Outbox\OutboxSweeper;
@@ -38,9 +37,7 @@ Artisan::command('outbox:gate {--actor=} {--property=} {--reason=}', function (R
             }
             DB::transaction(function () use ($actor, $property, $reason, $gate): void {
                 $locked = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
-                $gate->close($locked, $reason);
-                $row = DB::table('outbox_restore_gates')->where('property_id', $locked->id)->first();
-                Audit::record($actor, 'outbox_restore_gate_closed', $locked, 'Closed outbox restore gate', ['reason' => $reason, 'gate_id' => $row->id]);
+                $gate->close($locked, $reason, $actor);
             });
         });
         $this->info('Restore gate closed.');

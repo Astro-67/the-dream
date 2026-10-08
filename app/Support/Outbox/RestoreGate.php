@@ -16,8 +16,9 @@ final class RestoreGate
         return DB::table('outbox_restore_gates')->where('property_id', $propertyId)->where('is_closed', true)->exists();
     }
 
-    public function close(Property $property, string $reason): void
+    public function close(Property $property, string $reason, User $actor): void
     {
+        Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
         DB::table('outbox_restore_gates')->updateOrInsert(
             ['property_id' => $property->id],
             [
@@ -33,6 +34,20 @@ final class RestoreGate
                 'created_at' => now(),
             ],
         );
+        $messages = OutboxMessage::query()->where('property_id', $property->id)->where('status', 'sending')->lockForUpdate()->get();
+        foreach ($messages as $message) {
+            $message->attempts()->where('attempt_number', $message->attempt_count)->where('outcome', 'sending')->update(['outcome' => 'unknown', 'updated_at' => now()]);
+            $message->status = 'unknown';
+            $message->claim_token = null;
+            $message->claim_expires_at = null;
+            $message->setAttribute('dispatch_claim_token', null);
+            $message->setAttribute('dispatch_claim_expires_at', null);
+            $message->save();
+        }
+        Audit::record($actor, 'outbox_restore_gate_closed', $property, 'Closed outbox restore gate', [
+            'reason' => $reason,
+            'in_flight_marked_unknown' => $messages->count(),
+        ]);
     }
 
     public function recordDeliveryReconciled(Property $property, User $actor, string $reason): void

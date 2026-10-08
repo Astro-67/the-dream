@@ -2,6 +2,7 @@
 
 namespace App\Support\Outbox;
 
+use App\Domains\Tenancy\Models\Property;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
@@ -145,8 +146,13 @@ final class DeliveryEngine
         $claimToken = bin2hex(random_bytes(32));
 
         return DB::transaction(function () use ($messageId, $claimToken, $dispatchClaimToken): ?OutboxMessage {
+            $candidate = OutboxMessage::query()->whereKey($messageId)->first();
+            if ($candidate === null) {
+                return null;
+            }
+            Property::query()->whereKey($candidate->property_id)->lockForUpdate()->firstOrFail();
             $message = OutboxMessage::query()->whereKey($messageId)->lockForUpdate()->first();
-            if ($message === null || app(RestoreGate::class)->isClosed($message->property_id)) {
+            if ($message === null || app(RestoreGate::class)->isClosed($candidate->property_id)) {
                 return null;
             }
             if ($dispatchClaimToken !== null) {
@@ -226,6 +232,10 @@ final class DeliveryEngine
     {
         $claimToken = $claim->claim_token;
         $accepted = DB::transaction(function () use ($claim, $claimToken, $result): bool {
+            Property::query()->whereKey($claim->property_id)->lockForUpdate()->firstOrFail();
+            if (app(RestoreGate::class)->isClosed($claim->property_id)) {
+                return false;
+            }
             $current = OutboxMessage::query()->whereKey($claim->id)->lockForUpdate()->first();
             $attempt = OutboxAttempt::query()
                 ->where('outbox_message_id', $claim->id)

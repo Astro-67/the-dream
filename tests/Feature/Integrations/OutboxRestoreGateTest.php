@@ -24,6 +24,35 @@ beforeEach(function () {
     config(['queue.default' => 'database']);
 });
 
+test('closing gate fences an in-flight sending result as unknown', function () {
+    $tenant = twoTenants();
+    $actor = $tenant->a->owner;
+    $adapter = new ReconcilingOutboxAdapter;
+    app(DeliveryAdapters::class)->register('gate-fence', $adapter);
+    $message = inTenant($tenant->a->property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
+        'gate-fence', (object) ['type' => 'reservation', 'id' => 'gate-fence-stream'], 'changed', ['version' => 1], 'gate-fence-key',
+    )));
+    $message->status = 'sending';
+    $message->attempt_count = 1;
+    $message->claim_token = str_repeat('f', 64);
+    $message->claim_expires_at = now()->addMinutes(2);
+    $message->save();
+    $attempt = inTenant($tenant->a->property, fn () => $message->attempts()->create([
+        'organization_id' => $message->organization_id,
+        'property_id' => $message->property_id,
+        'attempt_number' => 1,
+        'outcome' => 'sending',
+        'request_body' => '{"version":1}',
+    ]));
+
+    expect(Artisan::call('outbox:gate', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Stop active delivery before restore']))->toBe(0);
+
+    expect($message->fresh()->status)->toBe('unknown')
+        ->and($message->fresh()->claim_token)->toBeNull()
+        ->and($attempt->fresh()->outcome)->toBe('unknown')
+        ->and(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeTrue();
+});
+
 test('persistent gate blocks delivery engine and sweeper after process restart', function () {
     $tenant = twoTenants();
     $actor = $tenant->a->owner;
