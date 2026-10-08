@@ -15,6 +15,42 @@ beforeEach(function () {
     config(['queue.default' => 'database']);
 });
 
+test('independent eligible streams can be sent as one policy-sized batch', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public array $calls = [];
+
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(batchGrouping: ['property_id'], maxBatchSize: 10);
+        }
+
+        public function send(array $messages): array
+        {
+            $this->calls[] = $messages;
+
+            return array_map(fn () => new DeliveryResult('accepted'), $messages);
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    [$first, $second] = inTenant($property, fn () => DB::transaction(function () {
+        $outbox = app(Outbox::class);
+
+        return [
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', ['version' => 1], 'one'),
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'changed', ['version' => 1], 'two'),
+        ];
+    }));
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliverBatch([$first->id, $second->id]));
+
+    expect($adapter->calls)->toHaveCount(1)
+        ->and($adapter->calls[0])->toHaveCount(2)
+        ->and($first->fresh()->status)->toBe('delivered')
+        ->and($second->fresh()->status)->toBe('delivered');
+});
+
 test('a fake adapter delivers outside the claim transaction and records encrypted attempt history', function () {
     [, , $property] = organizationWithOwner();
     $adapter = new class implements DeliveryAdapter

@@ -6,12 +6,21 @@ use InvalidArgumentException;
 
 final readonly class DeliveryPolicy
 {
+    /**
+     * @param list<string> $batchGrouping
+     */
     public function __construct(
         public bool $unknownRetrySafe = false,
         public int $maxAttempts = 5,
         public int $retryDelaySeconds = 60,
+        public array $batchGrouping = [],
+        public int $maxBatchSize = 1,
+        public ?string $quotaIdentity = null,
+        public ?int $quotaLimit = null,
+        public int $quotaWindowSeconds = 60,
     ) {
-        if ($maxAttempts < 1 || $retryDelaySeconds < 1) {
+        if ($maxAttempts < 1 || $retryDelaySeconds < 1 || $maxBatchSize < 1 || $quotaWindowSeconds < 1
+            || ($quotaIdentity === null) !== ($quotaLimit === null) || ($quotaLimit !== null && $quotaLimit < 1)) {
             throw new InvalidArgumentException('Outbox retry limits must be positive.');
         }
     }
