@@ -60,3 +60,29 @@ test('front desk previews a quote and sees nightly prices without managing them'
     $this->get(route('rate-plans.quote', [$plan, 'room_type_id' => $room->id, 'arrival' => 'soon']))->assertSessionHasErrors('arrival');
     $this->put(route('rate-plans.prices.update', $plan), ['_property' => $t->a->property->id])->assertForbidden();
 });
+
+test('only owners, group operations and property managers manage rates', function (OrganizationRole $role, bool $manages) {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, fn () => app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType()));
+    $response = $this->actingAs($role === OrganizationRole::Owner ? $t->a->owner : $t->a->member($role))
+        ->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Bed and breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id]]);
+
+    $manages ? $response->assertSessionHasNoErrors()->assertRedirect(route('rate-plans.index')) : $response->assertForbidden();
+})->with([
+    'owner' => [OrganizationRole::Owner, true],
+    'group operations manager' => [OrganizationRole::GroupOperationsManager, true],
+    'property manager' => [OrganizationRole::PropertyManager, true],
+    'front desk' => [OrganizationRole::FrontDesk, false],
+    'finance' => [OrganizationRole::Finance, false],
+    'housekeeping' => [OrganizationRole::Housekeeping, false],
+    'auditor' => [OrganizationRole::Auditor, false],
+]);
+
+test('a rate plan\'s currency must be one the property\'s jurisdiction allows', function () {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, fn () => app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType()));
+
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
+        ->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Pounds', 'code' => 'GBP', 'currency' => 'GBP', 'room_type_ids' => [$room->id]])
+        ->assertSessionHasErrors('currency');
+});
