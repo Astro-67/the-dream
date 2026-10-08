@@ -2,6 +2,7 @@
 
 namespace App\Support\Outbox;
 
+use App\Domains\Tenancy\Models\Property;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
@@ -45,6 +46,11 @@ final class Outbox
         } elseif ($subjectType === '' || $subjectId === '') {
             throw new LogicException('Outbox subject type and ID must not be empty.');
         }
+        $property = Property::query()->whereKey($context->propertyId)->lockForUpdate()->first();
+        if ($property === null || $property->archived_at !== null) {
+            throw new LogicException('Outbox messages cannot be recorded for an archived property.');
+        }
+
         $streamKey = hash('sha256', json_encode([$context->organizationId, $context->propertyId, $integration, $subjectType, $subjectId], JSON_THROW_ON_ERROR));
         $query = OutboxMessage::query()
             ->where('organization_id', $context->organizationId)
