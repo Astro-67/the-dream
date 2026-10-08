@@ -9,6 +9,7 @@ import {
     LayoutGrid,
     MailPlus,
     ShieldCheck,
+    Tags,
     Users,
 } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
@@ -30,6 +31,7 @@ import { index as members } from '@/routes/members';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
 import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
+import { index as ratePlans } from '@/routes/rate-plans';
 import { index as roomTypes } from '@/routes/room-types';
 import { index as rooms } from '@/routes/rooms';
 import type { NavItem } from '@/types';
@@ -87,6 +89,7 @@ export function AppSidebar() {
             ? [
                   { title: 'Room types', href: roomTypes(), icon: BedDouble },
                   { title: 'Rooms', href: rooms(), icon: DoorOpen },
+                  { title: 'Rate plans', href: ratePlans(), icon: Tags },
               ]
             : []),
         ...(can('members.view')

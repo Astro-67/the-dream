@@ -34,6 +34,9 @@ enum OrganizationPermission: string
     // Inventory
     case InventoryManage = 'inventory.manage';
 
+    // Rates
+    case RatesManage = 'rates.manage';
+
     // Front office
     case ReservationsView = 'reservations.view';
     case ReservationsManage = 'reservations.manage';
