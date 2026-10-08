@@ -18,6 +18,17 @@ class OutboxAttempt extends Model
         'response_body', 'provider_references', 'retry_at',
     ];
 
+    /** @return array<string, string> */
+    protected function casts(): array
+    {
+        return [
+            'request_body' => 'encrypted',
+            'response_body' => 'encrypted',
+            'provider_references' => 'encrypted:array',
+            'retry_at' => 'immutable_datetime',
+        ];
+    }
+
     protected static function booted(): void
     {
         static::updating(function (self $attempt): void {
@@ -26,16 +37,6 @@ class OutboxAttempt extends Model
             }
         });
         static::deleting(fn () => throw new LogicException('Outbox attempt history is immutable.'));
-    }
-
-    protected function casts(): array
-    {
-        return [
-            'request_body' => 'encrypted',
-            'response_body' => 'encrypted',
-            'provider_references' => 'array',
-            'retry_at' => 'immutable_datetime',
-        ];
     }
 
     /** @return BelongsTo<OutboxMessage, $this> */

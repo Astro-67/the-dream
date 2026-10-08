@@ -62,9 +62,7 @@ final class DeliveryEngine
         $result = null;
         try {
             $results = $this->adapters->for($snapshot->integration)->send([$snapshot]);
-            if (count($results) === 1 && $results[0] instanceof DeliveryResult) {
-                $result = $results[0];
-            }
+            $result = $this->mappedResult($results);
         } catch (Throwable) {
             // A transport exception does not prove whether the provider accepted the request.
         }
@@ -81,8 +79,8 @@ final class DeliveryEngine
             if ($attempt !== null) {
                 $attempt->outcome = $result->outcome;
                 $attempt->response_body = $result->responseBody === null ? null : json_encode($result->responseBody, JSON_THROW_ON_ERROR);
-                $attempt->provider_references = $result->references ?: null;
-                $attempt->retry_at = $result->retryAt;
+                $attempt->setAttribute('provider_references', $result->references ?: null);
+                $attempt->setAttribute('retry_at', $result->retryAt);
                 $attempt->save();
             }
 
@@ -104,6 +102,20 @@ final class DeliveryEngine
         if ($accepted) {
             $this->releaseNext($claim->stream_key, $claim->sequence);
         }
+    }
+
+    /** @param list<mixed> $results */
+    private function mappedResult(array $results): ?DeliveryResult
+    {
+        if (count($results) !== 1) {
+            return null;
+        }
+
+        $candidate = $results[0];
+
+        return is_object($candidate) && get_class($candidate) === DeliveryResult::class
+            ? $candidate
+            : null;
     }
 
     private function releaseNext(string $streamKey, int $sequence): void
