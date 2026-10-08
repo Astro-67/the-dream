@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Platform\Enums\PlatformRole;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\DeliveryAdapter;
 use App\Support\Outbox\DeliveryAdapters;
@@ -8,7 +9,6 @@ use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\DeliveryResult;
 use App\Support\Outbox\Outbox;
-use App\Support\Outbox\OutboxAttempt;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +24,7 @@ function rejectedOutboxMessage($property, string $integration = 'fake'): OutboxM
     {
         public function policy(): DeliveryPolicy
         {
-            return new DeliveryPolicy(unknownRetrySafe: false);
+            return new DeliveryPolicy;
         }
 
         public function send(array $messages): array
@@ -77,7 +77,6 @@ test('a property manager restarts unchanged retryable work and audit contains me
         '--property' => $t->a->property->id,
         '--reason' => 'Provider confirmed retry window',
     ])->assertSuccessful();
-
     Artisan::call('queue:work', ['--once' => true]);
 
     expect($message->fresh()->status)->toBe('delivered')
@@ -121,7 +120,7 @@ test('compliance operator cannot recover channel distribution work', function ()
         ->and(Activity::query()->where('event', 'outbox_recovery_refused')->where('causer_id', $operator->id)->exists())->toBeTrue();
 });
 
-test('only acceptance evidence can resolve unknown work as delivered', function () {
+test('only acceptance evidence can resolve rejected work as delivered', function () {
     $t = twoTenants();
     $message = rejectedOutboxMessage($t->a->property);
 
@@ -148,6 +147,150 @@ test('raw body cannot be read using recovery permission', function () {
     ])->assertFailed();
 
     expect($message->fresh()->payload)->toBe(['version' => 1]);
+});
+
+test('property manager cannot recover another property even in the same organization', function () {
+    $t = twoTenants();
+    $message = rejectedOutboxMessage($t->a->otherProperty);
+    $manager = $t->a->member(OrganizationRole::PropertyManager);
+
+    $this->artisan('outbox:retry', [
+        'message' => $message->id,
+        '--actor' => $manager->id,
+        '--property' => $t->a->otherProperty->id,
+        '--reason' => 'Attempt unassigned property recovery',
+    ])->assertFailed();
+
+    expect($message->fresh()->status)->toBe('rejected')
+        ->and(Activity::query()->where('event', 'outbox_recovery_refused')->where('causer_id', $manager->id)->exists())->toBeTrue();
+});
+
+test('compliance operator can restart ZAN and VFMS but not channel distribution', function (string $integration) {
+    $t = twoTenants();
+    $operator = platformStaff(PlatformRole::ComplianceOperator);
+    $adapter = new class implements DeliveryAdapter
+    {
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(unknownRetrySafe: true);
+        }
+
+        public function send(array $messages): array
+        {
+            return [new DeliveryResult('unknown')];
+        }
+    };
+    app(DeliveryAdapters::class)->register($integration, $adapter);
+    $message = inTenant($t->a->property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
+        $integration, (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', ['version' => 1], 'stable-key',
+    )));
+    inTenant($t->a->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    $this->artisan('outbox:retry', [
+        'message' => $message->id,
+        '--actor' => $operator->id,
+        '--property' => $t->a->property->id,
+        '--reason' => 'Verified provider retry contract',
+    ])->assertSuccessful();
+
+    expect($message->fresh()->status)->toBe('retryable');
+})->with(['zan', 'vfms']);
+
+test('recovery refuses unknown work without safe retry and refuses confirmed rejection', function () {
+    $t = twoTenants();
+    $unknownAdapter = new class implements DeliveryAdapter
+    {
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(unknownRetrySafe: false);
+        }
+
+        public function send(array $messages): array
+        {
+            return [new DeliveryResult('unknown')];
+        }
+    };
+    app(DeliveryAdapters::class)->register('unknown-test', $unknownAdapter);
+    $unknown = inTenant($t->a->property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
+        'unknown-test', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', ['version' => 1], 'unknown-key',
+    )));
+    inTenant($t->a->property, fn () => app(DeliveryEngine::class)->deliver($unknown->id));
+    $this->artisan('outbox:retry', [
+        'message' => $unknown->id,
+        '--actor' => $t->a->owner->id,
+        '--property' => $t->a->property->id,
+        '--reason' => 'Unverified replay must be refused',
+    ])->assertFailed();
+
+    $rejected = rejectedOutboxMessage($t->a->property);
+    expect($rejected->fresh()->status)->toBe('rejected');
+    $this->artisan('outbox:retry', [
+        'message' => $rejected->id,
+        '--actor' => $t->a->owner->id,
+        '--property' => $t->a->property->id,
+        '--reason' => 'Confirmed rejection is correction only',
+    ])->assertFailed();
+
+    expect($unknown->fresh()->status)->toBe('unknown')
+        ->and($rejected->fresh()->status)->toBe('rejected');
+});
+
+test('acceptance evidence resolves unknown work and releases its ordered successor', function () {
+    $t = twoTenants();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy;
+        }
+
+        public function send(array $messages): array
+        {
+            return [new DeliveryResult('unknown')];
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    [$message, $successor] = inTenant($t->a->property, fn () => DB::transaction(function () {
+        $outbox = app(Outbox::class);
+        $subject = (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'];
+
+        return [
+            $outbox->record('fake', $subject, 'changed', ['version' => 1], 'first'),
+            $outbox->record('fake', $subject, 'changed', ['version' => 2], 'second'),
+        ];
+    }));
+    inTenant($t->a->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    inTenant($t->a->property, fn () => app(DeliveryEngine::class)->deliver($successor->id));
+    expect($successor->fresh()->status)->toBe('blocked');
+
+    $this->artisan('outbox:confirm-accepted', [
+        'message' => $message->id,
+        '--actor' => $t->a->owner->id,
+        '--property' => $t->a->property->id,
+        '--reason' => 'Provider console confirms receipt',
+        '--evidence' => 'case-2026-1842',
+    ])->assertSuccessful();
+
+    expect($message->fresh()->status)->toBe('delivered')
+        ->and($successor->fresh()->status)->toBe('pending')
+        ->and($message->fresh()->attempt_count)->toBe(1);
+});
+
+test('separately granted raw body permission permits audited access without copying the payload into audit', function () {
+    $t = twoTenants();
+    $message = rejectedOutboxMessage($t->a->property);
+    $owner = $t->a->owner;
+    inTenant($t->a->property, fn () => $owner->givePermissionTo(OrganizationPermission::OutboxRawRead->value));
+
+    $this->artisan('outbox:show-body', [
+        'message' => $message->id,
+        '--actor' => $owner->id,
+        '--property' => $t->a->property->id,
+        '--reason' => 'Authorized payload inspection',
+    ])->assertSuccessful()->expectsOutputToContain('"version":1');
+
+    $audit = Activity::query()->where('event', 'outbox_body_read')->latest('id')->first();
+    expect($audit?->getExtraProperty('payload_hash'))->toBe(hash('sha256', json_encode(['version' => 1])))
+        ->and(json_encode($audit?->properties))->not->toContain('version');
 });
 
 test('recovery refuses an active attempt', function () {

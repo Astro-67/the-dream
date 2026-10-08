@@ -91,9 +91,13 @@ final class OutboxRecovery
         if ($property === null) {
             throw new RuntimeException('The property does not exist.');
         }
+        $context = TenantContext::forProperty($property);
+        $message = Tenancy::within($context, fn () => OutboxMessage::query()->whereKey($messageId)->first());
         try {
-            return Tenancy::within(TenantContext::forProperty($property), function () use ($actor, $property, $messageId, $operation, $raw): mixed {
-                $message = OutboxMessage::query()->whereKey($messageId)->firstOrFail();
+            if ($message === null) {
+                throw new RuntimeException('Outbox message not found in the requested property.');
+            }
+            return Tenancy::within($context, function () use ($actor, $property, $message, $operation, $raw): mixed {
                 if ($raw) {
                     if (! $actor->can('outbox.raw.read')) {
                         throw new RuntimeException('Raw outbox access is not authorized.');
@@ -105,15 +109,14 @@ final class OutboxRecovery
                 return $operation($message);
             });
         } catch (\Throwable $failure) {
-            try {
-                Tenancy::within(TenantContext::forProperty($property), function () use ($actor, $messageId, $refusedEvent, $reason): void {
-                    $message = OutboxMessage::query()->whereKey($messageId)->first();
-                    if ($message !== null) {
+            if ($message !== null) {
+                try {
+                    Tenancy::within($context, function () use ($actor, $message, $refusedEvent, $reason): void {
                         Audit::record($actor, $refusedEvent, $message, 'Refused outbox recovery action', ['reason' => $reason, 'outcome' => 'refused']);
-                    }
-                });
-            } catch (\Throwable) {
-                // Preserve the original refusal if the audit store is unavailable.
+                    });
+                } catch (\Throwable) {
+                    // Preserve the original refusal if the audit store is unavailable.
+                }
             }
             throw $failure;
         }
