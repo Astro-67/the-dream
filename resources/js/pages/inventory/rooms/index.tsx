@@ -1,5 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
+import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,9 +42,12 @@ function DeactivateRoom({ room }: { room: RoomRow }) {
                     {...deactivate.form(room.id)}
                     options={{ preserveScroll: true }}
                 >
-                    {({ processing }) => (
+                    {({ processing, errors }) => (
                         <>
                             <PropertyIntent />
+                            <InputError
+                                message={errors._property ?? errors.inventory}
+                            />
                             <DialogFooter className="gap-2">
                                 <DialogClose asChild>
                                     <Button variant="secondary">Keep it</Button>

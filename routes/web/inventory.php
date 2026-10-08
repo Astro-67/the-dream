@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Web\Inventory\OutOfServiceController;
 use App\Http\Controllers\Web\Inventory\RoomController;
 use App\Http\Controllers\Web\Inventory\RoomTypeController;
 use Illuminate\Support\Facades\Route;
@@ -18,4 +19,7 @@ Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(func
     Route::put('rooms/{room}', [RoomController::class, 'update'])->name('rooms.update');
     Route::put('rooms/{room}/room-type', [RoomController::class, 'move'])->name('rooms.move');
     Route::post('rooms/{room}/deactivate', [RoomController::class, 'deactivate'])->name('rooms.deactivate');
+
+    Route::post('rooms/{room}/out-of-service', [OutOfServiceController::class, 'store'])->name('out-of-service.store');
+    Route::put('out-of-service/{period}', [OutOfServiceController::class, 'update'])->name('out-of-service.update');
 });
