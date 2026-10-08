@@ -8,7 +8,6 @@ use App\Support\Outbox\DeliveryResult;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     config(['queue.default' => 'database']);
@@ -50,6 +49,7 @@ test('a second worker cannot claim a latest-only key while the first is in fligh
             $second = latestConcurrencyRecord($property, 'availability-two', 'same-state', 2);
             inTenant($property, fn () => app(DeliveryEngine::class)->deliver($second->id));
         }
+
         return [new DeliveryResult('accepted')];
     });
     $first = latestConcurrencyRecord($property, 'availability-one', 'same-state', 1);
@@ -61,7 +61,7 @@ test('a second worker cannot claim a latest-only key while the first is in fligh
         ->and($second->fresh()->status)->toBe('pending');
 });
 
- test('a second worker can deliver after the in-flight message completes', function () {
+test('a second worker can deliver after the in-flight message completes', function () {
     [, , $property] = organizationWithOwner();
     $calls = [];
     $second = null;
@@ -70,6 +70,7 @@ test('a second worker cannot claim a latest-only key while the first is in fligh
         if (count($calls) === 1) {
             $second = latestConcurrencyRecord($property, 'availability-two', 'same-state', 2);
         }
+
         return [new DeliveryResult('accepted')];
     });
     $first = latestConcurrencyRecord($property, 'availability-one', 'same-state', 1);
@@ -92,6 +93,7 @@ test('latest-only pending update is not replaced after another worker has claime
         if ($second === null) {
             $second = latestConcurrencyRecord($property, 'availability-two', 'same-state', 2);
         }
+
         return [new DeliveryResult('accepted')];
     });
     $first = latestConcurrencyRecord($property, 'availability-one', 'same-state', 1);
@@ -113,11 +115,12 @@ test('latest-only lock table coordinates coalesce updates', function () {
         ->and($second->fresh()->status)->toBe('pending');
 });
 
- test('latest-only claim will not take another sending or unknown message for the key', function () {
+test('latest-only claim will not take another sending or unknown message for the key', function () {
     [, , $property] = organizationWithOwner();
     $calls = [];
     registerConcurrencyAdapter(function (array $messages) use (&$calls): array {
         $calls[] = $messages[0]->payload['version'];
+
         return [new DeliveryResult($messages[0]->payload['version'] === 1 ? 'unknown' : 'accepted')];
     });
     $first = latestConcurrencyRecord($property, 'availability-one', 'same-state', 1);
@@ -129,7 +132,7 @@ test('latest-only lock table coordinates coalesce updates', function () {
     expect($calls)->toBe([1])->and($second->fresh()->status)->toBe('pending');
 });
 
- test('delivery claim checks prevent concurrent in-flight sends for a shared latest-only key', function () {
+test('delivery claim checks prevent concurrent in-flight sends for a shared latest-only key', function () {
     [, , $property] = organizationWithOwner();
     $calls = [];
     $second = null;
@@ -138,6 +141,7 @@ test('latest-only lock table coordinates coalesce updates', function () {
         if (count($calls) === 1) {
             $second = latestConcurrencyRecord($property, 'availability-two', 'same-state', 2);
         }
+
         return [new DeliveryResult('accepted')];
     });
     $first = latestConcurrencyRecord($property, 'availability-one', 'same-state', 1);
@@ -147,4 +151,3 @@ test('latest-only lock table coordinates coalesce updates', function () {
 
     expect($calls)->toBe([1, 2]);
 });
-

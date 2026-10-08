@@ -52,10 +52,10 @@ final class Outbox
             throw new LogicException('Outbox messages cannot be recorded for an archived property.');
         }
 
-        $adapter = app(DeliveryAdapters::class)->for($integration);
-        $policy = $adapter->policy();
+        $adapters = app(DeliveryAdapters::class);
+        $policy = $adapters->registered($integration) ? $adapters->for($integration)->policy() : null;
         $coalesceKeyHash = null;
-        if ($policy->latestOnly()) {
+        if ($policy?->latestOnly()) {
             $derivedKey = $policy->coalesceKeyFor($payload);
             if ($coalesceKey !== null && $coalesceKey !== $derivedKey) {
                 throw new LogicException('Latest-only outbox messages require matching integration coalesce key.');
@@ -74,7 +74,7 @@ final class Outbox
                 ->whereNull('claim_token')
                 ->update(['status' => 'superseded', 'updated_at' => now()]);
         } elseif ($coalesceKey !== null) {
-            throw new LogicException('Ordered outbox messages cannot declare a coalesce key.');
+            throw new LogicException('Only latest-only outbox messages from a registered adapter can declare a coalesce key.');
         }
 
         $streamKey = hash('sha256', json_encode([$context->organizationId, $context->propertyId, $integration, $subjectType, $subjectId], JSON_THROW_ON_ERROR));

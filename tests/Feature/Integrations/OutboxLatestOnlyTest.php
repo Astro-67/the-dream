@@ -148,11 +148,11 @@ test('latest-only coalesce keys are isolated by organization and property', func
         ->and(inTenant($propertyB, fn () => OutboxMessage::query()->find($alphaOlder->id)))->toBeNull();
 });
 
- test('latest-only policy requires an explicit callable key', function () {
+test('latest-only policy requires an explicit callable key', function () {
     expect(fn () => new DeliveryPolicy(ordering: 'latest-only'))->toThrow(InvalidArgumentException::class);
 });
 
- test('latest-only key hashing scopes identical keys by organization, property, and integration', function () {
+test('latest-only key hashing scopes identical keys by organization, property, and integration', function () {
     $policy = new DeliveryPolicy(ordering: 'latest-only', coalesceKey: fn (array $payload): string => $payload['state_key']);
 
     expect($policy->keyHash('org-a', 'prop-a', 'channel-a', 'rates'))
@@ -162,5 +162,3 @@ test('latest-only coalesce keys are isolated by organization and property', func
         ->and($policy->keyHash('org-a', 'prop-a', 'channel-a', 'rates'))
         ->not->toBe($policy->keyHash('org-a', 'prop-a', 'channel-b', 'rates'));
 });
-
-

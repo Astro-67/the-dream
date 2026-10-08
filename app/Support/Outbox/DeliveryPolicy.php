@@ -62,5 +62,4 @@ final readonly class DeliveryPolicy
     {
         return hash('sha256', json_encode([$organizationId, $propertyId, $integration, $key], JSON_THROW_ON_ERROR));
     }
-
 }
