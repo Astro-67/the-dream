@@ -60,3 +60,18 @@ test('tenant screens colour status with --status-* tokens, not the raw palette (
 
     expect($hits)->toBeEmpty("Use a --status-* token from resources/css/app.css:\n".implode("\n", $hits));
 });
+
+test('tests leave the RefreshDatabase transaction alone (MySQL commits it)', function () {
+    // DB::commit() ends RefreshDatabase's transaction and forces migrate:fresh before every later test;
+    // plain CREATE TABLE commits implicitly on MySQL. Use DB::transaction() and CREATE TEMPORARY TABLE.
+    $hits = sourceMatches('tests', '.php', '/DB::(commit|beginTransaction|rollBack)\s*\(|CREATE\s+TABLE/i', ['tests/Unit/CodingRulesTest.php']);
+
+    expect($hits)->toBeEmpty("Use DB::transaction() and CREATE TEMPORARY TABLE in tests:\n".implode("\n", $hits));
+});
+
+test('each console command name is registered once', function () {
+    preg_match_all("/Artisan::command\\(\\s*'([^\\s']+)/", file_get_contents(dirname(__DIR__, 2).'/routes/console.php'), $matches);
+    $duplicates = array_keys(array_filter(array_count_values($matches[1]), fn (int $count) => $count > 1));
+
+    expect($duplicates)->toBeEmpty('The later registration silently replaces the earlier one: '.implode(', ', $duplicates));
+});

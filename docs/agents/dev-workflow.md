@@ -8,7 +8,7 @@ Run all of these before reporting work done:
 
 | Check                          | Command                                        |
 | ------------------------------ | ---------------------------------------------- |
-| Pest (SQLite, in memory)       | `php artisan test`                             |
+| Pest (SQLite, in memory)       | `php artisan test --compact`                   |
 | Pest on MySQL 8, as CI runs it | `composer test:mysql`                          |
 | Pint                           | `vendor/bin/pint --test`                       |
 | Larastan                       | `vendor/bin/phpstan analyse --memory-limit=1G` |
@@ -28,7 +28,7 @@ Run `php artisan migrate` after pulling. Wayfinder reads the **live** schema whe
 
 A fresh worktree has no `vendor/`, `node_modules/`, `.env` or build output.
 
-1. Copy `.env` from the main checkout.
+1. `cp .env.example .env && php artisan key:generate`. The main checkout's `.env` holds real credentials; leave it there.
 2. `composer install` and `bun install --frozen-lockfile`. Copy `vendor/` rather than symlinking it: a symlinked `vendor/` autoloads the main checkout's `app/`, so tests run the wrong code.
 3. Build against a disposable SQLite file, never the shared dev database:
 
@@ -39,6 +39,8 @@ A fresh worktree has no `vendor/`, `node_modules/`, `.env` or build output.
     ```
 
 `.scratch/` is gitignored; keep shared agent notes there too, so they survive a session restart.
+
+Build before running the full Pest suite: without the Vite manifest every page test fails with `ViteManifestNotFoundException`.
 
 ## Gotchas
 
