@@ -21,8 +21,11 @@ class MoveRoom
 
         return DB::transaction(function () use ($actor, $room, $roomType) {
             $old = ['room_type_id' => $room->room_type_id];
+            $types = RoomType::query()->whereKey([$room->room_type_id, $roomType->id])
+                ->orderBy('id')->lockForUpdate()->get();
             $room->roomType()->associate($roomType);
             $room->save();
+            $types->each(fn (RoomType $type) => app(RecalculateInventory::class)->handle($type));
 
             Audit::record($actor, 'moved', $room, 'Room moved to another room type', [
                 'old' => $old,
