@@ -2,13 +2,13 @@
 
 use App\Support\Outbox\DeliveryAdapter;
 use App\Support\Outbox\DeliveryAdapters;
+use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\DeliveryResult;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxAttempt;
 use App\Support\Outbox\OutboxMessage;
 use App\Support\Outbox\OutboxSweeper;
-use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 
@@ -96,14 +96,14 @@ test('unsafe unknown outcomes hold while safe contracts retry the unchanged payl
     $message = inTenant($property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
         'fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', ['v' => 1], 'key',
     )));
-    inTenant($property, fn () => app(\App\Support\Outbox\DeliveryEngine::class)->deliver($message->id));
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
     $message->refresh();
 
     if ($safe) {
         expect($message->fresh()->status)->toBe('unknown');
         Carbon\Carbon::setTestNow(now()->addMinutes(3));
         expect(app(OutboxSweeper::class)->sweep())->toBe(1);
-        inTenant($property, fn () => app(\App\Support\Outbox\DeliveryEngine::class)->deliver($message->id));
+        inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
         Carbon\Carbon::setTestNow();
     } else {
         expect(app(OutboxSweeper::class)->sweep())->toBe(0);
@@ -124,7 +124,7 @@ test('stale claim results cannot overwrite a newer claim outcome', function () {
 
         public function policy(): DeliveryPolicy
         {
-            return new DeliveryPolicy();
+            return new DeliveryPolicy;
         }
 
         public function send(array $messages): array
@@ -144,7 +144,7 @@ test('stale claim results cannot overwrite a newer claim outcome', function () {
         'fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', ['v' => 1], 'key',
     )));
 
-    inTenant($property, fn () => app(\App\Support\Outbox\DeliveryEngine::class)->deliver($message->id));
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
 
     expect($message->fresh()->status)->toBe('unknown')
         ->and($message->fresh()->claim_token)->toBe(str_repeat('b', 64))
@@ -170,7 +170,7 @@ test('retry ceiling exhausts without changing confirmed rejection semantics', fu
         'fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', ['v' => 1], 'key',
     )));
 
-    inTenant($property, fn () => app(\App\Support\Outbox\DeliveryEngine::class)->deliver($message->id));
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
     expect($message->fresh()->status)->toBe('exhausted')
         ->and($message->fresh()->attempt_count)->toBe(1);
 });

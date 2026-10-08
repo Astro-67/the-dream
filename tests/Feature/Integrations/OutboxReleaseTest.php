@@ -3,6 +3,7 @@
 use App\Support\Outbox\DeliveryAdapter;
 use App\Support\Outbox\DeliveryAdapters;
 use App\Support\Outbox\DeliveryEngine;
+use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\DeliveryResult;
 use App\Support\Outbox\Outbox;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,10 @@ test('a successor blocked behind an accepted predecessor is released for deliver
     {
         public array $sent = [];
 
-        public function policy(): \App\Support\Outbox\DeliveryPolicy { return new \App\Support\Outbox\DeliveryPolicy(); }
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy;
+        }
 
         public function send(array $messages): array
         {

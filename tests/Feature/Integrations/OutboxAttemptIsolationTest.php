@@ -3,6 +3,7 @@
 use App\Support\Outbox\DeliveryAdapter;
 use App\Support\Outbox\DeliveryAdapters;
 use App\Support\Outbox\DeliveryEngine;
+use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\DeliveryResult;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxAttempt;
@@ -14,9 +15,9 @@ test('outbox attempt history is scoped to its property', function () {
     [, , $propertyB] = organizationWithOwner(['organization_name' => 'Bravo']);
     $adapter = new class implements DeliveryAdapter
     {
-        public function policy(): \App\Support\Outbox\DeliveryPolicy
+        public function policy(): DeliveryPolicy
         {
-            return new \App\Support\Outbox\DeliveryPolicy();
+            return new DeliveryPolicy;
         }
 
         public function send(array $messages): array

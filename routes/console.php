@@ -1,9 +1,9 @@
 <?php
 
+use App\Support\Outbox\OutboxSweeper;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
-use App\Support\Outbox\OutboxSweeper;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

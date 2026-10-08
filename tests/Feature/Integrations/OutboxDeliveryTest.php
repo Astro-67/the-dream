@@ -8,6 +8,7 @@ use App\Support\Outbox\DeliveryResult;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxAttempt;
 use App\Support\Outbox\OutboxMessage;
+use App\Support\Outbox\OutboxSweeper;
 use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
@@ -24,7 +25,7 @@ test('a fake adapter delivers outside the claim transaction and records encrypte
 
         public function policy(): DeliveryPolicy
         {
-            return new DeliveryPolicy();
+            return new DeliveryPolicy;
         }
 
         public function send(array $messages): array
@@ -63,7 +64,10 @@ test('retryable delivery preserves message identity and waits until its retry ti
     {
         public array $payloads = [];
 
-        public function policy(): \App\Support\Outbox\DeliveryPolicy { return new \App\Support\Outbox\DeliveryPolicy(maxAttempts: 3); }
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(maxAttempts: 3);
+        }
 
         public function send(array $messages): array
         {
@@ -84,7 +88,10 @@ test('retryable delivery preserves message identity and waits until its retry ti
         ->and($adapter->payloads)->toBe([['version' => 1]]);
 
     $message->setAttribute('next_attempt_at', now()->subSecond())->save();
-    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    expect(app(OutboxSweeper::class)->sweep())->toBe(1);
+    $message->refresh();
+    $dispatchToken = $message->dispatch_claim_token;
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id, $dispatchToken));
     expect($message->fresh()->status)->toBe('delivered')
         ->and($message->fresh()->attempt_count)->toBe(2)
         ->and($adapter->payloads)->toBe([['version' => 1], ['version' => 1]]);
@@ -96,7 +103,10 @@ test('rejected, retryable and unknown results never mark a message delivered', f
     {
         public function __construct(private string $outcome) {}
 
-        public function policy(): DeliveryPolicy { return new DeliveryPolicy(); }
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy;
+        }
 
         public function send(array $messages): array
         {
@@ -121,7 +131,10 @@ test('only one ordered message in a stream is sent, and successors wait for acce
     {
         public array $calls = [];
 
-        public function policy(): DeliveryPolicy { return new DeliveryPolicy(); }
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy;
+        }
 
         public function send(array $messages): array
         {
@@ -157,7 +170,10 @@ test('unmappable adapter results become unknown outcomes', function (mixed $resu
     {
         public function __construct(private mixed $results) {}
 
-        public function policy(): DeliveryPolicy { return new DeliveryPolicy(); }
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy;
+        }
 
         public function send(array $messages): array
         {

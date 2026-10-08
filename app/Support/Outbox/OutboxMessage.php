@@ -23,6 +23,7 @@ class OutboxMessage extends Model
             'payload' => 'encrypted:array',
             'provider_references' => 'array',
             'claim_expires_at' => 'immutable_datetime',
+            'dispatch_claim_expires_at' => 'immutable_datetime',
             'next_attempt_at' => 'immutable_datetime',
             'delivered_at' => 'immutable_datetime',
         ];

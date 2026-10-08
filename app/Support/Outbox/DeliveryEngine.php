@@ -4,6 +4,7 @@ namespace App\Support\Outbox;
 
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Throwable;
@@ -12,22 +13,30 @@ final class DeliveryEngine
 {
     public function __construct(private DeliveryAdapters $adapters) {}
 
-    public function deliver(string $messageId): void
+    public function deliver(string $messageId, ?string $dispatchClaimToken = null): void
     {
         $claimToken = bin2hex(random_bytes(32));
-        $claim = DB::transaction(function () use ($messageId, $claimToken): ?OutboxMessage {
+        $claim = DB::transaction(function () use ($messageId, $claimToken, $dispatchClaimToken): ?OutboxMessage {
             $message = OutboxMessage::query()->whereKey($messageId)->lockForUpdate()->first();
             if ($message === null) {
                 return null;
+            }
+            if ($dispatchClaimToken !== null) {
+                if ($message->dispatch_claim_token !== $dispatchClaimToken) {
+                    return null;
+                }
+                $message->dispatch_claim_token = null;
+                $message->dispatch_claim_expires_at = null;
+                $message->save();
             }
 
             $adapter = $this->adapters->for($message->integration);
             $policy = $adapter->policy();
             $dueRetry = $message->status === 'retryable'
-                && ($message->next_attempt_at === null || $message->next_attempt_at->isPast());
+                && ($message->next_attempt_at === null || CarbonImmutable::parse($message->next_attempt_at)->isPast());
             $safeUnknownRetry = $message->status === 'unknown'
                 && $policy->unknownRetrySafe
-                && ($message->next_attempt_at === null || $message->next_attempt_at->isPast());
+                && ($message->next_attempt_at === null || CarbonImmutable::parse($message->next_attempt_at)->isPast());
             if (! in_array($message->status, ['pending'], true) && ! $dueRetry && ! $safeUnknownRetry) {
                 return null;
             }
@@ -37,7 +46,6 @@ final class DeliveryEngine
 
                 return null;
             }
-
 
             $predecessor = OutboxMessage::query()
                 ->where('stream_key', $message->stream_key)
@@ -121,6 +129,8 @@ final class DeliveryEngine
             $current->delivered_at = $result->outcome === 'accepted' ? now() : null;
             $current->claim_token = null;
             $current->claim_expires_at = null;
+            $current->dispatch_claim_token = null;
+            $current->dispatch_claim_expires_at = null;
             $current->save();
 
             return $result->outcome === 'accepted';

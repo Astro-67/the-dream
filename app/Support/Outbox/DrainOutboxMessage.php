@@ -16,10 +16,10 @@ final class DrainOutboxMessage implements ShouldQueue, TenantAware
     use Queueable;
     use SerializesModels;
 
-    public function __construct(public readonly string $messageId) {}
+    public function __construct(public readonly string $messageId, public readonly ?string $dispatchClaimToken = null) {}
 
     public function handle(DeliveryEngine $engine): void
     {
-        $engine->deliver($this->messageId);
+        $engine->deliver($this->messageId, $this->dispatchClaimToken);
     }
 }
