@@ -113,7 +113,7 @@ test('a deactivated room leaves the active list but stays visible, and deactivat
         ->has('rooms', 0)
         ->has('deactivatedRooms', 1)
         ->where('deactivatedRooms.0.number', '101'));
-    $this->get(route('room-types.index'))->assertInertia(fn (Assert $page) => $page->where('roomTypes.0.activeRooms', 0));
+    $this->get(route('room-types.index'))->assertInertia(fn (Assert $page) => $page->where('roomTypes.0.sellableToday', 0));
 
     expect(Activity::query()->where('event', 'deactivated')->sole()->description)->toBe('Room deactivated');
 });
@@ -149,3 +149,14 @@ test('front desk and auditors see rooms but cannot change them', function (Organ
     $after = inTenant($t->a->property, fn () => Room::query()->sole());
     expect($after->only(['number', 'room_type_id', 'deactivated_at']))->toBe(['number' => '101', 'room_type_id' => $deluxe->id, 'deactivated_at' => null]);
 })->with([OrganizationRole::FrontDesk, OrganizationRole::Auditor]);
+
+test('the room types page shows each type\'s sellable count for today', function () {
+    $t = twoTenants();
+    $type = roomTypeIn($t->a->property, $t->a->owner);
+    roomIn($t->a->property, $t->a->owner, $type);
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
+        ->post(route('rooms.store'), InventoryForm::room($type->id, ['number' => '102', '_property' => $t->a->property->id]));
+
+    $this->get(route('room-types.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('roomTypes.0.sellableToday', 2));
+});

@@ -11,7 +11,7 @@ type RoomTypeRow = {
     maxAdults: number;
     maxChildren: number;
     maxOccupancy: number;
-    activeRooms: number;
+    sellableToday: number;
 };
 
 export default function RoomTypesIndex({
@@ -74,7 +74,7 @@ export default function RoomTypesIndex({
                                         Max guests
                                     </th>
                                     <th className="h-10 px-4 text-right font-medium">
-                                        Active rooms
+                                        Sellable today
                                     </th>
                                     {canManage && (
                                         <th className="h-10 px-4">
@@ -110,7 +110,7 @@ export default function RoomTypesIndex({
                                             {roomType.maxOccupancy}
                                         </td>
                                         <td className="px-4 py-2 text-right tabular-nums">
-                                            {roomType.activeRooms}
+                                            {roomType.sellableToday}
                                         </td>
                                         {canManage && (
                                             <td className="px-4 py-2">

@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Web\Inventory;
 
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Actions\UpdateRoomType;
+use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\RoomType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\RoomTypeRequest;
 use App\Models\User;
+use App\Support\Tenancy\Tenancy;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -26,10 +29,13 @@ class RoomTypeController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        $today = CarbonImmutable::now(Tenancy::property()?->timezone)->toDateString();
+
         return Inertia::render('inventory/room-types/index', [
             'canManage' => $user->can('create', RoomType::class),
             'roomTypes' => RoomType::query()
-                ->withCount(['rooms' => fn ($query) => $query->whereNull('deactivated_at')])
+                ->addSelect(['sellable_today' => InventoryRecord::query()->select('sellable_count')
+                    ->whereColumn('room_type_id', 'room_types.id')->whereDate('date', $today)])
                 ->orderBy('code')
                 ->get()
                 ->map(fn (RoomType $roomType) => [
@@ -40,7 +46,7 @@ class RoomTypeController extends Controller
                     'maxAdults' => $roomType->max_adults,
                     'maxChildren' => $roomType->max_children,
                     'maxOccupancy' => $roomType->max_occupancy,
-                    'activeRooms' => $roomType->getAttribute('rooms_count'),
+                    'sellableToday' => (int) $roomType->getAttribute('sellable_today'),
                 ]),
         ]);
     }
