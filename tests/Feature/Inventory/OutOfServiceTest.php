@@ -9,6 +9,7 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Property;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\InventoryForm;
 
@@ -162,6 +163,28 @@ test('the daily extension reports a refused room type and still extends every ot
 
     expect(sellableOn($t->b->property, $fine, ['2027-10-09']))->toBe(['2027-10-09' => 2])
         ->and(sellableOn($t->a->property, $stranded, ['2026-10-20']))->toBe(['2026-10-20' => 2]);
+});
+
+test('the room page lists its current and upcoming out-of-service periods', function () {
+    $t = twoTenants();
+    [, $room] = twoRoomsIn($t->a->property);
+    inTenant($t->a->property, function () use ($room) {
+        app(TakeRoomOutOfService::class)->handle(null, $room, ['starts_on' => '2026-10-20', 'returns_on' => '2026-10-22', 'reason' => 'Repainting']);
+        app(TakeRoomOutOfService::class)->handle(null, $room, ['starts_on' => '2026-10-08', 'returns_on' => '2026-10-10', 'reason' => 'Leaking shower']);
+        $room->outOfServicePeriods()->create(['starts_on' => '2026-10-01', 'returns_on' => '2026-10-03', 'reason' => 'Ended']);
+    });
+
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
+        ->get(route('rooms.edit', $room))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('today', '2026-10-08')
+            ->has('outOfService', 2)
+            ->where('outOfService.0.startsOn', '2026-10-08')
+            ->where('outOfService.0.returnsOn', '2026-10-10')
+            ->where('outOfService.0.reason', 'Leaking shower')
+            ->where('outOfService.0.started', true)
+            ->where('outOfService.1.reason', 'Repainting')
+            ->where('outOfService.1.started', false));
 });
 
 test('front desk and auditors cannot take rooms out of service or change periods', function (OrganizationRole $role) {

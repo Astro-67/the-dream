@@ -6,11 +6,14 @@ use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\DeactivateRoom;
 use App\Domains\Inventory\Actions\MoveRoom;
 use App\Domains\Inventory\Actions\UpdateRoom;
+use App\Domains\Inventory\Models\OutOfServicePeriod;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\RoomRequest;
 use App\Models\User;
+use App\Support\Tenancy\Tenancy;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -70,9 +73,21 @@ class RoomController extends Controller
     {
         Gate::authorize('update', $room);
 
+        $today = CarbonImmutable::now(Tenancy::property()?->timezone)->toDateString();
+
         return Inertia::render('inventory/rooms/edit', [
             'room' => $room->only(['id', 'number', 'floor', 'room_type_id']),
             'roomTypes' => $this->roomTypeOptions(),
+            'today' => $today,
+            // Current and upcoming only; ended periods stay in the audit trail.
+            'outOfService' => $room->outOfServicePeriods()->whereDate('returns_on', '>', $today)->orderBy('starts_on')->get()
+                ->map(fn (OutOfServicePeriod $period) => [
+                    'id' => $period->id,
+                    'startsOn' => $period->starts_on->toDateString(),
+                    'returnsOn' => $period->returns_on->toDateString(),
+                    'reason' => $period->reason,
+                    'started' => $period->starts_on->toDateString() <= $today,
+                ])->values(),
         ]);
     }
 
