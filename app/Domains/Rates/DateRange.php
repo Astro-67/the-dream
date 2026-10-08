@@ -8,7 +8,10 @@ use InvalidArgumentException;
 /** Inclusive calendar dates, filtered by ISO weekdays (Monday = 1, Sunday = 7). */
 final class DateRange
 {
-    /** @param list<int> $weekdays @return list<string> */
+    /**
+     * @param  list<int>  $weekdays
+     * @return list<string>
+     */
     public static function dates(string $from, string $to, array $weekdays = [1, 2, 3, 4, 5, 6, 7]): array
     {
         $start = CarbonImmutable::createFromFormat('!Y-m-d', $from);

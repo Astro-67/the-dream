@@ -34,7 +34,7 @@ class RatePrice extends Model
     /**
      * Stored as a plain Y-m-d, so date strings match it on every database (SQLite would add a time).
      *
-     * @return Attribute<never, string>
+     * @return Attribute<CarbonImmutable, mixed>
      */
     protected function date(): Attribute
     {
