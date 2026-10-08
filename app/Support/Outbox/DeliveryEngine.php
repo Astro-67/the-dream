@@ -112,13 +112,33 @@ final class DeliveryEngine
         }
         $mapped = $this->mapBatchResults($results, $claims);
         foreach ($claims as $index => $claim) {
-            $this->finish($claim, $mapped[$index], false);
+            $this->finish($claim, $mapped[$index]);
         }
     }
 
     public function deliver(string $messageId, ?string $dispatchClaimToken = null): void
     {
-        $this->deliverOne($messageId, $dispatchClaimToken, true);
+        $message = OutboxMessage::query()->whereKey($messageId)->first();
+        if ($message === null) {
+            return;
+        }
+        $policy = $this->adapters->for($message->integration)->policy();
+        if ($policy->maxBatchSize === 1 || $dispatchClaimToken !== null) {
+            // ponytail: sweeper-dispatched jobs carry a dispatch token and go singly; batch them too if sweeps grow large.
+            $this->deliverOne($messageId, $dispatchClaimToken, true);
+
+            return;
+        }
+        $siblings = OutboxMessage::query()
+            ->where('integration', $message->integration)
+            ->whereKeyNot($messageId)
+            ->where('status', 'pending')
+            ->whereNull('claim_token')
+            ->orderBy('created_at')
+            ->limit($policy->maxBatchSize - 1)
+            ->pluck('id')
+            ->all();
+        $this->deliverBatch([$messageId, ...$siblings]);
     }
 
     private function deliverOne(string $messageId, ?string $dispatchClaimToken, bool $releaseSuccessor): void

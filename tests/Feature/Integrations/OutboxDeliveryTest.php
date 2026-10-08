@@ -260,6 +260,73 @@ test('a refused quota leaves single messages pending without burning allowance',
         ->and(DB::table('outbox_quotas')->where('identity_hash', hash('sha256', 'full-quota'))->value('used'))->toBe(1);
 });
 
+test('normal dispatch delivers independent streams of a batching adapter in one provider request', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public array $calls = [];
+
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(batchGrouping: ['property_id'], maxBatchSize: 10);
+        }
+
+        public function send(array $messages): array
+        {
+            $this->calls[] = $messages;
+
+            return array_map(fn ($message) => new DeliveryResult('accepted', messageId: $message->id), $messages);
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+
+    $messages = inTenant($property, fn () => DB::transaction(fn () => [
+        app(Outbox::class)->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', [], 'one'),
+        app(Outbox::class)->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'changed', [], 'two'),
+        app(Outbox::class)->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000002'], 'changed', [], 'three'),
+    ]));
+    // Run the first queued job; it should carry its eligible siblings in one batch.
+    $job = DB::table('jobs')->orderBy('id')->first();
+    $command = unserialize(json_decode($job->payload, true, flags: JSON_THROW_ON_ERROR)['data']['command']);
+    inTenant($property, fn () => app()->call([$command, 'handle']));
+
+    expect($adapter->calls)->toHaveCount(1)
+        ->and($adapter->calls[0])->toHaveCount(3)
+        ->and(array_map(fn ($message) => $message->fresh()->status, $messages))->toBe(['delivered', 'delivered', 'delivered']);
+});
+
+test('a batch acceptance releases a blocked successor', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(batchGrouping: ['property_id'], maxBatchSize: 10);
+        }
+
+        public function send(array $messages): array
+        {
+            return array_map(fn ($message) => new DeliveryResult('accepted', messageId: $message->id), $messages);
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    config(['queue.default' => 'database']);
+    [$first, $successor] = inTenant($property, fn () => DB::transaction(function () {
+        $subject = (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'];
+
+        return [
+            app(Outbox::class)->record('fake', $subject, 'changed', ['version' => 1], 'one'),
+            app(Outbox::class)->record('fake', $subject, 'changed', ['version' => 2], 'two'),
+        ];
+    }));
+    $successor->forceFill(['status' => 'blocked'])->save();
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliverBatch([$first->id]));
+
+    expect($first->fresh()->status)->toBe('delivered')
+        ->and($successor->fresh()->status)->toBe('pending');
+});
+
 test('a refused quota returns a claimed retry to its retryable state', function () {
     [, , $property] = organizationWithOwner();
     $adapter = new class implements DeliveryAdapter
