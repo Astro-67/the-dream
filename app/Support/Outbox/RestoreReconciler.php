@@ -86,7 +86,7 @@ final class RestoreReconciler
                 $report = $reports[$message->id];
                 $adapter = app(DeliveryAdapters::class)->for($report['integration']);
                 if ($report['outcome'] === 'accepted') {
-                    if (! in_array($message->status, ['unknown', 'exhausted_unknown', 'sending', 'retryable', 'pending', 'blocked'], true)) {
+                    if (! in_array($message->status, ['unknown', 'exhausted_unknown', 'sending', 'retryable', 'pending'], true)) {
                         throw new LogicException('Reconciliation cannot rewrite a confirmed rejected or exhausted operation as accepted.');
                     }
                     $message->status = 'delivered';

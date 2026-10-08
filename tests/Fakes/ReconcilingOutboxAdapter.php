@@ -22,9 +22,11 @@ final class ReconcilingOutboxAdapter implements DeliveryAdapter, RestoreIdentity
 
     public bool $completeIdentityCoverage = true;
 
+    public function __construct(private readonly DeliveryPolicy $deliveryPolicy = new DeliveryPolicy) {}
+
     public function policy(): DeliveryPolicy
     {
-        return new DeliveryPolicy;
+        return $this->deliveryPolicy;
     }
 
     public function send(array $messages): array

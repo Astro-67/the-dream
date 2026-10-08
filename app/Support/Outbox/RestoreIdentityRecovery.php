@@ -23,6 +23,17 @@ final class RestoreIdentityRecovery
                 throw new LogicException("Integration [{$integration}] has no complete verified identity-boundary contract.");
             }
             $boundaries = $adapter->identityBoundaries($property);
+            $reportedStreams = array_map(static fn (array $boundary): string => $boundary['subject_type'].'|'.$boundary['subject_id'], $boundaries);
+            $restoredStreams = OutboxMessage::query()
+                ->where('property_id', $property->id)
+                ->where('integration', $integration)
+                ->distinct()
+                ->get(['subject_type', 'subject_id'])
+                ->map(static fn (OutboxMessage $message): string => $message->subject_type.'|'.$message->subject_id)
+                ->all();
+            if (array_diff($restoredStreams, $reportedStreams) !== []) {
+                throw new LogicException("Integration [{$integration}] omitted a restored stream identity boundary.");
+            }
             foreach ($boundaries as $boundary) {
                 $reports[] = [$integration, $boundary];
             }

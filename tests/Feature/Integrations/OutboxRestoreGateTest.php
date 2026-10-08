@@ -4,8 +4,10 @@ use App\Support\Outbox\DeliveryAdapter;
 use App\Support\Outbox\DeliveryAdapters;
 use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\DeliveryPolicy;
+use App\Support\Outbox\DeliveryResult;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxMessage;
+use App\Support\Outbox\OutboxSweeper;
 use App\Support\Outbox\RestoreGate;
 use App\Support\Outbox\RestoreIdentityRecovery;
 use App\Support\Outbox\RestoreReconciler;
@@ -20,6 +22,39 @@ use Tests\Fakes\ReplayOnlyOutboxAdapter;
 
 beforeEach(function () {
     config(['queue.default' => 'database']);
+});
+
+test('persistent gate blocks delivery engine and sweeper after process restart', function () {
+    $tenant = twoTenants();
+    $actor = $tenant->a->owner;
+    $adapter = new class implements DeliveryAdapter
+    {
+        public int $sends = 0;
+
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy;
+        }
+
+        public function send(array $messages): array
+        {
+            $this->sends++;
+
+            return array_map(static fn (OutboxMessage $message): DeliveryResult => new DeliveryResult('accepted'), $messages);
+        }
+    };
+    app(DeliveryAdapters::class)->register('restart-gated', $adapter);
+    $message = inTenant($tenant->a->property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
+        'restart-gated', (object) ['type' => 'reservation', 'id' => 'restart-stream'], 'changed', ['version' => 1], 'restart-key',
+    )));
+    Artisan::call('outbox:gate', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Process restart after restore']);
+    app()->forgetInstance(RestoreGate::class);
+    inTenant($tenant->a->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+
+    expect(DB::table('outbox_messages')->where('id', $message->id)->value('status'))->toBe('pending')
+        ->and($adapter->sends)->toBe(0);
+    expect(app(OutboxSweeper::class)->sweep())->toBe(0)
+        ->and($adapter->sends)->toBe(0);
 });
 
 test('restore gate command persistently blocks integration writes and delivery', function () {
@@ -68,6 +103,101 @@ test('reconciliation-capable adapter resolves accepted work and identity evidenc
     Tenancy::within(TenantContext::forProperty($tenant->a->property), fn () => app(RestoreIdentityRecovery::class)->recover($tenant->a->property, $actor, 'Verified fake identity boundary'));
     expect(Artisan::call('outbox:resume', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Both checks completed']))->toBe(0);
     expect(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeFalse();
+});
+
+test('reconciliation preserves unknown rejected exhausted and blocked outcomes on ordered and latest-only streams', function () {
+    $tenant = twoTenants();
+    $actor = $tenant->a->owner;
+    $orderedAdapter = new ReconcilingOutboxAdapter;
+    $policy = new DeliveryPolicy(ordering: 'latest-only', coalesceKey: fn (array $payload): string => (string) $payload['key']);
+    $latestAdapter = new ReconcilingOutboxAdapter($policy);
+    app(DeliveryAdapters::class)->register('ordered-restore', $orderedAdapter);
+    app(DeliveryAdapters::class)->register('latest-restore', $latestAdapter);
+    $messages = inTenant($tenant->a->property, fn () => DB::transaction(function () {
+        $outbox = app(Outbox::class);
+        $orderedSubject = (object) ['type' => 'reservation', 'id' => 'ordered-stream'];
+        $latestSubject = (object) ['type' => 'channel-state', 'id' => 'latest-stream'];
+
+        return [
+            $outbox->record('ordered-restore', $orderedSubject, 'changed', ['version' => 1], 'ordered-1'),
+            $outbox->record('ordered-restore', $orderedSubject, 'changed', ['version' => 2], 'ordered-2'),
+            $outbox->record('latest-restore', $latestSubject, 'changed', ['version' => 1, 'key' => 'daily-rate'], 'latest-1'),
+            $outbox->record('latest-restore', $latestSubject, 'changed', ['version' => 2, 'key' => 'daily-rate'], 'latest-2'),
+        ];
+    }));
+    foreach ($messages as $index => $message) {
+        $message->status = ['unknown', 'blocked', 'rejected', 'exhausted'][$index];
+        $message->save();
+        $adapter = $index < 2 ? $orderedAdapter : $latestAdapter;
+        $adapter->reports[$message->id] = ['outcome' => 'unresolved', 'evidence' => 'No safe outcome established'];
+    }
+    Artisan::call('outbox:gate', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Restore exercise']);
+
+    $report = app(RestoreReconciler::class)->reconcile($actor, $tenant->a->property, 'Provider history remains uncertain');
+
+    expect($report['unresolved'])->toBe(4);
+    foreach ($messages as $index => $message) {
+        expect($message->fresh()->status)->toBe(['unknown', 'blocked', 'rejected', 'exhausted'][$index]);
+    }
+    expect(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeTrue();
+});
+
+test('a provider cannot report a blocked ordered successor accepted', function () {
+    $tenant = twoTenants();
+    $actor = $tenant->a->owner;
+    $adapter = new ReconcilingOutboxAdapter;
+    app(DeliveryAdapters::class)->register('ordered-restore', $adapter);
+    $message = inTenant($tenant->a->property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
+        'ordered-restore', (object) ['type' => 'reservation', 'id' => 'blocked-stream'], 'changed', ['version' => 2], 'blocked-key',
+    )));
+    $message->status = 'blocked';
+    $message->save();
+    $adapter->reports[$message->id] = ['outcome' => 'accepted', 'evidence' => 'Impossible blocked acceptance'];
+    Artisan::call('outbox:gate', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Restore exercise']);
+
+    expect(fn () => app(RestoreReconciler::class)->reconcile($actor, $tenant->a->property, 'Check ordering'))
+        ->toThrow(LogicException::class, 'cannot rewrite');
+    expect($message->fresh()->status)->toBe('blocked')
+        ->and(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeTrue();
+});
+
+test('identity recovery refuses to mark safe when a restored stream has no provider high-water floor', function () {
+    $tenant = twoTenants();
+    $actor = $tenant->a->owner;
+    $adapter = new ReconcilingOutboxAdapter;
+    app(DeliveryAdapters::class)->register('vfms-restore', $adapter);
+    inTenant($tenant->a->property, fn () => DB::transaction(function () {
+        app(Outbox::class)->record('vfms-restore', (object) ['type' => 'stay', 'id' => 'covered'], 'changed', ['version' => 1], 'covered-key');
+        app(Outbox::class)->record('vfms-restore', (object) ['type' => 'stay', 'id' => 'omitted'], 'changed', ['version' => 1], 'omitted-key');
+    }));
+    Artisan::call('outbox:gate', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Restore exercise']);
+    expect(app(RestoreReconciler::class)->reconcile($actor, $tenant->a->property, 'No unresolved local messages')['unresolved'])->toBe(0);
+    $adapter->identityFloors = [['subject_type' => 'stay', 'subject_id' => 'covered', 'highest_sequence' => 1, 'evidence' => 'Only one provider stream reported']];
+
+    expect(fn () => Tenancy::within(TenantContext::forProperty($tenant->a->property), fn () => app(RestoreIdentityRecovery::class)->recover($tenant->a->property, $actor, 'Incomplete stream identity report')))
+        ->toThrow(LogicException::class, 'omitted a restored stream');
+
+    expect(DB::table('outbox_restore_gates')->where('property_id', $tenant->a->property->id)->value('identity_safe_at'))->toBeNull();
+    expect(Artisan::call('outbox:resume', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Incomplete floor coverage']))->toBe(1)
+        ->and(DB::table('outbox_restore_gates')->where('property_id', $tenant->a->property->id)->value('is_closed'))->toBe(1);
+});
+
+test('identity recovery requires complete coverage from each registered integration', function () {
+    $tenant = twoTenants();
+    $actor = $tenant->a->owner;
+    $vfms = new ReconcilingOutboxAdapter;
+    $zan = new ReconcilingOutboxAdapter;
+    $zan->completeIdentityCoverage = false;
+    app(DeliveryAdapters::class)->register('vfms-restore', $vfms);
+    app(DeliveryAdapters::class)->register('zan-restore', $zan);
+    Artisan::call('outbox:gate', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Restore exercise']);
+    expect(app(RestoreReconciler::class)->reconcile($actor, $tenant->a->property, 'No outbox records'))->toBe(['reconciled' => 0, 'unresolved' => 0]);
+    $vfms->identityFloors = [['subject_type' => 'stay', 'subject_id' => 'a', 'highest_sequence' => 0, 'evidence' => 'VFMS complete ledger']];
+    $zan->identityFloors = [['subject_type' => 'reservation', 'subject_id' => 'b', 'highest_sequence' => 0, 'evidence' => 'ZAN ledger']];
+
+    expect(fn () => Tenancy::within(TenantContext::forProperty($tenant->a->property), fn () => app(RestoreIdentityRecovery::class)->recover($tenant->a->property, $actor, 'Recover all identity contracts')))
+        ->toThrow(LogicException::class, 'complete verified identity-boundary contract');
+    expect(DB::table('outbox_identity_floors')->where('property_id', $tenant->a->property->id)->count())->toBe(0);
 });
 
 test('identity recovery rejects a provider that cannot attest complete scope coverage', function () {
@@ -175,6 +305,23 @@ test('replay-only adapters require a verified contract and do not imply delivery
         ->and(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeTrue();
     inTenant($tenant->a->property, fn () => app(DeliveryEngine::class)->deliver($work->id));
     expect($work->fresh()->status)->toBe('pending');
+});
+
+test('replay-only provider without identity contract cannot reopen after safe replay', function () {
+    $tenant = twoTenants();
+    $actor = $tenant->a->owner;
+    $adapter = new ReplayOnlyOutboxAdapter;
+    app(DeliveryAdapters::class)->register('replay-only', $adapter);
+    $work = inTenant($tenant->a->property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
+        'replay-only', (object) ['type' => 'reservation', 'id' => 'replay-only-stream'], 'changed', ['version' => 1], 'replay-key',
+    )));
+    $work->status = 'unknown';
+    $work->save();
+    Artisan::call('outbox:gate', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Restore exercise']);
+    expect(app(RestoreReconciler::class)->reconcile($actor, $tenant->a->property, 'Safe unchanged replay contract')['unresolved'])->toBe(0);
+    expect(Artisan::call('outbox:resume', ['--actor' => $actor->id, '--property' => $tenant->a->property->id, '--reason' => 'Identity coverage absent']))->toBe(1)
+        ->and($work->fresh()->status)->toBe('pending')
+        ->and(app(RestoreGate::class)->isClosed($tenant->a->property->id))->toBeTrue();
 });
 
 test('optional reconciliation does not make a replay-only provider safe', function () {
