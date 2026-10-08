@@ -169,16 +169,34 @@ final class DeliveryEngine
 
                 return null;
             }
-            $predecessor = OutboxMessage::query()
-                ->where('stream_key', $message->stream_key)
-                ->where('sequence', '<', $message->sequence)
-                ->where('status', '!=', 'delivered')
-                ->exists();
-            if ($predecessor) {
-                $message->status = 'blocked';
-                $message->save();
 
-                return null;
+            if ($policy->latestOnly()) {
+                $keyHeld = OutboxMessage::query()
+                    ->where('organization_id', $message->organization_id)
+                    ->where('property_id', $message->property_id)
+                    ->where('integration', $message->integration)
+                    ->where('coalesce_key_hash', $message->coalesce_key_hash)
+                    ->whereKeyNot($message->id)
+                    ->whereIn('status', ['sending', 'unknown', 'exhausted_unknown'])
+                    ->exists();
+                if ($keyHeld) {
+                    return null;
+                }
+            } else {
+                $predecessor = OutboxMessage::query()
+                    ->where('stream_key', $message->stream_key)
+                    ->where('sequence', '<', $message->sequence)
+                    ->where('status', '!=', 'delivered')
+                    ->exists();
+                if ($predecessor) {
+                    $message->status = 'blocked';
+                    $message->save();
+
+                    return null;
+                }
+            }
+            if ($policy->latestOnly() && $message->coalesce_key_hash === null) {
+                throw new \LogicException('Latest-only messages require a coalesce key.');
             }
 
             $message->status = 'sending';

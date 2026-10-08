@@ -18,6 +18,11 @@ final class DeliveryAdapters
         $this->adapters[$integration] = $adapter;
     }
 
+    public function registered(string $integration): bool
+    {
+        return isset($this->adapters[$integration]);
+    }
+
     public function for(string $integration): DeliveryAdapter
     {
         return $this->adapters[$integration] ?? throw new LogicException("No outbox adapter is registered for [{$integration}].");
