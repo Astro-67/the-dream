@@ -2,6 +2,7 @@
 
 use App\Domains\Tenancy\Actions\ArchiveProperty;
 use App\Domains\Tenancy\Exceptions\ArchiveRefused;
+use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxMessage;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
@@ -42,7 +43,7 @@ test('unresolved outbox messages prevent archiving without exposing payloads or 
         ->and(Activity::query()->where('event', 'archive_refused')->where('subject_id', $t->a->otherProperty->id)->first()?->description)->not->toContain('guest name');
 })->with(['pending', 'sending', 'rejected', 'exhausted', 'blocked', 'unknown', 'exhausted_unknown']);
 
-test('delivered outbox messages do not prevent archiving and unrelated archival restrictions remain effective', function () {
+test('delivered outbox messages do not prevent archiving', function () {
     $t = twoTenants();
     outboxMessageForArchiveGuard($t->a->otherProperty, 'delivered');
 
@@ -51,13 +52,38 @@ test('delivered outbox messages do not prevent archiving and unrelated archival 
     expect($t->a->otherProperty->fresh()->archived_at)->not->toBeNull();
 });
 
-test('recording an unresolved message and archiving are serialized by the property lock', function () {
+test('the archive guard preserves the existing last active property restriction', function () {
+    $t = twoTenants();
+    outboxMessageForArchiveGuard($t->a->property, 'delivered');
+    inTenant($t->a->organization, fn () => app(ArchiveProperty::class)->handle($t->a->owner, $t->a->otherProperty));
+
+    expect(fn () => inTenant($t->a->organization, fn () => app(ArchiveProperty::class)->handle($t->a->owner, $t->a->property)))
+        ->toThrow(ArchiveRefused::class, 'only active property');
+});
+
+test('recording for an archived property is refused without creating a message', function () {
+    $t = twoTenants();
+    $property = $t->a->otherProperty;
+    inTenant($t->a->organization, fn () => app(ArchiveProperty::class)->handle($t->a->owner, $property));
+
+    expect(fn () => inTenant($property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
+        'fake',
+        (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'],
+        'changed',
+        ['version' => 1],
+        'operation',
+    ))))->toThrow(LogicException::class, 'archived property');
+
+    expect(Tenancy::within(TenantContext::forProperty($property), fn () => OutboxMessage::query()->count()))->toBe(0);
+});
+
+test('recording and archival use a shared property-row lock', function () {
     $t = twoTenants();
     $property = $t->a->otherProperty;
 
     inTenant($property, fn () => DB::transaction(function () use ($property) {
-        $locked = $property->newQuery()->whereKey($property->id)->lockForUpdate()->firstOrFail();
-        outboxMessageForArchiveGuard($locked, 'pending');
+        $property->newQuery()->whereKey($property->id)->lockForUpdate()->firstOrFail();
+        outboxMessageForArchiveGuard($property, 'pending');
     }));
 
     expect(fn () => inTenant($t->a->organization, fn () => app(ArchiveProperty::class)->handle($t->a->owner, $property)))
