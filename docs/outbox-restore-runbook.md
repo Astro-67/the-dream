@@ -15,9 +15,9 @@ This runbook is for a post-restore outage. It does not certify a real provider c
 2. Restore the database and point the application at it while all application processes remain stopped.
 3. Close the property gate with an authorized actor, property ID and specific reason:
 
-   ```sh
-   php artisan outbox:gate --actor='<USER_ULID>' --property='<PROPERTY_ULID>' --reason='Post-restore recovery; restore point <UTC timestamp>'
-   ```
+    ```sh
+    php artisan outbox:gate --actor='<USER_ULID>' --property='<PROPERTY_ULID>' --reason='Post-restore recovery; restore point <UTC timestamp>'
+    ```
 
 4. Verify the gate row exists with `is_closed = 1`. Do not infer safety from maintenance mode, queue state, pending-row count, or restored sequence maxima.
 
