@@ -148,7 +148,10 @@ export default function Restrictions({
                                 </div>
                                 <div className="flex flex-wrap gap-6">
                                     {[
-                                        ['closed_to_arrival', 'Closed to arrival'],
+                                        [
+                                            'closed_to_arrival',
+                                            'Closed to arrival',
+                                        ],
                                         ['stop_sell', 'Stop-sell'],
                                     ].map(([name, label]) => (
                                         <label
@@ -170,8 +173,7 @@ export default function Restrictions({
                                     replaced.
                                 </p>
                                 <Button type="submit" className="self-end">
-                                    {processing && <Spinner />}Save
-                                    restrictions
+                                    {processing && <Spinner />}Save restrictions
                                 </Button>
                             </>
                         )}
