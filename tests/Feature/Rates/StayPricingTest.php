@@ -83,3 +83,55 @@ test('a later edit replaces the price of the dates it covers', function () use (
 
     expect(array_column($quote('2026-12-10', '2026-12-12', 2, 0)['nights'], 'base_price'))->toBe([10000, 15000]);
 });
+
+// Plans derived from a base plan priced with $prices; each [kind, adjustment] makes one.
+// Returns a quote function taking the derived plan's index and an optional later base price edit.
+function derivedPlans(array $prices, array $adjustments): Closure
+{
+    $t = twoTenants();
+    [$base, $room, $derived] = inTenant($t->a->property, function () use ($t, $prices, $adjustments) {
+        $room = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType(['max_adults' => 3, 'max_occupancy' => 4]));
+        $base = app(CreateRatePlan::class)->handle($t->a->owner, ['name' => 'Breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id]]);
+        foreach ($prices as $price) {
+            app(SetRatePrices::class)->handle($t->a->owner, $base, ['room_type_id' => $room->id, 'weekdays' => [1, 2, 3, 4, 5, 6, 7], ...$price]);
+        }
+        $derived = array_map(fn (array $adjustment) => app(CreateRatePlan::class)->handle($t->a->owner, [
+            'name' => 'Derived', 'code' => 'D'.$adjustment[1], 'base_rate_plan_id' => $base->id, 'adjustment_kind' => $adjustment[0], 'adjustment' => $adjustment[1],
+        ]), $adjustments);
+
+        return [$base, $room, $derived];
+    });
+
+    return fn (int $plan, string $arrival, string $departure, int $adults, int $children, ?array $edit = null): array => inTenant($t->a->property, function () use ($t, $base, $room, $derived, $plan, $arrival, $departure, $adults, $children, $edit) {
+        if ($edit !== null) {
+            app(SetRatePrices::class)->handle($t->a->owner, $base, ['room_type_id' => $room->id, 'weekdays' => [1, 2, 3, 4, 5, 6, 7], ...$edit]);
+        }
+        $quote = app(StayPricing::class)->quote($derived[$plan]->fresh(), $room, $arrival, $departure, $adults, $children);
+
+        return ['nights' => $quote->nights, 'total' => $quote->total(), 'unquotable' => $quote->unquotable, 'currency' => $quote->currency->value];
+    });
+}
+
+test('a percentage plan adjusts every base amount, rounding half up to minor units', function () {
+    // 10% off: 12345 is 11110.5, 2500 is 2250, 1005 is 904.5.
+    $quote = derivedPlans([['from' => '2026-12-01', 'to' => '2026-12-31', 'base_price' => 12345, 'extra_adult' => 2500, 'extra_child' => 1005]], [['percent', -10]])(0, '2026-12-10', '2026-12-11', 3, 1);
+
+    expect($quote['currency'])->toBe('USD')
+        ->and($quote['nights'])->toBe([['date' => '2026-12-10', 'base_price' => 11111, 'extra_adults' => 2250, 'extra_children' => 905, 'total' => 14266]]);
+});
+
+test('an amount plan shifts the base occupancy price, keeps the extras and never goes below zero', function () {
+    $quote = derivedPlans([['from' => '2026-12-01', 'to' => '2026-12-31', 'base_price' => 10000, 'extra_adult' => 2500, 'extra_child' => 1000]], [['amount', 1500], ['amount', -20000]]);
+
+    expect($quote(0, '2026-12-10', '2026-12-11', 3, 1)['nights'][0])->toBe(['date' => '2026-12-10', 'base_price' => 11500, 'extra_adults' => 2500, 'extra_children' => 1000, 'total' => 15000])
+        ->and($quote(1, '2026-12-10', '2026-12-11', 2, 0)['total'])->toBe(0);
+});
+
+test('a change to the base plan\'s prices flows through to its derived plan', function () {
+    $quote = derivedPlans([['from' => '2026-12-01', 'to' => '2026-12-31', 'base_price' => 10000, 'extra_adult' => 0, 'extra_child' => 0]], [['percent', -10]]);
+    $edit = ['from' => '2026-12-10', 'to' => '2026-12-10', 'base_price' => 20000, 'extra_adult' => 0, 'extra_child' => 0];
+
+    expect($quote(0, '2026-12-10', '2026-12-11', 2, 0)['total'])->toBe(9000)
+        ->and($quote(0, '2026-12-10', '2026-12-11', 2, 0, $edit)['total'])->toBe(18000)
+        ->and($quote(0, '2026-12-31', '2027-01-02', 2, 0)['unquotable'])->toBe('No price is set for 2027-01-01.');
+});

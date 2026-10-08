@@ -47,7 +47,7 @@ class StayPricing
     }
 
     /**
-     * The plan's own stored prices, keyed by date. A derived plan (#40) computes these from its base plan here.
+     * The plan's prices, keyed by date: stored ones, or for a derived plan its base plan's, adjusted.
      *
      * @param  list<string>  $dates
      * @return Collection<string, RatePrice>
@@ -55,10 +55,11 @@ class StayPricing
     private function storedPrices(RatePlan $plan, RoomType $roomType, array $dates): Collection
     {
         return RatePrice::query()
-            ->where('rate_plan_id', $plan->id)
+            ->where('rate_plan_id', $plan->base_rate_plan_id ?? $plan->id)
             ->where('room_type_id', $roomType->id)
             ->whereBetween('date', [$dates[0], end($dates)])
             ->get()
-            ->keyBy(fn (RatePrice $price) => $price->date->format('Y-m-d'));
+            ->keyBy(fn (RatePrice $price) => $price->date->format('Y-m-d'))
+            ->map($plan->priced(...));
     }
 }
