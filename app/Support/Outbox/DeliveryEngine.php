@@ -13,10 +13,133 @@ final class DeliveryEngine
 {
     public function __construct(private DeliveryAdapters $adapters) {}
 
+    /** @param list<string> $messageIds */
+    public function deliverBatch(array $messageIds): void
+    {
+        $messageIds = array_values(array_unique($messageIds));
+        while ($messageIds !== []) {
+            $first = OutboxMessage::query()->whereKey($messageIds[0])->first();
+            if ($first === null) {
+                array_shift($messageIds);
+
+                continue;
+            }
+            $policy = $this->adapters->for($first->integration)->policy();
+            $group = [$messageIds[0]];
+            $remainder = [];
+            foreach (array_slice($messageIds, 1) as $id) {
+                $message = OutboxMessage::query()->whereKey($id)->first();
+                if ($message !== null && $message->integration === $first->integration && $this->matchesGrouping($first, $message, $policy->batchGrouping) && count($group) < $policy->maxBatchSize) {
+                    $group[] = $id;
+                } else {
+                    $remainder[] = $id;
+                }
+            }
+            $messageIds = $remainder;
+            $this->deliverGroup($group, $policy);
+        }
+    }
+
+    /** @param list<string> $fields */
+    private function matchesGrouping(OutboxMessage $first, OutboxMessage $message, array $fields): bool
+    {
+        foreach ($fields as $field) {
+            if (! in_array($field, ['organization_id', 'property_id', 'integration'], true)
+                || $first->getAttribute($field) !== $message->getAttribute($field)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @param list<string> $messageIds */
+    private function deliverGroup(array $messageIds, DeliveryPolicy $policy): void
+    {
+        if ($policy->quotaIdentity !== null && ! app(QuotaLimiter::class)->acquire($policy)) {
+            return;
+        }
+        if ($policy->maxBatchSize === 1) {
+            foreach ($messageIds as $messageId) {
+                $this->deliverOne($messageId, null, false);
+            }
+
+            return;
+        }
+        $claims = [];
+        $reservedStreams = [];
+        foreach ($messageIds as $messageId) {
+            $candidate = OutboxMessage::query()->whereKey($messageId)->first();
+            if ($candidate === null || isset($reservedStreams[$candidate->stream_key])) {
+                continue;
+            }
+            $claim = $this->claim($messageId);
+            if ($claim !== null) {
+                $reservedStreams[$claim->stream_key] = true;
+                $claims[] = $claim;
+            }
+        }
+        if ($claims === []) {
+            return;
+        }
+
+        $results = [];
+        try {
+            $snapshots = array_map(static function (OutboxMessage $claim): OutboxMessage {
+                $snapshot = $claim->replicate();
+                $snapshot->id = $claim->id;
+                $snapshot->organization_id = $claim->organization_id;
+                $snapshot->property_id = $claim->property_id;
+
+                return $snapshot;
+            }, $claims);
+            $results = $this->adapters->for($claims[0]->integration)->send($snapshots);
+        } catch (Throwable) {
+            // A transport exception does not establish provider acceptance.
+        }
+        $mapped = $this->mapBatchResults($results, $claims);
+        foreach ($claims as $index => $claim) {
+            $this->finish($claim, $mapped[$index], false);
+        }
+    }
+
     public function deliver(string $messageId, ?string $dispatchClaimToken = null): void
     {
+        $this->deliverOne($messageId, $dispatchClaimToken, true);
+    }
+
+    private function deliverOne(string $messageId, ?string $dispatchClaimToken, bool $releaseSuccessor): void
+    {
+        $message = OutboxMessage::query()->whereKey($messageId)->first();
+        if ($message === null) {
+            return;
+        }
+        $policy = $this->adapters->for($message->integration)->policy();
+        if ($policy->quotaIdentity !== null && ! app(QuotaLimiter::class)->acquire($policy)) {
+            return;
+        }
+        $claim = $this->claim($messageId, $dispatchClaimToken);
+        if ($claim === null) {
+            return;
+        }
+        $result = null;
+        try {
+            $snapshot = $claim->replicate();
+            $snapshot->id = $claim->id;
+            $snapshot->organization_id = $claim->organization_id;
+            $snapshot->property_id = $claim->property_id;
+            $result = $this->mappedResult($this->adapters->for($claim->integration)->send([$snapshot]));
+        } catch (Throwable) {
+            // A transport exception does not prove whether the provider accepted the request.
+        }
+        $this->finish($claim, $result ?? new DeliveryResult('unknown'));
+    }
+
+    private function claim(string $messageId, ?string $dispatchClaimToken = null): ?OutboxMessage
+    {
         $claimToken = bin2hex(random_bytes(32));
-        $claim = DB::transaction(function () use ($messageId, $claimToken, $dispatchClaimToken): ?OutboxMessage {
+
+        return DB::transaction(function () use ($messageId, $claimToken, $dispatchClaimToken): ?OutboxMessage {
             $message = OutboxMessage::query()->whereKey($messageId)->lockForUpdate()->first();
             if ($message === null) {
                 return null;
@@ -37,7 +160,7 @@ final class DeliveryEngine
             $safeUnknownRetry = $message->status === 'unknown'
                 && $policy->unknownRetrySafe
                 && ($message->next_attempt_at === null || CarbonImmutable::parse($message->next_attempt_at)->isPast());
-            if (! in_array($message->status, ['pending'], true) && ! $dueRetry && ! $safeUnknownRetry) {
+            if ($message->status !== 'pending' && ! $dueRetry && ! $safeUnknownRetry) {
                 return null;
             }
             if ($message->attempt_count >= $policy->maxAttempts) {
@@ -92,24 +215,11 @@ final class DeliveryEngine
 
             return $message;
         });
+    }
 
-        if ($claim === null) {
-            return;
-        }
-
-        $snapshot = $claim->replicate();
-        $snapshot->id = $claim->id;
-        $snapshot->organization_id = $claim->organization_id;
-        $snapshot->property_id = $claim->property_id;
-        $result = null;
-        try {
-            $results = $this->adapters->for($snapshot->integration)->send([$snapshot]);
-            $result = $this->mappedResult($results);
-        } catch (Throwable) {
-            // A transport exception does not prove whether the provider accepted the request.
-        }
-        $result ??= new DeliveryResult('unknown');
-
+    private function finish(OutboxMessage $claim, DeliveryResult $result, bool $releaseSuccessor = true): void
+    {
+        $claimToken = $claim->claim_token;
         $accepted = DB::transaction(function () use ($claim, $claimToken, $result): bool {
             $current = OutboxMessage::query()->whereKey($claim->id)->lockForUpdate()->first();
             $attempt = OutboxAttempt::query()
@@ -117,11 +227,9 @@ final class DeliveryEngine
                 ->where('attempt_number', $claim->attempt_count)
                 ->lockForUpdate()
                 ->first();
-
             if ($current === null || $current->claim_token !== $claimToken) {
                 return false;
             }
-
             if ($attempt !== null) {
                 $attempt->outcome = $result->outcome;
                 $attempt->response_body = $result->responseBody === null ? null : json_encode($result->responseBody, JSON_THROW_ON_ERROR);
@@ -129,10 +237,8 @@ final class DeliveryEngine
                 $attempt->setAttribute('retry_at', $result->retryAt);
                 $attempt->save();
             }
-
             $policy = $this->adapters->for($current->integration)->policy();
-            $retryable = $result->outcome === 'retryable'
-                && $current->attempt_count < $policy->maxAttempts;
+            $retryable = $result->outcome === 'retryable' && $current->attempt_count < $policy->maxAttempts;
             $outcome = $result->outcome;
             if ($result->outcome === 'unknown' && $current->attempt_count >= $policy->maxAttempts) {
                 $outcome = 'exhausted_unknown';
@@ -152,10 +258,36 @@ final class DeliveryEngine
 
             return $result->outcome === 'accepted';
         });
-
-        if ($accepted) {
+        if ($accepted && $releaseSuccessor) {
             $this->releaseNext($claim->stream_key, $claim->sequence);
         }
+    }
+
+    /**
+     * @param  list<mixed>  $results
+     * @param  list<OutboxMessage>  $claims
+     * @return list<DeliveryResult>
+     */
+    private function mapBatchResults(array $results, array $claims): array
+    {
+        $unknown = array_fill(0, count($claims), new DeliveryResult('unknown'));
+        if (count($results) !== count($claims)) {
+            return $unknown;
+        }
+        $byId = [];
+        foreach ($results as $result) {
+            if (! $result instanceof DeliveryResult || $result->messageId === null || isset($byId[$result->messageId])) {
+                return $unknown;
+            }
+            $byId[$result->messageId] = $result;
+        }
+        foreach ($claims as $claim) {
+            if (! isset($byId[$claim->id])) {
+                return $unknown;
+            }
+        }
+
+        return array_map(static fn (OutboxMessage $claim) => $byId[$claim->id], $claims);
     }
 
     /** @param list<mixed> $results */
@@ -164,12 +296,14 @@ final class DeliveryEngine
         if (count($results) !== 1) {
             return null;
         }
-
         $candidate = $results[0];
 
-        return is_object($candidate) && get_class($candidate) === DeliveryResult::class
-            ? $candidate
-            : null;
+        return is_object($candidate) && get_class($candidate) === DeliveryResult::class ? $candidate : null;
+    }
+
+    public function releaseRecoveredSuccessor(string $streamKey, int $sequence): void
+    {
+        $this->releaseNext($streamKey, $sequence);
     }
 
     private function releaseNext(string $streamKey, int $sequence): void
@@ -181,11 +315,9 @@ final class DeliveryEngine
                 ->where('status', 'blocked')
                 ->lockForUpdate()
                 ->first();
-
             if ($next === null) {
                 return;
             }
-
             $hasUndeliveredPredecessor = OutboxMessage::query()
                 ->where('stream_key', $streamKey)
                 ->where('sequence', '<', $next->sequence)
@@ -194,7 +326,6 @@ final class DeliveryEngine
             if ($hasUndeliveredPredecessor) {
                 return;
             }
-
             $next->status = 'pending';
             $next->save();
             $messageId = $next->id;
@@ -206,8 +337,7 @@ final class DeliveryEngine
 
     private function dispatch(string $messageId, string $organizationId, string $propertyId): void
     {
-        $context = TenantContext::fromIds($organizationId, $propertyId);
-        Tenancy::within($context, function () use ($messageId): void {
+        Tenancy::within(TenantContext::fromIds($organizationId, $propertyId), function () use ($messageId): void {
             Queue::push(new DrainOutboxMessage($messageId));
         });
     }

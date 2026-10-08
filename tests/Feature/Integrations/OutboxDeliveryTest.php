@@ -15,6 +15,183 @@ beforeEach(function () {
     config(['queue.default' => 'database']);
 });
 
+test('independent eligible streams can be sent as one policy-sized batch', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public array $calls = [];
+
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(batchGrouping: ['property_id'], maxBatchSize: 10);
+        }
+
+        public function send(array $messages): array
+        {
+            $this->calls[] = $messages;
+
+            return array_map(fn ($message) => new DeliveryResult('accepted', messageId: $message->id), $messages);
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    [$first, $second] = inTenant($property, fn () => DB::transaction(function () {
+        $outbox = app(Outbox::class);
+
+        return [
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', ['version' => 1], 'one'),
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'changed', ['version' => 1], 'two'),
+        ];
+    }));
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliverBatch([$first->id, $second->id]));
+
+    expect($adapter->calls)->toHaveCount(1)
+        ->and($adapter->calls[0])->toHaveCount(2)
+        ->and($first->fresh()->status)->toBe('delivered')
+        ->and($second->fresh()->status)->toBe('delivered');
+});
+
+test('batches stop at the declared maximum size', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public array $calls = [];
+
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(batchGrouping: ['property_id'], maxBatchSize: 2);
+        }
+
+        public function send(array $messages): array
+        {
+            $this->calls[] = $messages;
+
+            return array_map(fn ($message) => new DeliveryResult('accepted', messageId: $message->id), $messages);
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    $messages = inTenant($property, fn () => DB::transaction(function () {
+        $outbox = app(Outbox::class);
+
+        return [
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', [], 'one'),
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'changed', [], 'two'),
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000002'], 'changed', [], 'three'),
+        ];
+    }));
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliverBatch(array_map(fn ($message) => $message->id, $messages)));
+
+    expect(array_map('count', $adapter->calls))->toBe([2, 1])
+        ->and($messages[2]->fresh()->status)->toBe('delivered');
+});
+
+test('partial results update only the identified message', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public array $calls = [];
+
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(batchGrouping: ['property_id'], maxBatchSize: 10);
+        }
+
+        public function send(array $messages): array
+        {
+            $this->calls[] = $messages;
+
+            return [
+                new DeliveryResult('accepted', messageId: $messages[1]->id),
+                new DeliveryResult('retryable', messageId: $messages[0]->id),
+            ];
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    [$first, $second] = inTenant($property, fn () => DB::transaction(function () {
+        $outbox = app(Outbox::class);
+
+        return [
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', ['version' => 1], 'one'),
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'changed', ['version' => 1], 'two'),
+        ];
+    }));
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliverBatch([$first->id, $second->id]));
+
+    expect($first->fresh()->status)->toBe('retryable')
+        ->and($second->fresh()->status)->toBe('delivered')
+        ->and($adapter->calls)->toHaveCount(1);
+});
+
+test('ambiguous batch results leave all messages unknown', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(batchGrouping: ['property_id'], maxBatchSize: 10);
+        }
+
+        public function send(array $messages): array
+        {
+            return [new DeliveryResult('accepted'), new DeliveryResult('rejected')];
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    [$first, $second] = inTenant($property, fn () => DB::transaction(function () {
+        $outbox = app(Outbox::class);
+
+        return [
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed', ['version' => 1], 'one'),
+            $outbox->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'changed', ['version' => 1], 'two'),
+        ];
+    }));
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliverBatch([$first->id, $second->id]));
+
+    expect($first->fresh()->status)->toBe('unknown')
+        ->and($second->fresh()->status)->toBe('unknown');
+});
+
+test('a batch contains no more than one message from an ordered stream', function () {
+    [, , $property] = organizationWithOwner();
+    $adapter = new class implements DeliveryAdapter
+    {
+        public array $calls = [];
+
+        public function policy(): DeliveryPolicy
+        {
+            return new DeliveryPolicy(batchGrouping: ['property_id'], maxBatchSize: 10);
+        }
+
+        public function send(array $messages): array
+        {
+            $this->calls[] = $messages;
+
+            return array_map(fn ($message) => new DeliveryResult('accepted', messageId: $message->id), $messages);
+        }
+    };
+    app(DeliveryAdapters::class)->register('fake', $adapter);
+    [$first, $successor] = inTenant($property, fn () => DB::transaction(function () {
+        $outbox = app(Outbox::class);
+        $subject = (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'];
+
+        return [
+            $outbox->record('fake', $subject, 'changed', ['version' => 1], 'one'),
+            $outbox->record('fake', $subject, 'changed', ['version' => 2], 'two'),
+        ];
+    }));
+
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliverBatch([$first->id, $successor->id]));
+
+    expect($adapter->calls)->toHaveCount(1)
+        ->and($adapter->calls[0])->toHaveCount(1)
+        ->and($first->fresh()->status)->toBe('delivered')
+        ->and($successor->fresh()->status)->toBe('pending')
+        ->and($successor->fresh()->attempt_count)->toBe(0);
+});
+
 test('a fake adapter delivers outside the claim transaction and records encrypted attempt history', function () {
     [, , $property] = organizationWithOwner();
     $adapter = new class implements DeliveryAdapter

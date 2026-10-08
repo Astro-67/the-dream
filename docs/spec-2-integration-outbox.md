@@ -2,7 +2,7 @@
 
 - **Status:** design confirmed and published, 8 October 2026; not a completed feature.
 - **Sources:** [PRD §14 M1](prd/PRD.md), [ADR 0009](adr/0009-transactional-outbox-for-integrations.md), [architecture §5](architecture.md#5-integration-messaging-the-outbox-adr-0009).
-- **Tracker:** [GitHub issue #16](https://github.com/Astro-67/the-dream/issues/16) is canonical and labeled `ready-for-agent`. “Spec 2” is a spec ordinal, not GitHub issue #2.
+- **Tracker:** [GitHub issue #16](https://github.com/Astro-67/the-dream/issues/16) is canonical and labeled `ready-for-implementation`. “Spec 2” is a spec ordinal, not GitHub issue #2.
 
 ## Problem
 
