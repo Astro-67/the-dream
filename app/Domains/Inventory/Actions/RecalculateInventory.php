@@ -93,7 +93,7 @@ class RecalculateInventory
     {
         $stranded = [];
         $sold = InventoryRecord::query()->where('room_type_id', $type->id)->where('sold_count', '>', 0)
-            ->whereDate('date', '>=', (string) array_key_first($sellable))
+            ->whereDate('date', '>=', (string) array_key_first($sellable))->whereDate('date', '<=', (string) array_key_last($sellable))
             ->orderBy('date')->get();
 
         foreach ($sold as $record) {

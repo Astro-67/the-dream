@@ -2,7 +2,9 @@
 
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
+use App\Domains\Inventory\Actions\TakeRoomOutOfService;
 use App\Domains\Inventory\Models\InventoryRecord;
+use App\Domains\Inventory\Models\OutOfServicePeriod;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -74,3 +76,86 @@ test('out-of-service periods of one room never overlap', function () {
 
     expect(inTenant($t->a->property, fn () => $room->outOfServicePeriods()->count()))->toBe(2);
 });
+
+test('taking a room out of service is refused when fewer rooms would be sellable than are sold, naming the dates', function () {
+    $t = twoTenants();
+    [$type, $room] = twoRoomsIn($t->a->property);
+    seedSold($t->a->property, $type, '2026-10-11', 2);
+    seedSold($t->a->property, $type, '2026-10-13', 2);
+
+    $this->actingAs($t->a->owner)
+        ->post(route('out-of-service.store', $room), ['_property' => $t->a->property->id, 'starts_on' => '2026-10-10', 'returns_on' => '2026-10-14', 'reason' => 'Leaking shower'])
+        ->assertSessionHasErrors(['inventory' => 'DLX would have fewer sellable rooms than are already sold on 2026-10-11, 2026-10-13.']);
+
+    expect(inTenant($t->a->property, fn () => $room->outOfServicePeriods()->count()))->toBe(0)
+        ->and(sellableOn($t->a->property, $type, ['2026-10-11']))->toBe(['2026-10-11' => 2]);
+
+    $refusal = Activity::query()->where('event', 'refused')->sole();
+    expect($refusal->description)->toBe('Room out of service refused')
+        ->and($refusal->getExtraProperty('result'))->toBe('refused');
+});
+
+test('deactivating or moving a room is refused when it would strand sold rooms', function () {
+    $t = twoTenants();
+    [$type, $room] = twoRoomsIn($t->a->property);
+    $other = inTenant($t->a->property, fn () => app(CreateRoomType::class)->handle(null, InventoryForm::roomType(['code' => 'STE'])));
+    seedSold($t->a->property, $type, '2026-10-20', 2);
+    $p = ['_property' => $t->a->property->id];
+    $this->actingAs($t->a->owner);
+
+    $this->post(route('rooms.deactivate', $room), $p)
+        ->assertSessionHasErrors(['inventory' => 'DLX would have fewer sellable rooms than are already sold on 2026-10-20.']);
+    $this->put(route('rooms.move', $room), [...$p, 'room_type_id' => $other->id])
+        ->assertSessionHasErrors(['inventory' => 'DLX would have fewer sellable rooms than are already sold on 2026-10-20.']);
+
+    expect(inTenant($t->a->property, fn () => $room->fresh()->only(['room_type_id', 'deactivated_at'])))->toBe(['room_type_id' => $type->id, 'deactivated_at' => null])
+        ->and(sellableOn($t->a->property, $type, ['2026-10-20']))->toBe(['2026-10-20' => 2])
+        ->and(Activity::query()->where('event', 'refused')->pluck('description')->all())->toBe(['Room deactivation refused', 'Room move refused']);
+});
+
+test('a property manager changes a period and ends it early, and sellable follows', function () {
+    $t = twoTenants();
+    [$type, $room] = twoRoomsIn($t->a->property);
+    $period = inTenant($t->a->property, fn () => app(TakeRoomOutOfService::class)->handle(null, $room, ['starts_on' => '2026-10-08', 'returns_on' => '2026-10-20', 'reason' => 'Renovation']));
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager));
+
+    // Started already, so the start stays; ending early means returning on an earlier date.
+    $this->put(route('out-of-service.update', $period), ['_property' => $t->a->property->id, 'starts_on' => '2026-10-09', 'returns_on' => '2026-10-10', 'reason' => 'Renovation'])
+        ->assertSessionHasErrors(['starts_on' => 'This period has started, so its start date stays.']);
+    $this->put(route('out-of-service.update', $period), ['_property' => $t->a->property->id, 'starts_on' => '2026-10-08', 'returns_on' => '2026-10-10', 'reason' => 'Renovation finished early'])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('rooms.edit', $room));
+
+    expect(sellableOn($t->a->property, $type, ['2026-10-08', '2026-10-09', '2026-10-10', '2026-10-19']))
+        ->toBe(['2026-10-08' => 1, '2026-10-09' => 1, '2026-10-10' => 2, '2026-10-19' => 2]);
+
+    $audit = Activity::query()->where('description', 'Out-of-service period changed')->sole();
+    expect($audit->getExtraProperty('old'))->toEqual(['room_id' => $room->id, 'starts_on' => '2026-10-08', 'returns_on' => '2026-10-20', 'reason' => 'Renovation'])
+        ->and($audit->getExtraProperty('attributes'))->toEqual(['room_id' => $room->id, 'starts_on' => '2026-10-08', 'returns_on' => '2026-10-10', 'reason' => 'Renovation finished early']);
+});
+
+test('lengthening a period is refused when it would strand sold rooms', function () {
+    $t = twoTenants();
+    [$type, $room] = twoRoomsIn($t->a->property);
+    $period = inTenant($t->a->property, fn () => app(TakeRoomOutOfService::class)->handle(null, $room, ['starts_on' => '2026-10-10', 'returns_on' => '2026-10-12', 'reason' => 'Repainting']));
+    seedSold($t->a->property, $type, '2026-10-12', 2);
+
+    $this->actingAs($t->a->owner)
+        ->put(route('out-of-service.update', $period), ['_property' => $t->a->property->id, 'starts_on' => '2026-10-10', 'returns_on' => '2026-10-13', 'reason' => 'Repainting'])
+        ->assertSessionHasErrors(['inventory' => 'DLX would have fewer sellable rooms than are already sold on 2026-10-12.']);
+
+    expect(inTenant($t->a->property, fn () => $period->fresh()->returns_on->toDateString()))->toBe('2026-10-12');
+});
+
+test('front desk and auditors cannot take rooms out of service or change periods', function (OrganizationRole $role) {
+    $t = twoTenants();
+    [$type, $room] = twoRoomsIn($t->a->property);
+    $period = inTenant($t->a->property, fn () => app(TakeRoomOutOfService::class)->handle(null, $room, ['starts_on' => '2026-10-10', 'returns_on' => '2026-10-12', 'reason' => 'Repainting']));
+    $form = ['_property' => $t->a->property->id, 'starts_on' => '2026-10-20', 'returns_on' => '2026-10-22', 'reason' => 'Nope'];
+
+    $this->actingAs($t->a->member($role))->post(route('out-of-service.store', $room), $form)->assertForbidden();
+    $this->put(route('out-of-service.update', $period), $form)->assertForbidden();
+
+    expect(inTenant($t->a->property, fn () => OutOfServicePeriod::query()->sole()->details()))
+        ->toBe(['room_id' => $room->id, 'starts_on' => '2026-10-10', 'returns_on' => '2026-10-12', 'reason' => 'Repainting']);
+})->with([OrganizationRole::FrontDesk, OrganizationRole::Auditor]);

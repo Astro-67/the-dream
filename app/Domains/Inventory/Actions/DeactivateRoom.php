@@ -2,6 +2,7 @@
 
 namespace App\Domains\Inventory\Actions;
 
+use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\Room;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -18,7 +19,7 @@ class DeactivateRoom
             return $room;
         }
 
-        return DB::transaction(function () use ($actor, $room) {
+        return InventoryRefused::audited($actor, $room, 'Room deactivation refused', fn () => DB::transaction(function () use ($actor, $room) {
             $type = $room->roomType()->lockForUpdate()->firstOrFail();
             $room->deactivated_at = now();
             $room->save();
@@ -30,6 +31,6 @@ class DeactivateRoom
             ]);
 
             return $room;
-        });
+        }));
     }
 }

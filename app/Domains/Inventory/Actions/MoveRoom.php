@@ -2,6 +2,7 @@
 
 namespace App\Domains\Inventory\Actions;
 
+use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Models\User;
@@ -19,7 +20,7 @@ class MoveRoom
             return $room;
         }
 
-        return DB::transaction(function () use ($actor, $room, $roomType) {
+        return InventoryRefused::audited($actor, $room, 'Room move refused', fn () => DB::transaction(function () use ($actor, $room, $roomType) {
             $old = ['room_type_id' => $room->room_type_id];
             $types = RoomType::query()->whereKey([$room->room_type_id, $roomType->id])
                 ->orderBy('id')->lockForUpdate()->get();
@@ -33,6 +34,6 @@ class MoveRoom
             ]);
 
             return $room;
-        });
+        }));
     }
 }
