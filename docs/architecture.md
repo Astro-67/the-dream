@@ -445,19 +445,19 @@ This applies only if the client rejects a VPS (ADR 0006).
 
 ## 16. Decision index
 
-| ADR                                                                    | Decision                                                         |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [0001](adr/0001-channel-manager-before-direct-booking-com.md)          | Connect to Booking.com through a channel manager first           |
-| [0002](adr/0002-zanzibar-compliance-pack-is-p0.md)                     | The Zanzibar compliance pack is P0, only for Zanzibar properties |
-| [0003](adr/0003-thedream-is-the-single-zra-pms-supplier.md)            | Thedream is the single ZRA PMS supplier                          |
-| [0004](adr/0004-thedream-never-receives-raw-card-data.md)              | Thedream never receives raw card data                            |
-| [0005](adr/0005-ota-stays-are-receipted-as-direct-in-vfms.md)          | OTA stays are receipted as DIRECT in VFMS                        |
-| [0006](adr/0006-vps-hosting-with-long-running-workers.md)              | VPS hosting with long-running workers; cPanel as fallback        |
-| [0007](adr/0007-permission-teams-are-organizations.md)                 | Permission teams are organizations                               |
-| [0008](adr/0008-tenant-scoping-by-global-scope-and-job-context.md)     | Tenant isolation by global scope and job context                 |
-| [0009](adr/0009-transactional-outbox-for-integrations.md)              | Transactional outbox for integrations                            |
-| [0010](adr/0010-integrations-are-modules-behind-interfaces.md)         | Integrations are modules behind interfaces                       |
-| [0011](adr/0011-aws-af-south-1-with-managed-mysql.md)                  | AWS af-south-1 with managed MySQL and PITR                       |
-| [0012](adr/0012-one-tenancy-entry-point-with-platform-as-a-context.md) | One Tenancy entry point, with platform as a kind of context      |
+| ADR                                                                    | Decision                                                          |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| [0001](adr/0001-channel-manager-before-direct-booking-com.md)          | Connect to Booking.com through a channel manager first            |
+| [0002](adr/0002-zanzibar-compliance-pack-is-p0.md)                     | The Zanzibar compliance pack is P0, only for Zanzibar properties  |
+| [0003](adr/0003-thedream-is-the-single-zra-pms-supplier.md)            | Thedream is the single ZRA PMS supplier                           |
+| [0004](adr/0004-thedream-never-receives-raw-card-data.md)              | Thedream never receives raw card data                             |
+| [0005](adr/0005-ota-stays-are-receipted-as-direct-in-vfms.md)          | OTA stays are receipted as DIRECT in VFMS                         |
+| [0006](adr/0006-vps-hosting-with-long-running-workers.md)              | VPS hosting with long-running workers; cPanel as fallback         |
+| [0007](adr/0007-permission-teams-are-organizations.md)                 | Permission teams are organizations                                |
+| [0008](adr/0008-tenant-scoping-by-global-scope-and-job-context.md)     | Tenant isolation by global scope and job context                  |
+| [0009](adr/0009-transactional-outbox-for-integrations.md)              | Transactional outbox for integrations                             |
+| [0010](adr/0010-integrations-are-modules-behind-interfaces.md)         | Integrations are modules behind interfaces                        |
+| [0011](adr/0011-aws-af-south-1-with-managed-mysql.md)                  | AWS af-south-1 with managed MySQL and PITR                        |
+| [0012](adr/0012-one-tenancy-entry-point-with-platform-as-a-context.md) | One Tenancy entry point, with platform as a kind of context       |
 | [0013](adr/0013-core-actions-record-lifecycle-events.md)               | Core actions record lifecycle events; integrations translate them |
-| [0014](adr/0014-jurisdiction-rules-answer-named-questions.md)          | Jurisdiction rules answer named questions in one module          |
+| [0014](adr/0014-jurisdiction-rules-answer-named-questions.md)          | Jurisdiction rules answer named questions in one module           |
