@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Inventory\Actions\RecalculateInventory;
+use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -210,4 +212,13 @@ Artisan::command('outbox:show-body {message} {--actor=} {--property=} {--reason=
     }
 })->purpose('Read an outbox payload with separate authorization');
 
+Artisan::command('inventory:extend', function (RecalculateInventory $recalculate): void {
+    $properties = Tenancy::within(TenantContext::platform('daily inventory horizon extension'), fn () => Property::query()->active()->get());
+    foreach ($properties as $property) {
+        Tenancy::within(TenantContext::forProperty($property), fn () => RoomType::query()->each($recalculate->handle(...)));
+    }
+    $this->info('Extended inventory for '.$properties->count().' properties.');
+})->purpose('Extend inventory records to the configured horizon');
+
+Schedule::command('inventory:extend')->daily()->withoutOverlapping();
 Schedule::command('outbox:sweep')->everyMinute()->withoutOverlapping();
