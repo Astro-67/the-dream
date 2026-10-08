@@ -2,7 +2,10 @@
 
 namespace App\Support\Outbox;
 
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Throwable;
 
 final class DeliveryEngine
@@ -43,16 +46,15 @@ final class DeliveryEngine
             return;
         }
 
-        // Use a detached immutable snapshot so the transport sees no claim ORM instance.
-        $message = $claim->replicate();
-        $message->id = $claim->id;
-        $message->organization_id = $claim->organization_id;
-        $message->property_id = $claim->property_id;
-        $requestBody = $message->payload;
+        $snapshot = $claim->replicate();
+        $snapshot->id = $claim->id;
+        $snapshot->organization_id = $claim->organization_id;
+        $snapshot->property_id = $claim->property_id;
+        $requestBody = $snapshot->payload;
         $result = null;
         try {
-            $results = $this->adapters->for($message->integration)->send([$message]);
-            if (count($results) === 1 && $results[0] instanceof DeliveryResult) {
+            $results = $this->adapters->for($snapshot->integration)->send([$snapshot]);
+            if (count($results) === 1) {
                 $result = $results[0];
             }
         } catch (Throwable) {
@@ -60,10 +62,10 @@ final class DeliveryEngine
         }
         $result ??= new DeliveryResult('unknown');
 
-        DB::transaction(function () use ($claim, $claimToken, $result, $requestBody): void {
+        $released = DB::transaction(function () use ($claim, $claimToken, $result, $requestBody): bool {
             $current = OutboxMessage::query()->whereKey($claim->id)->lockForUpdate()->first();
             if ($current === null || $current->claim_token !== $claimToken) {
-                return;
+                return false;
             }
 
             OutboxAttempt::query()->create([
@@ -77,12 +79,56 @@ final class DeliveryEngine
             ]);
 
             $current->status = $result->outcome === 'accepted' ? 'delivered' : $result->outcome;
-            $current->provider_references = $result->references ?: null;
-            $current->next_attempt_at = $result->outcome === 'retryable' ? ($result->retryAt ?? now()->addMinute()) : null;
+            $current->setAttribute('provider_references', $result->references ?: null);
+            $current->setAttribute('next_attempt_at', $result->outcome === 'retryable' ? ($result->retryAt ?? now()->addMinute()) : null);
             $current->delivered_at = $result->outcome === 'accepted' ? now() : null;
             $current->claim_token = null;
             $current->claim_expires_at = null;
             $current->save();
+
+            return $result->outcome === 'accepted';
+        });
+
+        if ($released) {
+            $this->releaseNext($claim->stream_key, $claim->sequence);
+        }
+    }
+
+    private function releaseNext(string $streamKey, int $sequence): void
+    {
+        DB::transaction(function () use ($streamKey, $sequence): void {
+            $next = OutboxMessage::query()
+                ->where('stream_key', $streamKey)
+                ->where('sequence', $sequence + 1)
+                ->where('status', 'blocked')
+                ->lockForUpdate()
+                ->first();
+
+            if ($next === null) {
+                return;
+            }
+
+            $hasUndeliveredPredecessor = OutboxMessage::query()
+                ->where('stream_key', $streamKey)
+                ->where('sequence', '<', $next->sequence)
+                ->where('status', '!=', 'delivered')
+                ->exists();
+            if ($hasUndeliveredPredecessor) {
+                return;
+            }
+
+            $next->status = 'pending';
+            $next->save();
+            $messageId = $next->id;
+            DB::afterCommit(fn () => $this->dispatch($messageId, $next->organization_id, $next->property_id));
+        });
+    }
+
+    private function dispatch(string $messageId, string $organizationId, string $propertyId): void
+    {
+        $context = TenantContext::fromIds($organizationId, $propertyId);
+        Tenancy::within($context, function () use ($messageId): void {
+            Queue::push(new DrainOutboxMessage($messageId));
         });
     }
 }

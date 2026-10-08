@@ -5,6 +5,7 @@ namespace App\Support\Outbox;
 use App\Support\Tenancy\BelongsToProperty;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OutboxMessage extends Model
 {
@@ -27,7 +28,8 @@ class OutboxMessage extends Model
         ];
     }
 
-    public function attempts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    /** @return HasMany<OutboxAttempt, $this> */
+    public function attempts(): HasMany
     {
         return $this->hasMany(OutboxAttempt::class);
     }

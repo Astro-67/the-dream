@@ -2,8 +2,9 @@
 
 namespace App\Support\Outbox;
 
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
-use App\Support\Tenancy\TenancyManager;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use LogicException;
@@ -28,7 +29,7 @@ final class Outbox
             throw new LogicException('Outbox messages must be recorded inside the caller transaction.');
         }
 
-        $context = app(TenancyManager::class)->current();
+        $context = Tenancy::current();
         if ($context === null || $context->isPlatform() || $context->propertyId === null) {
             throw new LogicException('Outbox messages require a property tenant context.');
         }
@@ -50,14 +51,19 @@ final class Outbox
             'subject_id' => $subjectId,
             'sequence' => $sequence,
             'stream_key' => $streamKey,
-            'idempotency_key' => $idempotencyKey.':'.$sequence,
+            'idempotency_key' => $idempotencyKey.':'.$streamKey.':'.$sequence,
             'event' => $event,
             'payload' => $payload,
         ]);
         $message->save();
 
-        $job = new DrainOutboxMessage($message->id);
-        DB::afterCommit(fn () => Queue::push($job));
+        $messageId = $message->id;
+        $tenantContext = TenantContext::fromIds($context->organizationId, $context->propertyId);
+        DB::afterCommit(function () use ($messageId, $tenantContext): void {
+            Tenancy::within($tenantContext, function () use ($messageId): void {
+                Queue::push(new DrainOutboxMessage($messageId));
+            });
+        });
 
         return $message;
     }

@@ -8,7 +8,7 @@ use InvalidArgumentException;
 final readonly class DeliveryResult
 {
     /** @param array<string, scalar|null> $references
-     *  @param array<string, mixed>|null $responseBody
+     * @param  array<string, mixed>|null  $responseBody
      */
     public function __construct(
         public string $outcome,

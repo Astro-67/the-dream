@@ -23,15 +23,12 @@ test('integration recording dispatches after commit, and a business rollback rem
         expect(OutboxMessage::query()->count())->toBe(1)
             ->and(Queue::size())->toBe(1);
 
-        try {
-            DB::transaction(function () {
-                DB::table('outbox_recording_test_subjects')->insert(['id' => '01J00000000000000000000001', 'value' => 'rolled back']);
-                app(Outbox::class)->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'reservation.changed', ['guest_count' => 3], 'reservation-2');
-                throw new RuntimeException('rollback');
-            });
-        } catch (RuntimeException $exception) {
-            expect($exception->getMessage())->toBe('rollback');
-        }
+        DB::beginTransaction();
+        DB::table('outbox_recording_test_subjects')->insert(['id' => '01J00000000000000000000001', 'value' => 'rolled back']);
+        app(Outbox::class)->record('fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000001'], 'reservation.changed', ['guest_count' => 3], 'reservation-2');
+        DB::rollBack();
+
+        expect(Queue::size())->toBe(1); // The after-commit callback was discarded.
 
         expect(DB::table('outbox_recording_test_subjects')->count())->toBe(1)
             ->and(OutboxMessage::query()->count())->toBe(1)
@@ -67,11 +64,12 @@ test('recorded messages use tenant stream identity, scoped keys and encrypted pa
         ->and($first->property_id)->toBe($property->id)
         ->and($first->sequence)->toBe(1)
         ->and($second->sequence)->toBe(2)
-        ->and($first->idempotency_key)->toBe('operation:1')
+        ->and($first->idempotency_key)->toBe('operation:'.$first->stream_key.':1')
         ->and($first->idempotency_key)->not->toBe($second->idempotency_key)
         ->and($first->stream_key)->toBe($second->stream_key)
         ->and($otherIntegration->sequence)->toBe(1)
         ->and($otherIntegration->stream_key)->not->toBe($first->stream_key)
+        ->and($otherIntegration->idempotency_key)->not->toBe($first->idempotency_key)
         ->and($first->payload)->toBe(['guest_count' => 2, 'guest_name' => 'Sensitive guest'])
         ->and(DB::table('outbox_messages')->where('id', $first->id)->value('payload'))->not->toContain('Sensitive guest');
 });

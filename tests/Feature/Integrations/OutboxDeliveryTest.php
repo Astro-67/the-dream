@@ -1,5 +1,9 @@
 <?php
 
+use App\Support\Outbox\DeliveryAdapter;
+use App\Support\Outbox\DeliveryAdapters;
+use App\Support\Outbox\DeliveryEngine;
+use App\Support\Outbox\DeliveryResult;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxAttempt;
 use App\Support\Outbox\OutboxMessage;
@@ -11,9 +15,10 @@ beforeEach(function () {
 
 test('a fake adapter delivers outside the claim transaction and records encrypted attempt history', function () {
     [, , $property] = organizationWithOwner();
-    $adapter = new class implements App\Support\Outbox\DeliveryAdapter
+    $adapter = new class implements DeliveryAdapter
     {
         public array $observed = [];
+
         public int $transactionLevel = -1;
 
         public function send(array $messages): array
@@ -21,17 +26,17 @@ test('a fake adapter delivers outside the claim transaction and records encrypte
             $this->transactionLevel = DB::transactionLevel();
             $this->observed = $messages;
 
-            return [new App\Support\Outbox\DeliveryResult('accepted', ['provider_id' => 'provider-42'], ['receipt' => 'private response'])];
+            return [new DeliveryResult('accepted', ['provider_id' => 'provider-42'], ['receipt' => 'private response'])];
         }
     };
-    app(App\Support\Outbox\DeliveryAdapters::class)->register('fake', $adapter);
+    app(DeliveryAdapters::class)->register('fake', $adapter);
     $message = inTenant($property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
         'fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed',
         ['guest_name' => 'Sensitive guest'], 'stable-key',
     )));
     $outsideTransactionLevel = DB::transactionLevel();
 
-    inTenant($property, fn () => app(App\Support\Outbox\DeliveryEngine::class)->deliver($message->id));
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
 
     $message->refresh();
     $attempt = OutboxAttempt::query()->sole();
@@ -48,22 +53,22 @@ test('a fake adapter delivers outside the claim transaction and records encrypte
 
 test('rejected, retryable and unknown results never mark a message delivered', function (string $outcome) {
     [, , $property] = organizationWithOwner();
-    $adapter = new class($outcome) implements App\Support\Outbox\DeliveryAdapter
+    $adapter = new class($outcome) implements DeliveryAdapter
     {
         public function __construct(private string $outcome) {}
 
         public function send(array $messages): array
         {
-            return [new App\Support\Outbox\DeliveryResult($this->outcome)];
+            return [new DeliveryResult($this->outcome)];
         }
     };
-    app(App\Support\Outbox\DeliveryAdapters::class)->register('fake', $adapter);
+    app(DeliveryAdapters::class)->register('fake', $adapter);
     $message = inTenant($property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
         'fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed',
         ['version' => 1], 'stable-key',
     )));
 
-    inTenant($property, fn () => app(App\Support\Outbox\DeliveryEngine::class)->deliver($message->id));
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
 
     expect($message->fresh()->status)->toBe($outcome)
         ->and($message->fresh()->delivered_at)->toBeNull();
@@ -71,7 +76,7 @@ test('rejected, retryable and unknown results never mark a message delivered', f
 
 test('only one ordered message in a stream is sent, and successors wait for acceptance', function () {
     [, , $property] = organizationWithOwner();
-    $adapter = new class implements App\Support\Outbox\DeliveryAdapter
+    $adapter = new class implements DeliveryAdapter
     {
         public array $calls = [];
 
@@ -79,10 +84,10 @@ test('only one ordered message in a stream is sent, and successors wait for acce
         {
             $this->calls[] = $messages;
 
-            return [new App\Support\Outbox\DeliveryResult(count($this->calls) === 1 ? 'rejected' : 'accepted')];
+            return [new DeliveryResult(count($this->calls) === 1 ? 'rejected' : 'accepted')];
         }
     };
-    app(App\Support\Outbox\DeliveryAdapters::class)->register('fake', $adapter);
+    app(DeliveryAdapters::class)->register('fake', $adapter);
     [$first, $second] = inTenant($property, fn () => DB::transaction(function () {
         $outbox = app(Outbox::class);
         $subject = (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'];
@@ -93,10 +98,10 @@ test('only one ordered message in a stream is sent, and successors wait for acce
         ];
     }));
 
-    inTenant($property, fn () => app(App\Support\Outbox\DeliveryEngine::class)->deliver($second->id));
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($second->id));
     expect($adapter->calls)->toBeEmpty()
         ->and($second->fresh()->status)->toBe('blocked');
-    inTenant($property, fn () => app(App\Support\Outbox\DeliveryEngine::class)->deliver($first->id));
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($first->id));
     expect($adapter->calls)->toHaveCount(1)
         ->and($first->fresh()->status)->toBe('rejected');
 
@@ -105,7 +110,7 @@ test('only one ordered message in a stream is sent, and successors wait for acce
 
 test('unmappable adapter results become unknown outcomes', function (array $results) {
     [, , $property] = organizationWithOwner();
-    $adapter = new class($results) implements App\Support\Outbox\DeliveryAdapter
+    $adapter = new class($results) implements DeliveryAdapter
     {
         public function __construct(private array $results) {}
 
@@ -114,18 +119,18 @@ test('unmappable adapter results become unknown outcomes', function (array $resu
             return $this->results;
         }
     };
-    app(App\Support\Outbox\DeliveryAdapters::class)->register('fake', $adapter);
+    app(DeliveryAdapters::class)->register('fake', $adapter);
     $message = inTenant($property, fn () => DB::transaction(fn () => app(Outbox::class)->record(
         'fake', (object) ['type' => 'reservation', 'id' => '01J00000000000000000000000'], 'changed',
         ['version' => 1], 'stable-key',
     )));
 
-    inTenant($property, fn () => app(App\Support\Outbox\DeliveryEngine::class)->deliver($message->id));
+    inTenant($property, fn () => app(DeliveryEngine::class)->deliver($message->id));
     expect($message->fresh()->status)->toBe('unknown')
         ->and(OutboxAttempt::query()->sole()->outcome)->toBe('unknown');
 })->with([
     'no result' => ['results' => []],
-    'extra result' => ['results' => [new App\Support\Outbox\DeliveryResult('accepted'), new App\Support\Outbox\DeliveryResult('accepted')]],
+    'extra result' => ['results' => [new DeliveryResult('accepted'), new DeliveryResult('accepted')]],
 ]);
 
 test('delivery for one property is invisible from another property', function () {

@@ -4,6 +4,7 @@ namespace App\Support\Outbox;
 
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OutboxAttempt extends Model
 {
@@ -24,7 +25,8 @@ class OutboxAttempt extends Model
         ];
     }
 
-    public function message(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    /** @return BelongsTo<OutboxMessage, $this> */
+    public function message(): BelongsTo
     {
         return $this->belongsTo(OutboxMessage::class, 'outbox_message_id');
     }
