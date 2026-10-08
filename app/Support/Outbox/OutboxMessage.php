@@ -6,7 +6,11 @@ use App\Support\Tenancy\BelongsToProperty;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use LogicException;
 
+/**
+ * @property array<string, mixed> $payload
+ */
 class OutboxMessage extends Model
 {
     use BelongsToProperty;
@@ -34,5 +38,20 @@ class OutboxMessage extends Model
     public function attempts(): HasMany
     {
         return $this->hasMany(OutboxAttempt::class);
+    }
+
+    /** @return HasMany<OutboxPayloadRevision, $this> */
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(OutboxPayloadRevision::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::updating(function (self $message): void {
+            if ($message->isDirty('payload') && $message->attempt_count > 0 && ! app(OutboxCorrectionContext::class)->active()) {
+                throw new LogicException('Attempted outbox payloads cannot be changed.');
+            }
+        });
     }
 }

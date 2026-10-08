@@ -49,31 +49,79 @@ final class OutboxRecovery
         });
     }
 
-    /** @param array<string, mixed> $correctedPayload */
-    public function correct(User $actor, string $propertyId, string $messageId, string $reason, array $correctedPayload): void
+    /** @param array<string, mixed> $correction */
+    public function correct(User $actor, string $propertyId, string $messageId, string $reason, array $correction): void
     {
-        $this->authorized($actor, $propertyId, $messageId, 'outbox_recovery_refused', $reason, false, function (OutboxMessage $message) use ($actor, $reason, $correctedPayload): void {
+        $this->authorized($actor, $propertyId, $messageId, 'outbox_recovery_refused', $reason, false, function (OutboxMessage $message) use ($actor, $reason, $correction): void {
             $adapter = app(DeliveryAdapters::class)->for($message->integration);
-            if (! $adapter->policy()->changedPayloadKeyReuseSafe) {
+            if (! $adapter instanceof OutboxCorrectionAdapter || ! $adapter->changedPayloadKeyReuseSafe()) {
                 throw new RuntimeException('The adapter has not verified changed-payload idempotency-key reuse.');
             }
-            DB::transaction(function () use ($message, $actor, $reason, $correctedPayload, $adapter): void {
+            DB::transaction(function () use ($message, $actor, $reason, $correction, $adapter): void {
+                $property = Property::query()->whereKey($message->property_id)->lockForUpdate()->firstOrFail();
+                if ($property->archived_at !== null) {
+                    throw new RuntimeException('Archived property outbox operations cannot be corrected.');
+                }
                 $locked = OutboxMessage::query()->whereKey($message->id)->lockForUpdate()->firstOrFail();
-                if ($locked->claim_token !== null || ($locked->claim_expires_at !== null && CarbonImmutable::parse($locked->claim_expires_at)->isFuture()) || $locked->status === 'sending') {
+                if ($locked->claim_token !== null || ($locked->claim_expires_at !== null && CarbonImmutable::parse($locked->claim_expires_at)->isFuture()) || $locked->status === 'sending' || $locked->attempts()->where('outcome', 'sending')->exists()) {
                     throw new RuntimeException('An active delivery attempt prevents recovery.');
                 }
                 if ($locked->status !== 'rejected') {
                     throw new RuntimeException('Only confirmed rejection can be corrected.');
                 }
-
-                $payload = $adapter->correct($locked, $correctedPayload);
-                $locked->payload = $payload;
-                $locked->status = 'pending';
-                $locked->setAttribute('next_attempt_at', null);
-                $locked->setAttribute('dispatch_claim_token', null);
-                $locked->setAttribute('dispatch_claim_expires_at', null);
-                $locked->save();
-                Audit::record($actor, 'outbox_recovery', $locked, 'Corrected rejected outbox operation', ['reason' => $reason, 'outcome' => 'corrected', 'payload_hash' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR))]);
+                $successors = OutboxMessage::query()->where('stream_key', $locked->stream_key)->where('sequence', '>', $locked->sequence)->where('status', 'blocked')->orderBy('sequence')->lockForUpdate()->get();
+                if ($successors->contains(fn (OutboxMessage $item): bool => $item->attempt_count > 0 || $item->claim_token !== null)) {
+                    throw new RuntimeException('Attempted successor snapshots cannot be corrected.');
+                }
+                $original = $locked->payload;
+                $payload = $adapter->correct($locked, $correction);
+                if ($payload === $original) {
+                    throw new RuntimeException('Correction must change the rejected payload.');
+                }
+                $locked->revisions()->create([
+                    'organization_id' => $locked->organization_id,
+                    'property_id' => $locked->property_id,
+                    'revision' => (int) $locked->revisions()->max('revision') + 1,
+                    'payload' => $original,
+                    'reason' => $reason,
+                ]);
+                $rebuilt = [];
+                $previous = $payload;
+                foreach ($successors as $successor) {
+                    $old = $successor->payload;
+                    $next = $adapter->rebuildSuccessor($successor, $previous);
+                    if ($next === $old && $next === $previous) {
+                        throw new RuntimeException('Successor snapshot did not preserve corrected stream state.');
+                    }
+                    $rebuilt[] = [$successor, $old, $next];
+                    $previous = $next;
+                }
+                app(OutboxCorrectionContext::class)->run(function () use ($locked, $payload): void {
+                    $locked->payload = $payload;
+                    $locked->status = 'pending';
+                    $locked->setAttribute('next_attempt_at', null);
+                    $locked->setAttribute('dispatch_claim_token', null);
+                    $locked->setAttribute('dispatch_claim_expires_at', null);
+                    $locked->save();
+                });
+                foreach ($rebuilt as [$successor, $old, $next]) {
+                    $successor->revisions()->create([
+                        'organization_id' => $successor->organization_id,
+                        'property_id' => $successor->property_id,
+                        'revision' => (int) $successor->revisions()->max('revision') + 1,
+                        'payload' => $old,
+                        'reason' => $reason,
+                    ]);
+                    app(OutboxCorrectionContext::class)->run(function () use ($successor, $next): void {
+                        $successor->payload = $next;
+                        $successor->save();
+                    });
+                }
+                Audit::record($actor, 'outbox_recovery', $locked, 'Corrected rejected outbox operation', [
+                    'reason' => $reason,
+                    'outcome' => 'corrected',
+                    'payload_hash' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR)),
+                ]);
                 $id = $locked->id;
                 $organizationId = $locked->organization_id;
                 $propertyId = $locked->property_id;

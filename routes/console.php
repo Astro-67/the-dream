@@ -54,6 +54,26 @@ Artisan::command('outbox:correct {message} {--actor=} {--property=} {--reason=} 
     }
 })->purpose('Correct a confirmed rejected outbox operation');
 
+Artisan::command('outbox:correct {message} {--actor=} {--property=} {--reason=} {--payload=}', function (OutboxRecovery $recovery): int {
+    $actor = User::query()->find($this->option('actor'));
+    $payload = json_decode((string) $this->option('payload'), true);
+    if ($actor === null || blank($this->option('property')) || blank($this->option('reason')) || ! is_array($payload)) {
+        $this->error('Actor, property, reason and JSON correction payload are required.');
+
+        return self::FAILURE;
+    }
+    try {
+        $recovery->correct($actor, $this->option('property'), $this->argument('message'), $this->option('reason'), $payload);
+        $this->info('Correction scheduled.');
+
+        return self::SUCCESS;
+    } catch (Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return self::FAILURE;
+    }
+})->purpose('Correct a confirmed rejected outbox operation');
+
 Artisan::command('outbox:confirm-accepted {message} {--actor=} {--property=} {--reason=} {--evidence=}', function (OutboxRecovery $recovery): int {
     $actor = User::query()->find($this->option('actor'));
     if ($actor === null || blank($this->option('property')) || blank($this->option('reason')) || blank($this->option('evidence'))) {

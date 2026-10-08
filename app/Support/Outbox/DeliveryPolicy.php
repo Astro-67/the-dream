@@ -18,7 +18,6 @@ final readonly class DeliveryPolicy
         public ?string $quotaIdentity = null,
         public ?int $quotaLimit = null,
         public int $quotaWindowSeconds = 60,
-        public bool $changedPayloadKeyReuseSafe = false,
         public string $ordering = 'ordered',
         public mixed $coalesceKey = null,
     ) {
