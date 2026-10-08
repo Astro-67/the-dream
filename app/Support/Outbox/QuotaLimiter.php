@@ -3,6 +3,7 @@
 namespace App\Support\Outbox;
 
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 final class QuotaLimiter
 {
@@ -32,7 +33,7 @@ final class QuotaLimiter
                 return false;
             }
             if ($policy->quotaLimit !== $quota->allowance) {
-                throw new \LogicException('An outbox quota identity must keep its declared allowance.');
+                throw new LogicException('An outbox quota identity must keep its declared allowance.');
             }
             if ($now->greaterThanOrEqualTo($quota->window_ends_at)) {
                 $quota->used = 0;

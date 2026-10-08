@@ -21,6 +21,7 @@ final class DeliveryEngine
             $first = OutboxMessage::query()->whereKey($messageIds[0])->first();
             if ($first === null) {
                 array_shift($messageIds);
+
                 continue;
             }
             $policy = $this->adapters->for($first->integration)->policy();

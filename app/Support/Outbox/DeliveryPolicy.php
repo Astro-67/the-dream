@@ -7,7 +7,7 @@ use InvalidArgumentException;
 final readonly class DeliveryPolicy
 {
     /**
-     * @param list<string> $batchGrouping
+     * @param  list<string>  $batchGrouping
      */
     public function __construct(
         public bool $unknownRetrySafe = false,

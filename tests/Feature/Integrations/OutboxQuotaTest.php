@@ -3,6 +3,8 @@
 use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\QuotaLimiter;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+use LogicException;
 
 test('a provider quota identity shares allowance across properties', function () {
     [, , $propertyA] = organizationWithOwner(['organization_name' => 'Alpha']);
@@ -26,7 +28,7 @@ test('a batch consumes quota by provider request count, not tenant count', funct
         ->and(DB::table('outbox_quotas')->where('identity_hash', hash('sha256', 'zan-global'))->value('used'))->toBe(2);
 });
 
- test('delivery policies reject mismatched quota identity and limit', function (array $options) {
+test('delivery policies reject mismatched quota identity and limit', function (array $options) {
     expect(fn () => new DeliveryPolicy(...$options))->toThrow(InvalidArgumentException::class);
 })->with([
     'identity without limit' => [['quotaIdentity' => 'zan-global']],
@@ -34,7 +36,7 @@ test('a batch consumes quota by provider request count, not tenant count', funct
     'nonpositive limit' => [['quotaIdentity' => 'zan-global', 'quotaLimit' => 0]],
 ]);
 
- test('quota limits must be globally consistent for the same identity', function () {
+test('quota limits must be globally consistent for the same identity', function () {
     $limiter = app(QuotaLimiter::class);
     expect($limiter->acquire(new DeliveryPolicy(quotaIdentity: 'zan-global', quotaLimit: 5)))->toBeTrue()
         ->and(fn () => $limiter->acquire(new DeliveryPolicy(quotaIdentity: 'zan-global', quotaLimit: 10)))
