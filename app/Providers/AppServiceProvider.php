@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Support\Jobs\CallQueuedTenantHandler;
+use App\Support\Outbox\DeliveryAdapters;
 use App\Support\Tenancy\Origin;
 use App\Support\Tenancy\TenancyManager;
 use Carbon\CarbonImmutable;
@@ -21,6 +22,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(TenancyManager::class);
         $this->app->singleton(Origin::class);
+        $this->app->singleton(DeliveryAdapters::class);
     }
 
     /**
