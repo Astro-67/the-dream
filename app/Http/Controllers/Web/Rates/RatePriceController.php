@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Web\Rates;
 use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\RatePrice;
+use App\Domains\Rates\StayPricing;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Rates\BulkPriceRequest;
+use App\Http\Requests\Rates\QuoteRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -37,5 +39,22 @@ class RatePriceController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Prices saved.')]);
 
         return redirect()->route('rate-plans.prices', $ratePlan);
+    }
+
+    public function quote(QuoteRequest $request, RatePlan $ratePlan, StayPricing $pricing): Response
+    {
+        /** @var array{room_type_id?: string, arrival?: string, departure?: string, adults?: int|string, children?: int|string} $stay */
+        $stay = $request->validated();
+        $quote = isset($stay['room_type_id'], $stay['arrival'], $stay['departure'], $stay['adults'], $stay['children'])
+            ? $pricing->quote($ratePlan, $ratePlan->roomTypes()->findOrFail($stay['room_type_id']), $stay['arrival'], $stay['departure'], (int) $stay['adults'], (int) $stay['children'])
+            : null;
+
+        return Inertia::render('rates/quote', [
+            'plan' => ['id' => $ratePlan->id, 'name' => $ratePlan->name, 'currency' => $ratePlan->currency->value],
+            'roomTypes' => $ratePlan->roomTypes()->orderBy('code')->get(['room_types.id', 'name', 'code']),
+            'stay' => $stay,
+            'quote' => $quote === null ? null : ['currency' => $quote->currency->value, 'nights' => $quote->nights, 'total' => $quote->total(), 'unquotable' => $quote->unquotable],
+            'canManage' => Gate::allows('update', $ratePlan),
+        ]);
     }
 }

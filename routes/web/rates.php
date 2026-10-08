@@ -8,6 +8,7 @@ Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(func
     Route::get('rate-plans', [RatePlanController::class, 'index'])->name('rate-plans.index');
     Route::get('rate-plans/create', [RatePlanController::class, 'create'])->name('rate-plans.create');
     Route::get('rate-plans/{ratePlan}/prices', [RatePriceController::class, 'index'])->name('rate-plans.prices');
+    Route::get('rate-plans/{ratePlan}/quote', [RatePriceController::class, 'quote'])->name('rate-plans.quote');
     Route::put('rate-plans/{ratePlan}/prices', [RatePriceController::class, 'update'])->name('rate-plans.prices.update');
     Route::post('rate-plans', [RatePlanController::class, 'store'])->name('rate-plans.store');
 });

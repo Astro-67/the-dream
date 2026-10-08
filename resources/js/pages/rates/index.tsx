@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { create } from '@/routes/rate-plans';
+import { create, prices } from '@/routes/rate-plans';
 
 type Plan = {
     id: string;
@@ -54,7 +54,14 @@ export default function RatePlans({
                                         <td className="p-3 font-mono">
                                             {plan.code}
                                         </td>
-                                        <td className="p-3">{plan.name}</td>
+                                        <td className="p-3">
+                                            <Link
+                                                href={prices(plan.id)}
+                                                className="underline-offset-4 hover:underline"
+                                            >
+                                                {plan.name}
+                                            </Link>
+                                        </td>
                                         <td className="p-3">{plan.currency}</td>
                                         <td className="p-3">
                                             {plan.roomTypes

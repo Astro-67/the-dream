@@ -1,10 +1,12 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { formatMoney } from '@/lib/utils';
+import { quote } from '@/routes/rate-plans';
 import { update } from '@/routes/rate-plans/prices';
 type Price = {
     room_type_id: string;
@@ -24,15 +26,19 @@ export default function Prices({
     prices: Price[];
     canManage: boolean;
 }) {
-    const money = (amount: number) =>
-        `${plan.currency} ${new Intl.NumberFormat('en', { minimumFractionDigits: plan.currency === 'TZS' ? 0 : 2, maximumFractionDigits: plan.currency === 'TZS' ? 0 : 2 }).format(amount / (plan.currency === 'TZS' ? 1 : 100))}`;
+    const money = (amount: number) => formatMoney(amount, plan.currency);
     return (
         <>
             <Head title={`${plan.name} prices`} />
             <div className="flex flex-col gap-6 p-4 md:p-6">
-                <h1 className="text-2xl font-semibold tracking-tight">
-                    {plan.name} prices
-                </h1>
+                <header className="flex flex-wrap items-center justify-between gap-4">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        {plan.name} prices
+                    </h1>
+                    <Button variant="outline" asChild>
+                        <Link href={quote(plan.id)}>Preview a quote</Link>
+                    </Button>
+                </header>
                 {canManage && (
                     <Form
                         {...update.form(plan.id)}
