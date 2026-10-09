@@ -4,7 +4,9 @@ namespace App\Support\Audit;
 
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
+use Closure;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Records a sensitive action in the audit trail (spatie/laravel-activitylog),
@@ -13,6 +15,23 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class Audit
 {
+    /**
+     * @template T
+     *
+     * @param  Closure(): T  $work
+     * @return T
+     */
+    public static function validationRefusal(?User $actor, Model $subject, string $description, Closure $work): mixed
+    {
+        try {
+            return $work();
+        } catch (ValidationException $refused) {
+            self::record($actor, 'refused', $subject, $description, ['result' => 'refused', 'errors' => $refused->errors()]);
+
+            throw $refused;
+        }
+    }
+
     /**
      * @param  array<string, mixed>  $properties  extra detail, such as `attributes` and `old` values; may override the tenant IDs
      */

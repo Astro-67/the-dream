@@ -1,12 +1,17 @@
 import { usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    BedDouble,
+    CalendarDays,
     Building2,
+    DoorOpen,
     FolderGit2,
     Hotel,
     LayoutGrid,
     MailPlus,
+    Percent,
     ShieldCheck,
+    Tags,
     Users,
 } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
@@ -22,12 +27,16 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useCan } from '@/hooks/use-can';
-import { dashboard } from '@/routes';
+import { dashboard, rateCalendar } from '@/routes';
 import { index as invitations } from '@/routes/invitations';
 import { index as members } from '@/routes/members';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
 import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
+import { index as ratePlans } from '@/routes/rate-plans';
+import { index as roomTypes } from '@/routes/room-types';
+import { index as taxRules } from '@/routes/tax-rules';
+import { index as rooms } from '@/routes/rooms';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -78,6 +87,19 @@ export function AppSidebar() {
         ...mainNavItems,
         ...(can('properties.view')
             ? [{ title: 'Properties', href: properties(), icon: Hotel }]
+            : []),
+        ...(can('reservations.view')
+            ? [
+                  { title: 'Room types', href: roomTypes(), icon: BedDouble },
+                  { title: 'Rooms', href: rooms(), icon: DoorOpen },
+                  { title: 'Rate plans', href: ratePlans(), icon: Tags },
+                  {
+                      title: 'Rate calendar',
+                      href: rateCalendar(),
+                      icon: CalendarDays,
+                  },
+                  { title: 'Taxes', href: taxRules(), icon: Percent },
+              ]
             : []),
         ...(can('members.view')
             ? [{ title: 'Members', href: members(), icon: Users }]

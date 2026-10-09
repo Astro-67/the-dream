@@ -75,11 +75,6 @@ class Property extends Model
         $query->whereNull($this->qualifyColumn('archived_at'));
     }
 
-    public function isZanzibar(): bool
-    {
-        return $this->jurisdiction_profile === JurisdictionProfile::Zanzibar;
-    }
-
     /**
      * @return BelongsTo<Organization, $this>
      */

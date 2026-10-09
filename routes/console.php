@@ -1,5 +1,8 @@
 <?php
 
+use App\Domains\Inventory\Actions\RecalculateInventory;
+use App\Domains\Inventory\Exceptions\InventoryRefused;
+use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -210,4 +213,26 @@ Artisan::command('outbox:show-body {message} {--actor=} {--property=} {--reason=
     }
 })->purpose('Read an outbox payload with separate authorization');
 
+Artisan::command('inventory:extend', function (RecalculateInventory $recalculate): int {
+    $properties = Tenancy::within(TenantContext::platform('daily inventory horizon extension'), fn () => Property::query()->active()->get());
+    $refused = 0;
+    foreach ($properties as $property) {
+        Tenancy::within(TenantContext::forProperty($property), function () use ($recalculate, $property, &$refused): void {
+            // A refused room type is left as it was and reported; the rest still extend.
+            RoomType::query()->each(function (RoomType $roomType) use ($recalculate, $property, &$refused): void {
+                try {
+                    $recalculate->handle($roomType);
+                } catch (InventoryRefused $refusal) {
+                    $refused++;
+                    $this->error("{$property->name}: {$refusal->getMessage()}");
+                }
+            });
+        });
+    }
+    $this->info('Extended inventory for '.$properties->count().' properties.');
+
+    return $refused === 0 ? self::SUCCESS : self::FAILURE;
+})->purpose('Extend inventory records to the configured horizon');
+
+Schedule::command('inventory:extend')->daily()->withoutOverlapping();
 Schedule::command('outbox:sweep')->everyMinute()->withoutOverlapping();

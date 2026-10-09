@@ -345,6 +345,7 @@ The scheduler runs under Supervisor as `php artisan schedule:work`.
 | Every minute                                        | Night audit trigger: properties whose local business date is due for close |
 | Daily, per property, after the business date closes | Channel reconciliation (DST-07)                                            |
 | Daily                                               | VFMS exchange rate fetch (FSC-09)                                          |
+| Daily                                               | Inventory horizon extension (`inventory:extend`), per property             |
 | Daily                                               | Fiscal exceptions digest to property managers                              |
 | Hourly                                              | Subscription lifecycle transitions                                         |
 

@@ -1,0 +1,201 @@
+import { Form, Head, Link } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { formatMoney, ruleSize } from '@/lib/utils';
+import { index, preview } from '@/routes/tax-rules';
+
+type Line = {
+    name: string;
+    kind: string;
+    inclusive: boolean;
+    rate: number | null;
+    per_person_night: number | null;
+    amount: number;
+};
+type Breakdown = {
+    currency: string;
+    net: number;
+    tax: number;
+    gross: number;
+    lines: Line[];
+};
+type Charge = Partial<
+    Record<'amount' | 'currency' | 'date' | 'guests' | 'charge', string>
+>;
+
+export default function TaxPreview({
+    charge,
+    currencies,
+    breakdown,
+    unpreviewable,
+}: {
+    charge: Charge;
+    currencies: string[];
+    breakdown: Breakdown | null;
+    unpreviewable: string | null;
+}) {
+    const money = (amount: number) =>
+        formatMoney(amount, breakdown?.currency ?? '');
+
+    return (
+        <>
+            <Head title="Tax preview" />
+            <div className="flex flex-col gap-6 p-4 md:p-6">
+                <header className="flex flex-wrap items-center justify-between gap-4">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        Tax preview
+                    </h1>
+                    <Button variant="outline" asChild>
+                        <Link href={index()}>Tax rules</Link>
+                    </Button>
+                </header>
+                <Form
+                    {...preview.form()}
+                    className="flex max-w-[720px] flex-col gap-6"
+                >
+                    {({ errors }) => (
+                        <>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="amount">
+                                        Price in minor units
+                                    </Label>
+                                    <Input
+                                        id="amount"
+                                        name="amount"
+                                        type="number"
+                                        step={1}
+                                        min={0}
+                                        required
+                                        defaultValue={charge.amount}
+                                        className="tabular-nums"
+                                        aria-invalid={!!errors.amount}
+                                    />
+                                    <InputError message={errors.amount} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="currency">Currency</Label>
+                                    <select
+                                        id="currency"
+                                        name="currency"
+                                        defaultValue={charge.currency}
+                                        className="h-9 w-full rounded-md border border-input bg-background px-3"
+                                    >
+                                        {currencies.map((currency) => (
+                                            <option key={currency}>
+                                                {currency}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <InputError message={errors.currency} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="date">Date</Label>
+                                    <Input
+                                        id="date"
+                                        name="date"
+                                        type="date"
+                                        required
+                                        defaultValue={charge.date}
+                                        aria-invalid={!!errors.date}
+                                    />
+                                    <InputError message={errors.date} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="guests">Guests</Label>
+                                    <Input
+                                        id="guests"
+                                        name="guests"
+                                        type="number"
+                                        min={1}
+                                        max={40}
+                                        required
+                                        defaultValue={charge.guests ?? '2'}
+                                        aria-invalid={!!errors.guests}
+                                    />
+                                    <InputError message={errors.guests} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="charge">Charge</Label>
+                                    <select
+                                        id="charge"
+                                        name="charge"
+                                        defaultValue={charge.charge}
+                                        className="h-9 w-full rounded-md border border-input bg-background px-3"
+                                    >
+                                        <option value="room">
+                                            Room charge
+                                        </option>
+                                        <option value="extra">Extra</option>
+                                    </select>
+                                    <InputError message={errors.charge} />
+                                </div>
+                            </div>
+                            <Button type="submit" className="self-end">
+                                Show breakdown
+                            </Button>
+                        </>
+                    )}
+                </Form>
+                {unpreviewable && (
+                    <p role="status" className="font-medium">
+                        Cannot preview this charge: {unpreviewable}
+                    </p>
+                )}
+                {breakdown && (
+                    <div className="max-w-[720px] overflow-x-auto rounded-lg border">
+                        <table className="w-full text-sm">
+                            <tbody>
+                                <tr className="border-b">
+                                    <td className="p-3">Net</td>
+                                    <td className="p-3" />
+                                    <td className="p-3 text-right tabular-nums">
+                                        {money(breakdown.net)}
+                                    </td>
+                                </tr>
+                                {breakdown.lines.map((line) => (
+                                    <tr key={line.name} className="border-b">
+                                        <td className="p-3">{line.name}</td>
+                                        <td className="p-3 text-muted-foreground">
+                                            {ruleSize(line, breakdown.currency)}
+                                            ,{' '}
+                                            {line.inclusive
+                                                ? 'included'
+                                                : 'added'}
+                                        </td>
+                                        <td className="p-3 text-right tabular-nums">
+                                            {money(line.amount)}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {breakdown.lines.length === 0 && (
+                                    <tr className="border-b">
+                                        <td
+                                            className="p-3 text-muted-foreground"
+                                            colSpan={3}
+                                        >
+                                            No tax rule applies to this charge
+                                            on this date.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                            <tfoot>
+                                <tr className="font-semibold">
+                                    <td className="p-3" colSpan={2}>
+                                        Total charged
+                                    </td>
+                                    <td className="p-3 text-right tabular-nums">
+                                        {money(breakdown.gross)}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </>
+    );
+}

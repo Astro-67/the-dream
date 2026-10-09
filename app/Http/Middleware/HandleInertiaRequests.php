@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Domains\Platform\Enums\PlatformRole;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Organization;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -97,7 +98,7 @@ class HandleInertiaRequests extends Middleware
         ];
 
         // Zanzibar-only fields never reach a mainland property's pages.
-        if ($property->isZanzibar()) {
+        if (JurisdictionRules::hasZraHotelCode($property->jurisdiction_profile)) {
             $props['zraHotelCode'] = $property->zra_hotel_code;
         }
 

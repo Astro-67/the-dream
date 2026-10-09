@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Tenancy;
 
 use App\Domains\Tenancy\Actions\CreateProperty;
 use App\Domains\Tenancy\Actions\UpdateProperty;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenancy\PropertyRequest;
@@ -106,7 +107,7 @@ class PropertyController extends Controller
                 'currency' => $property->currency->value,
                 'jurisdiction_profile' => $property->jurisdiction_profile->value,
                 // Zanzibar-only: never sent for a mainland property.
-                ...($property->isZanzibar() ? ['zra_hotel_code' => $property->zra_hotel_code] : []),
+                ...(JurisdictionRules::hasZraHotelCode($property->jurisdiction_profile) ? ['zra_hotel_code' => $property->zra_hotel_code] : []),
             ],
         ]);
     }

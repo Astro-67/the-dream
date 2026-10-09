@@ -31,6 +31,13 @@ enum OrganizationPermission: string
     case MembersInvite = 'members.invite';
     case MembersManage = 'members.manage';
 
+    // Inventory
+    case InventoryManage = 'inventory.manage';
+
+    // Rates
+    case RatesManage = 'rates.manage';
+    case TaxManage = 'tax.manage';
+
     // Front office
     case ReservationsView = 'reservations.view';
     case ReservationsManage = 'reservations.manage';

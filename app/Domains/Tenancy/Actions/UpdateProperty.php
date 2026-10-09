@@ -3,6 +3,7 @@
 namespace App\Domains\Tenancy\Actions;
 
 use App\Domains\Tenancy\Data\PropertyDetails;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -17,6 +18,10 @@ class UpdateProperty
     public function handle(?User $actor, Property $property, PropertyDetails $details): Property
     {
         return DB::transaction(function () use ($actor, $property, $details) {
+            if ($details->jurisdictionProfile !== $property->jurisdiction_profile) {
+                JurisdictionRules::ensureProfileCanChange($property, $details->jurisdictionProfile);
+            }
+
             $property->fill($details->toAttributes());
             $changed = array_keys($property->getDirty());
 
