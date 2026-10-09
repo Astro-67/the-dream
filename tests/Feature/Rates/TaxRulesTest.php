@@ -59,6 +59,7 @@ test('rules sharing a name never overlap in effective dates', function () {
     $add(['effective_from' => '2025-01-01'])->assertSessionHasErrors('effective_from');
     $add(['effective_from' => '2026-07-01'])->assertSessionHasNoErrors();
     $add(['effective_from' => '2030-01-01'])->assertSessionHasErrors('effective_from');
+    expect(Activity::query()->where('description', 'Tax rule creation refused')->where('event', 'refused')->count())->toBe(4);
     // Another name, or the same name in another property, may run over the same dates.
     $add(['name' => 'Service charge'])->assertSessionHasNoErrors();
     $this->post(route('tax-rules.store'), vatForm($t->a->otherProperty->id))->assertSessionHasNoErrors();
@@ -89,6 +90,7 @@ test('a change takes effect from a date: the old version ends the day before, so
     $change = fn (array $terms) => $this->post(route('tax-rules.change', $vat), vatForm($t->a->property->id, ['rate' => '20', 'effective_from' => '2026-07-01', ...$terms]));
 
     $change(['effective_from' => '2026-01-01'])->assertSessionHasErrors('effective_from');
+    expect(Activity::query()->where('description', 'Tax rule change refused')->sole()->getExtraProperty('result'))->toBe('refused');
     $change([])->assertSessionHasNoErrors()->assertRedirect(route('tax-rules.index'));
 
     expect([$tax('2026-06-30'), $tax('2026-07-01')])->toBe([1800, 2000]);
@@ -114,6 +116,7 @@ test('a rule ends on a date, is audited, and refuses an end before its start', f
     $this->post(route('tax-rules.end', $vat), ['_property' => $t->a->property->id, 'effective_to' => '2026-03-31'])->assertSessionHasNoErrors();
 
     $this->get(route('tax-rules.index'))->assertInertia(fn (Assert $page) => $page->where('taxRules.0.effective_to', '2026-03-31'));
+    expect(Activity::query()->where('description', 'Tax rule end refused')->sole()->getExtraProperty('result'))->toBe('refused');
     $audit = Activity::query()->where('description', 'Tax rule ended')->sole();
     expect($audit->getExtraProperty('old'))->toEqual(['effective_to' => null])->and($audit->getExtraProperty('attributes'))->toEqual(['effective_to' => '2026-03-31']);
 

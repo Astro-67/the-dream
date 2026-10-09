@@ -133,6 +133,7 @@ test('a base plan with active derived plans can be neither deactivated nor delet
     $deactivate = fn (RatePlan $plan) => $this->post(route('rate-plans.deactivate', $plan), ['_property' => $t->a->property->id]);
 
     $deactivate($base)->assertSessionHasErrors(['plan' => 'Deactivate the plans derived from Breakfast first: Non-refundable.']);
+    expect(Activity::query()->where('description', 'Rate plan deactivation refused')->sole()->getExtraProperty('result'))->toBe('refused');
     expect(fn () => inTenant($t->a->property, fn () => $base->delete()))->toThrow(QueryException::class);
 
     $deactivate($derived)->assertSessionHasNoErrors()->assertRedirect(route('rate-plans.index'));

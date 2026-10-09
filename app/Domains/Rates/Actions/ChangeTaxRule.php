@@ -19,7 +19,7 @@ class ChangeTaxRule
     /** @param array{name: string, kind: string, rate: int|null, amount: int|null, currency: string|null, inclusive: bool, applies_to: string, rounding: string, effective_from: string, effective_to: string|null} $details */
     public function handle(?User $actor, TaxRule $rule, array $details): TaxRule
     {
-        return DB::transaction(function () use ($actor, $rule, $details) {
+        return Audit::validationRefusal($actor, $rule, 'Tax rule change refused', fn () => DB::transaction(function () use ($actor, $rule, $details) {
             Property::query()->whereKey($rule->property_id)->lockForUpdate()->firstOrFail();
             $rule = TaxRule::query()->whereKey($rule->id)->firstOrFail();
             $from = $details['effective_from'];
@@ -38,6 +38,6 @@ class ChangeTaxRule
             ]);
 
             return $next;
-        });
+        }));
     }
 }

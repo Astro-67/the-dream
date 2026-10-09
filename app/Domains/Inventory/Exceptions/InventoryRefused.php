@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Audit\Audit;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 /**
@@ -43,7 +44,7 @@ final class InventoryRefused extends RuntimeException
     {
         try {
             return $work();
-        } catch (InventoryRefused $refused) {
+        } catch (InventoryRefused|ValidationException $refused) {
             Audit::record($actor, 'refused', $subject, $description, ['result' => 'refused', 'reason' => $refused->getMessage()]);
 
             throw $refused;

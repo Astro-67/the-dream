@@ -16,7 +16,7 @@ class EndTaxRule
 {
     public function handle(?User $actor, TaxRule $rule, string $to): TaxRule
     {
-        return DB::transaction(function () use ($actor, $rule, $to) {
+        return Audit::validationRefusal($actor, $rule, 'Tax rule end refused', fn () => DB::transaction(function () use ($actor, $rule, $to) {
             Property::query()->whereKey($rule->property_id)->lockForUpdate()->firstOrFail();
             $rule = TaxRule::query()->whereKey($rule->id)->firstOrFail();
             $from = $rule->effective_from->format('Y-m-d');
@@ -30,6 +30,6 @@ class EndTaxRule
             Audit::record($actor, 'updated', $rule, 'Tax rule ended', ['old' => ['effective_to' => $old], 'attributes' => ['effective_to' => $to]]);
 
             return $rule;
-        });
+        }));
     }
 }

@@ -16,7 +16,7 @@ class DeactivateRatePlan
 {
     public function handle(?User $actor, RatePlan $plan): RatePlan
     {
-        return DB::transaction(function () use ($actor, $plan) {
+        return Audit::validationRefusal($actor, $plan, 'Rate plan deactivation refused', fn () => DB::transaction(function () use ($actor, $plan) {
             // Locked so no plan can be derived from it meanwhile (CreateRatePlan locks the base too).
             $plan = RatePlan::query()->whereKey($plan->id)->lockForUpdate()->firstOrFail();
             if ($plan->deactivated_at !== null) {
@@ -34,6 +34,6 @@ class DeactivateRatePlan
             ]);
 
             return $plan;
-        });
+        }));
     }
 }

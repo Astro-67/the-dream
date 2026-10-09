@@ -72,6 +72,7 @@ test('out-of-service periods of one room never overlap', function () {
     $this->post(route('out-of-service.store', $room), [...$p, 'starts_on' => '2026-10-10', 'returns_on' => '2026-10-15'])->assertSessionHasNoErrors();
     $this->post(route('out-of-service.store', $room), [...$p, 'starts_on' => '2026-10-14', 'returns_on' => '2026-10-20'])
         ->assertSessionHasErrors(['starts_on' => 'Room 101 is already out of service from 2026-10-10 until 2026-10-15.']);
+    expect(Activity::query()->where('description', 'Room out of service refused')->sole()->getExtraProperty('result'))->toBe('refused');
     // Back in service on the 15th, so another period can start that day.
     $this->post(route('out-of-service.store', $room), [...$p, 'starts_on' => '2026-10-15', 'returns_on' => '2026-10-20'])->assertSessionHasNoErrors();
 

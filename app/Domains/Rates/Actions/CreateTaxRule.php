@@ -19,7 +19,7 @@ class CreateTaxRule
     /** @param array{name: string, kind: string, rate: int|null, amount: int|null, currency: string|null, inclusive: bool, applies_to: string, rounding: string, effective_from: string, effective_to: string|null} $details */
     public function handle(?User $actor, array $details): TaxRule
     {
-        return DB::transaction(function () use ($actor, $details) {
+        return Audit::validationRefusal($actor, Tenancy::property() ?? new Property, 'Tax rule creation refused', fn () => DB::transaction(function () use ($actor, $details) {
             // Serialize rule writes per property: an overlap check can't lock rows that don't exist yet.
             Property::query()->whereKey(Tenancy::property()?->id)->lockForUpdate()->firstOrFail();
             self::refuseOverlap($details['name'], $details['effective_from'], $details['effective_to']);
@@ -27,7 +27,7 @@ class CreateTaxRule
             Audit::record($actor, 'created', $rule, 'Tax rule created', ['attributes' => $details]);
 
             return $rule;
-        });
+        }));
     }
 
     /** @throws ValidationException when another rule of the name is in force on any of the dates */
