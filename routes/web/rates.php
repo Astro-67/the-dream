@@ -3,6 +3,7 @@
 use App\Http\Controllers\Web\Rates\RatePlanController;
 use App\Http\Controllers\Web\Rates\RatePriceController;
 use App\Http\Controllers\Web\Rates\RateRestrictionController;
+use App\Http\Controllers\Web\Rates\TaxRuleController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(function () {
@@ -15,4 +16,6 @@ Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(func
     Route::put('rate-plans/{ratePlan}/restrictions', [RateRestrictionController::class, 'update'])->name('rate-plans.restrictions.update');
     Route::post('rate-plans', [RatePlanController::class, 'store'])->name('rate-plans.store');
     Route::post('rate-plans/{ratePlan}/deactivate', [RatePlanController::class, 'deactivate'])->name('rate-plans.deactivate');
+    Route::get('tax-rules', [TaxRuleController::class, 'index'])->name('tax-rules.index');
+    Route::post('tax-rules', [TaxRuleController::class, 'store'])->name('tax-rules.store');
 });

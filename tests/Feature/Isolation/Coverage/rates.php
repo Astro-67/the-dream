@@ -3,11 +3,13 @@
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Actions\CreateRatePlan;
+use App\Domains\Rates\Actions\CreateTaxRule;
 use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Rates\Actions\SetRateRestrictions;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\RatePrice;
 use App\Domains\Rates\Models\RateRestriction;
+use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Tests\Support\InventoryForm;
 use Tests\Support\Isolation\RouteCoverage;
@@ -36,6 +38,18 @@ $bravoSnapshot = fn (TwoTenants $t): array => inTenant($t->b->organization, fn (
     'prices' => RatePrice::query()->orderBy('id')->get()->map->only(['id', 'rate_plan_id', 'room_type_id', 'base_price', 'extra_adult', 'extra_child'])->all(),
     'restrictions' => RateRestriction::query()->orderBy('id')->get()->map->only(['id', 'rate_plan_id', 'room_type_id', 'min_stay', 'closed_to_arrival', 'stop_sell'])->all(),
 ]);
+
+/** Bravo's tax rule, named so a leak is easy to spot. */
+$bravoTax = fn (TwoTenants $t): TaxRule => inTenant($t->b->property, fn () => app(CreateTaxRule::class)->handle($t->b->owner, [
+    'name' => 'Bravo Secret Levy', 'kind' => 'flat_per_person_night', 'rate' => null, 'amount' => 987654, 'currency' => 'USD',
+    'inclusive' => false, 'applies_to' => 'both', 'rounding' => 'half_up', 'effective_from' => '2026-01-01', 'effective_to' => null,
+]));
+
+/** @return list<array<string, mixed>> */
+$bravoTaxes = fn (TwoTenants $t): array => inTenant($t->b->organization, fn () => TaxRule::query()->orderBy('id')->get()
+    ->map(fn (TaxRule $rule) => [...$rule->only(['id', 'property_id', 'name', 'amount']), 'effective_from' => $rule->effective_from->format('Y-m-d'), 'effective_to' => $rule->effective_to?->format('Y-m-d')])->all());
+
+$taxForm = fn (string $propertyId, array $terms = []) => ['_property' => $propertyId, 'name' => 'Hijacked', 'kind' => 'percentage', 'rate' => '1', 'inclusive' => '0', 'applies_to' => 'both', 'rounding' => 'half_up', 'effective_from' => '2026-01-01', ...$terms];
 
 $prices = fn (string $roomTypeId, string $propertyId) => ['_property' => $propertyId, 'room_type_id' => $roomTypeId, 'from' => '2026-12-01', 'to' => '2026-12-03', 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'base_price' => 1, 'extra_adult' => 0, 'extra_child' => 0];
 
@@ -113,4 +127,21 @@ return [
         $this->actingAs($t->a->owner)->post(route('rate-plans.deactivate', $plan->id), ['_property' => $t->a->property->id])->assertNotFound(),
         $this->actingAs($t->a->owner)->post(route('rate-plans.deactivate', $plan->id), ['_property' => $t->b->property->id])->assertForbidden(),
     ])),
+    'tax-rules.index' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoTax) {
+        $bravoTax($t);
+
+        return array_map(fn ($member) => $this->actingAs($member)->get(route('tax-rules.index'))->assertDontSee('Bravo Secret Levy'), $t->a->members());
+    }),
+    'tax-rules.store' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoTax, $bravoTaxes, $taxForm) {
+        $bravoTax($t);
+        $before = $bravoTaxes($t);
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('tax-rules.store'), $taxForm($t->b->property->id))->assertForbidden(),
+            // Bravo's rule of the same name doesn't block Alpha's.
+            $this->actingAs($t->a->owner)->post(route('tax-rules.store'), $taxForm($t->a->property->id, ['name' => 'Bravo Secret Levy']))->assertSessionHasNoErrors(),
+        ];
+        expect($bravoTaxes($t))->toBe($before);
+
+        return $responses;
+    }),
 ];
