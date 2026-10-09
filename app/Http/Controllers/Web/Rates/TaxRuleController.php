@@ -5,17 +5,22 @@ namespace App\Http\Controllers\Web\Rates;
 use App\Domains\Rates\Actions\ChangeTaxRule;
 use App\Domains\Rates\Actions\CreateTaxRule;
 use App\Domains\Rates\Actions\EndTaxRule;
+use App\Domains\Rates\Enums\ChargeKind;
 use App\Domains\Rates\Models\TaxRule;
+use App\Domains\Rates\TaxCalculator;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Rates\TaxPreviewRequest;
 use App\Http\Requests\Rates\TaxRuleRequest;
 use App\Models\User;
+use App\Support\Money\Currency;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
 
 class TaxRuleController extends Controller
 {
@@ -66,5 +71,30 @@ class TaxRuleController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __(':tax ends on :date.', ['tax' => $taxRule->name, 'date' => $valid['effective_to']])]);
 
         return redirect()->route('tax-rules.index');
+    }
+
+    public function preview(TaxPreviewRequest $request): Response
+    {
+        /** @var array{amount?: int|string, currency?: string, date?: string, guests?: int|string, charge?: string} $charge */
+        $charge = $request->validated();
+        $property = Tenancy::property();
+        $breakdown = null;
+        $unpreviewable = null;
+        if ($property !== null && isset($charge['amount'], $charge['currency'], $charge['date'], $charge['guests'], $charge['charge'])) {
+            try {
+                $breakdown = TaxCalculator::forProperty($property, (int) $charge['amount'], Currency::from($charge['currency']), $charge['date'], (int) $charge['guests'], ChargeKind::from($charge['charge']));
+            } catch (InvalidArgumentException $e) {
+                $unpreviewable = $e->getMessage();
+            }
+        }
+
+        return Inertia::render('rates/tax-preview', [
+            'charge' => $charge,
+            'currencies' => $property ? JurisdictionRules::allowedCurrencies($property) : [],
+            'breakdown' => $breakdown === null ? null : [
+                'currency' => $breakdown->currency->value, 'net' => $breakdown->net, 'tax' => $breakdown->tax(), 'gross' => $breakdown->gross(), 'lines' => $breakdown->lines,
+            ],
+            'unpreviewable' => $unpreviewable,
+        ]);
     }
 }

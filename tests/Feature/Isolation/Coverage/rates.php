@@ -132,6 +132,16 @@ return [
 
         return array_map(fn ($member) => $this->actingAs($member)->get(route('tax-rules.index'))->assertDontSee('Bravo Secret Levy'), $t->a->members());
     }),
+    'tax-rules.preview' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoTax) {
+        $bravoTax($t);
+        $query = ['amount' => 10000, 'currency' => 'USD', 'date' => '2026-06-01', 'guests' => 2, 'charge' => 'room'];
+
+        return [
+            ...array_map(fn ($member) => $this->actingAs($member)->get(route('tax-rules.preview', $query)), $t->a->members()),
+            // Alpha's breakdown carries none of Bravo's rules.
+            $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('tax-rules.preview', $query))->assertOk()->assertInertia(fn ($page) => $page->where('breakdown.tax', 0)),
+        ];
+    }),
     'tax-rules.store' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoTax, $bravoTaxes, $taxForm) {
         $bravoTax($t);
         $before = $bravoTaxes($t);

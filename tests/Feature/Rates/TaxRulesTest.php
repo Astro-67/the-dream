@@ -131,3 +131,23 @@ test('an ended rule can be extended only up to the next version of the same name
     $this->post(route('tax-rules.end', $first), ['_property' => $t->a->property->id, 'effective_to' => '2026-06-01'])->assertSessionHasErrors('effective_to');
     $this->post(route('tax-rules.end', $first), ['_property' => $t->a->property->id, 'effective_to' => '2026-05-31'])->assertSessionHasNoErrors();
 });
+
+test('front desk previews the tax breakdown of a price on a date', function () {
+    $t = twoTenants();
+    $this->actingAs($t->a->member(OrganizationRole::Finance));
+    $this->post(route('tax-rules.store'), vatForm($t->a->property->id, ['inclusive' => '1']))->assertSessionHasNoErrors();
+    $this->post(route('tax-rules.store'), vatForm($t->a->property->id, ['name' => 'Infrastructure tax', 'kind' => 'flat_per_person_night', 'rate' => null, 'amount' => '150', 'currency' => 'USD', 'applies_to' => 'room']))->assertSessionHasNoErrors();
+    $preview = fn (array $query) => $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
+        ->get(route('tax-rules.preview', ['amount' => 11800, 'currency' => 'USD', 'date' => '2026-06-01', 'guests' => 2, 'charge' => 'room', ...$query]));
+
+    $preview([])->assertOk()->assertInertia(fn (Assert $page) => $page->component('rates/tax-preview')
+        ->where('breakdown.net', 10000)->where('breakdown.tax', 2100)->where('breakdown.gross', 12100)
+        ->where('breakdown.lines', [
+            ['name' => 'Infrastructure tax', 'kind' => 'flat_per_person_night', 'inclusive' => false, 'rate' => null, 'per_person_night' => 150, 'amount' => 300],
+            ['name' => 'VAT', 'kind' => 'percentage', 'inclusive' => true, 'rate' => 1800, 'per_person_night' => null, 'amount' => 1800],
+        ]));
+    $preview(['date' => '2025-12-31'])->assertInertia(fn (Assert $page) => $page->where('breakdown.tax', 0));
+    $preview(['currency' => 'TZS'])->assertInertia(fn (Assert $page) => $page->where('breakdown', null)->where('unpreviewable', 'Infrastructure tax is charged in USD, not TZS.'));
+    $preview(['charge' => 'extra', 'guests' => 99])->assertSessionHasErrors('guests');
+    $this->get(route('tax-rules.preview'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('breakdown', null));
+});
