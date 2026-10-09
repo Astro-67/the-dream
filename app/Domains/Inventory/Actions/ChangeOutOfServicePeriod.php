@@ -31,7 +31,7 @@ class ChangeOutOfServicePeriod
                 return $period;
             }
 
-            OutOfServicePeriod::ensureFree($period->room, $details['starts_on'], $details['returns_on'], $period);
+            TakeRoomOutOfService::ensureFree($period->room, $details['starts_on'], $details['returns_on'], $period);
             $period->save();
             app(RecalculateInventory::class)->handle($type);
 

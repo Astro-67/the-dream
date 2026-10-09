@@ -10,13 +10,13 @@ use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Rates\TaxCalculator;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Rates\EndTaxRuleRequest;
 use App\Http\Requests\Rates\TaxPreviewRequest;
 use App\Http\Requests\Rates\TaxRuleRequest;
 use App\Models\User;
 use App\Support\Money\Currency;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -60,11 +60,10 @@ class TaxRuleController extends Controller
         return redirect()->route('tax-rules.index');
     }
 
-    public function end(Request $request, TaxRule $taxRule, EndTaxRule $end): RedirectResponse
+    public function end(EndTaxRuleRequest $request, TaxRule $taxRule, EndTaxRule $end): RedirectResponse
     {
-        Gate::authorize('update', $taxRule);
         /** @var array{effective_to: string} $valid */
-        $valid = $request->validate(['effective_to' => ['required', 'date_format:Y-m-d']]);
+        $valid = $request->validated();
         /** @var User $actor */
         $actor = $request->user();
         $end->handle($actor, $taxRule, $valid['effective_to']);
