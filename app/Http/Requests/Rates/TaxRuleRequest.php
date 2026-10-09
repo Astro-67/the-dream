@@ -12,14 +12,16 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * A new tax rule. The rate is a percentage with up to two decimals (stored in basis points);
+ * A new tax rule, or the next version of the routed rule. The rate is a percentage with up to two decimals (stored in basis points);
  * a flat amount is in minor units of its currency per guest per night.
  */
 class TaxRuleRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('create', TaxRule::class) ?? false;
+        $rule = $this->route('taxRule');
+
+        return $this->user()?->can(...($rule instanceof TaxRule ? ['update', $rule] : ['create', TaxRule::class])) ?? false;
     }
 
     /** @return array<string, mixed> */

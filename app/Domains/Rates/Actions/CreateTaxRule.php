@@ -31,7 +31,7 @@ class CreateTaxRule
     }
 
     /** @throws ValidationException when another rule of the name is in force on any of the dates */
-    public static function refuseOverlap(string $name, string $from, ?string $to, ?TaxRule $except = null): void
+    public static function refuseOverlap(string $name, string $from, ?string $to, ?TaxRule $except = null, string $field = 'effective_from'): void
     {
         $clash = TaxRule::query()->where('name', $name)
             ->when($except, fn ($query) => $query->whereKeyNot($except->id))
@@ -39,7 +39,7 @@ class CreateTaxRule
             ->when($to !== null, fn ($query) => $query->where('effective_from', '<=', $to))
             ->first();
         if ($clash !== null) {
-            throw ValidationException::withMessages(['effective_from' => __(':tax already applies from :from to :to. End it before this rule starts.', [
+            throw ValidationException::withMessages([$field => __(':tax already applies from :from to :to. Rules sharing a name cannot overlap.', [
                 'tax' => $name, 'from' => $clash->effective_from->format('Y-m-d'), 'to' => $clash->effective_to?->format('Y-m-d') ?? __('no end date'),
             ])]);
         }

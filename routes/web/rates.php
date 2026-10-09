@@ -18,4 +18,6 @@ Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(func
     Route::post('rate-plans/{ratePlan}/deactivate', [RatePlanController::class, 'deactivate'])->name('rate-plans.deactivate');
     Route::get('tax-rules', [TaxRuleController::class, 'index'])->name('tax-rules.index');
     Route::post('tax-rules', [TaxRuleController::class, 'store'])->name('tax-rules.store');
+    Route::post('tax-rules/{taxRule}/change', [TaxRuleController::class, 'change'])->name('tax-rules.change');
+    Route::post('tax-rules/{taxRule}/end', [TaxRuleController::class, 'end'])->name('tax-rules.end');
 });

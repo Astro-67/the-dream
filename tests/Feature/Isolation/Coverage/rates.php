@@ -144,4 +144,26 @@ return [
 
         return $responses;
     }),
+    'tax-rules.change' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoTax, $bravoTaxes, $taxForm) {
+        $rule = $bravoTax($t);
+        $before = $bravoTaxes($t);
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('tax-rules.change', $rule->id), $taxForm($t->a->property->id, ['effective_from' => '2026-06-01']))->assertNotFound(),
+            $this->actingAs($t->a->owner)->post(route('tax-rules.change', $rule->id), $taxForm($t->b->property->id, ['effective_from' => '2026-06-01']))->assertForbidden(),
+        ];
+        expect($bravoTaxes($t))->toBe($before);
+
+        return $responses;
+    }),
+    'tax-rules.end' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoTax, $bravoTaxes) {
+        $rule = $bravoTax($t);
+        $before = $bravoTaxes($t);
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('tax-rules.end', $rule->id), ['_property' => $t->a->property->id, 'effective_to' => '2026-06-01'])->assertNotFound(),
+            $this->actingAs($t->a->owner)->post(route('tax-rules.end', $rule->id), ['_property' => $t->b->property->id, 'effective_to' => '2026-06-01'])->assertForbidden(),
+        ];
+        expect($bravoTaxes($t))->toBe($before);
+
+        return $responses;
+    }),
 ];
