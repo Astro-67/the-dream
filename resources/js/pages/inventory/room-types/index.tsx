@@ -1,3 +1,12 @@
+import { Identifier } from '@/components/ui/identifier';
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/components/ui/table';
 import { Head, Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,92 +60,69 @@ export default function RoomTypesIndex({
                             ' Add one to describe what this property sells.'}
                     </p>
                 ) : (
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full text-sm">
-                            <thead className="sticky top-0 border-b bg-muted/50 text-left text-muted-foreground">
-                                <tr>
-                                    <th className="h-10 px-4 font-medium">
-                                        Code
-                                    </th>
-                                    <th className="h-10 px-4 font-medium">
-                                        Name
-                                    </th>
-                                    <th className="h-10 px-4 text-right font-medium">
-                                        Base
-                                    </th>
-                                    <th className="h-10 px-4 text-right font-medium">
-                                        Max adults
-                                    </th>
-                                    <th className="h-10 px-4 text-right font-medium">
-                                        Max children
-                                    </th>
-                                    <th className="h-10 px-4 text-right font-medium">
-                                        Max guests
-                                    </th>
-                                    <th className="h-10 px-4 text-right font-medium">
-                                        Sellable today
-                                    </th>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Code</TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead numeric>Base</TableHead>
+                                <TableHead numeric>Max adults</TableHead>
+                                <TableHead numeric>Max children</TableHead>
+                                <TableHead numeric>Max guests</TableHead>
+                                <TableHead numeric>Sellable today</TableHead>
+                                {canManage && (
+                                    <TableHead>
+                                        <span className="sr-only">Actions</span>
+                                    </TableHead>
+                                )}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {roomTypes.map((roomType) => (
+                                <TableRow key={roomType.id}>
+                                    <TableCell>
+                                        <Identifier value={roomType.code} />
+                                    </TableCell>
+                                    <TableCell className="font-medium">
+                                        {roomType.name}
+                                    </TableCell>
+                                    <TableCell numeric>
+                                        {roomType.baseOccupancy}
+                                    </TableCell>
+                                    <TableCell numeric>
+                                        {roomType.maxAdults}
+                                    </TableCell>
+                                    <TableCell numeric>
+                                        {roomType.maxChildren}
+                                    </TableCell>
+                                    <TableCell numeric>
+                                        {roomType.maxOccupancy}
+                                    </TableCell>
+                                    <TableCell numeric>
+                                        {roomType.sellableToday}
+                                    </TableCell>
                                     {canManage && (
-                                        <th className="h-10 px-4">
-                                            <span className="sr-only">
-                                                Actions
-                                            </span>
-                                        </th>
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {roomTypes.map((roomType) => (
-                                    <tr
-                                        key={roomType.id}
-                                        className="h-10 hover:bg-muted/40"
-                                    >
-                                        <td className="px-4 py-2 font-mono">
-                                            {roomType.code}
-                                        </td>
-                                        <td className="px-4 py-2 font-medium">
-                                            {roomType.name}
-                                        </td>
-                                        <td className="px-4 py-2 text-right tabular-nums">
-                                            {roomType.baseOccupancy}
-                                        </td>
-                                        <td className="px-4 py-2 text-right tabular-nums">
-                                            {roomType.maxAdults}
-                                        </td>
-                                        <td className="px-4 py-2 text-right tabular-nums">
-                                            {roomType.maxChildren}
-                                        </td>
-                                        <td className="px-4 py-2 text-right tabular-nums">
-                                            {roomType.maxOccupancy}
-                                        </td>
-                                        <td className="px-4 py-2 text-right tabular-nums">
-                                            {roomType.sellableToday}
-                                        </td>
-                                        {canManage && (
-                                            <td className="px-4 py-2">
-                                                <div className="flex justify-end">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        asChild
+                                        <TableCell>
+                                            <div className="flex justify-end">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href={edit(roomType.id)}
+                                                        aria-label={`Edit ${roomType.name}`}
                                                     >
-                                                        <Link
-                                                            href={edit(
-                                                                roomType.id,
-                                                            )}
-                                                            aria-label={`Edit ${roomType.name}`}
-                                                        >
-                                                            Edit
-                                                        </Link>
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        )}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                                        Edit
+                                                    </Link>
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
             </div>
         </>

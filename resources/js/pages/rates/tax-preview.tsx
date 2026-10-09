@@ -1,3 +1,4 @@
+import { Table, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -145,54 +146,54 @@ export default function TaxPreview({
                     </p>
                 )}
                 {breakdown && (
-                    <div className="max-w-[720px] overflow-x-auto rounded-lg border">
-                        <table className="w-full text-sm">
-                            <tbody>
-                                <tr className="border-b">
-                                    <td className="p-3">Net</td>
-                                    <td className="p-3" />
-                                    <td className="p-3 text-right tabular-nums">
+                    <div className="max-w-[720px]">
+                        <Table>
+                            <TableBody>
+                                <TableRow>
+                                    <TableCell>Net</TableCell>
+                                    <TableCell />
+                                    <TableCell numeric>
                                         {money(breakdown.net)}
-                                    </td>
-                                </tr>
+                                    </TableCell>
+                                </TableRow>
                                 {breakdown.lines.map((line) => (
-                                    <tr key={line.name} className="border-b">
-                                        <td className="p-3">{line.name}</td>
-                                        <td className="p-3 text-muted-foreground">
+                                    <TableRow key={line.name}>
+                                        <TableCell>{line.name}</TableCell>
+                                        <TableCell className="text-muted-foreground">
                                             {ruleSize(line, breakdown.currency)}
                                             ,{' '}
                                             {line.inclusive
                                                 ? 'included'
                                                 : 'added'}
-                                        </td>
-                                        <td className="p-3 text-right tabular-nums">
+                                        </TableCell>
+                                        <TableCell numeric>
                                             {money(line.amount)}
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
                                 {breakdown.lines.length === 0 && (
-                                    <tr className="border-b">
-                                        <td
-                                            className="p-3 text-muted-foreground"
+                                    <TableRow>
+                                        <TableCell
+                                            className="text-muted-foreground"
                                             colSpan={3}
                                         >
                                             No tax rule applies to this charge
                                             on this date.
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </tbody>
+                            </TableBody>
                             <tfoot>
-                                <tr className="font-semibold">
-                                    <td className="p-3" colSpan={2}>
+                                <TableRow className="font-semibold">
+                                    <TableCell colSpan={2}>
                                         Total charged
-                                    </td>
-                                    <td className="p-3 text-right tabular-nums">
+                                    </TableCell>
+                                    <TableCell numeric>
                                         {money(breakdown.gross)}
-                                    </td>
-                                </tr>
+                                    </TableCell>
+                                </TableRow>
                             </tfoot>
-                        </table>
+                        </Table>
                     </div>
                 )}
             </div>

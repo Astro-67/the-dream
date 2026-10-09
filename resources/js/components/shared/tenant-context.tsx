@@ -9,6 +9,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuButton } from '@/components/ui/sidebar';
+import { Tag } from '@/components/ui/status-chip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { dashboard } from '@/routes';
 
@@ -84,9 +85,7 @@ export function CurrentProperty() {
                 aria-hidden
             />
             <span className="truncate font-medium">{tenant.property.name}</span>
-            <span className="shrink-0 rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                {tenant.property.jurisdictionLabel}
-            </span>
+            <Tag className="shrink-0">{tenant.property.jurisdictionLabel}</Tag>
         </div>
     );
 }

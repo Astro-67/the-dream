@@ -1,3 +1,11 @@
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
@@ -123,61 +131,55 @@ export default function QuotePreview({
                     </p>
                 )}
                 {quote && !quote.unquotable && (
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left">
-                                    {[
-                                        'Night',
-                                        'Base occupancy',
-                                        'Extra adults',
-                                        'Extra children',
-                                        'Night total',
-                                    ].map((label) => (
-                                        <th key={label} className="p-3">
-                                            {label}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {quote.nights.map((night) => (
-                                    <tr
-                                        key={formatDate(night.date, 'UTC')}
-                                        className="border-b"
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                {[
+                                    'Night',
+                                    'Base occupancy',
+                                    'Extra adults',
+                                    'Extra children',
+                                    'Night total',
+                                ].map((label) => (
+                                    <TableHead
+                                        numeric={label !== 'Night'}
+                                        key={label}
                                     >
-                                        <td className="p-3 tabular-nums">
-                                            {formatDate(night.date, 'UTC')}
-                                        </td>
-                                        {[
-                                            night.base_price,
-                                            night.extra_adults,
-                                            night.extra_children,
-                                            night.total,
-                                        ].map((amount, i) => (
-                                            <td
-                                                key={i}
-                                                className="p-3 text-right tabular-nums"
-                                            >
-                                                {money(amount)}
-                                            </td>
-                                        ))}
-                                    </tr>
+                                        {label}
+                                    </TableHead>
                                 ))}
-                            </tbody>
-                            <tfoot>
-                                <tr className="font-semibold">
-                                    <td className="p-3" colSpan={4}>
-                                        Stay total ({quote.nights.length}{' '}
-                                        nights)
-                                    </td>
-                                    <td className="p-3 text-right tabular-nums">
-                                        {money(quote.total)}
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {quote.nights.map((night) => (
+                                <TableRow key={formatDate(night.date, 'UTC')}>
+                                    <TableCell className="tabular-nums">
+                                        {formatDate(night.date, 'UTC')}
+                                    </TableCell>
+                                    {[
+                                        night.base_price,
+                                        night.extra_adults,
+                                        night.extra_children,
+                                        night.total,
+                                    ].map((amount, i) => (
+                                        <TableCell numeric key={i}>
+                                            {money(amount)}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                        <tfoot>
+                            <TableRow className="font-semibold">
+                                <TableCell colSpan={4}>
+                                    Stay total ({quote.nights.length} nights)
+                                </TableCell>
+                                <TableCell numeric>
+                                    {money(quote.total)}
+                                </TableCell>
+                            </TableRow>
+                        </tfoot>
+                    </Table>
                 )}
             </div>
         </>

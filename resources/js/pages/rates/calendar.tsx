@@ -174,7 +174,7 @@ export default function RateCalendar({
                         No room types selected. Choose at least one above.
                     </p>
                 ) : (
-                    <div className="max-h-[70vh] overflow-auto rounded-lg border bg-card">
+                    <div className="max-h-[calc(100svh-9rem)] overflow-auto rounded-xl border bg-card">
                         <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
                             <thead>
                                 <tr>
