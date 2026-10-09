@@ -64,6 +64,7 @@ function CountField({
                 min={min}
                 max={50}
                 required
+                aria-invalid={!!error}
                 defaultValue={value}
                 className="tabular-nums"
             />
@@ -88,6 +89,7 @@ export function RoomTypeFields({
                     required
                     autoFocus
                     maxLength={255}
+                    aria-invalid={!!errors.name}
                     defaultValue={values?.name}
                 />
             </Field>
@@ -103,6 +105,7 @@ export function RoomTypeFields({
                     required
                     maxLength={16}
                     className="font-mono uppercase"
+                    aria-invalid={!!errors.code}
                     defaultValue={values?.code}
                 />
             </Field>
@@ -117,6 +120,7 @@ export function RoomTypeFields({
                     name="description"
                     rows={3}
                     maxLength={2000}
+                    aria-invalid={!!errors.description}
                     defaultValue={values?.description ?? ''}
                     className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                 />

@@ -1,3 +1,4 @@
+import { formatDate } from '@/features/platform/format';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -211,7 +212,10 @@ export default function Restrictions({
                                         className="border-b last:border-0"
                                     >
                                         <td className="p-3 tabular-nums">
-                                            {restriction.date}
+                                            {formatDate(
+                                                restriction.date,
+                                                'UTC',
+                                            )}
                                         </td>
                                         <td className="p-3">
                                             {

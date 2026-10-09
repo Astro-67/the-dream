@@ -1,3 +1,4 @@
+import { formatDate } from '@/features/platform/format';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -141,9 +142,12 @@ export default function QuotePreview({
                             </thead>
                             <tbody>
                                 {quote.nights.map((night) => (
-                                    <tr key={night.date} className="border-b">
+                                    <tr
+                                        key={formatDate(night.date, 'UTC')}
+                                        className="border-b"
+                                    >
                                         <td className="p-3 tabular-nums">
-                                            {night.date}
+                                            {formatDate(night.date, 'UTC')}
                                         </td>
                                         {[
                                             night.base_price,

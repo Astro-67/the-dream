@@ -1,3 +1,4 @@
+import { formatDate } from '@/features/platform/format';
 import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
@@ -345,7 +346,7 @@ function EndRule({ rule }: { rule: Rule }) {
                                     name="effective_to"
                                     type="date"
                                     required
-                                    min={rule.effective_from}
+                                    min={formatDate(rule.effective_from, 'UTC')}
                                     defaultValue={
                                         rule.effective_to ?? undefined
                                     }
@@ -448,8 +449,17 @@ export default function TaxRules({
                                             {rounding[rule.rounding]}
                                         </td>
                                         <td className="p-3 tabular-nums">
-                                            {rule.effective_from} to{' '}
-                                            {rule.effective_to ?? 'no end date'}
+                                            {formatDate(
+                                                rule.effective_from,
+                                                'UTC',
+                                            )}{' '}
+                                            to{' '}
+                                            {rule.effective_to
+                                                ? formatDate(
+                                                      rule.effective_to,
+                                                      'UTC',
+                                                  )
+                                                : 'no end date'}
                                         </td>
                                         <td className="p-3 text-right whitespace-nowrap">
                                             {canManage && (
