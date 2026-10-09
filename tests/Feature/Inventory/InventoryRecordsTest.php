@@ -112,3 +112,16 @@ test('the daily extension fills the horizon for every property and is safe to ru
         });
     }
 });
+
+test('a stale room move recalculates its current type and does not skip a return move', function () {
+    [, , $property] = organizationWithOwner();
+    inTenant($property, function () {
+        $old = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+        $new = app(CreateRoomType::class)->handle(null, InventoryForm::roomType(['code' => 'NEW']));
+        $room = app(CreateRoom::class)->handle(null, InventoryForm::room($old->id));
+        app(MoveRoom::class)->handle(null, $room->fresh(), $new);
+        app(MoveRoom::class)->handle(null, $room, $old);
+        expect($room->fresh()->room_type_id)->toBe($old->id)
+            ->and(InventoryRecord::query()->where('room_type_id', $new->id)->pluck('sellable_count')->unique()->all())->toBe([0]);
+    });
+});

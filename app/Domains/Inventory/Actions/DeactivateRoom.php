@@ -15,11 +15,11 @@ class DeactivateRoom
 {
     public function handle(?User $actor, Room $room): Room
     {
-        if ($room->deactivated_at !== null) {
-            return $room;
-        }
-
         return InventoryRefused::audited($actor, $room, 'Room deactivation refused', fn () => DB::transaction(function () use ($actor, $room) {
+            $room = Room::query()->whereKey($room->id)->lockForUpdate()->firstOrFail();
+            if ($room->deactivated_at !== null) {
+                return $room;
+            }
             $type = $room->roomType()->lockForUpdate()->firstOrFail();
             $room->deactivated_at = now();
             $room->save();

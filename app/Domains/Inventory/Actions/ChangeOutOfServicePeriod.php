@@ -4,6 +4,7 @@ namespace App\Domains\Inventory\Actions;
 
 use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\OutOfServicePeriod;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -23,7 +24,10 @@ class ChangeOutOfServicePeriod
     public function handle(?User $actor, OutOfServicePeriod $period, array $details): OutOfServicePeriod
     {
         return InventoryRefused::audited($actor, $period, 'Out-of-service change refused', fn () => DB::transaction(function () use ($actor, $period, $details) {
-            $type = RoomType::query()->whereKey($period->room->room_type_id)->lockForUpdate()->firstOrFail();
+            $room = Room::query()->whereKey($period->room_id)->lockForUpdate()->firstOrFail();
+            $period = OutOfServicePeriod::query()->whereKey($period->id)->lockForUpdate()->firstOrFail();
+            $period->setRelation('room', $room);
+            $type = RoomType::query()->whereKey($room->room_type_id)->lockForUpdate()->firstOrFail();
             $old = $period->details();
             $period->fill(Arr::only($details, ['starts_on', 'returns_on', 'reason']));
 

@@ -24,6 +24,7 @@ class TakeRoomOutOfService
     public function handle(?User $actor, Room $room, array $details): OutOfServicePeriod
     {
         return InventoryRefused::audited($actor, $room, 'Room out of service refused', fn () => DB::transaction(function () use ($actor, $room, $details) {
+            $room = Room::query()->whereKey($room->id)->lockForUpdate()->firstOrFail();
             $type = RoomType::query()->whereKey($room->room_type_id)->lockForUpdate()->firstOrFail();
             self::ensureFree($room, $details['starts_on'], $details['returns_on']);
             $period = $room->outOfServicePeriods()->create($details);

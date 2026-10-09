@@ -16,11 +16,12 @@ class MoveRoom
 {
     public function handle(?User $actor, Room $room, RoomType $roomType): Room
     {
-        if ($room->room_type_id === $roomType->id) {
-            return $room;
-        }
-
         return InventoryRefused::audited($actor, $room, 'Room move refused', fn () => DB::transaction(function () use ($actor, $room, $roomType) {
+            $room = Room::query()->whereKey($room->id)->lockForUpdate()->firstOrFail();
+            if ($room->room_type_id === $roomType->id) {
+                return $room;
+            }
+
             $old = ['room_type_id' => $room->room_type_id];
             $types = RoomType::query()->whereKey([$room->room_type_id, $roomType->id])
                 ->orderBy('id')->lockForUpdate()->get();
