@@ -40,9 +40,6 @@ test('tenant bypass calls are limited to tenancy or platform code', function () 
 });
 
 test('only JurisdictionRules names a jurisdiction profile case (ADR 0014)', function () {
-    $names = array_map(fn (JurisdictionProfile $profile) => preg_quote($profile->name, '/'), JurisdictionProfile::cases());
-    $values = array_map(fn (JurisdictionProfile $profile) => preg_quote($profile->value, '/'), JurisdictionProfile::cases());
-    $comparison = '/JurisdictionProfile::('.implode('|', $names).')\b|[\'"]('.implode('|', $values).')[\'"]/';
     $violations = [];
 
     foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__, 2).'/app')) as $file) {
@@ -52,10 +49,27 @@ test('only JurisdictionRules names a jurisdiction profile case (ADR 0014)', func
             continue;
         }
 
-        if (preg_match($comparison, (string) file_get_contents($file->getPathname()))) {
+        if (namesJurisdictionCase((string) file_get_contents($file->getPathname()))) {
             $violations[] = $path.' names a jurisdiction profile case; ask JurisdictionRules instead';
         }
     }
 
     expect($violations)->toBeEmpty(implode("\n", $violations));
+});
+
+function namesJurisdictionCase(string $source): bool
+{
+    preg_match_all('/\bJurisdictionProfile\s+as\s+(\w+)/i', $source, $aliases);
+    foreach ($aliases[1] as $alias) {
+        $source = preg_replace('/\b'.preg_quote($alias, '/').'\s*::/', 'JurisdictionProfile::', $source);
+    }
+    $names = array_map(fn (JurisdictionProfile $profile) => preg_quote($profile->name, '/'), JurisdictionProfile::cases());
+    $values = array_map(fn (JurisdictionProfile $profile) => preg_quote($profile->value, '/'), JurisdictionProfile::cases());
+    $comparison = '/JurisdictionProfile::('.implode('|', $names).')\b|[\'"]('.implode('|', $values).')[\'"]/';
+
+    return preg_match($comparison, $source) === 1;
+}
+
+test('the jurisdiction case guard detects aliased imports', function () {
+    expect(namesJurisdictionCase('<?php use App\Domains\Tenancy\Enums\JurisdictionProfile as Profile; $profile === Profile::Zanzibar;'))->toBeTrue();
 });
