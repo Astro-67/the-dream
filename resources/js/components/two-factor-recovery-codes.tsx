@@ -148,7 +148,7 @@ export default function TwoFactorRecoveryCodes({
                                         Each recovery code can be used once to
                                         access your account and will be removed
                                         after use. If you need more, click{' '}
-                                        <span className="font-bold">
+                                        <span className="font-semibold">
                                             Regenerate codes
                                         </span>{' '}
                                         above.
