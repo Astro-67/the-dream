@@ -13,11 +13,12 @@ test('moving a room recalculates both types and never changes sold inventory', f
         $old = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
         $new = app(CreateRoomType::class)->handle(null, InventoryForm::roomType(['code' => 'NEW']));
         $room = app(CreateRoom::class)->handle(null, InventoryForm::room($old->id));
+        app(CreateRoom::class)->handle(null, InventoryForm::room($old->id, ['number' => '102']));
         $record = InventoryRecord::query()->where('room_type_id', $old->id)->firstOrFail();
         $record->sold_count = 1;
         $record->save();
         app(MoveRoom::class)->handle(null, $room, $new);
-        expect(InventoryRecord::query()->where('room_type_id', $old->id)->pluck('sellable_count')->unique()->all())->toBe([0])
+        expect(InventoryRecord::query()->where('room_type_id', $old->id)->pluck('sellable_count')->unique()->all())->toBe([1])
             ->and(InventoryRecord::query()->where('room_type_id', $new->id)->pluck('sellable_count')->unique()->all())->toBe([1])
             ->and($record->fresh()->sold_count)->toBe(1);
     });
@@ -28,13 +29,14 @@ test('deactivating a room reduces every sellable count once and preserves sold i
     inTenant($property, function () {
         $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
         $room = app(CreateRoom::class)->handle(null, InventoryForm::room($type->id));
+        app(CreateRoom::class)->handle(null, InventoryForm::room($type->id, ['number' => '102']));
         $record = InventoryRecord::query()->firstOrFail();
         $record->sold_count = 1;
         $record->save();
         app(DeactivateRoom::class)->handle(null, $room);
         app(DeactivateRoom::class)->handle(null, $room);
 
-        expect(InventoryRecord::query()->pluck('sellable_count')->unique()->all())->toBe([0])
+        expect(InventoryRecord::query()->pluck('sellable_count')->unique()->all())->toBe([1])
             ->and($record->fresh()->sold_count)->toBe(1);
     });
 });

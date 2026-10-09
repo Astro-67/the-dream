@@ -3,6 +3,10 @@ import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import {
+    OutOfService,
+    type OutOfServicePeriod,
+} from '@/features/inventory/out-of-service';
 import { RoomFields, RoomTypeSelect } from '@/features/inventory/room-fields';
 import { index, move, update } from '@/routes/rooms';
 import type { SelectOption } from '@/types';
@@ -17,9 +21,13 @@ type RoomValues = {
 export default function EditRoom({
     room,
     roomTypes,
+    outOfService,
+    today,
 }: {
     room: RoomValues;
     roomTypes: SelectOption[];
+    outOfService: OutOfServicePeriod[];
+    today: string;
 }) {
     return (
         <>
@@ -85,7 +93,11 @@ export default function EditRoom({
                         {({ processing, errors }) => (
                             <>
                                 <PropertyIntent />
-                                <InputError message={errors._property} />
+                                <InputError
+                                    message={
+                                        errors._property ?? errors.inventory
+                                    }
+                                />
                                 <div className="grid gap-6 sm:grid-cols-2">
                                     <RoomTypeSelect
                                         options={roomTypes}
@@ -103,6 +115,12 @@ export default function EditRoom({
                         )}
                     </Form>
                 </section>
+
+                <OutOfService
+                    roomId={room.id}
+                    periods={outOfService}
+                    today={today}
+                />
             </div>
         </>
     );

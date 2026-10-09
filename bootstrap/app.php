@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Http\Middleware\EnsurePlatformRole;
 use App\Http\Middleware\EnsurePropertyIntent;
 use App\Http\Middleware\HandleAppearance;
@@ -44,4 +45,5 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+        $exceptions->render(fn (InventoryRefused $refused) => back()->withErrors(['inventory' => $refused->getMessage()]));
     })->create();
