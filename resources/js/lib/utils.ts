@@ -17,3 +17,18 @@ export function formatMoney(minor: number, currency: string): string {
 
     return `${currency} ${new Intl.NumberFormat('en', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(minor / 10 ** decimals)}`;
 }
+
+/** A tax rule's or breakdown line's size: its percentage, or its flat amount per guest per night. */
+export const ruleSize = (
+    rule: {
+        kind: string;
+        rate: number | null;
+        amount?: number | null;
+        per_person_night?: number | null;
+        currency?: string | null;
+    },
+    currency?: string,
+) =>
+    rule.kind === 'percentage'
+        ? `${(rule.rate ?? 0) / 100}%`
+        : `${formatMoney(rule.per_person_night ?? rule.amount ?? 0, rule.currency ?? currency ?? '')} per guest per night`;

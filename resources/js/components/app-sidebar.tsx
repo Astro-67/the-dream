@@ -8,6 +8,7 @@ import {
     Hotel,
     LayoutGrid,
     MailPlus,
+    Percent,
     ShieldCheck,
     Tags,
     Users,
@@ -33,6 +34,7 @@ import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
 import { index as ratePlans } from '@/routes/rate-plans';
 import { index as roomTypes } from '@/routes/room-types';
+import { index as taxRules } from '@/routes/tax-rules';
 import { index as rooms } from '@/routes/rooms';
 import type { NavItem } from '@/types';
 
@@ -90,6 +92,7 @@ export function AppSidebar() {
                   { title: 'Room types', href: roomTypes(), icon: BedDouble },
                   { title: 'Rooms', href: rooms(), icon: DoorOpen },
                   { title: 'Rate plans', href: ratePlans(), icon: Tags },
+                  { title: 'Taxes', href: taxRules(), icon: Percent },
               ]
             : []),
         ...(can('members.view')
