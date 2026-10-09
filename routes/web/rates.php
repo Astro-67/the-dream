@@ -1,11 +1,15 @@
 <?php
 
+use App\Http\Controllers\Web\Rates\RateCalendarController;
 use App\Http\Controllers\Web\Rates\RatePlanController;
 use App\Http\Controllers\Web\Rates\RatePriceController;
 use App\Http\Controllers\Web\Rates\RateRestrictionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(function () {
+    Route::get('rate-calendar', [RateCalendarController::class, 'index'])->name('rate-calendar');
+    Route::put('rate-calendar/{ratePlan}/prices', [RateCalendarController::class, 'prices'])->name('rate-calendar.prices');
+    Route::put('rate-calendar/{ratePlan}/restrictions', [RateCalendarController::class, 'restrictions'])->name('rate-calendar.restrictions');
     Route::get('rate-plans', [RatePlanController::class, 'index'])->name('rate-plans.index');
     Route::get('rate-plans/create', [RatePlanController::class, 'create'])->name('rate-plans.create');
     Route::get('rate-plans/{ratePlan}/prices', [RatePriceController::class, 'index'])->name('rate-plans.prices');

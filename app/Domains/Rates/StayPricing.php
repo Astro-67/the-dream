@@ -52,7 +52,7 @@ class StayPricing
      * @param  list<string>  $dates
      * @return Collection<string, RatePrice>
      */
-    private function storedPrices(RatePlan $plan, RoomType $roomType, array $dates): Collection
+    public function storedPrices(RatePlan $plan, RoomType $roomType, array $dates): Collection
     {
         return RatePrice::query()
             ->where('rate_plan_id', $plan->base_rate_plan_id ?? $plan->id)

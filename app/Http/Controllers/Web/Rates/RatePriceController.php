@@ -35,10 +35,7 @@ class RatePriceController extends Controller
     public function update(BulkPriceRequest $request, RatePlan $ratePlan, SetRatePrices $set): RedirectResponse
     {
         /** @var User $actor */ $actor = $request->user();
-        /** @var array{room_type_id: string, from: string, to: string, weekdays: list<int>, base_price: int, extra_adult: int, extra_child: int} $details */
-        $details = $request->validated();
-        $details['weekdays'] = array_map(intval(...), $details['weekdays']);
-        $set->handle($actor, $ratePlan, $details);
+        $set->handle($actor, $ratePlan, $request->details());
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Prices saved.')]);
 
         return redirect()->route('rate-plans.prices', $ratePlan);
