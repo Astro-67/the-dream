@@ -4,6 +4,7 @@ use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Actions\DeactivateRoom;
 use App\Domains\Inventory\Actions\MoveRoom;
+use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\InventoryRecord;
 use Tests\Support\InventoryForm;
 
@@ -123,5 +124,20 @@ test('a stale room move recalculates its current type and does not skip a return
         app(MoveRoom::class)->handle(null, $room, $old);
         expect($room->fresh()->room_type_id)->toBe($old->id)
             ->and(InventoryRecord::query()->where('room_type_id', $new->id)->pluck('sellable_count')->unique()->all())->toBe([0]);
+    });
+});
+
+test('shortening the horizon still protects sold inventory on existing later dates', function () {
+    config(['inventory.horizon_years' => 2]);
+    [, , $property] = organizationWithOwner();
+    inTenant($property, function () {
+        $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle(null, InventoryForm::room($type->id));
+        $last = InventoryRecord::query()->where('room_type_id', $type->id)->orderByDesc('date')->firstOrFail();
+        $last->sold_count = 1;
+        $last->save();
+        config(['inventory.horizon_years' => 1]);
+        expect(fn () => app(DeactivateRoom::class)->handle(null, $room))->toThrow(InventoryRefused::class);
+        expect($room->fresh()->deactivated_at)->toBeNull()->and($last->fresh()->sellable_count)->toBe(1);
     });
 });

@@ -29,6 +29,10 @@ class RecalculateInventory
             $property = Property::query()->findOrFail($type->property_id);
             $today = CarbonImmutable::now($property->timezone)->startOfDay();
             $end = $today->addYearsNoOverflow((int) config('inventory.horizon_years'));
+            $last = InventoryRecord::query()->where('room_type_id', $type->id)->orderByDesc('date')->first();
+            if ($last !== null && $last->date->gt($end)) {
+                $end = $last->date;
+            }
             $sellable = $this->availability->sellableByDate($type, $today, $end);
             $stranded = $this->strandedDates($type, $sellable);
 
