@@ -119,3 +119,10 @@ test('the calendar refuses a range it cannot show', function () {
     $this->get(route('rate-calendar', ['from' => '2026-10-09', 'to' => '2027-10-08']))->assertSessionHasErrors('to');
     $this->get(route('rate-calendar', ['from' => 'soon', 'to' => '2026-10-10']))->assertSessionHasErrors('from');
 });
+
+test('partial calendar ranges return validation errors rather than throwing', function () {
+    $t = twoTenants();
+    $this->actingAs($t->a->owner)->get(route('rate-calendar', ['from' => '2026-12-01']))->assertSessionHasErrors('to');
+    $this->get(route('rate-calendar', ['from' => '2026-10-09']))->assertSessionHasErrors('to');
+    $this->get(route('rate-calendar', ['to' => '2026-10-07']))->assertSessionHasErrors('from');
+});

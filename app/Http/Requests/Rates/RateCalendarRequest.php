@@ -20,8 +20,8 @@ class RateCalendarRequest extends FormRequest
 
         // Room type IDs are matched within the current property's scope, so unknown or foreign ones show nothing.
         return [
-            'from' => ['sometimes', 'date_format:Y-m-d'],
-            'to' => ['sometimes', 'required_with:from', 'date_format:Y-m-d', 'after_or_equal:from', ...($from ? ['before_or_equal:'.$from->addDays(61)->format('Y-m-d')] : [])],
+            'from' => ['required_with:to', 'date_format:Y-m-d'],
+            'to' => ['required_with:from', 'date_format:Y-m-d', 'after_or_equal:from', ...($from ? ['before_or_equal:'.$from->addDays(61)->format('Y-m-d')] : [])],
             'room_type_ids' => ['sometimes', 'array', 'max:100'],
             'room_type_ids.*' => ['string'],
         ];
