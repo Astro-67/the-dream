@@ -39,4 +39,16 @@ class BulkPriceRequest extends FormRequest
     {
         return ['room_type_id.prohibited' => __('A derived plan takes its prices from its base plan.')];
     }
+
+    /** @return array{room_type_id: string, from: string, to: string, weekdays: list<int>, base_price: int, extra_adult: int, extra_child: int} */
+    public function details(): array
+    {
+        /** @var array{room_type_id: string, from: string, to: string, weekdays: list<int|string>, base_price: int|string, extra_adult: int|string, extra_child: int|string} $valid */
+        $valid = $this->validated();
+
+        return [
+            'room_type_id' => $valid['room_type_id'], 'from' => $valid['from'], 'to' => $valid['to'], 'weekdays' => array_map(intval(...), $valid['weekdays']),
+            'base_price' => (int) $valid['base_price'], 'extra_adult' => (int) $valid['extra_adult'], 'extra_child' => (int) $valid['extra_child'],
+        ];
+    }
 }

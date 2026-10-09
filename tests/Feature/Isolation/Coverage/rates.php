@@ -66,6 +66,33 @@ $writeAttempt = fn (Closure $send) => function (TwoTenants $t) use ($send, $brav
 };
 
 return [
+    'rate-calendar' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoPlan) {
+        [, $roomType] = $bravoPlan($t);
+
+        return [
+            ...array_map(fn ($member) => $this->actingAs($member)->get(route('rate-calendar', ['from' => '2026-12-01', 'to' => '2026-12-03'])), $t->a->members()),
+            // Naming Bravo's room type shows nothing of it.
+            $this->actingAs($t->a->owner)->get(route('rate-calendar', ['from' => '2026-12-01', 'to' => '2026-12-03', 'room_type_ids' => [$roomType->id]]))->assertOk(),
+        ];
+    }),
+    'rate-calendar.prices' => RouteCoverage::attempt($writeAttempt(function (TwoTenants $t, RatePlan $plan, RoomType $roomType) use ($alphaPlan, $prices) {
+        $alpha = $alphaPlan($t);
+
+        return [
+            $this->actingAs($t->a->owner)->put(route('rate-calendar.prices', $plan->id), $prices($roomType->id, $t->a->property->id))->assertNotFound(),
+            $this->actingAs($t->a->owner)->put(route('rate-calendar.prices', $plan->id), $prices($roomType->id, $t->b->property->id))->assertForbidden(),
+            $this->actingAs($t->a->owner)->put(route('rate-calendar.prices', $alpha->id), $prices($roomType->id, $t->a->property->id))->assertSessionHasErrors('room_type_id'),
+        ];
+    })),
+    'rate-calendar.restrictions' => RouteCoverage::attempt($writeAttempt(function (TwoTenants $t, RatePlan $plan, RoomType $roomType) use ($alphaPlan, $restrictions) {
+        $alpha = $alphaPlan($t);
+
+        return [
+            $this->actingAs($t->a->owner)->put(route('rate-calendar.restrictions', $plan->id), $restrictions($roomType->id, $t->a->property->id))->assertNotFound(),
+            $this->actingAs($t->a->owner)->put(route('rate-calendar.restrictions', $plan->id), $restrictions($roomType->id, $t->b->property->id))->assertForbidden(),
+            $this->actingAs($t->a->owner)->put(route('rate-calendar.restrictions', $alpha->id), $restrictions($roomType->id, $t->a->property->id))->assertSessionHasErrors('room_type_id'),
+        ];
+    })),
     'rate-plans.index' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoPlan) {
         $bravoPlan($t);
 
