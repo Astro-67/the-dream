@@ -2,6 +2,7 @@ import { usePage } from '@inertiajs/react';
 import {
     BookOpen,
     BedDouble,
+    CalendarDays,
     Building2,
     DoorOpen,
     FolderGit2,
@@ -25,7 +26,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useCan } from '@/hooks/use-can';
-import { dashboard } from '@/routes';
+import { dashboard, rateCalendar } from '@/routes';
 import { index as invitations } from '@/routes/invitations';
 import { index as members } from '@/routes/members';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
@@ -90,6 +91,11 @@ export function AppSidebar() {
                   { title: 'Room types', href: roomTypes(), icon: BedDouble },
                   { title: 'Rooms', href: rooms(), icon: DoorOpen },
                   { title: 'Rate plans', href: ratePlans(), icon: Tags },
+                  {
+                      title: 'Rate calendar',
+                      href: rateCalendar(),
+                      icon: CalendarDays,
+                  },
               ]
             : []),
         ...(can('members.view')
