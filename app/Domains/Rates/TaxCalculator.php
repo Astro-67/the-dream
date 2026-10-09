@@ -51,15 +51,16 @@ final class TaxCalculator
         $inclusive = $applying->where('inclusive', true);
         $inclusiveFlat = $inclusive->where('kind', TaxKind::FlatPerPersonNight)->sum($flat);
         $inclusiveRate = $inclusive->where('kind', TaxKind::Percentage)->sum('rate');
-        $base = max(0, $amount - $inclusiveFlat) * 10000 / (10000 + $inclusiveRate);
+        $base = max(0, $amount - (int) $inclusiveFlat);
+        $denominator = 10000 + (int) $inclusiveRate;
 
-        $lines = $applying->map(function (TaxRule $rule) use ($flat, $base): array {
+        $lines = $applying->map(function (TaxRule $rule) use ($flat, $base, $denominator): array {
             $isFlat = $rule->kind === TaxKind::FlatPerPersonNight;
 
             return [
                 'name' => $rule->name, 'kind' => $rule->kind->value, 'inclusive' => $rule->inclusive,
                 'rate' => $isFlat ? null : $rule->rate, 'per_person_night' => $isFlat ? $rule->amount : null,
-                'amount' => $isFlat ? $flat($rule) : $rule->rounding->round($base * (int) $rule->rate / 10000),
+                'amount' => $isFlat ? $flat($rule) : $rule->rounding->round($base * (int) $rule->rate, $denominator),
             ];
         })->all();
 

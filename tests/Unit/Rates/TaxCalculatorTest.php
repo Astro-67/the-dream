@@ -29,6 +29,14 @@ function taxLines(TaxBreakdown $breakdown): array
     return array_map(fn (array $line) => [$line['name'], $line['amount']], $breakdown->lines);
 }
 
+test('rounding up preserves an exact integer after removing inclusive tax', function () {
+    $rules = [taxRule(['inclusive' => true]), taxRule(['name' => 'Levy', 'rate' => 7670, 'rounding' => 'up'])];
+
+    // 20 * 7670 / 11800 = 13 exactly, not a floating-point value above 13.
+    expect(taxLines(TaxCalculator::breakdown($rules, 20, Currency::USD, '2026-06-01', 1, ChargeKind::Room)))
+        ->toBe([['VAT', 3], ['Levy', 13]]);
+});
+
 test('an exclusive percentage is added on top of the amount', function () {
     $breakdown = TaxCalculator::breakdown([taxRule()], 10000, Currency::USD, '2026-06-01', 2, ChargeKind::Room);
 

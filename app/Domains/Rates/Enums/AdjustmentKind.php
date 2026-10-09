@@ -16,7 +16,7 @@ enum AdjustmentKind: string
     /** @return array{base_price: int, extra_adult: int, extra_child: int} */
     public function apply(int $adjustment, int $basePrice, int $extraAdult, int $extraChild): array
     {
-        $percent = fn (int $amount): int => max(0, (int) round($amount * (100 + $adjustment) / 100, 0, PHP_ROUND_HALF_UP));
+        $percent = fn (int $amount): int => max(0, TaxRounding::HalfUp->round($amount * (100 + $adjustment), 100));
 
         return match ($this) {
             self::Percent => ['base_price' => $percent($basePrice), 'extra_adult' => $percent($extraAdult), 'extra_child' => $percent($extraChild)],

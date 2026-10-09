@@ -2,7 +2,7 @@
 
 namespace App\Domains\Rates\Enums;
 
-use RoundingMode;
+use InvalidArgumentException;
 
 /**
  * How a tax line is rounded to whole minor units.
@@ -13,12 +13,20 @@ enum TaxRounding: string
     case Up = 'up';
     case Down = 'down';
 
-    public function round(float $minor): int
+    public function round(int $numerator, int $denominator): int
     {
-        return (int) round($minor, 0, match ($this) {
-            self::HalfUp => RoundingMode::HalfAwayFromZero,
-            self::Up => RoundingMode::AwayFromZero,
-            self::Down => RoundingMode::TowardsZero,
-        });
+        if ($denominator <= 0) {
+            throw new InvalidArgumentException('The rounding denominator must be positive.');
+        }
+
+        $whole = intdiv($numerator, $denominator);
+        $remainder = abs($numerator % $denominator);
+        $increment = match ($this) {
+            self::HalfUp => $remainder >= $denominator - $remainder,
+            self::Up => $remainder > 0,
+            self::Down => false,
+        };
+
+        return $whole + ($increment ? ($numerator < 0 ? -1 : 1) : 0);
     }
 }
