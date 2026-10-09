@@ -1,3 +1,12 @@
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/components/ui/table';
 import { RestrictionFields } from '@/features/rates/restriction-fields';
 import { formatDate } from '@/features/platform/format';
 import { Form, Head, Link } from '@inertiajs/react';
@@ -143,69 +152,64 @@ export default function Restrictions({
                     </Form>
                 )}
                 {restrictions.length === 0 ? (
-                    <p className="text-muted-foreground">
-                        No restrictions set.
-                    </p>
+                    <EmptyState message="No restrictions set." />
                 ) : (
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left">
-                                    {[
-                                        'Date',
-                                        'Room type',
-                                        'Minimum stay',
-                                        'Closed to arrival',
-                                        'Stop-sell',
-                                    ].map((label) => (
-                                        <th key={label} className="p-3">
-                                            {label}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {restrictions.map((restriction) => (
-                                    <tr
-                                        key={
-                                            restriction.date +
-                                            restriction.room_type_id
-                                        }
-                                        className="border-b last:border-0"
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                {[
+                                    'Date',
+                                    'Room type',
+                                    'Minimum stay',
+                                    'Closed to arrival',
+                                    'Stop-sell',
+                                ].map((label) => (
+                                    <TableHead
+                                        numeric={label === 'Minimum stay'}
+                                        key={label}
                                     >
-                                        <td className="p-3 tabular-nums">
-                                            {formatDate(
-                                                restriction.date,
-                                                'UTC',
-                                            )}
-                                        </td>
-                                        <td className="p-3">
-                                            {
-                                                roomTypes.find(
-                                                    (room) =>
-                                                        room.id ===
-                                                        restriction.room_type_id,
-                                                )?.name
-                                            }
-                                        </td>
-                                        <td className="p-3 text-right tabular-nums">
-                                            {restriction.min_stay}
-                                        </td>
-                                        <td className="p-3">
-                                            {restriction.closed_to_arrival
-                                                ? 'Closed'
-                                                : 'Open'}
-                                        </td>
-                                        <td className="p-3">
-                                            {restriction.stop_sell
-                                                ? 'Stopped'
-                                                : 'Selling'}
-                                        </td>
-                                    </tr>
+                                        {label}
+                                    </TableHead>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {restrictions.map((restriction) => (
+                                <TableRow
+                                    key={
+                                        restriction.date +
+                                        restriction.room_type_id
+                                    }
+                                >
+                                    <TableCell className="tabular-nums">
+                                        {formatDate(restriction.date, 'UTC')}
+                                    </TableCell>
+                                    <TableCell>
+                                        {
+                                            roomTypes.find(
+                                                (room) =>
+                                                    room.id ===
+                                                    restriction.room_type_id,
+                                            )?.name
+                                        }
+                                    </TableCell>
+                                    <TableCell numeric>
+                                        {restriction.min_stay}
+                                    </TableCell>
+                                    <TableCell>
+                                        {restriction.closed_to_arrival
+                                            ? 'Closed'
+                                            : 'Open'}
+                                    </TableCell>
+                                    <TableCell>
+                                        {restriction.stop_sell
+                                            ? 'Stopped'
+                                            : 'Selling'}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
             </div>
         </>

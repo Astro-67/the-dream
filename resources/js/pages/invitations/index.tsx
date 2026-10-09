@@ -1,3 +1,11 @@
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/components/ui/table';
 import { Form, Head, Link } from '@inertiajs/react';
 import { MailPlus } from 'lucide-react';
 import Heading from '@/components/heading';
@@ -109,69 +117,52 @@ export default function Invitations({ invitations, canInvite }: Props) {
                         )}
                     </p>
                 ) : (
-                    <div className="overflow-x-auto rounded-xl border bg-card">
-                        <table className="w-full text-sm">
-                            <thead className="border-b text-left text-muted-foreground">
-                                <tr>
-                                    <th className="h-10 px-4 font-medium">
-                                        Email
-                                    </th>
-                                    <th className="h-10 px-4 font-medium">
-                                        Role
-                                    </th>
-                                    <th className="h-10 px-4 font-medium">
-                                        Properties
-                                    </th>
-                                    <th className="h-10 px-4 font-medium">
-                                        Invited by
-                                    </th>
-                                    <th className="h-10 px-4 font-medium">
-                                        Expires
-                                    </th>
-                                    <th className="h-10 px-4">
-                                        <span className="sr-only">Actions</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {invitations.map((invitation) => (
-                                    <tr
-                                        key={invitation.id}
-                                        className="border-b last:border-0 hover:bg-background"
-                                    >
-                                        <td className="h-10 px-4">
-                                            {invitation.email}
-                                        </td>
-                                        <td className="h-10 px-4">
-                                            {invitation.roleLabel}
-                                        </td>
-                                        <td className="h-10 px-4">
-                                            {invitation.allProperties ? (
-                                                <Badge variant="secondary">
-                                                    All properties
-                                                </Badge>
-                                            ) : (
-                                                invitation.properties.join(', ')
-                                            )}
-                                        </td>
-                                        <td className="h-10 px-4 text-muted-foreground">
-                                            {invitation.invitedBy ?? '—'}
-                                        </td>
-                                        <td className="h-10 px-4 text-muted-foreground tabular-nums">
-                                            {formatDate(invitation.expiresAt)}
-                                        </td>
-                                        <td className="h-10 px-4 text-right">
-                                            {invitation.canRevoke && (
-                                                <RevokeInvitation
-                                                    invitation={invitation}
-                                                />
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead>Properties</TableHead>
+                                <TableHead>Invited by</TableHead>
+                                <TableHead>Expires</TableHead>
+                                <TableHead>
+                                    <span className="sr-only">Actions</span>
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {invitations.map((invitation) => (
+                                <TableRow key={invitation.id}>
+                                    <TableCell>{invitation.email}</TableCell>
+                                    <TableCell>
+                                        {invitation.roleLabel}
+                                    </TableCell>
+                                    <TableCell>
+                                        {invitation.allProperties ? (
+                                            <Badge variant="secondary">
+                                                All properties
+                                            </Badge>
+                                        ) : (
+                                            invitation.properties.join(', ')
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground">
+                                        {invitation.invitedBy ?? '—'}
+                                    </TableCell>
+                                    <TableCell className="text-muted-foreground tabular-nums">
+                                        {formatDate(invitation.expiresAt)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {invitation.canRevoke && (
+                                            <RevokeInvitation
+                                                invitation={invitation}
+                                            />
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
             </div>
         </>

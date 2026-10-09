@@ -1,3 +1,11 @@
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/components/ui/table';
 import { Form } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -178,45 +186,39 @@ export function OutOfService({
             </div>
 
             {periods.length > 0 && (
-                <div className="overflow-x-auto rounded-lg border">
-                    <table className="w-full text-sm">
-                        <thead className="border-b bg-muted/50 text-left text-muted-foreground">
-                            <tr>
-                                <th className="h-10 px-4 font-medium">From</th>
-                                <th className="h-10 px-4 font-medium">
-                                    Back on
-                                </th>
-                                <th className="h-10 px-4 font-medium">
-                                    Reason
-                                </th>
-                                <th className="h-10 px-4">
-                                    <span className="sr-only">Actions</span>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {periods.map((period) => (
-                                <tr key={period.id} className="h-10">
-                                    <td className="px-4 py-2 tabular-nums">
-                                        {day(period.startsOn)}
-                                    </td>
-                                    <td className="px-4 py-2 tabular-nums">
-                                        {day(period.returnsOn)}
-                                    </td>
-                                    <td className="px-4 py-2 break-words">
-                                        {period.reason}
-                                    </td>
-                                    <td className="px-4 py-2 text-right">
-                                        <ChangePeriod
-                                            period={period}
-                                            today={today}
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>From</TableHead>
+                            <TableHead>Back on</TableHead>
+                            <TableHead>Reason</TableHead>
+                            <TableHead>
+                                <span className="sr-only">Actions</span>
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {periods.map((period) => (
+                            <TableRow key={period.id}>
+                                <TableCell className="tabular-nums">
+                                    {day(period.startsOn)}
+                                </TableCell>
+                                <TableCell className="tabular-nums">
+                                    {day(period.returnsOn)}
+                                </TableCell>
+                                <TableCell className="break-words">
+                                    {period.reason}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <ChangePeriod
+                                        period={period}
+                                        today={today}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
             )}
 
             <Form

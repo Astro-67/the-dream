@@ -1,3 +1,14 @@
+import { EmptyState } from '@/components/ui/empty-state';
+import { Identifier } from '@/components/ui/identifier';
+import { StatusChip } from '@/components/ui/status-chip';
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/components/ui/table';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -103,83 +114,70 @@ export default function RatePlans({
                     )}
                 </header>
                 {ratePlans.length === 0 ? (
-                    <p className="text-muted-foreground">
-                        No rate plans yet. Add a rate plan to set prices.
-                    </p>
+                    <EmptyState message="No rate plans yet. Add a rate plan to set prices." />
                 ) : (
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left">
-                                    <th className="p-3">Code</th>
-                                    <th className="p-3">Name</th>
-                                    <th className="p-3">Currency</th>
-                                    <th className="p-3">Room types</th>
-                                    <th className="p-3">Prices</th>
-                                    <th className="p-3">
-                                        <span className="sr-only">Status</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {ratePlans.map((plan) => (
-                                    <tr
-                                        key={plan.id}
-                                        className="border-b last:border-0"
-                                    >
-                                        <td className="p-3 font-mono">
-                                            {plan.code}
-                                        </td>
-                                        <td className="p-3">
-                                            <Link
-                                                href={prices(plan.id)}
-                                                className="underline-offset-4 hover:underline"
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Code</TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Currency</TableHead>
+                                <TableHead>Room types</TableHead>
+                                <TableHead>Prices</TableHead>
+                                <TableHead>
+                                    <span className="sr-only">Status</span>
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {ratePlans.map((plan) => (
+                                <TableRow key={plan.id}>
+                                    <TableCell>
+                                        <Identifier value={plan.code} />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Link
+                                            href={prices(plan.id)}
+                                            className="underline-offset-4 hover:underline"
+                                        >
+                                            {plan.name}
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell>{plan.currency}</TableCell>
+                                    <TableCell>
+                                        {plan.roomTypes
+                                            .map((room) => room.name)
+                                            .join(', ')}
+                                    </TableCell>
+                                    <TableCell className="tabular-nums">
+                                        {derivation(plan)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        {canManage && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                asChild
                                             >
-                                                {plan.name}
-                                            </Link>
-                                        </td>
-                                        <td className="p-3">{plan.currency}</td>
-                                        <td className="p-3">
-                                            {plan.roomTypes
-                                                .map((room) => room.name)
-                                                .join(', ')}
-                                        </td>
-                                        <td className="p-3 tabular-nums">
-                                            {derivation(plan)}
-                                        </td>
-                                        <td className="p-3 text-right">
-                                            {canManage && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link href={edit(plan.id)}>
-                                                        Edit
-                                                    </Link>
-                                                </Button>
-                                            )}
-                                            {!plan.active ? (
-                                                <span className="inline-flex items-center gap-1.5 rounded-full bg-status-unavailable-tint px-2 py-0.5 text-xs font-medium text-status-unavailable">
-                                                    <span
-                                                        aria-hidden
-                                                        className="size-1.5 rounded-full bg-status-unavailable"
-                                                    />
-                                                    Deactivated
-                                                </span>
-                                            ) : (
-                                                canManage && (
-                                                    <DeactivatePlan
-                                                        plan={plan}
-                                                    />
-                                                )
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                                <Link href={edit(plan.id)}>
+                                                    Edit
+                                                </Link>
+                                            </Button>
+                                        )}
+                                        {!plan.active ? (
+                                            <StatusChip tone="unavailable">
+                                                Deactivated
+                                            </StatusChip>
+                                        ) : (
+                                            canManage && (
+                                                <DeactivatePlan plan={plan} />
+                                            )
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
             </div>
         </>

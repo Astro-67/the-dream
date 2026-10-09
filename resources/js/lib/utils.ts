@@ -18,6 +18,28 @@ export function formatMoney(minor: number, currency: string): string {
     return `${currency} ${new Intl.NumberFormat('en', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(minor / 10 ** decimals)}`;
 }
 
+/** "7 Oct 2026" for a Y-m-d date, without timezone shifting. */
+export function formatDate(date: string): string {
+    const [y, m, d] = date.slice(0, 10).split('-').map(Number);
+
+    return new Intl.DateTimeFormat('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+    }).format(Date.UTC(y, m - 1, d));
+}
+
+/** "14:05" (24-hour) for an instant, in the property's timezone. */
+export function formatTime(instant: string | Date, timeZone: string): string {
+    return new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+        timeZone,
+    }).format(new Date(instant));
+}
+
 /** A tax rule's or breakdown line's size: its percentage, or its flat amount per guest per night. */
 export const ruleSize = (
     rule: {

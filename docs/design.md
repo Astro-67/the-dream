@@ -171,6 +171,28 @@ Map this document onto the variables in `resources/css/app.css` (`:root` for lig
 
 Status colours become additional tokens (`--status-success`, `--status-success-tint` and so on) so that chips, room status and compliance views share one definition.
 
+## Building screens
+
+Every new screen uses the shared building blocks; don't hand-roll their markup or reach for raw colours.
+
+| Need                                | Use                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------ |
+| Data table                          | `Table`, `TableHeader`, `TableRow`, `TableHead`, `TableCell` (`numeric`) |
+| Status                              | `StatusChip` with a `tone` from the status colours                       |
+| Tag or filter                       | `Tag` (`active` for an active filter)                                    |
+| Reservation number, reference, code | `Identifier` (`copyable` where staff read it out or paste it)            |
+| Nothing to show                     | `EmptyState` with the next action                                        |
+| Money                               | `formatMoney(minor, currency)` in a `numeric` cell                       |
+| Date, time                          | `formatDate`, `formatTime(instant, property timezone)`                   |
+| Page and section headings           | `Heading`, or `h1`–`h3` (General Sans is applied to them)                |
+| Buttons, inputs, selects, dialogs   | `components/ui` (`Button` sizes: `sm` 32px, default 36px, `lg` 44px)     |
+
+**Pagination:** any list that can grow without limit (reservations, guests, folios, audit logs) is paginated on the server with `->paginate(50)->withQueryString()`, so filters and sorting survive page changes, and rendered with `Pagination` directly below its `Table`. It shows "Showing 51–100 of 1,240", previous and next, and windowed page numbers; it hides itself when there is one page. Changing page resets the table to its first row. Bounded lists (room types, rate plans, members) are not paginated. Calendars page by date range, never by page number. An empty page uses `EmptyState`, not an empty table.
+
+**Long pages and scrolling:** the top bar (breadcrumb, current property) is sticky and stays visible however far the page scrolls. A `Table` scrolls inside its own bordered card, capped to the viewport below the top bar, so its header row stays visible; the page itself only scrolls for content above and below it. Wide tables and the rate calendar scroll horizontally inside their card, never the whole page. Don't nest a second scroll area inside a table card.
+
+Colours come only from theme tokens (`bg-primary`, `bg-primary-tint`, `text-muted-foreground`, `text-status-warning` and so on), never Tailwind palette colours such as `text-green-600`.
+
 ## Do's and Don'ts
 
 - Do use Primary only for interactive and selected elements, never for decoration or static text.

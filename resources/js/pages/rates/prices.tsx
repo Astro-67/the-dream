@@ -1,3 +1,12 @@
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
@@ -187,62 +196,59 @@ export default function Prices({
                     </Form>
                 )}
                 {prices.length === 0 ? (
-                    <p className="text-muted-foreground">
-                        No prices set. Nights without prices cannot be quoted.
-                    </p>
+                    <EmptyState message="No prices set. Nights without prices cannot be quoted." />
                 ) : (
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left">
-                                    {[
-                                        'Date',
-                                        'Room type',
-                                        'Base occupancy',
-                                        'Extra adult',
-                                        'Extra child',
-                                    ].map((label) => (
-                                        <th key={label} className="p-3">
-                                            {label}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {prices.map((price) => (
-                                    <tr
-                                        key={price.date + price.room_type_id}
-                                        className="border-b last:border-0"
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                {[
+                                    'Date',
+                                    'Room type',
+                                    'Base occupancy',
+                                    'Extra adult',
+                                    'Extra child',
+                                ].map((label) => (
+                                    <TableHead
+                                        numeric={
+                                            !['Date', 'Room type'].includes(
+                                                label,
+                                            )
+                                        }
+                                        key={label}
                                     >
-                                        <td className="p-3 tabular-nums">
-                                            {formatDate(price.date, 'UTC')}
-                                        </td>
-                                        <td className="p-3">
-                                            {
-                                                roomTypes.find(
-                                                    (room) =>
-                                                        room.id ===
-                                                        price.room_type_id,
-                                                )?.name
-                                            }
-                                        </td>
-                                        {[
-                                            price.base_price,
-                                            price.extra_adult,
-                                            price.extra_child,
-                                        ].map((amount, i) => (
-                                            <td
-                                                key={i}
-                                                className="p-3 text-right tabular-nums"
-                                            >
-                                                {money(amount)}
-                                            </td>
-                                        ))}
-                                    </tr>
+                                        {label}
+                                    </TableHead>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {prices.map((price) => (
+                                <TableRow key={price.date + price.room_type_id}>
+                                    <TableCell className="tabular-nums">
+                                        {formatDate(price.date, 'UTC')}
+                                    </TableCell>
+                                    <TableCell>
+                                        {
+                                            roomTypes.find(
+                                                (room) =>
+                                                    room.id ===
+                                                    price.room_type_id,
+                                            )?.name
+                                        }
+                                    </TableCell>
+                                    {[
+                                        price.base_price,
+                                        price.extra_adult,
+                                        price.extra_child,
+                                    ].map((amount, i) => (
+                                        <TableCell numeric key={i}>
+                                            {money(amount)}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
             </div>
         </>

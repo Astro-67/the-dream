@@ -1,3 +1,14 @@
+import { EmptyState } from '@/components/ui/empty-state';
+import { Identifier } from '@/components/ui/identifier';
+import { StatusChip } from '@/components/ui/status-chip';
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/components/ui/table';
 import { Form, Head, Link } from '@inertiajs/react';
 import { Plus } from 'lucide-react';
 import InputError from '@/components/input-error';
@@ -70,13 +81,9 @@ function DeactivateRoom({ room }: { room: RoomRow }) {
 
 function DeactivatedChip() {
     return (
-        <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-status-unavailable-tint px-2 py-0.5 text-xs font-medium text-status-unavailable">
-            <span
-                aria-hidden
-                className="size-1.5 rounded-full bg-status-unavailable"
-            />
+        <StatusChip tone="unavailable" className="ml-2">
             Deactivated
-        </span>
+        </StatusChip>
     );
 }
 
@@ -88,48 +95,44 @@ function RoomsTable({
     actions?: (room: RoomRow) => React.ReactNode;
 }) {
     return (
-        <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
-                <thead className="sticky top-0 border-b bg-muted/50 text-left text-muted-foreground">
-                    <tr>
-                        <th className="h-10 px-4 font-medium">Room</th>
-                        <th className="h-10 px-4 font-medium">Floor</th>
-                        <th className="h-10 px-4 font-medium">Room type</th>
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Room</TableHead>
+                    <TableHead>Floor</TableHead>
+                    <TableHead>Room type</TableHead>
+                    {actions && (
+                        <TableHead>
+                            <span className="sr-only">Actions</span>
+                        </TableHead>
+                    )}
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {rooms.map((room) => (
+                    <TableRow key={room.id}>
+                        <TableCell className="font-medium tabular-nums">
+                            {room.number}
+                            {room.deactivatedAt && <DeactivatedChip />}
+                        </TableCell>
+                        <TableCell>{room.floor ?? '—'}</TableCell>
+                        <TableCell>
+                            <Identifier value={room.roomType.code} />{' '}
+                            <span className="text-muted-foreground">
+                                {room.roomType.name}
+                            </span>
+                        </TableCell>
                         {actions && (
-                            <th className="h-10 px-4">
-                                <span className="sr-only">Actions</span>
-                            </th>
+                            <TableCell>
+                                <div className="flex justify-end gap-2">
+                                    {actions(room)}
+                                </div>
+                            </TableCell>
                         )}
-                    </tr>
-                </thead>
-                <tbody className="divide-y">
-                    {rooms.map((room) => (
-                        <tr key={room.id} className="h-10 hover:bg-muted/40">
-                            <td className="px-4 py-2 font-medium tabular-nums">
-                                {room.number}
-                                {room.deactivatedAt && <DeactivatedChip />}
-                            </td>
-                            <td className="px-4 py-2">{room.floor ?? '—'}</td>
-                            <td className="px-4 py-2">
-                                <span className="font-mono">
-                                    {room.roomType.code}
-                                </span>{' '}
-                                <span className="text-muted-foreground">
-                                    {room.roomType.name}
-                                </span>
-                            </td>
-                            {actions && (
-                                <td className="px-4 py-2">
-                                    <div className="flex justify-end gap-2">
-                                        {actions(room)}
-                                    </div>
-                                </td>
-                            )}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
     );
 }
 
@@ -175,9 +178,7 @@ export default function RoomsIndex({
                 </header>
 
                 {rooms.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                        No active rooms.
-                    </p>
+                    <EmptyState message="No active rooms." />
                 ) : (
                     <RoomsTable
                         rooms={rooms}

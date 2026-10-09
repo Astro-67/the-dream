@@ -4,7 +4,7 @@ import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
+import { bunny, local } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
 
 export default defineConfig({
@@ -13,8 +13,20 @@ export default defineConfig({
             input: ['resources/css/app.css', 'resources/js/app.tsx'],
             refresh: true,
             fonts: [
-                bunny('Instrument Sans', {
-                    weights: [400, 500, 600],
+                bunny('DM Sans', {
+                    weights: [400, 500],
+                }),
+                local('General Sans', {
+                    variants: [
+                        {
+                            src: 'resources/fonts/GeneralSans-Semibold.woff2',
+                            weight: 600,
+                        },
+                    ],
+                }),
+                bunny('JetBrains Mono', {
+                    weights: [400],
+                    preload: false,
                 }),
             ],
         }),

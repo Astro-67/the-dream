@@ -1,3 +1,11 @@
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
 import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
@@ -406,77 +414,70 @@ export default function TaxRules({
                             : ''}
                     </p>
                 ) : (
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b text-left">
-                                    {[
-                                        'Name',
-                                        'Amount',
-                                        'Treatment',
-                                        'Applies to',
-                                        'Rounding',
-                                        'In force',
-                                    ].map((label) => (
-                                        <th key={label} className="p-3">
-                                            {label}
-                                        </th>
-                                    ))}
-                                    <th className="p-3">
-                                        <span className="sr-only">Actions</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {taxRules.map((rule) => (
-                                    <tr
-                                        key={rule.id}
-                                        className="border-b last:border-0"
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                {[
+                                    'Name',
+                                    'Amount',
+                                    'Treatment',
+                                    'Applies to',
+                                    'Rounding',
+                                    'In force',
+                                ].map((label) => (
+                                    <TableHead
+                                        numeric={label === 'Amount'}
+                                        key={label}
                                     >
-                                        <td className="p-3">{rule.name}</td>
-                                        <td className="p-3 text-right tabular-nums">
-                                            {ruleSize(rule)}
-                                        </td>
-                                        <td className="p-3">
-                                            {rule.inclusive
-                                                ? 'Included'
-                                                : 'Added'}
-                                        </td>
-                                        <td className="p-3">
-                                            {appliesTo[rule.applies_to]}
-                                        </td>
-                                        <td className="p-3">
-                                            {rounding[rule.rounding]}
-                                        </td>
-                                        <td className="p-3 tabular-nums">
-                                            {formatDate(
-                                                rule.effective_from,
-                                                'UTC',
-                                            )}{' '}
-                                            to{' '}
-                                            {rule.effective_to
-                                                ? formatDate(
-                                                      rule.effective_to,
-                                                      'UTC',
-                                                  )
-                                                : 'no end date'}
-                                        </td>
-                                        <td className="p-3 text-right whitespace-nowrap">
-                                            {canManage && (
-                                                <>
-                                                    <ChangeRule
-                                                        rule={rule}
-                                                        currencies={currencies}
-                                                    />
-                                                    <EndRule rule={rule} />
-                                                </>
-                                            )}
-                                        </td>
-                                    </tr>
+                                        {label}
+                                    </TableHead>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                <TableHead>
+                                    <span className="sr-only">Actions</span>
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {taxRules.map((rule) => (
+                                <TableRow key={rule.id}>
+                                    <TableCell>{rule.name}</TableCell>
+                                    <TableCell numeric>
+                                        {ruleSize(rule)}
+                                    </TableCell>
+                                    <TableCell>
+                                        {rule.inclusive ? 'Included' : 'Added'}
+                                    </TableCell>
+                                    <TableCell>
+                                        {appliesTo[rule.applies_to]}
+                                    </TableCell>
+                                    <TableCell>
+                                        {rounding[rule.rounding]}
+                                    </TableCell>
+                                    <TableCell className="tabular-nums">
+                                        {formatDate(rule.effective_from, 'UTC')}{' '}
+                                        to{' '}
+                                        {rule.effective_to
+                                            ? formatDate(
+                                                  rule.effective_to,
+                                                  'UTC',
+                                              )
+                                            : 'no end date'}
+                                    </TableCell>
+                                    <TableCell className="text-right whitespace-nowrap">
+                                        {canManage && (
+                                            <>
+                                                <ChangeRule
+                                                    rule={rule}
+                                                    currencies={currencies}
+                                                />
+                                                <EndRule rule={rule} />
+                                            </>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
             </div>
         </>

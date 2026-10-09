@@ -1,3 +1,13 @@
+import { Tag } from '@/components/ui/status-chip';
+import { StatusChip } from '@/components/ui/status-chip';
+import {
+    Table,
+    TableHeader,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from '@/components/ui/table';
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { AlertCircle, Plus } from 'lucide-react';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -114,13 +124,9 @@ function RestoreProperty({ property }: { property: ArchivedPropertyRow }) {
 
 function ArchivedChip() {
     return (
-        <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-status-unavailable-tint px-2 py-0.5 text-xs font-medium text-status-unavailable">
-            <span
-                aria-hidden
-                className="size-1.5 rounded-full bg-status-unavailable"
-            />
+        <StatusChip tone="unavailable" className="ml-2">
             Archived
-        </span>
+        </StatusChip>
     );
 }
 
@@ -172,92 +178,71 @@ export default function PropertiesIndex({
                         )}
                     </p>
                 ) : (
-                    <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full text-sm">
-                            <thead className="sticky top-0 border-b bg-muted/50 text-left text-muted-foreground">
-                                <tr>
-                                    <th className="h-10 px-4 font-medium">
-                                        Name
-                                    </th>
-                                    <th className="h-10 px-4 font-medium">
-                                        City
-                                    </th>
-                                    <th className="h-10 px-4 font-medium">
-                                        Jurisdiction
-                                    </th>
-                                    <th className="h-10 px-4 font-medium">
-                                        Currency
-                                    </th>
-                                    <th className="h-10 px-4 font-medium">
-                                        Timezone
-                                    </th>
-                                    <th className="h-10 px-4">
-                                        <span className="sr-only">Actions</span>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                                {properties.map((property) => (
-                                    <tr
-                                        key={property.id}
-                                        className="h-10 hover:bg-muted/40"
-                                    >
-                                        <td className="px-4 py-2 font-medium">
-                                            {property.name}
-                                            {property.id ===
-                                                tenant.property?.id && (
-                                                <span className="ml-2 rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-                                                    Current
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            {property.city}
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                                                {property.jurisdictionLabel}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-2 font-mono">
-                                            {property.currency}
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            {property.timezone.replaceAll(
-                                                '_',
-                                                ' ',
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            <div className="flex justify-end gap-2">
-                                                {property.can.update && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        asChild
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>City</TableHead>
+                                <TableHead>Jurisdiction</TableHead>
+                                <TableHead>Currency</TableHead>
+                                <TableHead>Timezone</TableHead>
+                                <TableHead>
+                                    <span className="sr-only">Actions</span>
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {properties.map((property) => (
+                                <TableRow key={property.id}>
+                                    <TableCell className="font-medium">
+                                        {property.name}
+                                        {property.id ===
+                                            tenant.property?.id && (
+                                            <Tag
+                                                active
+                                                className="ml-2 font-medium"
+                                            >
+                                                Current
+                                            </Tag>
+                                        )}
+                                    </TableCell>
+                                    <TableCell>{property.city}</TableCell>
+                                    <TableCell>
+                                        <Tag>{property.jurisdictionLabel}</Tag>
+                                    </TableCell>
+                                    <TableCell className="font-mono">
+                                        {property.currency}
+                                    </TableCell>
+                                    <TableCell>
+                                        {property.timezone.replaceAll('_', ' ')}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex justify-end gap-2">
+                                            {property.can.update && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href={edit(property.id)}
+                                                        aria-label={`Edit ${property.name}`}
                                                     >
-                                                        <Link
-                                                            href={edit(
-                                                                property.id,
-                                                            )}
-                                                            aria-label={`Edit ${property.name}`}
-                                                        >
-                                                            Edit
-                                                        </Link>
-                                                    </Button>
-                                                )}
-                                                {property.can.archive && (
-                                                    <ArchiveProperty
-                                                        property={property}
-                                                    />
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                                        Edit
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                            {property.can.archive && (
+                                                <ArchiveProperty
+                                                    property={property}
+                                                />
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 )}
 
                 {archivedProperties.length > 0 && (
@@ -277,67 +262,51 @@ export default function PropertiesIndex({
                                 records and audit history are kept.
                             </p>
                         </div>
-                        <div className="overflow-x-auto rounded-lg border">
-                            <table className="w-full text-sm">
-                                <thead className="sticky top-0 border-b bg-muted/50 text-left text-muted-foreground">
-                                    <tr>
-                                        <th className="h-10 px-4 font-medium">
-                                            Name
-                                        </th>
-                                        <th className="h-10 px-4 font-medium">
-                                            City
-                                        </th>
-                                        <th className="h-10 px-4 font-medium">
-                                            Jurisdiction
-                                        </th>
-                                        <th className="h-10 px-4 font-medium">
-                                            Archived on
-                                        </th>
-                                        <th className="h-10 px-4">
-                                            <span className="sr-only">
-                                                Actions
-                                            </span>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y">
-                                    {archivedProperties.map((property) => (
-                                        <tr
-                                            key={property.id}
-                                            className="h-10 hover:bg-muted/40"
-                                        >
-                                            <td className="px-4 py-2 font-medium">
-                                                {property.name}
-                                                <ArchivedChip />
-                                            </td>
-                                            <td className="px-4 py-2">
-                                                {property.city}
-                                            </td>
-                                            <td className="px-4 py-2">
-                                                <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                                                    {property.jurisdictionLabel}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-2 tabular-nums">
-                                                {formatDate(
-                                                    property.archivedAt,
-                                                    property.timezone,
+
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>City</TableHead>
+                                    <TableHead>Jurisdiction</TableHead>
+                                    <TableHead>Archived on</TableHead>
+                                    <TableHead>
+                                        <span className="sr-only">Actions</span>
+                                    </TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {archivedProperties.map((property) => (
+                                    <TableRow key={property.id}>
+                                        <TableCell className="font-medium">
+                                            {property.name}
+                                            <ArchivedChip />
+                                        </TableCell>
+                                        <TableCell>{property.city}</TableCell>
+                                        <TableCell>
+                                            <Tag>
+                                                {property.jurisdictionLabel}
+                                            </Tag>
+                                        </TableCell>
+                                        <TableCell className="tabular-nums">
+                                            {formatDate(
+                                                property.archivedAt,
+                                                property.timezone,
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex justify-end">
+                                                {property.can.restore && (
+                                                    <RestoreProperty
+                                                        property={property}
+                                                    />
                                                 )}
-                                            </td>
-                                            <td className="px-4 py-2">
-                                                <div className="flex justify-end">
-                                                    {property.can.restore && (
-                                                        <RestoreProperty
-                                                            property={property}
-                                                        />
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </section>
                 )}
             </div>
