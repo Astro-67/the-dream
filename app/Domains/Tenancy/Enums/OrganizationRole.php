@@ -56,7 +56,7 @@ enum OrganizationRole: string
             ],
             self::PropertyManager => [
                 P::PropertiesView, P::PropertiesUpdate,
-                P::MembersView, P::MembersInvite, P::OutboxRecover, P::InventoryManage, P::RatesManage,
+                P::MembersView, P::MembersInvite, P::OutboxRecover, P::InventoryManage, P::RatesManage, P::TaxManage,
                 P::ReservationsView, P::ReservationsManage, P::RoomsAssign, P::GuestsView,
                 P::HousekeepingView, P::HousekeepingManage,
                 P::FiscalExceptionsReview, P::ReportsView,
@@ -68,7 +68,7 @@ enum OrganizationRole: string
                 P::ChargesPost, P::HousekeepingView,
             ],
             self::Finance => [
-                P::ReservationsView, P::GuestsView, P::ChargesPost,
+                P::ReservationsView, P::GuestsView, P::ChargesPost, P::TaxManage,
                 P::FinanceView, P::FinanceCorrect, P::FiscalExceptionsReview, P::ReportsView,
             ],
             self::Housekeeping => [P::HousekeepingView, P::HousekeepingManage],

@@ -36,6 +36,7 @@ enum OrganizationPermission: string
 
     // Rates
     case RatesManage = 'rates.manage';
+    case TaxManage = 'tax.manage';
 
     // Front office
     case ReservationsView = 'reservations.view';
