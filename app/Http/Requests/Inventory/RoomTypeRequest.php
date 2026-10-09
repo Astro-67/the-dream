@@ -48,10 +48,10 @@ class RoomTypeRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'base_occupancy' => 'base occupancy',
-            'max_adults' => 'maximum adults',
-            'max_children' => 'maximum children',
-            'max_occupancy' => 'maximum guests',
+            'base_occupancy' => __('base occupancy'),
+            'max_adults' => __('maximum adults'),
+            'max_children' => __('maximum children'),
+            'max_occupancy' => __('maximum guests'),
         ];
     }
 

@@ -17,7 +17,7 @@ final class DateRange
         $start = CarbonImmutable::createFromFormat('!Y-m-d', $from);
         $end = CarbonImmutable::createFromFormat('!Y-m-d', $to);
         if (! $start || ! $end || $start->format('Y-m-d') !== $from || $end->format('Y-m-d') !== $to || $end->lt($start) || $start->diffInDays($end) > 730 || $weekdays === [] || array_diff($weekdays, [1, 2, 3, 4, 5, 6, 7]) !== []) {
-            throw new InvalidArgumentException('Use a valid date range of at most 731 dates and ISO weekdays.');
+            throw new InvalidArgumentException(__('Use a valid date range of at most 731 dates and ISO weekdays.'));
         }
         $dates = [];
         for ($date = $start; $date->lte($end); $date = $date->addDay()) {

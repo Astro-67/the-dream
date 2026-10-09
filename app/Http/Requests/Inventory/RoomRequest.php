@@ -54,6 +54,6 @@ class RoomRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['room_type_id' => 'room type'];
+        return ['room_type_id' => __('room type')];
     }
 }

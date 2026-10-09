@@ -16,7 +16,7 @@ enum TaxRounding: string
     public function round(int $numerator, int $denominator): int
     {
         if ($denominator <= 0) {
-            throw new InvalidArgumentException('The rounding denominator must be positive.');
+            throw new InvalidArgumentException(__('The rounding denominator must be positive.'));
         }
 
         $whole = intdiv($numerator, $denominator);

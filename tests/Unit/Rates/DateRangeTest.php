@@ -1,6 +1,9 @@
 <?php
 
 use App\Domains\Rates\DateRange;
+use Tests\TestCase;
+
+uses(TestCase::class);
 
 test('a range keeps only the chosen ISO weekdays, both ends included', function () {
     // 2026-10-05 is a Monday.

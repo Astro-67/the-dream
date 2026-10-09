@@ -56,7 +56,7 @@ class OutOfServiceRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['starts_on' => 'out of service from', 'returns_on' => 'back in service on'];
+        return ['starts_on' => __('out of service from'), 'returns_on' => __('back in service on')];
     }
 
     private function period(): ?OutOfServicePeriod
