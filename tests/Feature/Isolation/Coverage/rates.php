@@ -34,7 +34,7 @@ $alphaPlan = fn (TwoTenants $t): RatePlan => inTenant($t->a->property, function 
 
 /** @return array<string, mixed> */
 $bravoSnapshot = fn (TwoTenants $t): array => inTenant($t->b->organization, fn () => [
-    'plans' => RatePlan::query()->with('roomTypes:id')->orderBy('id')->get()->map(fn (RatePlan $p) => [...$p->only(['id', 'property_id', 'name', 'code']), 'roomTypes' => $p->roomTypes->pluck('id')->all()])->all(),
+    'plans' => RatePlan::query()->with('roomTypes:id')->orderBy('id')->get()->map(fn (RatePlan $p) => [...$p->only(['id', 'property_id', 'name', 'code', 'deactivated_at']), 'roomTypes' => $p->roomTypes->pluck('id')->all()])->all(),
     'prices' => RatePrice::query()->orderBy('id')->get()->map->only(['id', 'rate_plan_id', 'room_type_id', 'base_price', 'extra_adult', 'extra_child'])->all(),
     'restrictions' => RateRestriction::query()->orderBy('id')->get()->map->only(['id', 'rate_plan_id', 'room_type_id', 'min_stay', 'closed_to_arrival', 'stop_sell'])->all(),
 ]);
