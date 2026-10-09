@@ -4,8 +4,8 @@ namespace App\Domains\Inventory\Actions;
 
 use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\InventoryRecord;
-use App\Domains\Inventory\Models\OutOfServicePeriod;
 use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Inventory\RoomAvailability;
 use App\Domains\Tenancy\Models\Property;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
@@ -13,11 +13,12 @@ use Illuminate\Support\Str;
 
 /**
  * Owns sellable counts and fills missing horizon dates. Never writes sold counts.
- * Sellable on a date is the active rooms minus those out of service that date.
  * Room changes call this inside their transaction; the daily extension uses it too.
  */
 class RecalculateInventory
 {
+    public function __construct(private RoomAvailability $availability) {}
+
     /**
      * @throws InventoryRefused when a date would lose sellable rooms below its sold count
      */
@@ -28,7 +29,7 @@ class RecalculateInventory
             $property = Property::query()->findOrFail($type->property_id);
             $today = CarbonImmutable::now($property->timezone)->startOfDay();
             $end = $today->addYearsNoOverflow((int) config('inventory.horizon_years'));
-            $sellable = $this->sellableByDate($type, $today, $end);
+            $sellable = $this->availability->sellableByDate($type, $today, $end);
             $stranded = $this->strandedDates($type, $sellable);
 
             if ($stranded !== []) {
@@ -53,33 +54,6 @@ class RecalculateInventory
                 InventoryRecord::query()->upsert($chunk, ['property_id', 'room_type_id', 'date'], ['sellable_count', 'updated_at']);
             }
         });
-    }
-
-    /**
-     * @return array<string, int> sellable count by date, today through the horizon end
-     */
-    private function sellableByDate(RoomType $type, CarbonImmutable $today, CarbonImmutable $end): array
-    {
-        $active = $type->rooms()->active()->count();
-        $sellable = [];
-        for ($date = $today; $date <= $end; $date = $date->addDay()) {
-            $sellable[$date->toDateString()] = $active;
-        }
-
-        $periods = OutOfServicePeriod::query()
-            ->whereIn('room_id', $type->rooms()->active()->select('id'))
-            ->whereDate('returns_on', '>', $today->toDateString())
-            ->whereDate('starts_on', '<=', $end->toDateString())
-            ->get();
-
-        foreach ($periods as $period) {
-            $from = $period->starts_on->max($today);
-            for ($date = $from; $date < $period->returns_on && $date <= $end; $date = $date->addDay()) {
-                $sellable[$date->toDateString()]--;
-            }
-        }
-
-        return $sellable;
     }
 
     /**
