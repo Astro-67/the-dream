@@ -1,3 +1,4 @@
+import { RestrictionFields } from '@/features/rates/restriction-fields';
 import { formatDate } from '@/features/platform/format';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
@@ -129,46 +130,7 @@ export default function Restrictions({
                                     </div>
                                     <InputError message={errors.weekdays} />
                                 </fieldset>
-                                <div className="space-y-2">
-                                    <Label htmlFor="min_stay">
-                                        Minimum stay (nights)
-                                    </Label>
-                                    <Input
-                                        id="min_stay"
-                                        name="min_stay"
-                                        type="number"
-                                        min={1}
-                                        max={365}
-                                        step={1}
-                                        defaultValue={1}
-                                        required
-                                        className="max-w-40"
-                                        aria-invalid={!!errors.min_stay}
-                                    />
-                                    <InputError message={errors.min_stay} />
-                                </div>
-                                <div className="flex flex-wrap gap-6">
-                                    {[
-                                        [
-                                            'closed_to_arrival',
-                                            'Closed to arrival',
-                                        ],
-                                        ['stop_sell', 'Stop-sell'],
-                                    ].map(([name, label]) => (
-                                        <label
-                                            key={name}
-                                            className="flex min-h-11 items-center gap-2"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                name={name}
-                                                value="1"
-                                                className="size-4 accent-primary"
-                                            />
-                                            {label}
-                                        </label>
-                                    ))}
-                                </div>
+                                <RestrictionFields errors={errors} />
                                 <p className="text-sm text-muted-foreground">
                                     Existing restrictions on selected dates are
                                     replaced.
