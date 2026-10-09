@@ -145,3 +145,37 @@ test('a base plan with active derived plans can be neither deactivated nor delet
     expect(Activity::query()->where('description', 'Rate plan deactivated')->count())->toBe(2);
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->post(route('rate-plans.deactivate', $base), ['_property' => $t->a->property->id])->assertForbidden();
 });
+
+test('a rates manager edits plan details and room types with an audit', function () {
+    $t = twoTenants();
+    [$plan, $other] = inTenant($t->a->property, function () {
+        $room = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+        $other = app(CreateRoomType::class)->handle(null, InventoryForm::roomType(['code' => 'OTHER']));
+
+        return [app(CreateRatePlan::class)->handle(null, ['name' => 'Breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id]]), $other];
+    });
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get(route('rate-plans.edit', $plan))->assertOk()->assertInertia(fn (Assert $page) => $page->component('rates/edit')->where('plan.name', 'Breakfast'));
+    $form = ['_property' => $t->a->property->id, 'name' => 'Room only', 'code' => 'RO', 'room_type_ids' => [$other->id]];
+    $this->put(route('rate-plans.update', $plan), $form)->assertSessionHasNoErrors()->assertRedirect(route('rate-plans.index'));
+    $this->get(route('rate-plans.index'))->assertInertia(fn (Assert $page) => $page->where('ratePlans.0.name', 'Room only')->where('ratePlans.0.code', 'RO')->where('ratePlans.0.roomTypes.0.id', $other->id)->where('ratePlans.0.currency', 'USD'));
+    expect(Activity::query()->where('description', 'Rate plan updated')->sole()->getExtraProperty('attributes'))->toMatchArray(['name' => 'Room only', 'code' => 'RO', 'room_type_ids' => [$other->id]]);
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('rate-plans.edit', $plan))->assertForbidden();
+    $this->put(route('rate-plans.update', $plan), $form)->assertForbidden();
+});
+
+test('derived plans keep base currency and room types when either plan is edited', function () {
+    $t = twoTenants();
+    [$base, $derived, $room, $other] = inTenant($t->a->property, function () {
+        $room = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+        $other = app(CreateRoomType::class)->handle(null, InventoryForm::roomType(['code' => 'OTHER']));
+        $base = app(CreateRatePlan::class)->handle(null, ['name' => 'Breakfast', 'code' => 'BB', 'currency' => 'EUR', 'room_type_ids' => [$room->id]]);
+        $derived = app(CreateRatePlan::class)->handle(null, ['name' => 'Derived', 'code' => 'D', 'base_rate_plan_id' => $base->id, 'adjustment_kind' => 'percent', 'adjustment' => -10]);
+
+        return [$base, $derived, $room, $other];
+    });
+    $this->actingAs($t->a->owner)->put(route('rate-plans.update', $derived), ['_property' => $t->a->property->id, 'name' => 'Renamed', 'code' => 'D', 'currency' => 'USD', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors();
+    expect(inTenant($t->a->property, fn () => $derived->fresh()->roomTypes()->pluck('room_types.id')->all()))->toBe([$room->id]);
+    $this->put(route('rate-plans.update', $base), ['_property' => $t->a->property->id, 'name' => 'Breakfast', 'code' => 'BB', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors();
+    expect(inTenant($t->a->property, fn () => $derived->fresh()->roomTypes()->pluck('room_types.id')->all()))->toBe([$other->id])
+        ->and(inTenant($t->a->property, fn () => $derived->fresh()->currency->value))->toBe('EUR');
+});

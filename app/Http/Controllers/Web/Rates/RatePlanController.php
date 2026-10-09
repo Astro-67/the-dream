@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Web\Rates;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Actions\CreateRatePlan;
 use App\Domains\Rates\Actions\DeactivateRatePlan;
+use App\Domains\Rates\Actions\UpdateRatePlan;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Rates\RatePlanRequest;
+use App\Http\Requests\Rates\UpdateRatePlanRequest;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
@@ -55,6 +57,28 @@ class RatePlanController extends Controller
         }
         $create->handle($actor, $details);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Rate plan added.')]);
+
+        return redirect()->route('rate-plans.index');
+    }
+
+    public function edit(RatePlan $ratePlan): Response
+    {
+        Gate::authorize('update', $ratePlan);
+
+        return Inertia::render('rates/edit', [
+            'plan' => [...$ratePlan->only(['id', 'name', 'code']), 'currency' => $ratePlan->currency->value, 'room_type_ids' => $ratePlan->roomTypes()->pluck('room_types.id')->all(), 'baseName' => $ratePlan->basePlan?->name],
+            'roomTypes' => RoomType::query()->orderBy('code')->get(['id', 'name', 'code']),
+        ]);
+    }
+
+    public function update(UpdateRatePlanRequest $request, RatePlan $ratePlan, UpdateRatePlan $update): RedirectResponse
+    {
+        /** @var User $actor */
+        $actor = $request->user();
+        /** @var array{name: string, code: string, room_type_ids?: list<string>} $details */
+        $details = $request->validated();
+        $update->handle($actor, $ratePlan, $details);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Rate plan updated.')]);
 
         return redirect()->route('rate-plans.index');
     }

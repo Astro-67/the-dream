@@ -12,7 +12,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { formatMoney } from '@/lib/utils';
-import { create, deactivate, prices } from '@/routes/rate-plans';
+import { create, deactivate, edit, prices } from '@/routes/rate-plans';
 
 type Plan = {
     id: string;
@@ -148,6 +148,17 @@ export default function RatePlans({
                                             {derivation(plan)}
                                         </td>
                                         <td className="p-3 text-right">
+                                            {canManage && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <Link href={edit(plan.id)}>
+                                                        Edit
+                                                    </Link>
+                                                </Button>
+                                            )}
                                             {!plan.active ? (
                                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-status-unavailable-tint px-2 py-0.5 text-xs font-medium text-status-unavailable">
                                                     <span

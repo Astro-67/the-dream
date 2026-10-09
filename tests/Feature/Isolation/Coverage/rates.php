@@ -150,6 +150,21 @@ return [
             $this->actingAs($t->a->owner)->put(route('rate-plans.restrictions.update', $alpha->id), $restrictions($roomType->id, $t->a->property->id))->assertSessionHasErrors('room_type_id'),
         ];
     })),
+    'rate-plans.edit' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoPlan) {
+        [$plan] = $bravoPlan($t);
+
+        return $this->actingAs($t->a->owner)->get(route('rate-plans.edit', $plan->id))->assertNotFound();
+    }),
+    'rate-plans.update' => RouteCoverage::attempt($writeAttempt(function (TwoTenants $t, RatePlan $plan, RoomType $roomType) use ($alphaPlan) {
+        $alpha = $alphaPlan($t);
+        $form = ['_property' => $t->a->property->id, 'name' => 'Hijacked', 'code' => 'HJ', 'room_type_ids' => [$roomType->id]];
+
+        return [
+            $this->actingAs($t->a->owner)->put(route('rate-plans.update', $plan->id), $form)->assertNotFound(),
+            $this->put(route('rate-plans.update', $plan->id), [...$form, '_property' => $t->b->property->id])->assertForbidden(),
+            $this->put(route('rate-plans.update', $alpha->id), $form)->assertSessionHasErrors('room_type_ids.0'),
+        ];
+    })),
     'rate-plans.deactivate' => RouteCoverage::attempt($writeAttempt(fn (TwoTenants $t, RatePlan $plan) => [
         $this->actingAs($t->a->owner)->post(route('rate-plans.deactivate', $plan->id), ['_property' => $t->a->property->id])->assertNotFound(),
         $this->actingAs($t->a->owner)->post(route('rate-plans.deactivate', $plan->id), ['_property' => $t->b->property->id])->assertForbidden(),
