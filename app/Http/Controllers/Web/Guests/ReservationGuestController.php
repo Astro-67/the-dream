@@ -26,7 +26,7 @@ class ReservationGuestController extends Controller
 
         return Inertia::render('reservations/guests', [
             'reservationNumber' => $reservation->reservation_number,
-            'guests' => Guest::query()->whereIn('id', ReservationGuest::query()->where('reservation_id', $reservation->id)->select('guest_id'))->orderBy('id')->get()->map->only(['id', ...Guest::FIELDS]),
+            'guests' => Guest::query()->whereIn('id', ReservationGuest::query()->where('reservation_id', $reservation->id)->select('guest_id'))->orderBy('id')->paginate(50, ['id', ...Guest::FIELDS])->withQueryString(),
             'canAttach' => $request->user()?->can('attachGuest', $reservation),
             'canViewIdentity' => Access::allows($request->user(), OrganizationPermission::GuestIdentityView, Tenancy::property()),
         ]);

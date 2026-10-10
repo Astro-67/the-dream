@@ -3,10 +3,13 @@
 namespace App\Http\Requests\Guests;
 
 use App\Domains\Guests\Models\Booker;
+use App\Http\Requests\AuditsRefusals;
 use Illuminate\Foundation\Http\FormRequest;
 
 class BookerRequest extends FormRequest
 {
+    use AuditsRefusals;
+
     public function authorize(): bool
     {
         $booker = $this->route('booker');

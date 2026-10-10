@@ -13,6 +13,7 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::get('reservations', ReservationListController::class)->name('reservations.index');
     Route::get('reservations/availability', AvailabilityController::class)->name('reservations.availability');
     Route::get('reservations/create', [ReservationController::class, 'create'])->name('reservations.create');
+    Route::get('reservations/{reservation:reservation_number}/amend-preview', [AmendReservationController::class, 'preview'])->name('reservations.amend-preview');
     Route::patch('reservations/{reservation:reservation_number}/amend', AmendReservationController::class)->middleware('property.intent')->name('reservations.amend');
     Route::post('reservations', [ReservationController::class, 'store'])->middleware('property.intent')->name('reservations.store');
     Route::patch('reservations/{reservation:reservation_number}/room-assignment', RoomAssignmentController::class)->middleware('property.intent')->name('reservations.room-assignment');

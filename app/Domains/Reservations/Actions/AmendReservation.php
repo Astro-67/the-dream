@@ -28,29 +28,30 @@ class AmendReservation
             if ($reservation->status !== ReservationStatus::Confirmed) {
                 throw ValidationException::withMessages(['reservation' => __('Only confirmed reservations can be amended.')]);
             }
+            $property = Property::query()->findOrFail($reservation->property_id);
+            // ponytail: Spec 7 will supply the open business date; use the property's local date until then.
+            $today = now($property->timezone)->toDateString();
+            if ($details['arrival'] < $today && $details['arrival'] !== $reservation->arrival->toDateString()) {
+                throw ValidationException::withMessages(['arrival' => __('A changed arrival cannot be in the past at this property.')]);
+            }
             $fields = ['arrival', 'departure', 'adults', 'children', 'room_type_id', 'rate_plan_id', 'room_id', 'restriction_override_reason'];
             $before = $reservation->only($fields);
             $before['price_lines'] = $reservation->priceLines->map->only(['date', 'amount', 'currency', 'rate_plan_id'])->all();
             $type = RoomType::query()->findOrFail($details['room_type_id']);
             $plan = RatePlan::query()->whereNull('deactivated_at')->whereHas('roomTypes', fn ($query) => $query->whereKey($type->id))->findOrFail($details['rate_plan_id']);
-            if ($details['adults'] > $type->max_adults || $details['children'] > $type->max_children || $type->max_occupancy < $details['adults'] + $details['children']) {
-                throw ValidationException::withMessages(['adults' => __('The guest count exceeds this room type’s capacity.')]);
+            $invalid = app(StayPricing::class)->invalidStay($type, $details['arrival'], $details['departure'], (int) $details['adults'], (int) $details['children']);
+            if ($invalid !== null) {
+                throw ValidationException::withMessages(['adults' => $invalid]);
             }
             $warnings = app(StayRestrictions::class)->warnings($plan, $type, $details['arrival'], $details['departure']);
-            $reason = trim($details['restriction_override_reason'] ?? '');
-            if ($warnings !== [] && $reason === '') {
-                throw ValidationException::withMessages(['restriction_override_reason' => [...$warnings, __('Give a reason to override these restrictions.')]]);
-            }
+            $reason = app(StayRestrictions::class)->overrideReason($warnings, $details['restriction_override_reason'] ?? null);
             $dates = DateRange::dates($details['arrival'], CarbonImmutable::parse($details['departure'])->subDay()->toDateString());
             $oldDates = DateRange::dates($reservation->arrival->toDateString(), $reservation->departure->subDay()->toDateString());
             app(RetakeInventory::class)->handle($reservation->getAttribute('room_type_id'), $oldDates, $type->id, $dates);
-            $property = Property::query()->findOrFail($reservation->property_id);
-            // ponytail: Spec 7 will supply the open business date; use the property's local date until then.
-            $today = now($property->timezone)->toDateString();
             $reservation->priceLines()->where(fn ($query) => $query->whereDate('date', '<', $details['arrival'])->orWhereDate('date', '>=', $details['departure']))->whereDate('date', '>=', $today)->delete();
             foreach ($dates as $date) {
                 $line = $reservation->priceLines()->whereDate('date', $date)->first();
-                if ($line !== null && ($details['pricing'] === 'keep' || $date < $today)) {
+                if ($date < $today || ($line !== null && $details['pricing'] === 'keep')) {
                     continue;
                 }
                 $quote = app(StayPricing::class)->quote($plan, $type, $date, CarbonImmutable::parse($date)->addDay()->toDateString(), (int) $details['adults'], (int) $details['children']);
@@ -65,7 +66,7 @@ class AmendReservation
                 }
             }
             RoomAssignmentNight::query()->where('reservation_id', $reservation->id)->delete();
-            $reservation->update([...array_intersect_key($details, array_flip($fields)), 'room_id' => null, 'restriction_override_reason' => $warnings !== [] ? $reason : null]);
+            $reservation->update([...array_intersect_key($details, array_flip($fields)), 'room_id' => null, 'restriction_override_reason' => $reason]);
             if (($details['room_id'] ?? null) !== null) {
                 $reservation = app(AssignRoom::class)->handle($actor, $reservation, $details['room_id'], recordEvent: false);
             }

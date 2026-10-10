@@ -1,3 +1,5 @@
+import { formatDate } from '@/lib/utils';
+import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
@@ -45,9 +47,9 @@ export function CalendarRoomRows({
             );
             if (!reservation) {
                 cells.push(
-                    <td
+                    <TableCell
                         key={date}
-                        aria-label={`Room ${room.number}, ${date}: unassigned`}
+                        aria-label={`Room ${room.number}, ${formatDate(date)}: unassigned`}
                         className="border-b border-l px-2 py-2"
                     />,
                 );
@@ -57,9 +59,9 @@ export function CalendarRoomRows({
             let end = index + 1;
             while (end < dates.length && dates[end] < reservation.departure)
                 end++;
-            const description = `${reservation.guest_name}, ${reservation.reservation_number}, ${reservation.arrival} to ${reservation.departure}, ${reservation.status.replaceAll('_', ' ')}`;
+            const description = `${reservation.guest_name}, ${reservation.reservation_number}, ${formatDate(reservation.arrival)} to ${formatDate(reservation.departure)}, ${reservation.status.replaceAll('_', ' ')}`;
             cells.push(
-                <td
+                <TableCell
                     key={date}
                     colSpan={end - index}
                     className="border-b border-l p-1"
@@ -92,24 +94,30 @@ export function CalendarRoomRows({
                                 {reservation.status.replaceAll('_', ' ')}
                             </StatusChip>
                             <p className="mt-1">
-                                {reservation.arrival} – {reservation.departure}
+                                <time dateTime={reservation.arrival}>
+                                    {formatDate(reservation.arrival)}
+                                </time>{' '}
+                                –{' '}
+                                <time dateTime={reservation.departure}>
+                                    {formatDate(reservation.departure)}
+                                </time>
                             </p>
                         </TooltipContent>
                     </Tooltip>
-                </td>,
+                </TableCell>,
             );
             index = end;
         }
         return (
-            <tr key={room.id}>
-                <th
+            <TableRow key={room.id}>
+                <TableHead
                     scope="row"
                     className="sticky left-0 z-10 border-b bg-card px-3 py-2 text-left font-normal whitespace-nowrap"
                 >
                     Room <Identifier value={room.number} />
-                </th>
+                </TableHead>
                 {cells}
-            </tr>
+            </TableRow>
         );
     });
 }

@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/select';
 import { useState } from 'react';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
@@ -225,14 +226,13 @@ export default function Create({
                             </fieldset>
                             <div className="max-w-[720px] space-y-2">
                                 <Label htmlFor="source">Source</Label>
-                                <select
+                                <NativeSelect
                                     id="source"
                                     name="source"
                                     value={source}
                                     onChange={(event) =>
                                         setSource(event.target.value)
                                     }
-                                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
                                     <option value="direct">Direct</option>
                                     <option value="walk-in">Walk-in</option>
@@ -240,24 +240,20 @@ export default function Create({
                                     <option value="outside-integration">
                                         Booking received outside integration
                                     </option>
-                                </select>
+                                </NativeSelect>
                             </div>
                             <div className="max-w-[720px] space-y-2">
                                 <Label htmlFor="room_id">
                                     Room assignment (optional)
                                 </Label>
-                                <select
-                                    id="room_id"
-                                    name="room_id"
-                                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
+                                <NativeSelect id="room_id" name="room_id">
                                     <option value="">Leave unassigned</option>
                                     {rooms.map((room) => (
                                         <option key={room.id} value={room.id}>
                                             {room.number}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                             </div>
                             {source === 'outside-integration' && (
                                 <fieldset className="max-w-[720px] space-y-3">

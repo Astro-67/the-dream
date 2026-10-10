@@ -3,10 +3,14 @@
 namespace App\Http\Requests\Reservations;
 
 use App\Domains\Reservations\Models\Reservation;
+use App\Http\Requests\AuditsRefusals;
+use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class AmendReservationRequest extends CreateReservationRequest
+class AmendReservationRequest extends FormRequest
 {
+    use AuditsRefusals, StayRules;
+
     public function authorize(): bool
     {
         $reservation = $this->route('reservation');
@@ -18,8 +22,7 @@ class AmendReservationRequest extends CreateReservationRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $rules = parent::rules();
-        unset($rules['booker_id'], $rules['source'], $rules['payment_collector'], $rules['channel_reference'], $rules['outside_integration_reason'], $rules['rooms']);
+        $rules = $this->stayRules();
         $rules['room_id'][0] = 'present';
         array_unshift($rules['room_id'], 'nullable');
         $rules['pricing'] = ['required', Rule::in(['keep', 'reprice'])];

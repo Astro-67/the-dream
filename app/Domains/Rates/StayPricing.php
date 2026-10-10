@@ -17,12 +17,7 @@ class StayPricing
 {
     public function quote(RatePlan $plan, RoomType $roomType, string $arrival, string $departure, int $adults, int $children): StayQuote
     {
-        $reason = match (true) {
-            $departure <= $arrival => __('Departure must be after arrival.'),
-            $adults < 1 => __('A stay needs at least one adult.'),
-            $adults > $roomType->max_adults || $children > $roomType->max_children || $adults + $children > $roomType->max_occupancy => __(':room takes at most :count guests.', ['room' => $roomType->name, 'count' => $roomType->max_occupancy]),
-            default => null,
-        };
+        $reason = $this->invalidStay($roomType, $arrival, $departure, $adults, $children);
         if ($reason !== null) {
             return new StayQuote($plan->currency, [], $reason);
         }
@@ -44,6 +39,16 @@ class StayPricing
         }
 
         return new StayQuote($plan->currency, $nights);
+    }
+
+    public function invalidStay(RoomType $roomType, string $arrival, string $departure, int $adults, int $children): ?string
+    {
+        return match (true) {
+            $departure <= $arrival => __('Departure must be after arrival.'),
+            $adults < 1 => __('A stay needs at least one adult.'),
+            $adults > $roomType->max_adults || $children > $roomType->max_children || $adults + $children > $roomType->max_occupancy => __(':room takes at most :count guests.', ['room' => $roomType->name, 'count' => $roomType->max_occupancy]),
+            default => null,
+        };
     }
 
     /**

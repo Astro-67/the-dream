@@ -93,8 +93,8 @@ test('merge collapses shared stays and rolls back documents links deletion and a
 
         return [$survivor, $duplicate, $reservation];
     });
-    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->get(route('reservations.guests.create', $reservation))->assertInertia(fn (Assert $page) => $page->has('guests', 2));
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->get(route('reservations.guests.create', $reservation))->assertInertia(fn (Assert $page) => $page->has('guests.data', 2));
     $this->post(route('guests.merge', $survivor), ['_property' => $t->a->property->id, 'duplicate_id' => $duplicate->id])->assertSessionHasNoErrors();
-    $this->get(route('reservations.guests.create', $reservation))->assertInertia(fn (Assert $page) => $page->has('guests', 1)->where('guests.0.id', $survivor->id));
+    $this->get(route('reservations.guests.create', $reservation))->assertInertia(fn (Assert $page) => $page->has('guests.data', 1)->where('guests.data.0.id', $survivor->id));
     $this->get(route('guests.show', $survivor))->assertInertia(fn (Assert $page) => $page->where('stays.total', 1)->where('documents.0.number', 'ROLLBACK-SECRET'));
 });

@@ -11,6 +11,7 @@ use App\Domains\Rates\Models\RatePrice;
 use App\Domains\Rates\Models\RateRestriction;
 use App\Domains\Reservations\Actions\AmendReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
@@ -35,10 +36,10 @@ test('front desk amends a confirmed stay with atomic inventory and visible histo
         ->where('reservation.arrival', '2026-12-11T00:00:00.000000Z')
         ->has('reservation.price_lines', 1)
         ->where('reservation.price_lines.0.amount', 11000)
-        ->has('amendments', 1)
-        ->where('amendments.0.actor.name', $actor->name)
-        ->where('amendments.0.snapshot.before.children', 1)
-        ->where('amendments.0.snapshot.after.children', 0));
+        ->has('amendments.data', 1)
+        ->where('amendments.data.0.actor.name', $actor->name)
+        ->where('amendments.data.0.snapshot.before.children', 1)
+        ->where('amendments.data.0.snapshot.after.children', 0));
     inTenant($t->a->property, function () use ($reservation) {
         expect(InventoryRecord::query()->whereBetween('date', ['2026-12-10', '2026-12-11'])->orderBy('date')->pluck('sold_count')->all())->toBe([0, 1]);
         expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed)
@@ -238,5 +239,77 @@ test('failure recording an amendment lifecycle event rolls back every reservatio
         } finally {
             ReservationLifecycleEvent::flushEventListeners();
         }
+    });
+});
+
+test('amendment history paginates fifty events and retains query parameters', function () {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        for ($i = 0; $i < 51; $i++) {
+            app(RecordLifecycleEvent::class)->handle($reservation, 'modified', $t->a->owner, ['before' => ['room_id' => null], 'after' => ['room_id' => null]]);
+        }
+
+        return $reservation;
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->get(route('reservations.show', [$reservation, 'amendments_page' => 2, 'filter' => 'all']))->assertInertia(fn (Assert $page) => $page->has('amendments.data', 1)->where('amendments.total', 51)->where('amendments.current_page', 2)->where('amendments.prev_page_url', fn ($url) => str_contains($url, 'filter=all')));
+});
+
+test('standalone room assign change and clear appear with before and after in history', function () {
+    $t = twoTenants();
+    [$reservation, $first, $second] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        $first = Room::query()->sole();
+        $second = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+
+        return [app(CreateReservation::class)->handle($t->a->owner, $details), $first, $second];
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $before = null;
+    foreach ([$first->id, $second->id, null] as $index => $roomId) {
+        $this->patch(route('reservations.room-assignment', $reservation), ['_property' => $t->a->property->id, 'room_id' => $roomId])->assertSessionHasNoErrors();
+        $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->has('amendments.data', $index + 1)->where('amendments.data.'.$index.'.snapshot.before.room_id', $before)->where('amendments.data.'.$index.'.snapshot.after.room_id', $roomId)->where('amendments.data.'.$index.'.actor.name', $t->a->owner->name));
+        $before = $roomId;
+    }
+});
+
+test('amendment preview lists every broken restriction even with a reason already entered', function () {
+    $t = twoTenants();
+    [$reservation, $details] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, $details);
+        RateRestriction::query()->create(['rate_plan_id' => $details['rate_plan_id'], 'room_type_id' => $details['room_type_id'], 'date' => $details['arrival'], 'min_stay' => 3, 'closed_to_arrival' => true, 'stop_sell' => true]);
+
+        return [$reservation, $details];
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->getJson(route('reservations.amend-preview', [$reservation, ...$details, 'room_id' => '', 'pricing' => 'keep', 'restriction_override_reason' => 'Returning guest']))->assertOk()->assertExactJson(['warnings' => ['Minimum stay on 2026-12-10 is 3 nights; this stay is 2 nights.', 'Closed to arrival on 2026-12-10.', 'Stop-sell on 2026-12-10.']]);
+    expect(inTenant($t->a->property, fn () => $reservation->lifecycleEvents()->count()))->toBe(1);
+});
+
+test('amendment never creates or requotes a missing past price line', function (string $pricing) {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $pricing) {
+        $details = BookingForm::details($owner);
+        $reservation = app(CreateReservation::class)->handle($owner, $details);
+        $this->travelTo(CarbonImmutable::parse('2026-12-10 22:00:00 UTC'));
+        $reservation->priceLines()->whereDate('date', '2026-12-10')->delete();
+        RatePrice::query()->whereDate('date', '2026-12-10')->delete();
+        $amended = app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'room_id' => null, 'pricing' => $pricing]);
+        expect($amended->priceLines->pluck('date')->map->toDateString()->all())->toBe(['2026-12-11']);
+    });
+})->with(['keep', 'reprice']);
+
+test('moving arrival into the property local past is refused without changing the stay', function () {
+    $t = twoTenants();
+    [$reservation, $details] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, [...$details, 'arrival' => '2026-12-11']);
+
+        return [$reservation, $details];
+    });
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 22:00:00 UTC'));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->patchJson(route('reservations.amend', $reservation), [...$details, 'room_id' => null, 'pricing' => 'reprice', '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors('arrival');
+    inTenant($t->a->property, function () use ($reservation) {
+        expect($reservation->fresh()->arrival->toDateString())->toBe('2026-12-11')->and($reservation->priceLines()->count())->toBe(1)->and($reservation->lifecycleEvents()->count())->toBe(1);
     });
 });

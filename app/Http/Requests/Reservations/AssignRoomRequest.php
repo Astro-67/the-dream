@@ -4,11 +4,14 @@ namespace App\Http\Requests\Reservations;
 
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Models\Reservation;
+use App\Http\Requests\AuditsRefusals;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class AssignRoomRequest extends FormRequest
 {
+    use AuditsRefusals;
+
     public function authorize(): bool
     {
         $reservation = $this->route('reservation');

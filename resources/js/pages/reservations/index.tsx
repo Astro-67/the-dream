@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/select';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -71,11 +72,10 @@ export default function Index({
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="list">List</Label>
-                                <select
+                                <NativeSelect
                                     id="list"
                                     name="list"
                                     defaultValue={filters.list}
-                                    className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
                                     <option value="arrivals">Arrivals</option>
                                     <option value="departures">
@@ -85,7 +85,7 @@ export default function Index({
                                     <option value="all">
                                         All reservations
                                     </option>
-                                </select>
+                                </NativeSelect>
                                 <InputError message={errors.list} />
                             </div>
                             <div className="space-y-2">

@@ -1,3 +1,7 @@
+import { Identifier } from '@/components/ui/identifier';
+import { Pagination } from '@/components/ui/pagination';
+import { Table, TableBody, TableRow, TableCell } from '@/components/ui/table';
+import type { Paginated } from '@/types';
 import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
@@ -22,7 +26,7 @@ export default function Guests({
     canViewIdentity,
 }: {
     reservationNumber: string;
-    guests: Contact[];
+    guests: Paginated<Contact>;
     canAttach: boolean;
     canViewIdentity: boolean;
 }) {
@@ -77,7 +81,7 @@ export default function Guests({
             <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
                 <header className="space-y-2">
                     <h1 className="text-2xl font-semibold">
-                        Guests · {reservationNumber}
+                        Guests · <Identifier value={reservationNumber} />
                     </h1>
                     <Link
                         className="text-primary underline underline-offset-4"
@@ -92,26 +96,32 @@ export default function Guests({
                         The booker is separate and is not added as a staying
                         guest automatically.
                     </p>
-                    {guests.length === 0 ? (
+                    {guests.data.length === 0 ? (
                         <EmptyState message="No guests attached yet." />
                     ) : (
-                        <ul className="space-y-2">
-                            {guests.map((guest) => (
-                                <li key={guest.id}>
-                                    <Link
-                                        className="text-primary underline underline-offset-4"
-                                        href={`/guests/${guest.id}`}
-                                    >
-                                        {guest.name}
-                                    </Link>{' '}
-                                    ·{' '}
-                                    {guest.email ??
-                                        guest.phone ??
-                                        'No contact details'}
-                                </li>
-                            ))}
-                        </ul>
+                        <Table>
+                            <TableBody>
+                                {guests.data.map((guest) => (
+                                    <TableRow key={guest.id}>
+                                        <TableCell>
+                                            <Link
+                                                className="text-primary underline underline-offset-4"
+                                                href={`/guests/${guest.id}`}
+                                            >
+                                                {guest.name}
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell>
+                                            {guest.email ??
+                                                guest.phone ??
+                                                'No contact details'}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     )}
+                    <Pagination page={guests} />
                 </section>
                 {canAttach && (
                     <section className="space-y-4">

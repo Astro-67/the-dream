@@ -1,4 +1,11 @@
-import { Form } from '@inertiajs/react';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { EmptyState } from '@/components/ui/empty-state';
+import { formatTime } from '@/lib/utils';
+import { formatDate } from '@/features/platform/format';
+import { NativeSelect } from '@/components/ui/select';
+import { Pagination } from '@/components/ui/pagination';
+import type { Paginated } from '@/types';
+import { Form, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -23,8 +30,6 @@ type Stay = {
     rate_plan_id: string;
     room_id: string | null;
 };
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
 export function AmendmentForm({
     reservation,
@@ -34,12 +39,61 @@ export function AmendmentForm({
     options: AmendmentOptions;
 }) {
     const [type, setType] = useState(reservation.room_type_id);
+    const [warnings, setWarnings] = useState<string[] | null>(null);
+    const [previewing, setPreviewing] = useState(false);
+    const [previewError, setPreviewError] = useState('');
     return (
         <section className="max-w-[720px] space-y-3">
             <h2 className="text-lg font-semibold">Amend reservation</h2>
             <Form
                 {...amend.form(reservation.reservation_number)}
                 className="space-y-4"
+                onChange={(event) => {
+                    if (
+                        (event.target instanceof HTMLInputElement ||
+                        event.target instanceof HTMLSelectElement
+                            ? event.target.name
+                            : '') !== 'restriction_override_reason'
+                    )
+                        setWarnings(null);
+                }}
+                onSubmitCapture={async (event) => {
+                    if (warnings !== null) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const form = event.currentTarget;
+                    const params = new URLSearchParams();
+                    new FormData(form).forEach(
+                        (value, key) =>
+                            typeof value === 'string' && params.set(key, value),
+                    );
+                    const stayKey = params.toString();
+                    setPreviewing(true);
+                    setPreviewError('');
+                    try {
+                        const response = await fetch(
+                            `/reservations/${encodeURIComponent(reservation.reservation_number)}/amend-preview?${params}`,
+                            { headers: { Accept: 'application/json' } },
+                        );
+                        if (!response.ok) throw new Error('Preview failed');
+                        const result: { warnings: string[] } =
+                            await response.json();
+                        const current = new URLSearchParams();
+                        new FormData(form).forEach(
+                            (value, key) =>
+                                typeof value === 'string' &&
+                                current.set(key, value),
+                        );
+                        if (current.toString() === stayKey)
+                            setWarnings(result.warnings);
+                    } catch {
+                        setPreviewError(
+                            'Could not review restrictions. Check the stay details and try again.',
+                        );
+                    } finally {
+                        setPreviewing(false);
+                    }
+                }}
             >
                 {({ errors, processing }) => (
                     <>
@@ -94,14 +148,13 @@ export function AmendmentForm({
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="amend-type">Room type</Label>
-                            <select
+                            <NativeSelect
                                 id="amend-type"
                                 name="room_type_id"
                                 value={type}
                                 onChange={(event) =>
                                     setType(event.target.value)
                                 }
-                                className={selectClass}
                                 aria-describedby="amend-type-error"
                             >
                                 {options.roomTypes.map((item) => (
@@ -109,19 +162,18 @@ export function AmendmentForm({
                                         {item.name}
                                     </option>
                                 ))}
-                            </select>
+                            </NativeSelect>
                             <div id="amend-type-error">
                                 <InputError message={errors.room_type_id} />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="amend-plan">Rate plan</Label>
-                            <select
+                            <NativeSelect
                                 key={type}
                                 id="amend-plan"
                                 name="rate_plan_id"
                                 defaultValue={reservation.rate_plan_id}
-                                className={selectClass}
                                 aria-describedby="amend-plan-error"
                             >
                                 {options.ratePlans
@@ -135,14 +187,14 @@ export function AmendmentForm({
                                             {item.name}
                                         </option>
                                     ))}
-                            </select>
+                            </NativeSelect>
                             <div id="amend-plan-error">
                                 <InputError message={errors.rate_plan_id} />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="amend-room">Room assignment</Label>
-                            <select
+                            <NativeSelect
                                 key={type}
                                 id="amend-room"
                                 name="room_id"
@@ -151,7 +203,6 @@ export function AmendmentForm({
                                         ? (reservation.room_id ?? '')
                                         : ''
                                 }
-                                className={selectClass}
                                 aria-describedby="amend-room-error"
                             >
                                 <option value="">Unassigned</option>
@@ -164,7 +215,7 @@ export function AmendmentForm({
                                             {room.number}
                                         </option>
                                     ))}
-                            </select>
+                            </NativeSelect>
                             <div id="amend-room-error">
                                 <InputError message={errors.room_id} />
                             </div>
@@ -178,11 +229,10 @@ export function AmendmentForm({
                             <Label htmlFor="amend-pricing">
                                 Nightly prices
                             </Label>
-                            <select
+                            <NativeSelect
                                 id="amend-pricing"
                                 name="pricing"
                                 defaultValue="keep"
-                                className={selectClass}
                                 aria-describedby="amend-pricing-error"
                             >
                                 <option value="keep">
@@ -192,29 +242,60 @@ export function AmendmentForm({
                                 <option value="reprice">
                                     Re-price future nights
                                 </option>
-                            </select>
+                            </NativeSelect>
                             <div id="amend-pricing-error">
                                 <InputError message={errors.pricing} />
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="amend-reason">
-                                Restriction override reason
-                            </Label>
-                            <Input
-                                id="amend-reason"
-                                name="restriction_override_reason"
-                                maxLength={2000}
-                                aria-describedby="amend-reason-error"
-                            />
-                            <div id="amend-reason-error">
-                                <InputError
-                                    message={errors.restriction_override_reason}
-                                />
-                            </div>
-                        </div>
+                        {warnings !== null && warnings.length > 0 && (
+                            <>
+                                <Alert>
+                                    <AlertTitle>
+                                        Restrictions for this stay
+                                    </AlertTitle>
+                                    <AlertDescription>
+                                        <ul>
+                                            {warnings.map((warning) => (
+                                                <li key={warning}>{warning}</li>
+                                            ))}
+                                        </ul>
+                                    </AlertDescription>
+                                </Alert>
+                                <div className="space-y-2">
+                                    <Label htmlFor="amend-reason">
+                                        Restriction override reason
+                                    </Label>
+                                    <Input
+                                        id="amend-reason"
+                                        name="restriction_override_reason"
+                                        maxLength={2000}
+                                        required
+                                        aria-describedby="amend-reason-error"
+                                    />
+                                    <div id="amend-reason-error">
+                                        <InputError
+                                            message={
+                                                errors.restriction_override_reason
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        {warnings !== null && warnings.length === 0 && (
+                            <p className="text-sm text-muted-foreground">
+                                No restrictions broken by this stay.
+                            </p>
+                        )}
+                        <InputError message={previewError} />
                         <InputError message={errors.reservation} />
-                        <Button disabled={processing}>Save amendment</Button>
+                        <Button disabled={processing || previewing}>
+                            {previewing
+                                ? 'Reviewing restrictions…'
+                                : warnings === null
+                                  ? 'Review restrictions'
+                                  : 'Save amendment'}
+                        </Button>
                     </>
                 )}
             </Form>
@@ -229,20 +310,24 @@ export type Amendment = {
     snapshot: {
         before: Record<string, unknown>;
         after: Record<string, unknown>;
-        pricing: string;
+        pricing?: string;
     };
 };
 
-export function AmendmentHistory({ amendments }: { amendments: Amendment[] }) {
+export function AmendmentHistory({
+    amendments,
+}: {
+    amendments: Paginated<Amendment>;
+}) {
+    const { tenant } = usePage().props;
+    const timezone = tenant.property?.timezone ?? 'UTC';
     return (
         <section className="space-y-3">
             <h2 className="text-lg font-semibold">Amendment history</h2>
-            {amendments.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                    No amendments yet.
-                </p>
+            {amendments.data.length === 0 && (
+                <EmptyState message="No amendments yet." />
             )}
-            {amendments.map((amendment) => (
+            {amendments.data.map((amendment) => (
                 <article
                     key={amendment.id}
                     className="space-y-2 rounded-md border p-4"
@@ -250,13 +335,16 @@ export function AmendmentHistory({ amendments }: { amendments: Amendment[] }) {
                     <p>
                         {amendment.actor?.name ?? 'System'} ·{' '}
                         <time dateTime={amendment.occurred_at}>
-                            {new Date(amendment.occurred_at).toLocaleString()}
+                            {formatDate(amendment.occurred_at, timezone)} ·{' '}
+                            {formatTime(amendment.occurred_at, timezone)}
                         </time>
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {amendment.snapshot.pricing === 'keep'
-                            ? 'Original prices kept'
-                            : 'Future nights re-priced'}
+                        {amendment.snapshot.pricing === undefined
+                            ? 'Room assignment changed'
+                            : amendment.snapshot.pricing === 'keep'
+                              ? 'Original prices kept'
+                              : 'Future nights re-priced'}
                     </p>
                     <details>
                         <summary className="cursor-pointer">
@@ -281,6 +369,7 @@ export function AmendmentHistory({ amendments }: { amendments: Amendment[] }) {
                     </details>
                 </article>
             ))}
+            <Pagination page={amendments} />
         </section>
     );
 }

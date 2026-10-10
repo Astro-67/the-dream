@@ -9,6 +9,7 @@ use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Reservations\Models\ReservationNumberSequence;
 use App\Domains\Reservations\Models\ReservationPriceLine;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -115,4 +116,11 @@ test('booking confirms one room with fixed nightly prices a property number and 
             ->and($event->business_date->toDateString())->toBe(now($property->timezone)->toDateString())
             ->and($event->snapshot['reservation_number'])->toBe($reservation->reservation_number);
     });
+});
+
+test('new booking refuses an arrival before the property local date', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 22:00:00 UTC'));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->postJson(route('reservations.store'), [...$details, '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors('arrival');
 });

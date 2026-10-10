@@ -1,3 +1,5 @@
+import { NativeSelect } from '@/components/ui/select';
+import type { Paginated } from '@/types';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -70,7 +72,7 @@ export default function Show({
     canAssignRoom: boolean;
     canAmend: boolean;
     amendmentOptions: AmendmentOptions | null;
-    amendments: Amendment[];
+    amendments: Paginated<Amendment>;
     can: { cancel: boolean; void: boolean };
     groupMembers: Pick<
         Reservation,
@@ -159,12 +161,11 @@ export default function Show({
                             <>
                                 <PropertyIntent />
                                 <Label htmlFor="room_id">Room assignment</Label>
-                                <select
+                                <NativeSelect
                                     id="room_id"
                                     name="room_id"
                                     defaultValue={reservation.room_id ?? ''}
                                     aria-describedby="room-error"
-                                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
                                     <option value="">Unassigned</option>
                                     {rooms.map((room) => (
@@ -172,7 +173,7 @@ export default function Show({
                                             {room.number}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                                 <div id="room-error">
                                     <InputError message={errors.room_id} />
                                 </div>

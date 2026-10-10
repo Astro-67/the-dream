@@ -43,7 +43,7 @@ class AssignRoom
             }
             $reservation->update(['room_id' => $roomId]);
             if ($recordEvent) {
-                app(RecordLifecycleEvent::class)->handle($reservation, 'modified', $actor);
+                app(RecordLifecycleEvent::class)->handle($reservation, 'modified', $actor, ['before' => ['room_id' => $old], 'after' => ['room_id' => $roomId]]);
             }
             Audit::record($actor, 'updated', $reservation, 'Reservation room assignment changed', ['old' => ['room_id' => $old], 'attributes' => ['room_id' => $roomId]]);
 

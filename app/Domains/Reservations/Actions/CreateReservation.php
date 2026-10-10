@@ -33,11 +33,7 @@ class CreateReservation
                 throw ValidationException::withMessages(['rate_plan_id' => $quote->unquotable]);
             }
             $warnings = app(StayRestrictions::class)->warnings($plan, $type, $details['arrival'], $details['departure']);
-            $reason = trim($details['restriction_override_reason'] ?? '');
-            if ($warnings !== [] && $reason === '') {
-                throw ValidationException::withMessages(['restriction_override_reason' => [...$warnings, __('Give a reason to override these restrictions.')]]);
-            }
-            $details['restriction_override_reason'] = $warnings !== [] ? $reason : null;
+            $details['restriction_override_reason'] = app(StayRestrictions::class)->overrideReason($warnings, $details['restriction_override_reason'] ?? null);
             $rooms = (int) ($details['rooms'] ?? 1);
             if ($rooms < 1 || $rooms > 20) {
                 throw ValidationException::withMessages(['rooms' => __('Choose between 1 and 20 rooms.')]);
