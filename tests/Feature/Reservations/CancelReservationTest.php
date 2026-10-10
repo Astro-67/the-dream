@@ -47,3 +47,9 @@ test('only managers can void a confirmed reservation created in error', function
         }
     });
 })->with(array_map(fn ($role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager])], OrganizationRole::cases()));
+
+test('reservation detail offers only permitted confirmed termination actions', function (OrganizationRole $role, bool $cancel, bool $void) {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+    $this->actingAs($t->a->member($role))->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('can.cancel', $cancel)->where('can.void', $void));
+})->with([[OrganizationRole::FrontDesk, true, false], [OrganizationRole::PropertyManager, true, true], [OrganizationRole::Finance, false, false]]);
