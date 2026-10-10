@@ -1,15 +1,18 @@
 <?php
 
-use App\Domains\Guests\Actions\CreateBooker;
-use App\Domains\Inventory\Actions\CreateRoom;
-use App\Domains\Inventory\Actions\CreateRoomType;
-use App\Domains\Rates\Actions\CreateRatePlan;
-use App\Domains\Rates\Actions\SetRatePrices;
+use App\Domains\Inventory\Models\InventoryRecord;
+use App\Domains\Rates\Models\RatePrice;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
-use Tests\Support\InventoryForm;
-use Inertia\Testing\AssertableInertia as Assert;
+use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Reservations\Models\ReservationLifecycleEvent;
+use App\Domains\Reservations\Models\ReservationNumberSequence;
+use App\Domains\Reservations\Models\ReservationPriceLine;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\BookingForm;
 
 test('front desk books an availability result and opens its reservation detail', function () {
     $t = twoTenants();
@@ -26,10 +29,10 @@ test('booking refuses an exhausted night without selling any earlier night', fun
     inTenant($property, function () use ($owner) {
         $details = bookingDetails($owner);
         app(CreateReservation::class)->handle($owner, [...$details, 'arrival' => '2026-12-11']);
-        expect(fn () => app(CreateReservation::class)->handle($owner, $details))->toThrow(\Illuminate\Validation\ValidationException::class);
-        expect(\App\Domains\Inventory\Models\InventoryRecord::query()->where('room_type_id', $details['room_type_id'])->whereDate('date', '2026-12-10')->sole()->sold_count)->toBe(0)
-            ->and(\App\Domains\Reservations\Models\Reservation::query()->count())->toBe(1)
-            ->and(\App\Domains\Reservations\Models\ReservationLifecycleEvent::query()->count())->toBe(1);
+        expect(fn () => app(CreateReservation::class)->handle($owner, $details))->toThrow(ValidationException::class);
+        expect(InventoryRecord::query()->where('room_type_id', $details['room_type_id'])->whereDate('date', '2026-12-10')->sole()->sold_count)->toBe(0)
+            ->and(Reservation::query()->count())->toBe(1)
+            ->and(ReservationLifecycleEvent::query()->count())->toBe(1);
     });
 });
 
@@ -38,18 +41,18 @@ test('a failed outer transaction rolls back inventory number prices and lifecycl
     inTenant($property, function () use ($owner, $property) {
         $details = bookingDetails($owner);
         try {
-            \Illuminate\Support\Facades\DB::transaction(function () use ($owner, $details) {
+            DB::transaction(function () use ($owner, $details) {
                 app(CreateReservation::class)->handle($owner, $details);
                 throw new RuntimeException('abort booking');
             });
         } catch (RuntimeException $exception) {
             expect($exception->getMessage())->toBe('abort booking');
         }
-        expect(\App\Domains\Reservations\Models\Reservation::query()->count())->toBe(0)
-            ->and(\App\Domains\Reservations\Models\ReservationPriceLine::query()->count())->toBe(0)
-            ->and(\App\Domains\Reservations\Models\ReservationLifecycleEvent::query()->count())->toBe(0)
-            ->and(\App\Domains\Reservations\Models\ReservationNumberSequence::query()->count())->toBe(0)
-            ->and(\App\Domains\Inventory\Models\InventoryRecord::query()->sum('sold_count'))->toBe(0);
+        expect(Reservation::query()->count())->toBe(0)
+            ->and(ReservationPriceLine::query()->count())->toBe(0)
+            ->and(ReservationLifecycleEvent::query()->count())->toBe(0)
+            ->and(ReservationNumberSequence::query()->count())->toBe(0)
+            ->and(InventoryRecord::query()->sum('sold_count'))->toBe(0);
         $first = app(CreateReservation::class)->handle($owner, [...$details, 'departure' => '2026-12-11']);
         $first->update(['status' => ReservationStatus::Cancelled]);
         $second = app(CreateReservation::class)->handle($owner, [...$details, 'arrival' => '2026-12-11']);
@@ -58,9 +61,42 @@ test('a failed outer transaction rolls back inventory number prices and lifecycl
     });
 });
 
+test('booking permission and detail access follow the role', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => bookingDetails($t->a->owner));
+    $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, [...$details, 'departure' => '2026-12-11']));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->member($role));
+    $this->get(route('reservations.create', $details))->assertStatus($allowed ? 200 : 403);
+    $this->get(route('reservations.show', $reservation))->assertStatus($allowed ? 200 : 403);
+    $this->post(route('reservations.store'), [...$details, 'arrival' => '2026-12-11', '_property' => $t->a->property->id])->assertStatus($allowed ? 302 : 403);
+})->with([
+    [OrganizationRole::Owner, true], [OrganizationRole::GroupOperationsManager, true],
+    [OrganizationRole::PropertyManager, true], [OrganizationRole::FrontDesk, true],
+    [OrganizationRole::Housekeeping, false],
+]);
+
+test('reservation numbers and foreign inputs are isolated between properties of one organization', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->otherProperty, fn () => bookingDetails($t->a->owner));
+    $reservation = inTenant($t->a->otherProperty, fn () => app(CreateReservation::class)->handle($t->a->owner, $details));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $this->get(route('reservations.show', $reservation->reservation_number))->assertNotFound();
+    $this->postJson(route('reservations.store'), [...$details, '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors(['room_type_id', 'rate_plan_id', 'booker_id']);
+});
+
+test('nightly prices remain fixed after rate prices change', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = bookingDetails($owner);
+        $reservation = app(CreateReservation::class)->handle($owner, $details);
+        RatePrice::query()->where('rate_plan_id', $details['rate_plan_id'])->update(['base_price' => 99999]);
+        expect($reservation->fresh()->priceLines->pluck('amount')->all())->toBe([11000, 11000]);
+    });
+});
+
 function bookingDetails($owner): array
 {
-    return \Tests\Support\BookingForm::details($owner);
+    return BookingForm::details($owner);
 }
 
 test('booking confirms one room with fixed nightly prices a property number and a created lifecycle event', function () {

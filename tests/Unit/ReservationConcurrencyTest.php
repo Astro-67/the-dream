@@ -1,9 +1,9 @@
 <?php
 
 use App\Domains\Inventory\Actions\CreateRoom;
+use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationNumberSequence;
-use App\Domains\Inventory\Models\InventoryRecord;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Process\Process;
@@ -24,6 +24,7 @@ test('parallel MySQL bookings never oversell and allocate unique property number
         if ($rooms === 2) {
             app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
         }
+
         return $details;
     });
     $input = json_encode(['connection' => config('database.connections.mysql'), 'organization_id' => $property->organization_id, 'property_id' => $property->id, 'actor_id' => $owner->id, 'details' => $details], JSON_THROW_ON_ERROR);

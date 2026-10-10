@@ -4,10 +4,10 @@ namespace App\Domains\Reservations\Models;
 
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Policies\ReservationPolicy;
-use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use App\Support\Tenancy\BelongsToProperty;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;

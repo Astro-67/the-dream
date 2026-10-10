@@ -1,7 +1,5 @@
 <?php
 
-use App\Domains\Reservations\Actions\RecordLifecycleEvent;
-
 arch('core domains never reference integration interfaces (ADR 0013)')
     ->expect(['App\Domains\Reservations', 'App\Domains\Guests', 'App\Domains\FrontDesk', 'App\Domains\Billing'])
     ->not->toUse(['App\Domains\ZanReporting', 'App\Domains\FiscalReceipting', 'App\Domains\Distribution', 'App\Support\Outbox']);

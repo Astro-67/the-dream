@@ -214,7 +214,22 @@ export default function Availability({
                                         </TableRow>
                                     </tfoot>
                                 </Table>
-                                <Button asChild variant="outline"><Link href={create({ query: { arrival: stay.arrival, departure: stay.departure, adults: stay.adults, children: stay.children, room_type_id: type.id, rate_plan_id: plan.id } })}>Book this room</Link></Button>
+                                <Button asChild variant="outline">
+                                    <Link
+                                        href={create({
+                                            query: {
+                                                arrival: stay.arrival,
+                                                departure: stay.departure,
+                                                adults: stay.adults,
+                                                children: stay.children,
+                                                room_type_id: type.id,
+                                                rate_plan_id: plan.id,
+                                            },
+                                        })}
+                                    >
+                                        Book this room
+                                    </Link>
+                                </Button>
                             </div>
                         ))}
                     </section>
