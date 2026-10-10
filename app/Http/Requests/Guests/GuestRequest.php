@@ -7,7 +7,6 @@ use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class GuestRequest extends FormRequest
 {
@@ -22,7 +21,7 @@ class GuestRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'documents' => [Rule::prohibitedIf(! Access::allows($this->user(), OrganizationPermission::GuestIdentityView, Tenancy::property())), 'sometimes', 'array', 'max:10'],
+            'documents' => [Access::allows($this->user(), OrganizationPermission::GuestIdentityView, Tenancy::property()) ? 'sometimes' : 'missing', 'sometimes', 'array', 'max:10'],
             'documents.*' => ['array:type,number,nationality,issuing_country,expiry'],
             'documents.*.type' => ['required', 'string', 'max:50'],
             'documents.*.number' => ['required', 'string', 'max:255'],

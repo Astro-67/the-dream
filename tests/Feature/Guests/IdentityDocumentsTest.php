@@ -53,3 +53,12 @@ test('unauthorized document changes are refused without flashing sensitive input
     $this->put(route('guests.update', $guest), ['_property' => $t->a->property->id, 'name' => 'Amina', 'documents' => [['type' => 'passport', 'number' => 'FORGED-SECRET']]])->assertSessionHasErrors('documents');
     expect(json_encode(session()->all()))->not->toContain('FORGED-SECRET');
 });
+
+test('staff without identity permission cannot erase documents with an empty list', function () {
+    $t = twoTenants();
+    $guest = inTenant($t->a->property, fn () => Guest::query()->create(['name' => 'Amina']));
+    inTenant($t->a->property, fn () => $guest->documents()->create(['type' => 'passport', 'number' => 'KEEP-IDENTITY']));
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager));
+    $this->put(route('guests.update', $guest), ['_property' => $t->a->property->id, 'name' => 'Amina', 'documents' => []])->assertSessionHasErrors('documents');
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('guests.show', $guest))->assertInertia(fn (Assert $page) => $page->where('documents.0.number', 'KEEP-IDENTITY'));
+});
