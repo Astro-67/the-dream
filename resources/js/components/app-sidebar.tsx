@@ -33,7 +33,7 @@ import { index as platformOrganizations } from '@/routes/platform/organizations'
 import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
 import { index as ratePlans } from '@/routes/rate-plans';
-import { availability } from '@/routes/reservations';
+import { availability, index as reservations } from '@/routes/reservations';
 import { index as roomTypes } from '@/routes/room-types';
 import { index as taxRules } from '@/routes/tax-rules';
 import { index as rooms } from '@/routes/rooms';
@@ -80,6 +80,11 @@ export function AppSidebar() {
                   {
                       title: 'Availability',
                       href: availability(),
+                      icon: CalendarDays,
+                  },
+                  {
+                      title: 'Reservations',
+                      href: reservations(),
                       icon: CalendarDays,
                   },
                   { title: 'Room types', href: roomTypes(), icon: BedDouble },

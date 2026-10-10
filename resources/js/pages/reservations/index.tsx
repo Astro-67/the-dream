@@ -86,6 +86,17 @@ export default function Index({
                                 </select>
                                 <InputError message={errors.list} />
                             </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="search">Search</Label>
+                                <Input
+                                    id="search"
+                                    name="search"
+                                    defaultValue={filters.search}
+                                    maxLength={255}
+                                    placeholder="Reservation number, guest name or channel reference"
+                                />
+                                <InputError message={errors.search} />
+                            </div>
                             <Button type="submit">Apply filters</Button>
                         </>
                     )}

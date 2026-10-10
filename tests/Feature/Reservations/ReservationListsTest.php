@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Guests\Models\Guest;
+use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -38,4 +40,25 @@ test('front desk lists arrivals departures and in-house reservations on the prop
             ->where('reservations.data.0.reservation_number', $reservations[$index]->reservation_number)
             ->where('reservations.per_page', 50));
     }
+});
+
+test('lookup matches reservation numbers and guest names only within the selected property', function () {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $guest = Guest::query()->create(['name' => 'Amina Mussa']);
+        ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+        $other = $reservation->replicate();
+        $other->reservation_number = 'UNRELATED';
+        $other->save();
+
+        return $reservation;
+    });
+    $foreign = inTenant($t->a->otherProperty, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    foreach ([$reservation->reservation_number, 'Amina', 'Mussa'] as $search) {
+        $this->get(route('reservations.index', ['list' => 'all', 'search' => $search]))->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('reservations.data', 1)->where('reservations.data.0.id', $reservation->id));
+    }
+    $this->get(route('reservations.index', ['list' => 'all', 'search' => $foreign->reservation_number]))->assertOk()->assertInertia(fn (Assert $page) => $page->has('reservations.data', 0));
 });

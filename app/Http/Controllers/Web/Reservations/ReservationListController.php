@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Web\Reservations;
 
+use App\Domains\Guests\Models\Guest;
+use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\ListReservationsRequest;
@@ -23,6 +25,15 @@ class ReservationListController extends Controller
             'in-house' => $query->where('status', 'checked_in')->whereDate('arrival', '<=', $date)->whereDate('departure', '>', $date),
             default => null,
         };
+
+        $search = trim((string) $request->validated('search', ''));
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
+                $query->where('reservation_number', 'like', '%'.$search.'%')
+                    ->orWhereIn('id', ReservationGuest::query()->select('reservation_id')
+                        ->whereIn('guest_id', Guest::query()->select('id')->where('name', 'like', '%'.$search.'%')));
+            });
+        }
 
         return Inertia::render('reservations/index', [
             'filters' => ['date' => $date, 'list' => $list, 'search' => $request->validated('search', '')],
