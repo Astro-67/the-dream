@@ -42,4 +42,24 @@ foreach (['guests' => Guest::class, 'bookers' => Booker::class] as $domain => $m
     });
 }
 
+$coverage['guests.merge.create'] = RouteCoverage::attempt(function (TwoTenants $t) {
+    $foreign = inTenant($t->b->property, fn () => Guest::query()->create(['name' => 'Bravo Secret Contact']));
+
+    return $this->actingAs($t->a->owner)->get(route('guests.merge.create', $foreign))->assertNotFound();
+});
+$coverage['guests.merge'] = RouteCoverage::attempt(function (TwoTenants $t) {
+    $foreign = inTenant($t->b->property, fn () => Guest::query()->create(['name' => 'Bravo Secret Contact']));
+    $survivor = inTenant($t->a->property, fn () => Guest::query()->create(['name' => 'Alpha Contact']));
+    $before = inTenant($t->b->property, fn () => $foreign->fresh()->getAttributes());
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $responses = [
+        $this->postJson(route('guests.merge', $foreign), ['_property' => $t->a->property->id, 'duplicate_id' => $survivor->id])->assertNotFound(),
+        $this->postJson(route('guests.merge', $survivor), ['_property' => $t->a->property->id, 'duplicate_id' => $foreign->id])->assertUnprocessable(),
+    ];
+    expect(inTenant($t->b->property, fn () => $foreign->fresh()->getAttributes()))->toEqual($before);
+    expect(inTenant($t->a->property, fn () => Guest::query()->count()))->toBe(1);
+
+    return $responses;
+});
+
 return $coverage;
