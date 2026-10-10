@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney } from '@/lib/utils';
-import { availability } from '@/routes/reservations';
+import { availability, create } from '@/routes/reservations';
 
 type Stay = Partial<
     Record<
@@ -214,6 +214,22 @@ export default function Availability({
                                         </TableRow>
                                     </tfoot>
                                 </Table>
+                                <Button asChild variant="outline">
+                                    <Link
+                                        href={create({
+                                            query: {
+                                                arrival: stay.arrival,
+                                                departure: stay.departure,
+                                                adults: stay.adults,
+                                                children: stay.children,
+                                                room_type_id: type.id,
+                                                rate_plan_id: plan.id,
+                                            },
+                                        })}
+                                    >
+                                        Book this room
+                                    </Link>
+                                </Button>
                             </div>
                         ))}
                     </section>
