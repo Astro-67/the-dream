@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Web\Guests;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Actions\UpdateGuest;
 use App\Domains\Guests\Models\Guest;
+use App\Domains\Guests\Models\IdentityDocument;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Guests\GuestRequest;
 use App\Models\User;
@@ -32,11 +33,11 @@ class GuestController extends Controller {
     }
     public function show(Guest $guest, Request $request): Response {
         Gate::authorize('view', $guest);
-        return Inertia::render('guests/show', ['record' => ['id' => $guest->id, ...$guest->only(Guest::FIELDS)], 'canManage' => $request->user()?->can('update', $guest)]);
+        return Inertia::render('guests/show', ['documents' => $guest->documents()->get()->map(fn (IdentityDocument $document) => $document->only(IdentityDocument::FIELDS)), 'record' => ['id' => $guest->id, ...$guest->only(Guest::FIELDS)], 'canManage' => $request->user()?->can('update', $guest)]);
     }
-    public function edit(Guest $guest): Response {
+    public function edit(Guest $guest, Request $request): Response {
         Gate::authorize('update', $guest);
-        return Inertia::render('guests/edit', ['record' => ['id' => $guest->id, ...$guest->only(Guest::FIELDS)]]);
+        return Inertia::render('guests/edit', ['documents' => $guest->documents()->get()->map(fn (IdentityDocument $document) => $document->only(IdentityDocument::FIELDS)), 'record' => ['id' => $guest->id, ...$guest->only(Guest::FIELDS)]]);
     }
     public function update(GuestRequest $request, Guest $guest, UpdateGuest $action): RedirectResponse {
         /** @var User $actor */

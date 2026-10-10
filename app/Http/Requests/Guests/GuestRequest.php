@@ -10,6 +10,13 @@ class GuestRequest extends FormRequest {
     /** @return array<string, array<string>> */
     public function rules(): array {
         return [
+            'documents' => ['sometimes', 'array', 'max:10'],
+            'documents.*' => ['array:type,number,nationality,issuing_country,expiry'],
+            'documents.*.type' => ['required', 'string', 'max:50'],
+            'documents.*.number' => ['required', 'string', 'max:255'],
+            'documents.*.nationality' => ['nullable', 'string', 'regex:/^[A-Z]{2}$/'],
+            'documents.*.issuing_country' => ['nullable', 'string', 'regex:/^[A-Z]{2}$/'],
+            'documents.*.expiry' => ['nullable', 'date_format:Y-m-d'],
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
@@ -19,5 +26,5 @@ class GuestRequest extends FormRequest {
         ];
     }
     /** @return array<string, mixed> */
-    public function details(): array { return $this->safe()->only(Guest::FIELDS); }
+    public function details(): array { return $this->safe()->only([...Guest::FIELDS, 'documents']); }
 }
