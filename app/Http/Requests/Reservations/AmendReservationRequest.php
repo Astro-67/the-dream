@@ -11,7 +11,8 @@ class AmendReservationRequest extends CreateReservationRequest
     {
         $reservation = $this->route('reservation');
 
-        return $reservation instanceof Reservation && ($this->user()?->can('amend', $reservation) ?? false);
+        return $reservation instanceof Reservation && ($this->user()?->can('amend', $reservation) ?? false)
+            && (! $this->filled('room_id') || ($this->user()?->can('assignRoom', $reservation) ?? false));
     }
 
     /** @return array<string, mixed> */

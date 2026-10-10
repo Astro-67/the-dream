@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Inventory\Models\InventoryRecord;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -37,4 +38,19 @@ test('amendment form exposes property choices and pricing decision on the detail
     $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
         ->where('canAmend', true)->has('amendmentOptions.roomTypes', 1)->has('amendmentOptions.ratePlans', 1)->has('amendmentOptions.rooms', 1));
+});
+
+test('amendment cannot assign a room without rooms assign permission', function () {
+    $t = twoTenants();
+    [$reservation, $details, $room] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+
+        return [app(CreateReservation::class)->handle($t->a->owner, $details), $details, Room::query()->sole()];
+    });
+    $actor = $t->a->member(OrganizationRole::FrontDesk);
+    inTenant($t->a->property, function () use ($actor) {
+        $actor->syncRoles([]);
+        $actor->givePermissionTo('reservations.manage');
+    });
+    $this->actingAs($actor)->patchJson(route('reservations.amend', $reservation), [...$details, 'room_id' => $room->id, 'pricing' => 'keep', '_property' => $t->a->property->id])->assertForbidden();
 });
