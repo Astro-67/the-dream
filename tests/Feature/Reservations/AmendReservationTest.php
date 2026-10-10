@@ -1,10 +1,14 @@
 <?php
 
+use App\Domains\Inventory\Actions\CreateRoom;
+use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Rates\Actions\CreateRatePlan;
 use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\RatePrice;
+use App\Domains\Rates\Models\RateRestriction;
 use App\Domains\Reservations\Actions\AmendReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
@@ -14,6 +18,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 
 test('front desk amends a confirmed stay with atomic inventory and visible history', function () {
     $t = twoTenants();
@@ -103,4 +108,112 @@ test('amendment oversell refusal rolls back released inventory prices assignment
             ->and(RoomAssignmentNight::query()->where('reservation_id', $reservation->id)->pluck('date')->map->toDateString()->all())->toBe(['2026-12-10'])
             ->and(InventoryRecord::query()->whereBetween('date', ['2026-12-10', '2026-12-11'])->orderBy('date')->pluck('sold_count')->all())->toBe([1, 1]);
     });
+});
+
+test('amendment restriction warnings require a reason and retain the override in history', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        $reservation = app(CreateReservation::class)->handle($owner, $details);
+        RateRestriction::query()->create(['rate_plan_id' => $details['rate_plan_id'], 'room_type_id' => $details['room_type_id'], 'date' => $details['arrival'], 'min_stay' => 3, 'closed_to_arrival' => true, 'stop_sell' => true]);
+        expect(fn () => app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'room_id' => null, 'pricing' => 'keep']))->toThrow(ValidationException::class);
+        expect($reservation->lifecycleEvents()->count())->toBe(1);
+        $amended = app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'room_id' => null, 'pricing' => 'keep', 'restriction_override_reason' => ' Returning guest ']);
+        expect($amended->getAttribute('restriction_override_reason'))->toBe('Returning guest');
+        $event = $amended->lifecycleEvents()->reorder('sequence', 'desc')->first();
+        expect($event->snapshot['after']['restriction_override_reason'])->toBe('Returning guest');
+    });
+});
+
+test('amendment regenerates retained room assignment nights and rejects an overlap atomically', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        $room = Room::query()->sole();
+        app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'departure' => '2026-12-11', 'room_id' => $room->id]);
+        app(CreateReservation::class)->handle($owner, [...$details, 'arrival' => '2026-12-11', 'room_id' => $room->id]);
+        expect(fn () => app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'room_id' => $room->id, 'pricing' => 'keep']))->toThrow(ValidationException::class);
+        expect($reservation->fresh()->departure->toDateString())->toBe('2026-12-11')
+            ->and($reservation->lifecycleEvents()->count())->toBe(1)
+            ->and($reservation->priceLines()->count())->toBe(1);
+        $amended = app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'arrival' => '2026-12-11', 'room_id' => Room::query()->where('number', '102')->sole()->id, 'pricing' => 'reprice']);
+        expect(RoomAssignmentNight::query()->where('reservation_id', $reservation->id)->pluck('date')->map->toDateString()->all())->toBe(['2026-12-11'])
+            ->and($amended->lifecycleEvents()->pluck('type')->all())->toBe(['created', 'modified']);
+    });
+});
+
+test('amendment validates assigned room constraints and rolls back the complete change', function (string $invalid) {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $invalid) {
+        $details = BookingForm::details($owner);
+        $reservation = app(CreateReservation::class)->handle($owner, $details);
+        $room = Room::query()->sole();
+        if ($invalid === 'inactive') {
+            $room->deactivated_at = now();
+            $room->save();
+        } elseif ($invalid === 'wrong type') {
+            $other = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType(['code' => 'OTHER']));
+            $room->update(['room_type_id' => $other->id]);
+        } else {
+            $room->outOfServicePeriods()->create(['starts_on' => '2026-12-10', 'returns_on' => '2026-12-12', 'reason' => 'Repair']);
+        }
+        expect(fn () => app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'children' => 0, 'room_id' => $room->id, 'pricing' => 'reprice']))->toThrow(ValidationException::class);
+        expect($reservation->fresh()->getAttribute('children'))->toBe(1)
+            ->and($reservation->priceLines()->pluck('amount')->all())->toBe([11000, 11000])
+            ->and($reservation->lifecycleEvents()->count())->toBe(1);
+    });
+})->with(['inactive', 'wrong type', 'out of service']);
+
+test('amendment can change room type and rate plan without changing booking identity', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        $reservation = app(CreateReservation::class)->handle($owner, $details);
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType(['code' => 'NEW']));
+        app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id, ['number' => '201']));
+        $plan = app(CreateRatePlan::class)->handle($owner, ['name' => 'New plan', 'code' => 'NEW', 'currency' => 'USD', 'room_type_ids' => [$type->id]]);
+        app(SetRatePrices::class)->handle($owner, $plan, ['room_type_id' => $type->id, 'from' => '2026-12-10', 'to' => '2026-12-11', 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'base_price' => 40000, 'extra_adult' => 0, 'extra_child' => 0]);
+        $amended = app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'room_type_id' => $type->id, 'rate_plan_id' => $plan->id, 'room_id' => null, 'pricing' => 'reprice']);
+        expect($amended->reservation_number)->toBe($reservation->reservation_number)
+            ->and($amended->getAttribute('booker_id'))->toBe($details['booker_id'])
+            ->and($amended->priceLines->pluck('amount')->all())->toBe([40000, 40000])
+            ->and((int) InventoryRecord::query()->where('room_type_id', $details['room_type_id'])->sum('sold_count'))->toBe(0)
+            ->and((int) InventoryRecord::query()->where('room_type_id', $type->id)->sum('sold_count'))->toBe(2);
+    });
+});
+
+test('amendment is refused outside confirmed status', function (ReservationStatus $status) {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $status) {
+        $details = BookingForm::details($owner);
+        $reservation = app(CreateReservation::class)->handle($owner, $details);
+        $reservation->update(['status' => $status]);
+        expect(fn () => app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'room_id' => null, 'pricing' => 'keep']))->toThrow(ValidationException::class);
+        expect($reservation->lifecycleEvents()->count())->toBe(1);
+    });
+})->with([ReservationStatus::Cancelled, ReservationStatus::Void, ReservationStatus::CheckedIn, ReservationStatus::CheckedOut, ReservationStatus::NoShow]);
+
+test('amendment route follows reservations manage permissions', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    [$reservation, $details] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+
+        return [app(CreateReservation::class)->handle($t->a->owner, $details), $details];
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->member($role))
+        ->patchJson(route('reservations.amend', $reservation), [...$details, 'room_id' => null, 'pricing' => 'keep', '_property' => $t->a->property->id])->assertStatus($allowed ? 302 : 403);
+})->with([[OrganizationRole::Owner, true], [OrganizationRole::GroupOperationsManager, true], [OrganizationRole::PropertyManager, true], [OrganizationRole::FrontDesk, true], [OrganizationRole::Finance, false], [OrganizationRole::Auditor, false], [OrganizationRole::Housekeeping, false]]);
+
+test('amendment rejects another property payload and stale property intent', function () {
+    $t = twoTenants();
+    [$reservation, $details] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+
+        return [app(CreateReservation::class)->handle($t->a->owner, $details), $details];
+    });
+    $foreign = inTenant($t->b->property, fn () => BookingForm::details($t->b->owner));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $this->patchJson(route('reservations.amend', $reservation), [...$foreign, 'room_id' => null, 'pricing' => 'keep', '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors(['room_type_id', 'rate_plan_id']);
+    $this->patchJson(route('reservations.amend', $reservation), [...$details, 'room_id' => null, 'pricing' => 'keep', '_property' => $t->a->otherProperty->id])->assertNotFound();
 });
