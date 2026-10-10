@@ -4,6 +4,7 @@ use App\Http\Controllers\Web\Guests\GuestController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(function () {
+    Route::post('guests/matches', \App\Http\Controllers\Web\Guests\GuestMatchController::class)->name('guests.matches');
     Route::get('guests', [GuestController::class, 'index'])->name('guests.index');
     Route::get('guests/create', [GuestController::class, 'create'])->name('guests.create');
     Route::post('guests', [GuestController::class, 'store'])->name('guests.store');
