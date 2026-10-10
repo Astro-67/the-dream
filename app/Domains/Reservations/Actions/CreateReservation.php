@@ -39,6 +39,9 @@ class CreateReservation
             }
             $details['restriction_override_reason'] = $warnings !== [] ? $reason : null;
             $rooms = (int) ($details['rooms'] ?? 1);
+            if ($rooms < 1 || $rooms > 20) {
+                throw ValidationException::withMessages(['rooms' => __('Choose between 1 and 20 rooms.')]);
+            }
             unset($details['rooms']);
             app(TakeInventory::class)->handle($type, array_column($quote->nights, 'date'), $rooms);
             $groupId = $rooms > 1 ? (string) Str::ulid() : null;
@@ -46,7 +49,8 @@ class CreateReservation
             $property = Property::query()->whereKey(Tenancy::property()?->id)->lockForUpdate()->firstOrFail();
             $sequence = ReservationNumberSequence::query()->where('property_id', $property->id)->lockForUpdate()->first();
             $sequence ??= ReservationNumberSequence::query()->create(['last_number' => 0]);
-            for ($room = 0; $room < $rooms; $room++) {
+            $room = 0;
+            do {
                 $sequence->increment('last_number');
                 $number = $property->id.'-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT);
                 $reservation = Reservation::query()->create([
@@ -61,7 +65,7 @@ class CreateReservation
                 }
                 app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
                 Audit::record($actor, 'created', $reservation, 'Reservation created', ['reservation_number' => $number, 'restriction_override_reason' => $details['restriction_override_reason'], 'restriction_warnings' => $warnings]);
-            }
+            } while (++$room < $rooms);
 
             return $reservation;
         }, attempts: 3));

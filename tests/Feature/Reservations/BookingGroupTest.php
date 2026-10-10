@@ -4,6 +4,7 @@ use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
@@ -54,3 +55,12 @@ test('group details link siblings and cancelling one member leaves the others co
             ->and(InventoryRecord::query()->whereBetween('date', ['2026-12-10', '2026-12-11'])->orderBy('date')->pluck('sold_count')->all())->toBe([1, 1]);
     });
 });
+
+test('booking groups refuse invalid room counts without creating reservations', function (int $rooms) {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $rooms) {
+        $details = BookingForm::details($owner);
+        expect(fn () => app(CreateReservation::class)->handle($owner, [...$details, 'rooms' => $rooms]))->toThrow(ValidationException::class);
+        expect(Reservation::query()->count())->toBe(0);
+    });
+})->with([0, -1, 21]);
