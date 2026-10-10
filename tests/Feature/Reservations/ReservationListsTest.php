@@ -62,3 +62,30 @@ test('lookup matches reservation numbers and guest names only within the selecte
     }
     $this->get(route('reservations.index', ['list' => 'all', 'search' => $foreign->reservation_number]))->assertOk()->assertInertia(fn (Assert $page) => $page->has('reservations.data', 0));
 });
+
+test('reservation lists paginate fifty rows preserve filters and allow an explicit business date', function () {
+    $t = twoTenants();
+    inTenant($t->a->property, function () use ($t) {
+        $seed = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        for ($i = 1; $i <= 50; $i++) {
+            $copy = $seed->replicate();
+            $copy->reservation_number = 'PAGE-'.str_pad((string) $i, 3, '0', STR_PAD_LEFT);
+            $copy->save();
+        }
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $this->get(route('reservations.index', ['list' => 'arrivals', 'date' => '2026-12-10', 'page' => 2]))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('filters.date', '2026-12-10')->where('reservations.total', 51)
+        ->has('reservations.data', 1)->where('reservations.current_page', 2)
+        ->where('reservations.prev_page_url', fn ($url) => str_contains($url, 'list=arrivals') && str_contains($url, 'date=2026-12-10')));
+    $this->getJson(route('reservations.index', ['date' => 'not-a-date', 'list' => 'unknown', 'search' => ['invalid']]))->assertUnprocessable()->assertJsonValidationErrors(['date', 'list', 'search']);
+});
+
+test('reservation list permission follows the role', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $this->actingAs($t->a->member($role))->get(route('reservations.index'))->assertStatus($allowed ? 200 : 403);
+})->with([
+    [OrganizationRole::Owner, true], [OrganizationRole::GroupOperationsManager, true],
+    [OrganizationRole::PropertyManager, true], [OrganizationRole::FrontDesk, true],
+    [OrganizationRole::Housekeeping, false],
+]);
