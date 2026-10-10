@@ -69,7 +69,7 @@ test('termination refuses every non-confirmed state and stale repeated requests'
     $this->actingAs($owner)->postJson(route('reservations.'.$action, $reservation), ['_property' => $property->id, 'reason' => 'Invalid transition'])->assertUnprocessable()->assertJsonValidationErrors('reservation');
     inTenant($property, function () use ($reservation, $status) {
         expect($reservation->fresh()->status)->toBe($status)->and($reservation->lifecycleEvents()->count())->toBe(1)
-            ->and(InventoryRecord::query()->sum('sold_count'))->toBe(2);
+            ->and((int) InventoryRecord::query()->sum('sold_count'))->toBe(2);
     });
 })->with(['cancel', 'void'])->with(array_filter(ReservationStatus::cases(), fn ($status) => $status !== ReservationStatus::Confirmed));
 

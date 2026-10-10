@@ -17,7 +17,7 @@ return [
         inTenant($t->b->property, function () use ($reservation) {
             expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed)
                 ->and($reservation->lifecycleEvents()->count())->toBe(1)
-                ->and(InventoryRecord::query()->sum('sold_count'))->toBe(2);
+                ->and((int) InventoryRecord::query()->sum('sold_count'))->toBe(2);
         });
 
         return $response;
@@ -28,7 +28,7 @@ return [
         inTenant($t->b->property, function () use ($reservation) {
             expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed)
                 ->and($reservation->lifecycleEvents()->count())->toBe(1)
-                ->and(InventoryRecord::query()->sum('sold_count'))->toBe(2);
+                ->and((int) InventoryRecord::query()->sum('sold_count'))->toBe(2);
         });
 
         return $response;
