@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/select';
 import { Pagination } from '@/components/ui/pagination';
 import type { Paginated } from '@/types';
 import { Form } from '@inertiajs/react';
@@ -25,8 +26,6 @@ type Stay = {
     rate_plan_id: string;
     room_id: string | null;
 };
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
 export function AmendmentForm({
     reservation,
@@ -96,14 +95,13 @@ export function AmendmentForm({
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="amend-type">Room type</Label>
-                            <select
+                            <NativeSelect
                                 id="amend-type"
                                 name="room_type_id"
                                 value={type}
                                 onChange={(event) =>
                                     setType(event.target.value)
                                 }
-                                className={selectClass}
                                 aria-describedby="amend-type-error"
                             >
                                 {options.roomTypes.map((item) => (
@@ -111,19 +109,18 @@ export function AmendmentForm({
                                         {item.name}
                                     </option>
                                 ))}
-                            </select>
+                            </NativeSelect>
                             <div id="amend-type-error">
                                 <InputError message={errors.room_type_id} />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="amend-plan">Rate plan</Label>
-                            <select
+                            <NativeSelect
                                 key={type}
                                 id="amend-plan"
                                 name="rate_plan_id"
                                 defaultValue={reservation.rate_plan_id}
-                                className={selectClass}
                                 aria-describedby="amend-plan-error"
                             >
                                 {options.ratePlans
@@ -137,14 +134,14 @@ export function AmendmentForm({
                                             {item.name}
                                         </option>
                                     ))}
-                            </select>
+                            </NativeSelect>
                             <div id="amend-plan-error">
                                 <InputError message={errors.rate_plan_id} />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="amend-room">Room assignment</Label>
-                            <select
+                            <NativeSelect
                                 key={type}
                                 id="amend-room"
                                 name="room_id"
@@ -153,7 +150,6 @@ export function AmendmentForm({
                                         ? (reservation.room_id ?? '')
                                         : ''
                                 }
-                                className={selectClass}
                                 aria-describedby="amend-room-error"
                             >
                                 <option value="">Unassigned</option>
@@ -166,7 +162,7 @@ export function AmendmentForm({
                                             {room.number}
                                         </option>
                                     ))}
-                            </select>
+                            </NativeSelect>
                             <div id="amend-room-error">
                                 <InputError message={errors.room_id} />
                             </div>
@@ -180,11 +176,10 @@ export function AmendmentForm({
                             <Label htmlFor="amend-pricing">
                                 Nightly prices
                             </Label>
-                            <select
+                            <NativeSelect
                                 id="amend-pricing"
                                 name="pricing"
                                 defaultValue="keep"
-                                className={selectClass}
                                 aria-describedby="amend-pricing-error"
                             >
                                 <option value="keep">
@@ -194,7 +189,7 @@ export function AmendmentForm({
                                 <option value="reprice">
                                     Re-price future nights
                                 </option>
-                            </select>
+                            </NativeSelect>
                             <div id="amend-pricing-error">
                                 <InputError message={errors.pricing} />
                             </div>

@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/select';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -114,13 +115,12 @@ export default function Availability({
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="room_type_id">Room type</Label>
-                                <select
+                                <NativeSelect
                                     id="room_type_id"
                                     name="room_type_id"
                                     defaultValue={stay.room_type_id ?? ''}
                                     aria-invalid={!!errors.room_type_id}
                                     aria-describedby="room_type_id-error"
-                                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
                                     <option value="">All room types</option>
                                     {roomTypes.map((type) => (
@@ -128,7 +128,7 @@ export default function Availability({
                                             {type.name}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                                 <div id="room_type_id-error">
                                     <InputError message={errors.room_type_id} />
                                 </div>

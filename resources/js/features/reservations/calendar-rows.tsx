@@ -1,3 +1,4 @@
+import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
@@ -45,7 +46,7 @@ export function CalendarRoomRows({
             );
             if (!reservation) {
                 cells.push(
-                    <td
+                    <TableCell
                         key={date}
                         aria-label={`Room ${room.number}, ${date}: unassigned`}
                         className="border-b border-l px-2 py-2"
@@ -59,7 +60,7 @@ export function CalendarRoomRows({
                 end++;
             const description = `${reservation.guest_name}, ${reservation.reservation_number}, ${reservation.arrival} to ${reservation.departure}, ${reservation.status.replaceAll('_', ' ')}`;
             cells.push(
-                <td
+                <TableCell
                     key={date}
                     colSpan={end - index}
                     className="border-b border-l p-1"
@@ -96,20 +97,20 @@ export function CalendarRoomRows({
                             </p>
                         </TooltipContent>
                     </Tooltip>
-                </td>,
+                </TableCell>,
             );
             index = end;
         }
         return (
-            <tr key={room.id}>
-                <th
+            <TableRow key={room.id}>
+                <TableHead
                     scope="row"
                     className="sticky left-0 z-10 border-b bg-card px-3 py-2 text-left font-normal whitespace-nowrap"
                 >
                     Room <Identifier value={room.number} />
-                </th>
+                </TableHead>
                 {cells}
-            </tr>
+            </TableRow>
         );
     });
 }
