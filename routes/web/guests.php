@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\Web\Guests\GuestController;
-use App\Http\Controllers\Web\Guests\GuestMergeController;
 use App\Http\Controllers\Web\Guests\GuestMatchController;
+use App\Http\Controllers\Web\Guests\GuestMergeController;
 use App\Http\Controllers\Web\Guests\ReservationGuestController;
 use Illuminate\Support\Facades\Route;
 
