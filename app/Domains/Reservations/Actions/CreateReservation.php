@@ -47,6 +47,7 @@ class CreateReservation
             $reservation = Reservation::query()->create([
                 ...$details,
                 'reservation_number' => $number,
+                'requires_reconciliation' => ($details['source'] ?? '') === 'outside-integration',
                 'payment_collector' => $details['payment_collector'] ?? 'property',
                 'status' => ReservationStatus::Confirmed,
             ]);

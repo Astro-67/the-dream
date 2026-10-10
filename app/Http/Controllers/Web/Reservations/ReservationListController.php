@@ -30,6 +30,7 @@ class ReservationListController extends Controller
         if ($search !== '') {
             $query->where(function ($query) use ($search) {
                 $query->where('reservation_number', 'like', '%'.$search.'%')
+                    ->orWhere('channel_reference', 'like', '%'.$search.'%')
                     ->orWhereIn('id', ReservationGuest::query()->select('reservation_id')
                         ->whereIn('guest_id', Guest::query()->select('id')->where('name', 'like', '%'.$search.'%')));
             });
