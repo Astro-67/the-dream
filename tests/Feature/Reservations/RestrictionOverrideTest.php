@@ -8,8 +8,24 @@ use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
+
+test('staff sees every restriction and submits an override through the booking form', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        RateRestriction::query()->create(['rate_plan_id' => $details['rate_plan_id'], 'room_type_id' => $details['room_type_id'], 'date' => $details['arrival'], 'min_stay' => 3, 'closed_to_arrival' => true, 'stop_sell' => true]);
+
+        return $details;
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->get(route('reservations.create', $details))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->has('restrictionWarnings', 3));
+    $this->postJson(route('reservations.store'), [...$details, '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors('restriction_override_reason');
+    $response = $this->post(route('reservations.store'), [...$details, '_property' => $t->a->property->id, 'restriction_override_reason' => 'Returning guest exception']);
+    $response->assertRedirect();
+    $this->get($response->headers->get('Location'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('reservation.restriction_override_reason', 'Returning guest exception'));
+});
 
 test('staff restriction override is required persisted and audited', function () {
     [$owner, , $property] = organizationWithOwner();

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Reservations;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
+use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Controllers\Controller;
@@ -16,12 +17,16 @@ use Inertia\Response;
 
 class ReservationController extends Controller
 {
-    public function create(CreateReservationRequest $request): Response
+    public function create(CreateReservationRequest $request, StayRestrictions $restrictions): Response
     {
+        $type = RoomType::query()->findOrFail($request->validated('room_type_id'));
+        $plan = RatePlan::query()->findOrFail($request->validated('rate_plan_id'));
+
         return Inertia::render('reservations/create', [
             'stay' => $request->validated(),
-            'roomType' => RoomType::query()->findOrFail($request->validated('room_type_id'))->only(['id', 'name']),
-            'ratePlan' => RatePlan::query()->findOrFail($request->validated('rate_plan_id'))->only(['id', 'name']),
+            'roomType' => $type->only(['id', 'name']),
+            'ratePlan' => $plan->only(['id', 'name']),
+            'restrictionWarnings' => $restrictions->warnings($plan, $type, $request->validated('arrival'), $request->validated('departure')),
             'bookers' => Booker::query()->orderBy('name')->paginate(50)->withQueryString(),
         ]);
     }
