@@ -14,7 +14,7 @@ class ReservationCalendar
 {
     /**
      * @param  list<string>  $roomTypeIds
-     * @return Collection<string, array<string, mixed>>
+     * @return Collection<string, array{rooms: Collection<int|string, mixed>, unassigned: array<string, int>}>
      */
     public function forRange(array $roomTypeIds, string $from, string $to): Collection
     {

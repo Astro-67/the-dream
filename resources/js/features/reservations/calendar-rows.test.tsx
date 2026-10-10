@@ -1,4 +1,5 @@
-import { expect, test } from 'bun:test';
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { CalendarRoomRows } from './calendar-rows';
@@ -32,10 +33,10 @@ test('reservation bars clip to the visible nights and leave departure free', () 
             </table>
         </TooltipProvider>,
     );
-    expect(html).toContain('colSpan="2"');
-    expect(html).toContain('href="/reservations/R-1042"');
-    expect(html).toContain('Staying Guest');
-    expect(html).toContain('R-1042');
-    expect(html).toContain('Phone');
-    expect(html).toContain('2026-12-13: unassigned');
+    assert.ok(html.includes('colSpan="2"'));
+    assert.ok(html.includes('href="/reservations/R-1042"'));
+    assert.ok(html.includes('Staying Guest'));
+    assert.ok(html.includes('R-1042'));
+    assert.ok(html.includes('Phone'));
+    assert.ok(html.includes('2026-12-13: unassigned'));
 });
