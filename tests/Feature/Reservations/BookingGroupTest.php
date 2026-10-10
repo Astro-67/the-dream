@@ -2,6 +2,7 @@
 
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\InventoryRecord;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
@@ -128,3 +129,19 @@ test('the group booking form rejects invalid room counts', function (mixed $room
         ->assertUnprocessable()->assertJsonValidationErrors('rooms');
     expect(inTenant($t->a->property, fn () => Reservation::query()->count()))->toBe(0);
 })->with([0, -1, 21, 1.5, 'invalid']);
+
+test('a group can assign its first reservation without assigning the same room to its siblings', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        $room = Room::query()->sole();
+        app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        app(CreateReservation::class)->handle($owner, [...$details, 'rooms' => 2, 'room_id' => $room->id]);
+        $members = Reservation::query()->orderBy('reservation_number')->get();
+        expect($members->pluck('room_id')->all())->toBe([$room->id, null]);
+        foreach ($members as $member) {
+            expect($member->lifecycleEvents->sole()->type)->toBe('created')
+                ->and($member->lifecycleEvents->sole()->snapshot['room_id'])->toBe($member->room_id);
+        }
+    });
+});
