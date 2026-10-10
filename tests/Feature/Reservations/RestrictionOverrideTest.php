@@ -12,6 +12,25 @@ use Inertia\Testing\AssertableInertia;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 
+test('an override never sells an exhausted night', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        app(CreateReservation::class)->handle($owner, [...$details, 'arrival' => '2026-12-11']);
+        RateRestriction::query()->create(['rate_plan_id' => $details['rate_plan_id'], 'room_type_id' => $details['room_type_id'], 'date' => $details['arrival'], 'min_stay' => 3, 'closed_to_arrival' => true, 'stop_sell' => true]);
+        expect(fn () => app(CreateReservation::class)->handle($owner, [...$details, 'restriction_override_reason' => 'Returning guest exception']))->toThrow(ValidationException::class);
+        expect(Reservation::query()->count())->toBe(1)
+            ->and(InventoryRecord::query()->whereDate('date', $details['arrival'])->sole()->sold_count)->toBe(0);
+    });
+});
+
+test('booking rejects invalid override reason types and lengths', function (mixed $reason) {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $this->postJson(route('reservations.store'), [...$details, '_property' => $t->a->property->id, 'restriction_override_reason' => $reason])->assertUnprocessable()->assertJsonValidationErrors('restriction_override_reason');
+})->with([[['not a string']], [str_repeat('x', 2001)]]);
+
 test('staff sees every restriction and submits an override through the booking form', function () {
     $t = twoTenants();
     $details = inTenant($t->a->property, function () use ($t) {
