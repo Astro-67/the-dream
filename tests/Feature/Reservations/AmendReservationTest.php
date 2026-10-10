@@ -272,3 +272,16 @@ test('standalone room assign change and clear appear with before and after in hi
         $before = $roomId;
     }
 });
+
+test('amendment preview lists every broken restriction even with a reason already entered', function () {
+    $t = twoTenants();
+    [$reservation, $details] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, $details);
+        RateRestriction::query()->create(['rate_plan_id' => $details['rate_plan_id'], 'room_type_id' => $details['room_type_id'], 'date' => $details['arrival'], 'min_stay' => 3, 'closed_to_arrival' => true, 'stop_sell' => true]);
+
+        return [$reservation, $details];
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->getJson(route('reservations.amend-preview', [$reservation, ...$details, 'room_id' => '', 'pricing' => 'keep', 'restriction_override_reason' => 'Returning guest']))->assertOk()->assertExactJson(['warnings' => ['Minimum stay on 2026-12-10 is 3 nights; this stay is 2 nights.', 'Closed to arrival on 2026-12-10.', 'Stop-sell on 2026-12-10.']]);
+    expect(inTenant($t->a->property, fn () => $reservation->lifecycleEvents()->count()))->toBe(1);
+});

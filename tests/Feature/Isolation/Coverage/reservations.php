@@ -14,6 +14,15 @@ use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
 return [
+    'reservations.amend-preview' => RouteCoverage::attempt(function (TwoTenants $t) {
+        [$reservation, $details] = inTenant($t->b->property, function () use ($t) {
+            $details = BookingForm::details($t->b->owner);
+
+            return [app(CreateReservation::class)->handle($t->b->owner, $details), $details];
+        });
+
+        return $this->actingAs($t->a->owner)->get(route('reservations.amend-preview', $reservation))->assertNotFound();
+    }),
     'reservations.amend' => RouteCoverage::attempt(function (TwoTenants $t) {
         [$reservation, $details] = inTenant($t->b->property, function () use ($t) {
             $details = BookingForm::details($t->b->owner);

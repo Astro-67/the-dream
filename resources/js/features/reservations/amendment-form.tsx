@@ -1,3 +1,4 @@
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatTime } from '@/lib/utils';
 import { formatDate } from '@/features/platform/format';
@@ -38,12 +39,60 @@ export function AmendmentForm({
     options: AmendmentOptions;
 }) {
     const [type, setType] = useState(reservation.room_type_id);
+    const [warnings, setWarnings] = useState<string[] | null>(null);
+    const [previewing, setPreviewing] = useState(false);
+    const [previewError, setPreviewError] = useState('');
     return (
         <section className="max-w-[720px] space-y-3">
             <h2 className="text-lg font-semibold">Amend reservation</h2>
             <Form
                 {...amend.form(reservation.reservation_number)}
                 className="space-y-4"
+                onChange={(event) => {
+                    if (
+                        (event.target instanceof HTMLInputElement ||
+                        event.target instanceof HTMLSelectElement
+                            ? event.target.name
+                            : '') !== 'restriction_override_reason'
+                    )
+                        setWarnings(null);
+                }}
+                onSubmit={async (event) => {
+                    if (warnings !== null) return;
+                    event.preventDefault();
+                    const form = event.currentTarget;
+                    const params = new URLSearchParams();
+                    new FormData(form).forEach(
+                        (value, key) =>
+                            typeof value === 'string' && params.set(key, value),
+                    );
+                    const stayKey = params.toString();
+                    setPreviewing(true);
+                    setPreviewError('');
+                    try {
+                        const response = await fetch(
+                            `/reservations/${encodeURIComponent(reservation.reservation_number)}/amend-preview?${params}`,
+                            { headers: { Accept: 'application/json' } },
+                        );
+                        if (!response.ok) throw new Error('Preview failed');
+                        const result: { warnings: string[] } =
+                            await response.json();
+                        const current = new URLSearchParams();
+                        new FormData(form).forEach(
+                            (value, key) =>
+                                typeof value === 'string' &&
+                                current.set(key, value),
+                        );
+                        if (current.toString() === stayKey)
+                            setWarnings(result.warnings);
+                    } catch {
+                        setPreviewError(
+                            'Could not review restrictions. Check the stay details and try again.',
+                        );
+                    } finally {
+                        setPreviewing(false);
+                    }
+                }}
             >
                 {({ errors, processing }) => (
                     <>
@@ -197,24 +246,55 @@ export function AmendmentForm({
                                 <InputError message={errors.pricing} />
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="amend-reason">
-                                Restriction override reason
-                            </Label>
-                            <Input
-                                id="amend-reason"
-                                name="restriction_override_reason"
-                                maxLength={2000}
-                                aria-describedby="amend-reason-error"
-                            />
-                            <div id="amend-reason-error">
-                                <InputError
-                                    message={errors.restriction_override_reason}
-                                />
-                            </div>
-                        </div>
+                        {warnings !== null && warnings.length > 0 && (
+                            <>
+                                <Alert>
+                                    <AlertTitle>
+                                        Restrictions for this stay
+                                    </AlertTitle>
+                                    <AlertDescription>
+                                        <ul>
+                                            {warnings.map((warning) => (
+                                                <li key={warning}>{warning}</li>
+                                            ))}
+                                        </ul>
+                                    </AlertDescription>
+                                </Alert>
+                                <div className="space-y-2">
+                                    <Label htmlFor="amend-reason">
+                                        Restriction override reason
+                                    </Label>
+                                    <Input
+                                        id="amend-reason"
+                                        name="restriction_override_reason"
+                                        maxLength={2000}
+                                        required
+                                        aria-describedby="amend-reason-error"
+                                    />
+                                    <div id="amend-reason-error">
+                                        <InputError
+                                            message={
+                                                errors.restriction_override_reason
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        {warnings !== null && warnings.length === 0 && (
+                            <p className="text-sm text-muted-foreground">
+                                No restrictions broken by this stay.
+                            </p>
+                        )}
+                        <InputError message={previewError} />
                         <InputError message={errors.reservation} />
-                        <Button disabled={processing}>Save amendment</Button>
+                        <Button disabled={processing || previewing}>
+                            {previewing
+                                ? 'Reviewing restrictions…'
+                                : warnings === null
+                                  ? 'Review restrictions'
+                                  : 'Save amendment'}
+                        </Button>
                     </>
                 )}
             </Form>
