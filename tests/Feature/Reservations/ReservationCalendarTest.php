@@ -2,7 +2,9 @@
 
 use App\Domains\Guests\Actions\AttachReservationGuest;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Reservations\Actions\CancelReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Actions\VoidReservation;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 
@@ -28,4 +30,22 @@ test('the calendar shows assigned reservations with guest names and detail links
             'guest_name' => 'Staying Guest', 'source' => 'phone', 'status' => 'confirmed',
             'url' => route('reservations.show', $reservation),
         ]));
+});
+
+test('unassigned counts exclude departure dates and cancelled or void reservations', function () {
+    $t = twoTenants();
+    inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        foreach (['cancelled', 'void'] as $status) {
+            $reservation = app(CreateReservation::class)->handle($t->a->owner, $details);
+            $action = $status === 'cancelled' ? CancelReservation::class : VoidReservation::class;
+            app($action)->handle($t->a->owner, $reservation, 'Created in error');
+        }
+        app(CreateReservation::class)->handle($t->a->owner, $details);
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)
+        ->get(route('rate-calendar', ['from' => '2026-12-11', 'to' => '2026-12-13']))
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('roomTypes.0.unassigned', ['2026-12-11' => 1, '2026-12-12' => 0, '2026-12-13' => 0])
+        ->has('roomTypes.0.rooms.0.reservations', 0));
 });

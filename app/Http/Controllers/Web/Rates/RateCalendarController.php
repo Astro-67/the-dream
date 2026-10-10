@@ -40,7 +40,7 @@ class RateCalendarController extends Controller
         $restrictions = RateRestriction::query()->whereIn('room_type_id', $selected->pluck('id'))->whereBetween('date', [$from, $to])->get()
             ->groupBy(fn (RateRestriction $r) => $r->rate_plan_id.'|'.$r->room_type_id);
 
-        $rooms = $calendar->rooms($selected->pluck('id')->all(), $from, $to);
+        $reservations = $calendar->forRange($selected->pluck('id')->all(), $from, $to);
 
         return Inertia::render('rates/calendar', [
             'from' => $from,
@@ -49,7 +49,7 @@ class RateCalendarController extends Controller
             'allRoomTypes' => $allRoomTypes,
             'roomTypes' => $selected->values()->map(fn (RoomType $type) => [
                 ...$type->only(['id', 'name', 'code']),
-                'rooms' => $rooms->get($type->id, collect()),
+                ...$reservations->get($type->id, []),
                 'sellable' => $availability->sellableByDate($type, CarbonImmutable::parse($from), CarbonImmutable::parse($to)),
                 'outOfService' => $availability->outOfServiceByDate($type, CarbonImmutable::parse($from), CarbonImmutable::parse($to)),
                 'plans' => $plans->filter(fn (RatePlan $plan) => $plan->roomTypes->contains('id', $type->id))->values()->map(fn (RatePlan $plan) => [
