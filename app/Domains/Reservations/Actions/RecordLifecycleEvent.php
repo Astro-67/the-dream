@@ -18,6 +18,7 @@ class RecordLifecycleEvent
             throw new LogicException('Lifecycle events require the reservation transaction.');
         }
         $locked = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();
+        $locked->unsetRelation('priceLines');
         $property = Property::query()->findOrFail($locked->property_id);
 
         return $locked->lifecycleEvents()->create([

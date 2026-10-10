@@ -47,7 +47,7 @@ class AmendReservation
             $property = Property::query()->findOrFail($reservation->property_id);
             // ponytail: Spec 7 will supply the open business date; use the property's local date until then.
             $today = now($property->timezone)->toDateString();
-            $reservation->priceLines()->whereNotIn('date', $dates)->whereDate('date', '>=', $today)->delete();
+            $reservation->priceLines()->where(fn ($query) => $query->whereDate('date', '<', $details['arrival'])->orWhereDate('date', '>=', $details['departure']))->whereDate('date', '>=', $today)->delete();
             foreach ($dates as $date) {
                 $line = $reservation->priceLines()->whereDate('date', $date)->first();
                 if ($line !== null && ($details['pricing'] === 'keep' || $date < $today)) {
@@ -57,7 +57,12 @@ class AmendReservation
                 if ($quote->unquotable !== null) {
                     throw ValidationException::withMessages(['rate_plan_id' => $quote->unquotable]);
                 }
-                $reservation->priceLines()->updateOrCreate(['date' => $date], ['amount' => $quote->nights[0]['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
+                $values = ['amount' => $quote->nights[0]['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id];
+                if ($line !== null) {
+                    $line->update($values);
+                } else {
+                    $reservation->priceLines()->create(['date' => $date, ...$values]);
+                }
             }
             RoomAssignmentNight::query()->where('reservation_id', $reservation->id)->delete();
             $reservation->update([...array_intersect_key($details, array_flip($fields)), 'room_id' => null, 'restriction_override_reason' => $warnings !== [] ? $reason : null]);
