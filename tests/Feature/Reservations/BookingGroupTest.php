@@ -4,8 +4,14 @@ use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Reservations\Models\ReservationLifecycleEvent;
+use App\Domains\Reservations\Models\ReservationNumberSequence;
+use App\Domains\Reservations\Models\ReservationPriceLine;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 
@@ -64,3 +70,61 @@ test('booking groups refuse invalid room counts without creating reservations', 
         expect(Reservation::query()->count())->toBe(0);
     });
 })->with([0, -1, 21]);
+
+test('an exhausted later night refuses the entire group without taking earlier inventory or numbers', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        app(CreateReservation::class)->handle($owner, [...$details, 'arrival' => '2026-12-11']);
+        expect(fn () => app(CreateReservation::class)->handle($owner, [...$details, 'rooms' => 2]))->toThrow(ValidationException::class);
+        expect(Reservation::query()->count())->toBe(1)
+            ->and(ReservationNumberSequence::query()->sole()->last_number)->toBe(1)
+            ->and(InventoryRecord::query()->whereBetween('date', ['2026-12-10', '2026-12-11'])->orderBy('date')->pluck('sold_count')->all())->toBe([0, 1]);
+    });
+});
+
+test('aborting a group transaction rolls back every member price event audit and inventory change', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        expect(fn () => DB::transaction(function () use ($owner, $details) {
+            app(CreateReservation::class)->handle($owner, [...$details, 'rooms' => 2]);
+            throw new RuntimeException('Abort group');
+        }))->toThrow(RuntimeException::class, 'Abort group');
+        expect(Reservation::query()->count())->toBe(0)
+            ->and(ReservationPriceLine::query()->count())->toBe(0)
+            ->and(ReservationLifecycleEvent::query()->count())->toBe(0)
+            ->and(ReservationNumberSequence::query()->count())->toBe(0)
+            ->and((int) InventoryRecord::query()->sum('sold_count'))->toBe(0)
+            ->and(Activity::query()->where('subject_type', Reservation::class)->count())->toBe(0);
+    });
+});
+
+test('group membership cannot expose reservations from another property or organization', function () {
+    $t = twoTenants();
+    $member = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+    $member = inTenant($t->a->property, function () use ($member) {
+        $member->update(['booking_group_id' => (string) Str::ulid()]);
+
+        return $member;
+    });
+    foreach ([$t->a->otherProperty, $t->b->property] as $property) {
+        inTenant($property, function () use ($t, $property, $member) {
+            $actor = $property->id === $t->b->property->id ? $t->b->owner : $t->a->owner;
+            $foreign = app(CreateReservation::class)->handle($actor, BookingForm::details($actor));
+            $foreign->update(['booking_group_id' => $member->booking_group_id]);
+        });
+    }
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)
+        ->get(route('reservations.show', $member))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->has('groupMembers', 0));
+});
+
+test('the group booking form rejects invalid room counts', function (mixed $rooms) {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    $this->actingAs($t->a->owner)->postJson(route('reservations.store'), [...$details, 'rooms' => $rooms, '_property' => $t->a->property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('rooms');
+    expect(inTenant($t->a->property, fn () => Reservation::query()->count()))->toBe(0);
+})->with([0, -1, 21, 1.5, 'invalid']);
