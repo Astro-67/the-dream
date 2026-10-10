@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
@@ -77,6 +77,12 @@ export default function Show({
                         </div>
                     ))}
                 </dl>
+                <Link
+                    className="text-primary underline underline-offset-4"
+                    href={`/reservations/${encodeURIComponent(reservation.reservation_number)}/guests`}
+                >
+                    View and attach staying guests
+                </Link>
                 <section className="space-y-3">
                     <h2 className="text-lg font-semibold">
                         Fixed nightly prices

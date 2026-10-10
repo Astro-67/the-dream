@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 class GuestMatches
 {
     /**
-     * @param array<string, mixed> $details
+     * @param  array<string, mixed>  $details
      * @return list<array<string, mixed>>
      */
     public function find(array $details): array
