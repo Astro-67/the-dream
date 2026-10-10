@@ -2,6 +2,7 @@
 
 namespace App\Domains\Guests\Policies;
 
+use App\Domains\Guests\Models\Guest;
 use App\Domains\Tenancy\Enums\OrganizationPermission as P;
 use App\Models\User;
 use App\Support\Tenancy\Access;
@@ -28,6 +29,11 @@ class GuestPolicy
     public function create(User $user): bool
     {
         return Tenancy::property() !== null && Access::allows($user, P::GuestsRegister, Tenancy::property());
+    }
+
+    public function merge(User $user, Guest $record): bool
+    {
+        return Access::allows($user, P::GuestsMerge, $record);
     }
 
     public function update(User $user, Model $record): bool
