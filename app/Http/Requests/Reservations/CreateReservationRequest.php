@@ -3,18 +3,14 @@
 namespace App\Http\Requests\Reservations;
 
 use App\Domains\Guests\Models\Booker;
-use App\Domains\Inventory\Models\Room;
-use App\Domains\Inventory\Models\RoomType;
-use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Requests\AuditsRefusals;
-use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class CreateReservationRequest extends FormRequest
 {
-    use AuditsRefusals;
+    use AuditsRefusals, StayRules;
 
     public function authorize(): bool
     {
@@ -24,23 +20,14 @@ class CreateReservationRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $arrival = rescue(fn () => CarbonImmutable::createFromFormat('!Y-m-d', $this->string('arrival')->value()) ?: null, report: false);
-
         return [
+            ...$this->stayRules(),
             'rooms' => ['sometimes', 'integer', 'between:1,20'],
-            'arrival' => ['required', 'date_format:Y-m-d'],
-            'departure' => ['required', 'date_format:Y-m-d', 'after:arrival', ...($arrival ? ['before_or_equal:'.$arrival->addDays(365)->toDateString()] : [])],
-            'adults' => ['required', 'integer', 'between:1,20'],
-            'children' => ['required', 'integer', 'between:0,20'],
-            'room_type_id' => ['required', 'string', Rule::in(RoomType::query()->pluck('id')->all())],
-            'rate_plan_id' => ['required', 'string', Rule::in(RatePlan::query()->whereNull('deactivated_at')->whereHas('roomTypes', fn ($query) => $query->whereKey($this->string('room_type_id')->value()))->pluck('id')->all())],
             'booker_id' => [$this->isMethod('GET') ? 'nullable' : 'required', 'string', Rule::in(Booker::query()->pluck('id')->all())],
             'source' => [$this->isMethod('GET') ? 'nullable' : 'required', Rule::in(['direct', 'walk-in', 'phone', 'outside-integration'])],
             'channel_reference' => ['exclude_unless:source,outside-integration', $this->isMethod('GET') ? 'nullable' : 'required', 'string', 'max:255'],
             'outside_integration_reason' => ['exclude_unless:source,outside-integration', $this->isMethod('GET') ? 'nullable' : 'required', 'string', 'max:2000'],
-            'room_id' => ['nullable', 'string', Rule::in(Room::query()->pluck('id')->all())],
             'payment_collector' => ['sometimes', Rule::in(['property', 'channel'])],
-            'restriction_override_reason' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }
