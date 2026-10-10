@@ -9,6 +9,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { TerminationActions } from '@/features/reservations/termination-actions';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney } from '@/lib/utils';
 
@@ -35,11 +36,13 @@ export default function Show({
     roomType,
     ratePlan,
     booker,
+    can,
 }: {
     reservation: Reservation;
     roomType: Named;
     ratePlan: Named;
     booker: Named;
+    can: { cancel: boolean; void: boolean };
 }) {
     return (
         <>
@@ -53,7 +56,21 @@ export default function Show({
                             copyable
                         />
                     </h1>
-                    <StatusChip tone="success">{reservation.status}</StatusChip>
+                    <StatusChip
+                        tone={
+                            reservation.status === 'confirmed'
+                                ? 'success'
+                                : 'unavailable'
+                        }
+                    >
+                        {reservation.status}
+                    </StatusChip>
+                    {reservation.status === 'confirmed' && (
+                        <TerminationActions
+                            number={reservation.reservation_number}
+                            can={can}
+                        />
+                    )}
                 </header>
                 <dl className="grid gap-4 sm:grid-cols-2">
                     {[

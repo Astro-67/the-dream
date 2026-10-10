@@ -15,6 +15,16 @@ class ReservationPolicy
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, Tenancy::property());
     }
 
+    public function void(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsVoid, $reservation);
+    }
+
+    public function cancel(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+    }
+
     public function view(User $user, Reservation $reservation): bool
     {
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsView, $reservation);

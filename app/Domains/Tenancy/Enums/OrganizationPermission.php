@@ -41,6 +41,7 @@ enum OrganizationPermission: string
     // Front office
     case ReservationsView = 'reservations.view';
     case ReservationsManage = 'reservations.manage';
+    case ReservationsVoid = 'reservations.void';
     case RoomsAssign = 'rooms.assign';
     case GuestsView = 'guests.view';
     case GuestsRegister = 'guests.register';

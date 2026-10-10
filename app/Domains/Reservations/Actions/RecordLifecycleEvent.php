@@ -11,7 +11,8 @@ use LogicException;
 
 class RecordLifecycleEvent
 {
-    public function handle(Reservation $reservation, string $type, ?User $actor): ReservationLifecycleEvent
+    /** @param array{reason?: string} $details */
+    public function handle(Reservation $reservation, string $type, ?User $actor, array $details = []): ReservationLifecycleEvent
     {
         if (DB::transactionLevel() === 0) {
             throw new LogicException('Lifecycle events require the reservation transaction.');
@@ -26,7 +27,7 @@ class RecordLifecycleEvent
             // ponytail: before Spec 7 owns the open business date, use the property's local date.
             'business_date' => now($property->timezone)->toDateString(),
             'actor_id' => $actor?->id,
-            'snapshot' => [...$locked->only(['reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'payment_collector', 'status']), 'price_lines' => $locked->priceLines->map->only(['date', 'amount', 'currency', 'rate_plan_id'])->all()],
+            'snapshot' => [...$details, ...$locked->only(['reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'payment_collector', 'status']), 'price_lines' => $locked->priceLines->map->only(['date', 'amount', 'currency', 'rate_plan_id'])->all()],
         ]);
     }
 }
