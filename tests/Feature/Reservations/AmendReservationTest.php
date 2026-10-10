@@ -31,3 +31,10 @@ test('front desk amends a confirmed stay with atomic inventory and visible histo
             ->and($reservation->lifecycleEvents()->pluck('type')->all())->toBe(['created', 'modified']);
     });
 });
+
+test('amendment form exposes property choices and pricing decision on the detail page', function () {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('canAmend', true)->has('amendmentOptions.roomTypes', 1)->has('amendmentOptions.ratePlans', 1)->has('amendmentOptions.rooms', 1));
+});

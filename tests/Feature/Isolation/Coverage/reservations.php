@@ -11,6 +11,21 @@ use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
 return [
+    'reservations.amend' => RouteCoverage::attempt(function (TwoTenants $t) {
+        [$reservation, $details] = inTenant($t->b->property, function () use ($t) {
+            $details = BookingForm::details($t->b->owner);
+
+            return [app(CreateReservation::class)->handle($t->b->owner, $details), $details];
+        });
+        $response = $this->actingAs($t->a->owner)->patch(route('reservations.amend', $reservation), [...$details, 'room_id' => null, 'pricing' => 'keep', '_property' => $t->a->property->id])->assertNotFound();
+        inTenant($t->b->property, function () use ($reservation) {
+            expect($reservation->fresh()->arrival->toDateString())->toBe('2026-12-10')
+                ->and($reservation->lifecycleEvents()->count())->toBe(1)
+                ->and((int) InventoryRecord::query()->sum('sold_count'))->toBe(2);
+        });
+
+        return $response;
+    }),
     'reservations.cancel' => RouteCoverage::attempt(function (TwoTenants $t) {
         $reservation = inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
         $response = $this->actingAs($t->a->owner)->post(route('reservations.cancel', $reservation), ['_property' => $t->a->property->id, 'reason' => 'Wrong property'])->assertNotFound();
