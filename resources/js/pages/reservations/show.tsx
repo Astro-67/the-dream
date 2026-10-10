@@ -28,6 +28,9 @@ type Reservation = {
     adults: number;
     children: number;
     source: string;
+    channel_reference: string | null;
+    outside_integration_reason: string | null;
+    requires_reconciliation: boolean;
     payment_collector: string;
     price_lines: {
         id: string;
@@ -75,6 +78,11 @@ export default function Show({
                     >
                         {reservation.status}
                     </StatusChip>
+                    {reservation.requires_reconciliation && (
+                        <StatusChip tone="warning">
+                            Requires reconciliation
+                        </StatusChip>
+                    )}
                     {reservation.status === 'confirmed' && (
                         <TerminationActions
                             number={reservation.reservation_number}
@@ -93,7 +101,25 @@ export default function Show({
                             `${reservation.adults} adults, ${reservation.children} children`,
                         ],
                         ['Booker', booker.name],
-                        ['Source', reservation.source],
+                        [
+                            'Source',
+                            reservation.source === 'outside-integration'
+                                ? 'Booking received outside integration'
+                                : reservation.source,
+                        ],
+                        ...(reservation.requires_reconciliation
+                            ? [
+                                  [
+                                      'Channel reference',
+                                      reservation.channel_reference ?? '',
+                                  ],
+                                  [
+                                      'Reason received outside integration',
+                                      reservation.outside_integration_reason ??
+                                          '',
+                                  ],
+                              ]
+                            : []),
                         ['Payment collector', reservation.payment_collector],
                     ].map(([label, value]) => (
                         <div key={label}>
