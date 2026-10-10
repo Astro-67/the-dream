@@ -2,9 +2,11 @@
 
 namespace App\Domains\Tenancy\Jurisdiction;
 
+use App\Domains\Reservations\FutureReservations;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Money\Currency;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Answers named jurisdiction questions about a property (ADR 0014). This is
@@ -38,10 +40,16 @@ final class JurisdictionRules
      * the current profile (PRD §6: not while the property has future
      * reservations or open folios). UpdateProperty calls it before saving.
      *
-     * ponytail: allows every change; Spec 4 adds the future-reservations
-     * condition and Spec 6 the open-folios one, each throwing a refusal.
+     * ponytail: open folios are not checked until Spec 6 adds that guard.
      */
-    public static function ensureProfileCanChange(Property $property, JurisdictionProfile $to): void {}
+    public static function ensureProfileCanChange(Property $property, JurisdictionProfile $to): void
+    {
+        if ($to !== $property->jurisdiction_profile && FutureReservations::existFor($property)) {
+            throw ValidationException::withMessages([
+                'jurisdiction_profile' => __('This property has future confirmed reservations. Cancel or complete them before changing its jurisdiction profile.'),
+            ]);
+        }
+    }
 
     private static function of(JurisdictionProfile $profile): ProfileRules
     {
