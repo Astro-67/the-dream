@@ -26,3 +26,27 @@ test('identity documents are encrypted and excluded from audit and automatic ser
     $this->get(route('guests.edit', $guest))->assertInertia(fn (Assert $page) => $page->where('documents.0.number', 'P-SECRET-UPDATED'));
     expect(Activity::query()->get()->toJson())->not->toContain('P-SECRET-90210')->not->toContain('P-SECRET-UPDATED');
 });
+
+test('every role sees only its permitted identity fields', function (OrganizationRole $role) {
+    $t = twoTenants();
+    $guest = inTenant($t->a->property, fn () => Guest::query()->create(['name' => 'Amina']));
+    inTenant($t->a->property, fn () => $guest->documents()->create(['type' => 'passport', 'number' => 'SECRET-PASSPORT', 'nationality' => 'TZ', 'issuing_country' => 'TZ', 'expiry' => '2030-12-31']));
+    $this->actingAs($t->a->member($role))->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $response = $this->get(route('guests.show', $guest));
+    if ($role === OrganizationRole::Housekeeping) {
+        $response->assertForbidden();
+    } else {
+        $allowed = in_array($role, [OrganizationRole::Owner, OrganizationRole::FrontDesk], true);
+        $response->assertInertia(fn (Assert $page) => $page->where('canViewIdentity', $allowed)->where('documents.0.number', $allowed ? 'SECRET-PASSPORT' : '••••'));
+        if (!$allowed) $response->assertDontSee('SECRET-PASSPORT');
+    }
+    $this->get(route('guests.index'))->assertDontSee('SECRET-PASSPORT');
+})->with(OrganizationRole::cases());
+
+test('unauthorized document changes are refused without flashing sensitive input', function () {
+    $t = twoTenants();
+    $guest = inTenant($t->a->property, fn () => Guest::query()->create(['name' => 'Amina']));
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager));
+    $this->put(route('guests.update', $guest), ['_property' => $t->a->property->id, 'name' => 'Amina', 'documents' => [['type' => 'passport', 'number' => 'FORGED-SECRET']]])->assertSessionHasErrors('documents');
+    expect(json_encode(session()->all()))->not->toContain('FORGED-SECRET');
+});

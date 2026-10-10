@@ -33,11 +33,11 @@ class GuestController extends Controller {
     }
     public function show(Guest $guest, Request $request): Response {
         Gate::authorize('view', $guest);
-        return Inertia::render('guests/show', ['documents' => $guest->documents()->get()->map(fn (IdentityDocument $document) => $document->only(IdentityDocument::FIELDS)), 'record' => ['id' => $guest->id, ...$guest->only(Guest::FIELDS)], 'canManage' => $request->user()?->can('update', $guest)]);
+        return Inertia::render('guests/show', ['documents' => $guest->identityFields($request->user()?->can('viewIdentity', $guest) ?? false), 'canViewIdentity' => $request->user()?->can('viewIdentity', $guest), 'record' => ['id' => $guest->id, ...$guest->only(Guest::FIELDS)], 'canManage' => $request->user()?->can('update', $guest)]);
     }
     public function edit(Guest $guest, Request $request): Response {
         Gate::authorize('update', $guest);
-        return Inertia::render('guests/edit', ['documents' => $guest->documents()->get()->map(fn (IdentityDocument $document) => $document->only(IdentityDocument::FIELDS)), 'record' => ['id' => $guest->id, ...$guest->only(Guest::FIELDS)]]);
+        return Inertia::render('guests/edit', ['documents' => $guest->identityFields($request->user()?->can('viewIdentity', $guest) ?? false), 'canViewIdentity' => $request->user()?->can('viewIdentity', $guest), 'record' => ['id' => $guest->id, ...$guest->only(Guest::FIELDS)]]);
     }
     public function update(GuestRequest $request, Guest $guest, UpdateGuest $action): RedirectResponse {
         /** @var User $actor */

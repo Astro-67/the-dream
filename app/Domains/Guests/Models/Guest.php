@@ -16,6 +16,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['name', 'email', 'phone', 'nationality', 'preferences', 'notes'])]
 #[UsePolicy(GuestPolicy::class)]
 class Guest extends Model {
+    /** @return list<array<string, mixed>> */
+    public function identityFields(bool $allowed): array {
+        return $this->documents()->get()->map(fn (IdentityDocument $document) => $allowed ? $document->only(IdentityDocument::FIELDS) : array_fill_keys(IdentityDocument::FIELDS, '••••'))->all();
+    }
     use BelongsToProperty, HasUlids;
     /** @return HasMany<IdentityDocument, $this> */
     public function documents(): HasMany { return $this->hasMany(IdentityDocument::class); }

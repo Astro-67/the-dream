@@ -10,7 +10,7 @@ class GuestRequest extends FormRequest {
     /** @return array<string, array<string>> */
     public function rules(): array {
         return [
-            'documents' => ['sometimes', 'array', 'max:10'],
+            'documents' => [\Illuminate\Validation\Rule::prohibitedIf(! \App\Support\Tenancy\Access::allows($this->user(), \App\Domains\Tenancy\Enums\OrganizationPermission::GuestIdentityView, \App\Support\Tenancy\Tenancy::property())), 'sometimes', 'array', 'max:10'],
             'documents.*' => ['array:type,number,nationality,issuing_country,expiry'],
             'documents.*.type' => ['required', 'string', 'max:50'],
             'documents.*.number' => ['required', 'string', 'max:255'],
