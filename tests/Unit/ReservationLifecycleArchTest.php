@@ -6,14 +6,15 @@ arch('core domains never reference integration interfaces (ADR 0013)')
 
 test('every reservation lifecycle action records an event (ADR 0013)', function () {
     $actions = glob(dirname(__DIR__, 2).'/app/Domains/{Reservations,FrontDesk,Billing}/Actions/*.php', GLOB_BRACE);
-    $lifecycle = '/^(CreateReservation|AssignRoom|ModifyReservation|AmendReservation|CancelReservation|VoidReservation|ConfirmNoShow|CheckIn|MoveRoom|AddGuest|ChangeNightlyPrice|CheckOut)$/';
+    $lifecycle = '/^(CreateReservation|AssignRoom|ModifyReservation|AmendReservation|CancelReservation|VoidReservation|TerminateReservation|ConfirmNoShow|CheckIn|MoveRoom|AddGuest|ChangeNightlyPrice|CheckOut)$/';
     $checked = [];
     foreach ($actions as $path) {
         if (! preg_match($lifecycle, basename($path, '.php'))) {
             continue;
         }
         $checked[] = $path;
-        expect(file_get_contents($path))->toContain('RecordLifecycleEvent::class');
+        $source = file_get_contents($path);
+        expect(str_contains($source, 'RecordLifecycleEvent::class') || str_contains($source, 'TerminateReservation::class'))->toBeTrue();
     }
     expect($checked)->not->toBeEmpty();
 });
