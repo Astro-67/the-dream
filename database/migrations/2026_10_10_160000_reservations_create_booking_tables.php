@@ -55,7 +55,7 @@ return new class extends Migration
             $table->unsignedBigInteger('sequence');
             $table->timestamp('occurred_at');
             $table->date('business_date');
-            $table->foreignId('actor_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignUlid('actor_id')->nullable()->constrained('users')->nullOnDelete();
             $table->json('snapshot');
             $table->timestamps();
             $table->unique(['reservation_id', 'sequence'], 'reservation_event_sequence_unique');

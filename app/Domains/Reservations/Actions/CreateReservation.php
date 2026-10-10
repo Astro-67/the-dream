@@ -33,8 +33,8 @@ class CreateReservation
             app(TakeInventory::class)->handle($type, array_column($quote->nights, 'date'));
             // The property lock serializes initial sequence creation as well as allocation.
             $property = Property::query()->whereKey(Tenancy::property()?->id)->lockForUpdate()->firstOrFail();
-            $sequence = ReservationNumberSequence::query()->firstOrCreate(['property_id' => $property->id]);
-            $sequence = ReservationNumberSequence::query()->whereKey($sequence->id)->lockForUpdate()->firstOrFail();
+            $sequence = ReservationNumberSequence::query()->where('property_id', $property->id)->lockForUpdate()->first();
+            $sequence ??= ReservationNumberSequence::query()->create(['last_number' => 0]);
             $sequence->increment('last_number');
             $number = $property->id.'-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT);
             $reservation = Reservation::query()->create([
