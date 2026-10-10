@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -31,6 +32,8 @@ type Stay = {
     children: number;
     booker_id?: string;
     source?: string;
+    channel_reference?: string;
+    outside_integration_reason?: string;
 };
 
 export default function Create({
@@ -46,6 +49,7 @@ export default function Create({
     bookers: Paginated<Named>;
     restrictionWarnings: string[];
 }) {
+    const [source, setSource] = useState(stay.source ?? 'direct');
     return (
         <>
             <Head title="Book one room" />
@@ -196,14 +200,73 @@ export default function Create({
                                 <select
                                     id="source"
                                     name="source"
-                                    defaultValue={stay.source ?? 'direct'}
+                                    value={source}
+                                    onChange={(event) =>
+                                        setSource(event.target.value)
+                                    }
                                     className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
                                     <option value="direct">Direct</option>
                                     <option value="walk-in">Walk-in</option>
                                     <option value="phone">Phone</option>
+                                    <option value="outside-integration">
+                                        Booking received outside integration
+                                    </option>
                                 </select>
                             </div>
+                            {source === 'outside-integration' && (
+                                <fieldset className="max-w-[720px] space-y-3">
+                                    <legend className="font-medium">
+                                        Reconciliation details
+                                    </legend>
+                                    <p className="text-sm text-muted-foreground">
+                                        This booking will be marked for
+                                        reconciliation.
+                                    </p>
+                                    <Label htmlFor="channel_reference">
+                                        Channel reference
+                                    </Label>
+                                    <Input
+                                        id="channel_reference"
+                                        name="channel_reference"
+                                        defaultValue={stay.channel_reference}
+                                        required
+                                        maxLength={255}
+                                        aria-invalid={
+                                            !!errors.channel_reference
+                                        }
+                                        aria-describedby="channel-reference-error"
+                                    />
+                                    <div id="channel-reference-error">
+                                        <InputError
+                                            message={errors.channel_reference}
+                                        />
+                                    </div>
+                                    <Label htmlFor="outside_integration_reason">
+                                        Reason received outside integration
+                                    </Label>
+                                    <Input
+                                        id="outside_integration_reason"
+                                        name="outside_integration_reason"
+                                        defaultValue={
+                                            stay.outside_integration_reason
+                                        }
+                                        required
+                                        maxLength={2000}
+                                        aria-invalid={
+                                            !!errors.outside_integration_reason
+                                        }
+                                        aria-describedby="outside-integration-error"
+                                    />
+                                    <div id="outside-integration-error">
+                                        <InputError
+                                            message={
+                                                errors.outside_integration_reason
+                                            }
+                                        />
+                                    </div>
+                                </fieldset>
+                            )}
                             <p className="text-sm text-muted-foreground">
                                 Payment collector: property.
                             </p>

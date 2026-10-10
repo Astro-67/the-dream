@@ -25,6 +25,8 @@ type Reservation = {
     arrival: string;
     departure: string;
     status: string;
+    channel_reference: string | null;
+    requires_reconciliation: boolean;
 };
 type Filters = { date: string; list: string; search: string };
 
@@ -120,6 +122,7 @@ export default function Index({
                                     <TableHead>Reservation number</TableHead>
                                     <TableHead>Arrival</TableHead>
                                     <TableHead>Departure</TableHead>
+                                    <TableHead>Channel reference</TableHead>
                                     <TableHead>Status</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -133,11 +136,11 @@ export default function Index({
                                                 )}
                                                 className="text-primary underline"
                                             >
-                                                <Identifier>
-                                                    {
+                                                <Identifier
+                                                    value={
                                                         reservation.reservation_number
                                                     }
-                                                </Identifier>
+                                                />
                                             </Link>
                                         </TableCell>
                                         <TableCell>
@@ -153,12 +156,28 @@ export default function Index({
                                             )}
                                         </TableCell>
                                         <TableCell>
+                                            {reservation.channel_reference ? (
+                                                <Identifier
+                                                    value={
+                                                        reservation.channel_reference
+                                                    }
+                                                />
+                                            ) : (
+                                                '—'
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
                                             <StatusChip tone="info">
                                                 {reservation.status.replaceAll(
                                                     '_',
                                                     ' ',
                                                 )}
                                             </StatusChip>
+                                            {reservation.requires_reconciliation && (
+                                                <StatusChip tone="warning">
+                                                    Requires reconciliation
+                                                </StatusChip>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}
