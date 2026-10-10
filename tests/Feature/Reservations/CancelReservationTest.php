@@ -31,3 +31,19 @@ test('front desk cancels through the property intent route with a required reaso
     $this->post(route('reservations.cancel', $reservation), ['_property' => $t->a->property->id, 'reason' => 'Guest changed plans'])->assertRedirect(route('reservations.show', $reservation));
     $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->where('reservation.status', 'cancelled'));
 });
+
+test('only managers can void a confirmed reservation created in error', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, $details));
+    $actor = $t->a->member($role);
+    $this->actingAs($actor)->post(route('reservations.void', $reservation), ['_property' => $t->a->property->id, 'reason' => 'Duplicate entry'])->assertStatus($allowed ? 302 : 403);
+    inTenant($t->a->property, function () use ($allowed, $reservation, $actor, $details, $t) {
+        expect($reservation->fresh()->status)->toBe($allowed ? ReservationStatus::Void : ReservationStatus::Confirmed);
+        if ($allowed) {
+            $event = $reservation->lifecycleEvents()->where('type', 'voided')->sole();
+            expect($event->snapshot['reason'])->toBe('Duplicate entry')->and($event->actor_id)->toBe($actor->id)->and($event->sequence)->toBe(2);
+            expect(app(CreateReservation::class)->handle($t->a->owner, $details)->reservation_number)->not->toBe($reservation->reservation_number);
+        }
+    });
+})->with(array_map(fn ($role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager])], OrganizationRole::cases()));
