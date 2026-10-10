@@ -1,4 +1,9 @@
-import { Head, Link } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import { PropertyIntent } from '@/components/shared/property-intent';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { roomAssignment } from '@/routes/reservations';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
@@ -17,6 +22,7 @@ type Named = { id: string; name: string };
 type Reservation = {
     reservation_number: string;
     status: string;
+    room_id: string | null;
     arrival: string;
     departure: string;
     adults: number;
@@ -36,12 +42,16 @@ export default function Show({
     roomType,
     ratePlan,
     booker,
+    rooms,
+    canAssignRoom,
     can,
 }: {
     reservation: Reservation;
     roomType: Named;
     ratePlan: Named;
     booker: Named;
+    rooms: { id: string; number: string }[];
+    canAssignRoom: boolean;
     can: { cancel: boolean; void: boolean };
 }) {
     return (
@@ -94,6 +104,39 @@ export default function Show({
                         </div>
                     ))}
                 </dl>
+                {canAssignRoom && reservation.status === 'confirmed' && (
+                    <Form
+                        {...roomAssignment.form(reservation.reservation_number)}
+                        className="max-w-[720px] space-y-3"
+                    >
+                        {({ errors, processing }) => (
+                            <>
+                                <PropertyIntent />
+                                <Label htmlFor="room_id">Room assignment</Label>
+                                <select
+                                    id="room_id"
+                                    name="room_id"
+                                    defaultValue={reservation.room_id ?? ''}
+                                    aria-describedby="room-error"
+                                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                >
+                                    <option value="">Unassigned</option>
+                                    {rooms.map((room) => (
+                                        <option key={room.id} value={room.id}>
+                                            {room.number}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div id="room-error">
+                                    <InputError message={errors.room_id} />
+                                </div>
+                                <Button disabled={processing}>
+                                    Save room assignment
+                                </Button>
+                            </>
+                        )}
+                    </Form>
+                )}
                 <Link
                     className="text-primary underline underline-offset-4"
                     href={`/reservations/${encodeURIComponent(reservation.reservation_number)}/guests`}
