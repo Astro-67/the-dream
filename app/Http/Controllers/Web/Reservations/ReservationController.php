@@ -53,7 +53,7 @@ class ReservationController extends Controller
                 ->whereKeyNot($reservation->id)->orderBy('reservation_number')
                 ->get(['reservation_number', 'status', 'arrival', 'departure']),
             'rooms' => app(AssignableRooms::class)->forStay($reservation->getAttribute('room_type_id'), $reservation->arrival->toDateString(), $reservation->departure->toDateString(), $reservation->id),
-            'amendments' => $reservation->lifecycleEvents()->where('type', 'modified')->whereNotNull('snapshot->before')->with('actor:id,name')->get(),
+            'amendments' => $reservation->lifecycleEvents()->where('type', 'modified')->whereNotNull('snapshot->before')->with('actor:id,name')->paginate(50, ['*'], 'amendments_page')->withQueryString(),
             'amendmentOptions' => Gate::allows('amend', $reservation) ? [
                 'roomTypes' => RoomType::query()->orderBy('name')->get(['id', 'name']),
                 'ratePlans' => RatePlan::query()->whereNull('deactivated_at')->with('roomTypes:id')->orderBy('name')->get(['id', 'name']),

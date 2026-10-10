@@ -11,6 +11,7 @@ use App\Domains\Rates\Models\RatePrice;
 use App\Domains\Rates\Models\RateRestriction;
 use App\Domains\Reservations\Actions\AmendReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
@@ -35,10 +36,10 @@ test('front desk amends a confirmed stay with atomic inventory and visible histo
         ->where('reservation.arrival', '2026-12-11T00:00:00.000000Z')
         ->has('reservation.price_lines', 1)
         ->where('reservation.price_lines.0.amount', 11000)
-        ->has('amendments', 1)
-        ->where('amendments.0.actor.name', $actor->name)
-        ->where('amendments.0.snapshot.before.children', 1)
-        ->where('amendments.0.snapshot.after.children', 0));
+        ->has('amendments.data', 1)
+        ->where('amendments.data.0.actor.name', $actor->name)
+        ->where('amendments.data.0.snapshot.before.children', 1)
+        ->where('amendments.data.0.snapshot.after.children', 0));
     inTenant($t->a->property, function () use ($reservation) {
         expect(InventoryRecord::query()->whereBetween('date', ['2026-12-10', '2026-12-11'])->orderBy('date')->pluck('sold_count')->all())->toBe([0, 1]);
         expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed)
@@ -239,4 +240,17 @@ test('failure recording an amendment lifecycle event rolls back every reservatio
             ReservationLifecycleEvent::flushEventListeners();
         }
     });
+});
+
+test('amendment history paginates fifty events and retains query parameters', function () {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        for ($i = 0; $i < 51; $i++) {
+            app(RecordLifecycleEvent::class)->handle($reservation, 'modified', $t->a->owner, ['before' => ['room_id' => null], 'after' => ['room_id' => null]]);
+        }
+
+        return $reservation;
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->get(route('reservations.show', [$reservation, 'amendments_page' => 2, 'filter' => 'all']))->assertInertia(fn (Assert $page) => $page->has('amendments.data', 1)->where('amendments.total', 51)->where('amendments.current_page', 2)->where('amendments.prev_page_url', fn ($url) => str_contains($url, 'filter=all')));
 });

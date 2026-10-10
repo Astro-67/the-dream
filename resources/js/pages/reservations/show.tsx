@@ -1,3 +1,4 @@
+import type { Paginated } from '@/types';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -70,7 +71,7 @@ export default function Show({
     canAssignRoom: boolean;
     canAmend: boolean;
     amendmentOptions: AmendmentOptions | null;
-    amendments: Amendment[];
+    amendments: Paginated<Amendment>;
     can: { cancel: boolean; void: boolean };
     groupMembers: Pick<
         Reservation,

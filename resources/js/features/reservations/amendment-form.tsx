@@ -1,3 +1,5 @@
+import { Pagination } from '@/components/ui/pagination';
+import type { Paginated } from '@/types';
 import { Form } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
@@ -233,16 +235,20 @@ export type Amendment = {
     };
 };
 
-export function AmendmentHistory({ amendments }: { amendments: Amendment[] }) {
+export function AmendmentHistory({
+    amendments,
+}: {
+    amendments: Paginated<Amendment>;
+}) {
     return (
         <section className="space-y-3">
             <h2 className="text-lg font-semibold">Amendment history</h2>
-            {amendments.length === 0 && (
+            {amendments.data.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                     No amendments yet.
                 </p>
             )}
-            {amendments.map((amendment) => (
+            {amendments.data.map((amendment) => (
                 <article
                     key={amendment.id}
                     className="space-y-2 rounded-md border p-4"
@@ -281,6 +287,7 @@ export function AmendmentHistory({ amendments }: { amendments: Amendment[] }) {
                     </details>
                 </article>
             ))}
+            <Pagination page={amendments} />
         </section>
     );
 }

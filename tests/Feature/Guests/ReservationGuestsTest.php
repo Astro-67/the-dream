@@ -2,6 +2,7 @@
 
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\Guest;
+use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -12,10 +13,10 @@ test('staff explicitly links or creates a staying guest without attaching the bo
     $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
     $guest = inTenant($t->a->property, fn () => app(CreateGuest::class)->handle($t->a->owner, ['name' => 'Amina Said', 'email' => 'amina@example.test']));
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
-    $this->get(route('reservations.guests.create', $reservation))->assertInertia(fn (Assert $page) => $page->component('reservations/guests')->has('guests', 0));
+    $this->get(route('reservations.guests.create', $reservation))->assertInertia(fn (Assert $page) => $page->component('reservations/guests')->has('guests.data', 0));
     $this->post(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'guest_id' => $guest->id])->assertSessionHasNoErrors()->assertRedirect();
     $this->post(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'name' => 'Amina Said', 'email' => 'amina@example.test'])->assertSessionHasNoErrors()->assertRedirect();
-    $this->get(route('reservations.guests.create', $reservation))->assertInertia(fn (Assert $page) => $page->has('guests', 2)->where('guests.0.name', 'Amina Said')->where('guests.1.name', 'Amina Said'));
+    $this->get(route('reservations.guests.create', $reservation))->assertInertia(fn (Assert $page) => $page->has('guests.data', 2)->where('guests.data.0.name', 'Amina Said')->where('guests.data.1.name', 'Amina Said'));
     expect(inTenant($t->a->property, fn () => Guest::query()->count()))->toBe(2);
 });
 
@@ -45,7 +46,7 @@ test('attachments reject another property guest and reservation and are idempote
     for ($i = 0; $i < 2; $i++) {
         $this->post(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'guest_id' => $guest->id])->assertSessionHasNoErrors();
     }
-    $this->get(route('reservations.guests.create', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page->has('guests', 1));
+    $this->get(route('reservations.guests.create', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page->has('guests.data', 1));
 });
 
 test('only staff with reservation management and guest registration can attach guests', function (OrganizationRole $role, bool $allowed) {
@@ -68,4 +69,18 @@ test('matching offers only same-property guests with name and a contact match', 
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
         ->postJson(route('guests.matches'), ['_property' => $t->a->property->id, 'name' => ' amina said ', 'email' => 'AMINA@example.test'])
         ->assertOk()->assertJsonCount(1, 'matches')->assertJsonPath('matches.0.id', $guest->id);
+});
+
+test('attached guests paginate fifty records without exposing documents', function () {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        for ($i = 0; $i < 51; $i++) {
+            $guest = Guest::query()->create(['name' => 'Guest '.$i]);
+            ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+        }
+
+        return $reservation;
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->get(route('reservations.guests.create', [$reservation, 'page' => 2, 'filter' => 'all']))->assertInertia(fn (Assert $page) => $page->has('guests.data', 1)->where('guests.total', 51)->where('guests.current_page', 2)->missing('guests.data.0.documents')->where('guests.prev_page_url', fn ($url) => str_contains($url, 'filter=all')));
 });
