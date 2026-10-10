@@ -8,6 +8,18 @@ use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use Tests\Support\InventoryForm;
+use Inertia\Testing\AssertableInertia as Assert;
+use App\Domains\Tenancy\Enums\OrganizationRole;
+
+test('front desk books an availability result and opens its reservation detail', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => bookingDetails($t->a->owner));
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
+    $this->get(route('reservations.create', $details))->assertOk()->assertInertia(fn (Assert $page) => $page->component('reservations/create')->where('stay.room_type_id', $details['room_type_id']));
+    $response = $this->post(route('reservations.store'), [...$details, '_property' => $t->a->property->id]);
+    $response->assertRedirect();
+    $this->get($response->headers->get('Location'))->assertOk()->assertInertia(fn (Assert $page) => $page->component('reservations/show')->where('reservation.status', 'confirmed')->where('booker.name', 'Travel Booker')->has('reservation.price_lines', 2));
+});
 
 function bookingDetails($owner): array
 {
