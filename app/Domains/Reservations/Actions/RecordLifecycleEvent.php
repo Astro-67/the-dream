@@ -26,7 +26,7 @@ class RecordLifecycleEvent
             // ponytail: before Spec 7 owns the open business date, use the property's local date.
             'business_date' => now($property->timezone)->toDateString(),
             'actor_id' => $actor?->id,
-            'snapshot' => [...$locked->only(['reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'payment_collector', 'status']), 'price_lines' => $locked->priceLines->map->only(['date', 'amount', 'currency', 'rate_plan_id'])->all()],
+            'snapshot' => [...$locked->only(['reservation_number', 'room_id', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'payment_collector', 'status']), 'price_lines' => $locked->priceLines->map->only(['date', 'amount', 'currency', 'rate_plan_id'])->all()],
         ]);
     }
 }

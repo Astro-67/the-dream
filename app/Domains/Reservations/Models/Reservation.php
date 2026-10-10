@@ -19,9 +19,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable $arrival
  * @property CarbonImmutable $departure
  * @property ReservationStatus $status
+ * @property string|null $room_id
  * @property string $payment_collector
  */
-#[Fillable(['reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'payment_collector', 'status'])]
+#[Fillable(['reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'payment_collector', 'status', 'room_id'])]
 #[UsePolicy(ReservationPolicy::class)]
 class Reservation extends Model
 {
