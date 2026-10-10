@@ -49,3 +49,16 @@ test('a conflicting room night refuses reassignment without losing the original 
         expect(Activity::query()->where('subject_id', $second->id)->where('event', 'refused')->count())->toBe(1);
     });
 });
+
+test('room choices exclude inactive wrong type out of service and occupied rooms', function () {
+    [$owner, , $property] = organizationWithOwner();
+    [$reservation, $room] = inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        $room = Room::query()->sole();
+        $inactive = app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        $inactive->forceFill(['deactivated_at' => now()])->save();
+
+        return [app(CreateReservation::class)->handle($owner, $details), $room];
+    });
+    $this->actingAs($owner)->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->has('rooms', 1)->where('rooms.0.id', $room->id));
+});

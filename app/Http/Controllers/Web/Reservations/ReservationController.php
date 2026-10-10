@@ -6,6 +6,7 @@ use App\Domains\Guests\Models\Booker;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\AssignableRooms;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\CreateReservationRequest;
@@ -20,6 +21,7 @@ class ReservationController extends Controller
     {
         return Inertia::render('reservations/create', [
             'stay' => $request->validated(),
+            'rooms' => app(AssignableRooms::class)->forStay($request->validated('room_type_id'), $request->validated('arrival'), $request->validated('departure')),
             'roomType' => RoomType::query()->findOrFail($request->validated('room_type_id'))->only(['id', 'name']),
             'ratePlan' => RatePlan::query()->findOrFail($request->validated('rate_plan_id'))->only(['id', 'name']),
             'bookers' => Booker::query()->orderBy('name')->paginate(50)->withQueryString(),
@@ -39,6 +41,8 @@ class ReservationController extends Controller
 
         return Inertia::render('reservations/show', [
             'reservation' => $reservation->load('priceLines'),
+            'rooms' => app(AssignableRooms::class)->forStay($reservation->getAttribute('room_type_id'), $reservation->arrival->toDateString(), $reservation->departure->toDateString(), $reservation->id),
+            'canAssignRoom' => Gate::allows('assignRoom', $reservation),
             'booker' => Booker::query()->findOrFail($reservation->getAttribute('booker_id'))->only(['id', 'name']),
             'roomType' => RoomType::query()->findOrFail($reservation->getAttribute('room_type_id'))->only(['id', 'name']),
             'ratePlan' => RatePlan::query()->findOrFail($reservation->getAttribute('rate_plan_id'))->only(['id', 'name']),
