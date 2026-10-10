@@ -8,6 +8,7 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
 use App\Models\User;
 use App\Support\Audit\Audit;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -32,8 +33,12 @@ class AssignRoom
             }
             RoomAssignmentNight::query()->where('reservation_id', $reservation->id)->delete();
             if ($roomId !== null) {
-                foreach ($reservation->arrival->daysUntil($reservation->departure) as $date) {
-                    RoomAssignmentNight::query()->create(['reservation_id' => $reservation->id, 'room_id' => $roomId, 'date' => $date->toDateString()]);
+                try {
+                    for ($date = $reservation->arrival; $date->lessThan($reservation->departure); $date = $date->addDay()) {
+                        RoomAssignmentNight::query()->create(['reservation_id' => $reservation->id, 'room_id' => $roomId, 'date' => $date->toDateString()]);
+                    }
+                } catch (UniqueConstraintViolationException) {
+                    throw ValidationException::withMessages(['room_id' => __('This room is already assigned on one or more nights. Choose another room.')]);
                 }
             }
             $reservation->update(['room_id' => $roomId]);
