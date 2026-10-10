@@ -6,9 +6,21 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\RateRestriction;
 use Carbon\CarbonImmutable;
+use Illuminate\Validation\ValidationException;
 
 class StayRestrictions
 {
+    /** @param list<string> $warnings */
+    public function overrideReason(array $warnings, ?string $reason): ?string
+    {
+        $reason = trim($reason ?? '');
+        if ($warnings !== [] && $reason === '') {
+            throw ValidationException::withMessages(['restriction_override_reason' => [...$warnings, __('Give a reason to override these restrictions.')]]);
+        }
+
+        return $warnings !== [] ? $reason : null;
+    }
+
     /**
      * Arrival rules apply on arrival; stop-sell applies on every occupied night.
      * Staff may override these warnings; channel callers must treat them as binding.
