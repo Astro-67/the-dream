@@ -23,7 +23,7 @@ class AssignRoom
             }
             if ($roomId !== null) {
                 $room = Room::query()->whereKey($roomId)->lockForUpdate()->firstOrFail();
-                if ($room->deactivated_at !== null || $room->room_type_id !== $reservation->getAttribute('room_type_id') || $room->outOfServicePeriods()->whereDate('starts_on', '<', $reservation->departure)->whereDate('returns_on', '>', $reservation->arrival)->exists()) {
+                if ($room->deactivated_at !== null || $room->room_type_id !== $reservation->getAttribute('room_type_id') || $room->outOfServicePeriods()->whereDate('starts_on', '<', $reservation->departure)->whereDate('returns_on', '>', $reservation->arrival)->lockForUpdate()->first() !== null) {
                     throw ValidationException::withMessages(['room_id' => __('Choose an active room of this room type that is in service for every night.')]);
                 }
             }

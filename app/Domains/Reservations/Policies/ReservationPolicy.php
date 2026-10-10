@@ -17,7 +17,7 @@ class ReservationPolicy
 
     public function assignRoom(User $user, Reservation $reservation): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+        return Tenancy::property() !== null && Access::allows($user, P::RoomsAssign, $reservation);
     }
 
     public function view(User $user, Reservation $reservation): bool

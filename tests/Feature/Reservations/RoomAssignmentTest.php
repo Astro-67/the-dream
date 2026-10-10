@@ -61,6 +61,13 @@ test('room choices exclude inactive wrong type out of service and occupied rooms
         $inactive = app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
         $inactive->forceFill(['deactivated_at' => now()])->save();
 
+        $out = app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '103']));
+        $out->outOfServicePeriods()->create(['starts_on' => '2026-12-11', 'returns_on' => '2026-12-12', 'reason' => 'Repairs']);
+        $occupied = app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '104']));
+        app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => $occupied->id]);
+        $otherType = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType(['code' => 'OTHER', 'name' => 'Other']));
+        app(CreateRoom::class)->handle($owner, InventoryForm::room($otherType->id, ['number' => '201']));
+
         return [app(CreateReservation::class)->handle($owner, $details), $room];
     });
     $this->actingAs($owner)->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->has('rooms', 1)->where('rooms.0.id', $room->id));
@@ -118,4 +125,16 @@ test('checkout day is free and unassigning releases all room nights', function (
         app(AssignRoom::class)->handle($owner, $first, null);
         expect(RoomAssignmentNight::query()->pluck('reservation_id')->all())->toBe([$second->id]);
     });
+});
+
+test('booking refuses a room from another property without selling inventory', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    $room = inTenant($t->a->otherProperty, function () use ($t) {
+        BookingForm::details($t->a->owner);
+
+        return Room::query()->sole();
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->postJson(route('reservations.store'), [...$details, 'room_id' => $room->id, '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors('room_id');
+    expect(inTenant($t->a->property, fn () => Reservation::query()->count()))->toBe(0);
 });
