@@ -17,7 +17,7 @@ class UpdateProperty
 {
     public function handle(?User $actor, Property $property, PropertyDetails $details): Property
     {
-        return DB::transaction(function () use ($actor, $property, $details) {
+        return Audit::validationRefusal($actor, $property, 'Property update refused', fn () => DB::transaction(function () use ($actor, $property, $details) {
             if ($details->jurisdictionProfile !== $property->jurisdiction_profile) {
                 JurisdictionRules::ensureProfileCanChange($property, $details->jurisdictionProfile);
             }
@@ -40,6 +40,6 @@ class UpdateProperty
             ]);
 
             return $property;
-        });
+        }));
     }
 }
