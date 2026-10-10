@@ -285,3 +285,31 @@ test('amendment preview lists every broken restriction even with a reason alread
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->getJson(route('reservations.amend-preview', [$reservation, ...$details, 'room_id' => '', 'pricing' => 'keep', 'restriction_override_reason' => 'Returning guest']))->assertOk()->assertExactJson(['warnings' => ['Minimum stay on 2026-12-10 is 3 nights; this stay is 2 nights.', 'Closed to arrival on 2026-12-10.', 'Stop-sell on 2026-12-10.']]);
     expect(inTenant($t->a->property, fn () => $reservation->lifecycleEvents()->count()))->toBe(1);
 });
+
+test('amendment never creates or requotes a missing past price line', function (string $pricing) {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $pricing) {
+        $details = BookingForm::details($owner);
+        $reservation = app(CreateReservation::class)->handle($owner, $details);
+        $this->travelTo(CarbonImmutable::parse('2026-12-10 22:00:00 UTC'));
+        $reservation->priceLines()->whereDate('date', '2026-12-10')->delete();
+        RatePrice::query()->whereDate('date', '2026-12-10')->delete();
+        $amended = app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'room_id' => null, 'pricing' => $pricing]);
+        expect($amended->priceLines->pluck('date')->map->toDateString()->all())->toBe(['2026-12-11']);
+    });
+})->with(['keep', 'reprice']);
+
+test('moving arrival into the property local past is refused without changing the stay', function () {
+    $t = twoTenants();
+    [$reservation, $details] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, [...$details, 'arrival' => '2026-12-11']);
+
+        return [$reservation, $details];
+    });
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 22:00:00 UTC'));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->patchJson(route('reservations.amend', $reservation), [...$details, 'room_id' => null, 'pricing' => 'reprice', '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors('arrival');
+    inTenant($t->a->property, function () use ($reservation) {
+        expect($reservation->fresh()->arrival->toDateString())->toBe('2026-12-11')->and($reservation->priceLines()->count())->toBe(1)->and($reservation->lifecycleEvents()->count())->toBe(1);
+    });
+});

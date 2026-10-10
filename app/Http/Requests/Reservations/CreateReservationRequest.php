@@ -5,6 +5,7 @@ namespace App\Http\Requests\Reservations;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Requests\AuditsRefusals;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,8 +21,12 @@ class CreateReservationRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $rules = $this->stayRules();
+        // ponytail: Spec 7 will provide the open business date.
+        $rules['arrival'][] = 'after_or_equal:'.now(Tenancy::property()?->timezone)->toDateString();
+
         return [
-            ...$this->stayRules(),
+            ...$rules,
             'rooms' => ['sometimes', 'integer', 'between:1,20'],
             'booker_id' => [$this->isMethod('GET') ? 'nullable' : 'required', 'string', Rule::in(Booker::query()->pluck('id')->all())],
             'source' => [$this->isMethod('GET') ? 'nullable' : 'required', Rule::in(['direct', 'walk-in', 'phone', 'outside-integration'])],
