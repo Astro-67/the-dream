@@ -3,6 +3,7 @@
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
@@ -10,6 +11,28 @@ use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
 return [
+    'reservations.cancel' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $reservation = inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
+        $response = $this->actingAs($t->a->owner)->post(route('reservations.cancel', $reservation), ['_property' => $t->a->property->id, 'reason' => 'Wrong property'])->assertNotFound();
+        inTenant($t->b->property, function () use ($reservation) {
+            expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed)
+                ->and($reservation->lifecycleEvents()->count())->toBe(1)
+                ->and((int) InventoryRecord::query()->sum('sold_count'))->toBe(2);
+        });
+
+        return $response;
+    }),
+    'reservations.void' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $reservation = inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
+        $response = $this->actingAs($t->a->owner)->post(route('reservations.void', $reservation), ['_property' => $t->a->property->id, 'reason' => 'Wrong property'])->assertNotFound();
+        inTenant($t->b->property, function () use ($reservation) {
+            expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed)
+                ->and($reservation->lifecycleEvents()->count())->toBe(1)
+                ->and((int) InventoryRecord::query()->sum('sold_count'))->toBe(2);
+        });
+
+        return $response;
+    }),
     'reservations.create' => RouteCoverage::attempt(function (TwoTenants $t) {
         $details = inTenant($t->b->property, fn () => BookingForm::details($t->b->owner));
 

@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { TerminationActions } from '@/features/reservations/termination-actions';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney } from '@/lib/utils';
 
@@ -43,6 +44,7 @@ export default function Show({
     booker,
     rooms,
     canAssignRoom,
+    can,
 }: {
     reservation: Reservation;
     roomType: Named;
@@ -50,6 +52,7 @@ export default function Show({
     booker: Named;
     rooms: { id: string; number: string }[];
     canAssignRoom: boolean;
+    can: { cancel: boolean; void: boolean };
 }) {
     return (
         <>
@@ -63,7 +66,21 @@ export default function Show({
                             copyable
                         />
                     </h1>
-                    <StatusChip tone="success">{reservation.status}</StatusChip>
+                    <StatusChip
+                        tone={
+                            reservation.status === 'confirmed'
+                                ? 'success'
+                                : 'unavailable'
+                        }
+                    >
+                        {reservation.status}
+                    </StatusChip>
+                    {reservation.status === 'confirmed' && (
+                        <TerminationActions
+                            number={reservation.reservation_number}
+                            can={can}
+                        />
+                    )}
                 </header>
                 <dl className="grid gap-4 sm:grid-cols-2">
                     {[
@@ -120,6 +137,12 @@ export default function Show({
                         )}
                     </Form>
                 )}
+                <Link
+                    className="text-primary underline underline-offset-4"
+                    href={`/reservations/${encodeURIComponent(reservation.reservation_number)}/guests`}
+                >
+                    View and attach staying guests
+                </Link>
                 <section className="space-y-3">
                     <h2 className="text-lg font-semibold">
                         Fixed nightly prices

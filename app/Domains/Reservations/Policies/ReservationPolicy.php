@@ -20,6 +20,21 @@ class ReservationPolicy
         return Tenancy::property() !== null && Access::allows($user, P::RoomsAssign, $reservation);
     }
 
+    public function void(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsVoid, $reservation);
+    }
+
+    public function cancel(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+    }
+
+    public function attachGuest(User $user, Reservation $reservation): bool
+    {
+        return $this->view($user, $reservation) && Access::allows($user, P::ReservationsManage, $reservation) && Access::allows($user, P::GuestsRegister, $reservation);
+    }
+
     public function view(User $user, Reservation $reservation): bool
     {
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsView, $reservation);

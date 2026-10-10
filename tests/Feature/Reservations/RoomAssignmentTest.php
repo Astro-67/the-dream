@@ -159,3 +159,19 @@ test('a conflicting assigned booking rolls back sold inventory prices number and
         expect(ReservationLifecycleEvent::query()->sole()->snapshot['room_id'])->toBe($room->id);
     });
 });
+
+test('terminating an assigned reservation releases room nights and records the cleared assignment', function (string $action, string $status) {
+    [$owner, , $property] = organizationWithOwner();
+    $reservation = inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+
+        return app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+    });
+    $this->actingAs($owner)->post(route('reservations.'.$action, $reservation), ['reason' => 'Created in error', '_property' => $property->id])->assertRedirect();
+    inTenant($property, function () use ($reservation, $status) {
+        expect($reservation->fresh()->room_id)->toBeNull();
+        expect(RoomAssignmentNight::query()->count())->toBe(0);
+        expect($reservation->fresh()->status->value)->toBe($status);
+        expect($reservation->fresh()->lifecycleEvents->last()->snapshot['room_id'])->toBeNull();
+    });
+})->with([['cancel', 'cancelled'], ['void', 'void']]);

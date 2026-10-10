@@ -50,14 +50,14 @@ enum OrganizationRole: string
             self::GroupOperationsManager => [
                 P::PropertiesView, P::PropertiesManage, P::PropertiesUpdate,
                 P::MembersView, P::InventoryManage, P::RatesManage,
-                P::ReservationsView, P::ReservationsManage, P::RoomsAssign, P::GuestsView, P::GuestsRegister,
+                P::ReservationsView, P::ReservationsManage, P::ReservationsVoid, P::RoomsAssign, P::GuestsView, P::GuestsRegister,
                 P::HousekeepingView, P::HousekeepingManage,
                 P::FinanceView, P::ReportsView,
             ],
             self::PropertyManager => [
                 P::PropertiesView, P::PropertiesUpdate,
                 P::MembersView, P::MembersInvite, P::OutboxRecover, P::InventoryManage, P::RatesManage, P::TaxManage,
-                P::ReservationsView, P::ReservationsManage, P::RoomsAssign, P::GuestsView, P::GuestsRegister,
+                P::ReservationsView, P::ReservationsManage, P::ReservationsVoid, P::RoomsAssign, P::GuestsView, P::GuestsRegister,
                 P::HousekeepingView, P::HousekeepingManage,
                 P::FiscalExceptionsReview, P::ReportsView,
                 P::ChannelsManage, P::ApprovalsManage,
