@@ -26,6 +26,8 @@ import {
 import { useCan } from '@/hooks/use-can';
 import { dashboard, rateCalendar } from '@/routes';
 import { index as invitations } from '@/routes/invitations';
+import { index as guests } from '@/routes/guests';
+import { index as bookers } from '@/routes/bookers';
 import { index as members } from '@/routes/members';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
 import { index as platformStaff } from '@/routes/platform/staff';
@@ -89,6 +91,12 @@ export function AppSidebar() {
                       icon: CalendarDays,
                   },
                   { title: 'Taxes', href: taxRules(), icon: Percent },
+              ]
+            : []),
+        ...(can('guests.view')
+            ? [
+                  { title: 'Guests', href: guests(), icon: Users },
+                  { title: 'Bookers', href: bookers(), icon: Users },
               ]
             : []),
         ...(can('members.view')
