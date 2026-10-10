@@ -5,6 +5,7 @@ namespace App\Http\Requests\Guests;
 use App\Domains\Guests\Models\Guest;
 use App\Support\Audit\Audit;
 use Closure;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class GuestMergeRequest extends FormRequest
@@ -31,7 +32,7 @@ class GuestMergeRequest extends FormRequest
         }]];
     }
 
-    protected function failedValidation(\Illuminate\Contracts\Validation\Validator $validator): void
+    protected function failedValidation(Validator $validator): void
     {
         $guest = $this->route('guest');
         if ($guest instanceof Guest) {

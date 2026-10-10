@@ -13,6 +13,7 @@ Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(func
     Route::get('guests', [GuestController::class, 'index'])->name('guests.index');
     Route::get('guests/create', [GuestController::class, 'create'])->name('guests.create');
     Route::post('guests', [GuestController::class, 'store'])->name('guests.store');
+    Route::get('guests/{guest}/merge', [GuestMergeController::class, 'create'])->name('guests.merge.create');
     Route::post('guests/{guest}/merge', GuestMergeController::class)->name('guests.merge');
     Route::get('guests/{guest}', [GuestController::class, 'show'])->name('guests.show');
     Route::get('guests/{guest}/edit', [GuestController::class, 'edit'])->name('guests.edit');

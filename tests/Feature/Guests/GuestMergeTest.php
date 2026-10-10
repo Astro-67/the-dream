@@ -32,3 +32,14 @@ test('property manager explicitly merges duplicate guests keeping stays and encr
     expect(Activity::query()->get()->toJson())->not->toContain('KEEP-SECRET')->not->toContain('MOVE-SECRET');
     expect(inTenant($t->a->property, fn () => Guest::query()->count()))->toBe(1);
 });
+
+test('merge selection lists other guests at the current property without identity fields', function () {
+    $t = twoTenants();
+    $survivor = inTenant($t->a->property, fn () => Guest::query()->create(['name' => 'Survivor']));
+    $duplicate = inTenant($t->a->property, fn () => app(CreateGuest::class)->handle($t->a->owner, ['name' => 'Duplicate', 'documents' => [['type' => 'passport', 'number' => 'SELECTION-SECRET']]]));
+    inTenant($t->a->otherProperty, fn () => Guest::query()->create(['name' => 'Foreign Guest']));
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get('/guests/'.$survivor->id.'/merge')
+        ->assertOk()->assertDontSee('SELECTION-SECRET')->assertDontSee('Foreign Guest')
+        ->assertInertia(fn (Assert $page) => $page->component('guests/merge')->where('guest.id', $survivor->id)->where('candidates.total', 1)->where('candidates.data.0.id', $duplicate->id));
+    $this->get(route('guests.show', $survivor))->assertInertia(fn (Assert $page) => $page->where('canMerge', true));
+});
