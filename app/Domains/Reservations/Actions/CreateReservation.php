@@ -7,6 +7,7 @@ use App\Domains\Inventory\Actions\TakeInventory;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
+use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationNumberSequence;
@@ -30,6 +31,12 @@ class CreateReservation
             if ($quote->unquotable !== null) {
                 throw ValidationException::withMessages(['rate_plan_id' => $quote->unquotable]);
             }
+            $warnings = app(StayRestrictions::class)->warnings($plan, $type, $details['arrival'], $details['departure']);
+            $reason = trim($details['restriction_override_reason'] ?? '');
+            if ($warnings !== [] && $reason === '') {
+                throw ValidationException::withMessages(['restriction_override_reason' => [...$warnings, __('Give a reason to override these restrictions.')]]);
+            }
+            $details['restriction_override_reason'] = $warnings !== [] ? $reason : null;
             app(TakeInventory::class)->handle($type, array_column($quote->nights, 'date'));
             // The property lock serializes initial sequence creation as well as allocation.
             $property = Property::query()->whereKey(Tenancy::property()?->id)->lockForUpdate()->firstOrFail();
@@ -47,7 +54,7 @@ class CreateReservation
                 $reservation->priceLines()->create(['date' => $night['date'], 'amount' => $night['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
             }
             app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
-            Audit::record($actor, 'created', $reservation, 'Reservation created', ['reservation_number' => $number]);
+            Audit::record($actor, 'created', $reservation, 'Reservation created', ['reservation_number' => $number, 'restriction_override_reason' => $details['restriction_override_reason'], 'restriction_warnings' => $warnings]);
 
             return $reservation;
         }, attempts: 3));
