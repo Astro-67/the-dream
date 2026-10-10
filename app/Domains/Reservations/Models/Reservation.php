@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $room_id
  * @property string $payment_collector
  */
-#[Fillable(['reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'payment_collector', 'status', 'room_id', 'restriction_override_reason'])]
+#[Fillable(['reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'payment_collector', 'status', 'room_id', 'restriction_override_reason', 'channel_reference', 'outside_integration_reason', 'requires_reconciliation'])]
 #[UsePolicy(ReservationPolicy::class)]
 class Reservation extends Model
 {
@@ -31,7 +31,7 @@ class Reservation extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['arrival' => 'immutable_date', 'departure' => 'immutable_date', 'adults' => 'integer', 'children' => 'integer', 'status' => ReservationStatus::class];
+        return ['requires_reconciliation' => 'boolean', 'arrival' => 'immutable_date', 'departure' => 'immutable_date', 'adults' => 'integer', 'children' => 'integer', 'status' => ReservationStatus::class];
     }
 
     public function getRouteKeyName(): string

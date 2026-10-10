@@ -4,11 +4,13 @@ use App\Http\Controllers\Web\Reservations\AmendReservationController;
 use App\Http\Controllers\Web\Reservations\AvailabilityController;
 use App\Http\Controllers\Web\Reservations\CancelReservationController;
 use App\Http\Controllers\Web\Reservations\ReservationController;
+use App\Http\Controllers\Web\Reservations\ReservationListController;
 use App\Http\Controllers\Web\Reservations\RoomAssignmentController;
 use App\Http\Controllers\Web\Reservations\VoidReservationController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
+    Route::get('reservations', ReservationListController::class)->name('reservations.index');
     Route::get('reservations/availability', AvailabilityController::class)->name('reservations.availability');
     Route::get('reservations/create', [ReservationController::class, 'create'])->name('reservations.create');
     Route::patch('reservations/{reservation:reservation_number}/amend', AmendReservationController::class)->middleware('property.intent')->name('reservations.amend');

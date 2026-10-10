@@ -10,6 +10,11 @@ use App\Support\Tenancy\Tenancy;
 
 class ReservationPolicy
 {
+    public function viewAny(User $user): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsView, Tenancy::property());
+    }
+
     public function create(User $user): bool
     {
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, Tenancy::property());

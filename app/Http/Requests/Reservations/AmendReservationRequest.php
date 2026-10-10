@@ -19,7 +19,7 @@ class AmendReservationRequest extends CreateReservationRequest
     public function rules(): array
     {
         $rules = parent::rules();
-        unset($rules['booker_id'], $rules['source'], $rules['payment_collector']);
+        unset($rules['booker_id'], $rules['source'], $rules['payment_collector'], $rules['channel_reference'], $rules['outside_integration_reason']);
         $rules['room_id'][0] = 'present';
         array_unshift($rules['room_id'], 'nullable');
         $rules['pricing'] = ['required', Rule::in(['keep', 'reprice'])];
