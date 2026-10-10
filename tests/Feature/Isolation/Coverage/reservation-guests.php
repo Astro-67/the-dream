@@ -24,7 +24,7 @@ return [
     }),
     'reservations.guests.store' => RouteCoverage::attempt(function (TwoTenants $t) {
         $reservation = inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
-        $response = $this->actingAs($t->a->owner)->postJson(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'name' => 'Hijacked'])->assertNotFound();
+        $response = $this->actingAs($t->a->owner)->post(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'name' => 'Hijacked'])->assertNotFound();
         expect(inTenant($t->b->property, fn () => ReservationGuest::query()->count()))->toBe(0);
 
         return $response;
