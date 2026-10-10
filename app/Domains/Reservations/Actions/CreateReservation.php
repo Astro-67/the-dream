@@ -47,7 +47,7 @@ class CreateReservation
                 $reservation->priceLines()->create(['date' => $night['date'], 'amount' => $night['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
             }
             if (! empty($details['room_id'])) {
-                app(AssignRoom::class)->handle($actor, $reservation, $details['room_id'], recordEvent: false);
+                $reservation = app(AssignRoom::class)->handle($actor, $reservation, $details['room_id'], recordEvent: false);
             }
             app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
             Audit::record($actor, 'created', $reservation, 'Reservation created', ['reservation_number' => $number]);
