@@ -32,6 +32,7 @@ class CreateReservationRequest extends FormRequest
             'booker_id' => [$this->isMethod('GET') ? 'nullable' : 'required', 'string', Rule::in(Booker::query()->pluck('id')->all())],
             'source' => [$this->isMethod('GET') ? 'nullable' : 'required', Rule::in(['direct', 'walk-in', 'phone'])],
             'payment_collector' => ['sometimes', Rule::in(['property', 'channel'])],
+            'restriction_override_reason' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }
