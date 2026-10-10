@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Support\Audit\Audit;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CreateReservation
@@ -37,28 +38,38 @@ class CreateReservation
                 throw ValidationException::withMessages(['restriction_override_reason' => [...$warnings, __('Give a reason to override these restrictions.')]]);
             }
             $details['restriction_override_reason'] = $warnings !== [] ? $reason : null;
-            app(TakeInventory::class)->handle($type, array_column($quote->nights, 'date'));
+            $rooms = (int) ($details['rooms'] ?? 1);
+            if ($rooms < 1 || $rooms > 20) {
+                throw ValidationException::withMessages(['rooms' => __('Choose between 1 and 20 rooms.')]);
+            }
+            unset($details['rooms']);
+            app(TakeInventory::class)->handle($type, array_column($quote->nights, 'date'), $rooms);
+            $groupId = $rooms > 1 ? (string) Str::ulid() : null;
             // The property lock serializes initial sequence creation as well as allocation.
             $property = Property::query()->whereKey(Tenancy::property()?->id)->lockForUpdate()->firstOrFail();
             $sequence = ReservationNumberSequence::query()->where('property_id', $property->id)->lockForUpdate()->first();
             $sequence ??= ReservationNumberSequence::query()->create(['last_number' => 0]);
-            $sequence->increment('last_number');
-            $number = $property->id.'-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT);
-            $reservation = Reservation::query()->create([
-                ...array_diff_key($details, ['room_id' => true]),
-                'reservation_number' => $number,
-                'requires_reconciliation' => ($details['source'] ?? '') === 'outside-integration',
-                'payment_collector' => $details['payment_collector'] ?? 'property',
-                'status' => ReservationStatus::Confirmed,
-            ]);
-            foreach ($quote->nights as $night) {
-                $reservation->priceLines()->create(['date' => $night['date'], 'amount' => $night['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
-            }
-            if (! empty($details['room_id'])) {
-                $reservation = app(AssignRoom::class)->handle($actor, $reservation, $details['room_id'], recordEvent: false);
-            }
-            app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
-            Audit::record($actor, 'created', $reservation, 'Reservation created', ['reservation_number' => $number, 'restriction_override_reason' => $details['restriction_override_reason'], 'restriction_warnings' => $warnings]);
+            $room = 0;
+            do {
+                $sequence->increment('last_number');
+                $number = $property->id.'-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT);
+                $reservation = Reservation::query()->create([
+                    ...array_diff_key($details, ['room_id' => true]),
+                    'booking_group_id' => $groupId,
+                    'reservation_number' => $number,
+                    'requires_reconciliation' => ($details['source'] ?? '') === 'outside-integration',
+                    'payment_collector' => $details['payment_collector'] ?? 'property',
+                    'status' => ReservationStatus::Confirmed,
+                ]);
+                foreach ($quote->nights as $night) {
+                    $reservation->priceLines()->create(['date' => $night['date'], 'amount' => $night['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
+                }
+                if ($room === 0 && ! empty($details['room_id'])) {
+                    $reservation = app(AssignRoom::class)->handle($actor, $reservation, $details['room_id'], recordEvent: false);
+                }
+                app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
+                Audit::record($actor, 'created', $reservation, 'Reservation created', ['reservation_number' => $number, 'restriction_override_reason' => $details['restriction_override_reason'], 'restriction_warnings' => $warnings]);
+            } while (++$room < $rooms);
 
             return $reservation;
         }, attempts: 3));
