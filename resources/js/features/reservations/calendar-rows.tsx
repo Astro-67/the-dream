@@ -23,7 +23,8 @@ export type CalendarRoom = {
 
 const sources: Record<string, string> = {
     direct: 'Direct',
-    walk_in: 'Walk-in',
+    'walk-in': 'Walk-in',
+    'outside-integration': 'Outside integration',
     phone: 'Phone',
 };
 
