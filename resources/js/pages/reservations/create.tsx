@@ -30,6 +30,7 @@ type Stay = {
     departure: string;
     adults: number;
     children: number;
+    rooms?: number;
     booker_id?: string;
     source?: string;
     channel_reference?: string;
@@ -54,10 +55,10 @@ export default function Create({
     const [source, setSource] = useState(stay.source ?? 'direct');
     return (
         <>
-            <Head title="Book one room" />
+            <Head title="Book rooms" />
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <header className="space-y-2">
-                    <h1 className="text-2xl font-semibold">Book one room</h1>
+                    <h1 className="text-2xl font-semibold">Book rooms</h1>
                     <p className="text-sm text-muted-foreground">
                         {roomType.name} · {ratePlan.name} ·{' '}
                         {formatDate(stay.arrival, 'UTC')}–
@@ -140,6 +141,31 @@ export default function Create({
                                     </div>
                                 </div>
                             )}
+                            <div className="max-w-[720px] space-y-2">
+                                <Label htmlFor="rooms">Rooms</Label>
+                                <Input
+                                    id="rooms"
+                                    name="rooms"
+                                    type="number"
+                                    min={1}
+                                    max={20}
+                                    defaultValue={stay.rooms ?? 1}
+                                    required
+                                    aria-invalid={!!errors.rooms}
+                                    aria-describedby="rooms-help"
+                                />
+                                <p
+                                    id="rooms-help"
+                                    className="text-sm text-muted-foreground"
+                                >
+                                    Guest counts and nightly prices apply to
+                                    each room. Several rooms create a booking
+                                    group with one reservation per room. An
+                                    optional room assignment applies to the
+                                    first reservation; assign the others from
+                                    their detail pages.
+                                </p>
+                            </div>
                             <fieldset className="space-y-3">
                                 <legend className="font-medium">
                                     Choose the booker

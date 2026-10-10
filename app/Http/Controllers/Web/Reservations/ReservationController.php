@@ -47,6 +47,11 @@ class ReservationController extends Controller
 
         return Inertia::render('reservations/show', [
             'reservation' => $reservation->load('priceLines'),
+            'groupMembers' => $reservation->getAttribute('booking_group_id') === null ? [] : Reservation::query()
+                ->where('property_id', $reservation->property_id)
+                ->where('booking_group_id', $reservation->getAttribute('booking_group_id'))
+                ->whereKeyNot($reservation->id)->orderBy('reservation_number')
+                ->get(['reservation_number', 'status', 'arrival', 'departure']),
             'rooms' => app(AssignableRooms::class)->forStay($reservation->getAttribute('room_type_id'), $reservation->arrival->toDateString(), $reservation->departure->toDateString(), $reservation->id),
             'amendments' => $reservation->lifecycleEvents()->where('type', 'modified')->whereNotNull('snapshot->before')->with('actor:id,name')->get(),
             'amendmentOptions' => Gate::allows('amend', $reservation) ? [

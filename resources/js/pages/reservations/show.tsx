@@ -22,6 +22,7 @@ import {
     type Amendment,
     type AmendmentOptions,
 } from '@/features/reservations/amendment-form';
+import { show } from '@/routes/reservations';
 import { formatMoney } from '@/lib/utils';
 
 type Named = { id: string; name: string };
@@ -59,6 +60,7 @@ export default function Show({
     amendmentOptions,
     amendments,
     can,
+    groupMembers,
 }: {
     reservation: Reservation;
     roomType: Named;
@@ -70,6 +72,10 @@ export default function Show({
     amendmentOptions: AmendmentOptions | null;
     amendments: Amendment[];
     can: { cancel: boolean; void: boolean };
+    groupMembers: Pick<
+        Reservation,
+        'reservation_number' | 'status' | 'arrival' | 'departure'
+    >[];
 }) {
     return (
         <>
@@ -192,6 +198,64 @@ export default function Show({
                 >
                     View and attach staying guests
                 </Link>
+                {groupMembers.length > 0 && (
+                    <section className="space-y-3">
+                        <h2 className="text-lg font-semibold">
+                            Other reservations in this booking group
+                        </h2>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Reservation number</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Arrival</TableHead>
+                                    <TableHead>Departure</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {groupMembers.map((member) => (
+                                    <TableRow key={member.reservation_number}>
+                                        <TableCell>
+                                            <Link
+                                                className="text-primary underline underline-offset-4"
+                                                href={show(
+                                                    member.reservation_number,
+                                                )}
+                                            >
+                                                <Identifier
+                                                    value={
+                                                        member.reservation_number
+                                                    }
+                                                />
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatusChip
+                                                tone={
+                                                    member.status ===
+                                                    'confirmed'
+                                                        ? 'success'
+                                                        : 'unavailable'
+                                                }
+                                            >
+                                                {member.status}
+                                            </StatusChip>
+                                        </TableCell>
+                                        <TableCell>
+                                            {formatDate(member.arrival, 'UTC')}
+                                        </TableCell>
+                                        <TableCell>
+                                            {formatDate(
+                                                member.departure,
+                                                'UTC',
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </section>
+                )}
                 <section className="space-y-3">
                     <h2 className="text-lg font-semibold">
                         Fixed nightly prices
