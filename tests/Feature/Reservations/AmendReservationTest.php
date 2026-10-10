@@ -12,6 +12,7 @@ use App\Domains\Rates\Models\RateRestriction;
 use App\Domains\Reservations\Actions\AmendReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
@@ -216,4 +217,26 @@ test('amendment rejects another property payload and stale property intent', fun
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
     $this->patchJson(route('reservations.amend', $reservation), [...$foreign, 'room_id' => null, 'pricing' => 'keep', '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors(['room_type_id', 'rate_plan_id']);
     $this->patchJson(route('reservations.amend', $reservation), [...$details, 'room_id' => null, 'pricing' => 'keep', '_property' => $t->a->otherProperty->id])->assertNotFound();
+});
+
+test('failure recording an amendment lifecycle event rolls back every reservation effect', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        $reservation = app(CreateReservation::class)->handle($owner, $details);
+        ReservationLifecycleEvent::creating(function ($event) {
+            if ($event->getAttribute('type') === 'modified') {
+                throw new RuntimeException('Event write failed');
+            }
+        });
+        try {
+            expect(fn () => app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'arrival' => '2026-12-11', 'room_id' => null, 'pricing' => 'reprice']))->toThrow(RuntimeException::class, 'Event write failed');
+            expect($reservation->fresh()->arrival->toDateString())->toBe('2026-12-10')
+                ->and($reservation->priceLines()->pluck('amount')->all())->toBe([11000, 11000])
+                ->and($reservation->lifecycleEvents()->count())->toBe(1)
+                ->and(InventoryRecord::query()->whereBetween('date', ['2026-12-10', '2026-12-11'])->orderBy('date')->pluck('sold_count')->all())->toBe([1, 1]);
+        } finally {
+            ReservationLifecycleEvent::flushEventListeners();
+        }
+    });
 });
