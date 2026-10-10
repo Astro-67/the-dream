@@ -1,7 +1,9 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
@@ -37,12 +39,14 @@ export default function Create({
     ratePlan,
     bookers,
     rooms,
+    restrictionWarnings,
 }: {
     stay: Stay;
     roomType: Named;
     ratePlan: Named;
     bookers: Paginated<Named>;
     rooms: { id: string; number: string }[];
+    restrictionWarnings: string[];
 }) {
     return (
         <>
@@ -86,6 +90,52 @@ export default function Create({
                                 .map(([name, message]) => (
                                     <InputError key={name} message={message} />
                                 ))}
+                            {(restrictionWarnings.length > 0 ||
+                                errors.restriction_override_reason) && (
+                                <div className="max-w-[720px] space-y-3">
+                                    <Alert className="border-status-warning bg-status-warning-tint">
+                                        <AlertTitle>
+                                            Restriction warnings
+                                        </AlertTitle>
+                                        <AlertDescription>
+                                            <ul className="list-disc space-y-1 pl-4">
+                                                {restrictionWarnings.map(
+                                                    (warning) => (
+                                                        <li key={warning}>
+                                                            {warning}
+                                                        </li>
+                                                    ),
+                                                )}
+                                            </ul>
+                                            <p>
+                                                Give a reason to proceed.
+                                                Exhausted inventory cannot be
+                                                overridden.
+                                            </p>
+                                        </AlertDescription>
+                                    </Alert>
+                                    <Label htmlFor="restriction_override_reason">
+                                        Restriction override reason
+                                    </Label>
+                                    <Input
+                                        id="restriction_override_reason"
+                                        name="restriction_override_reason"
+                                        required
+                                        maxLength={2000}
+                                        aria-invalid={
+                                            !!errors.restriction_override_reason
+                                        }
+                                        aria-describedby="restriction-override-error"
+                                    />
+                                    <div id="restriction-override-error">
+                                        <InputError
+                                            message={
+                                                errors.restriction_override_reason
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            )}
                             <fieldset className="space-y-3">
                                 <legend className="font-medium">
                                     Choose the booker

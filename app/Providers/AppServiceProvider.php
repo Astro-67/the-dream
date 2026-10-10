@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Domains\Reservations\PreventArchivingWithFutureReservations;
 use App\Domains\Tenancy\Contracts\PreArchiveCheck;
 use App\Support\Jobs\CallQueuedTenantHandler;
 use App\Support\Outbox\DeliveryAdapters;
@@ -25,7 +26,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TenancyManager::class);
         $this->app->singleton(Origin::class);
         $this->app->singleton(DeliveryAdapters::class);
-        $this->app->tag([PreventArchivingWithUnresolvedMessages::class], PreArchiveCheck::TAG);
+        $this->app->tag([PreventArchivingWithUnresolvedMessages::class, PreventArchivingWithFutureReservations::class], PreArchiveCheck::TAG);
     }
 
     /**
