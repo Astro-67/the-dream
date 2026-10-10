@@ -11,6 +11,7 @@ use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\RatePrice;
 use App\Domains\Rates\Models\RateRestriction;
 use App\Domains\Rates\StayPricing;
+use App\Domains\Reservations\ReservationCalendar;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Rates\BulkPriceRequest;
 use App\Http\Requests\Rates\BulkRestrictionRequest;
@@ -26,7 +27,7 @@ use Inertia\Response;
 /** Bulk edits here use the rate plan pages' requests and actions, so validation and audit match. */
 class RateCalendarController extends Controller
 {
-    public function index(RateCalendarRequest $request, RoomAvailability $availability, StayPricing $pricing): Response
+    public function index(RateCalendarRequest $request, RoomAvailability $availability, StayPricing $pricing, ReservationCalendar $calendar): Response
     {
         $today = CarbonImmutable::now(Tenancy::property()?->timezone)->startOfDay();
         $from = $request->string('from', $today->toDateString())->value();
@@ -39,6 +40,8 @@ class RateCalendarController extends Controller
         $restrictions = RateRestriction::query()->whereIn('room_type_id', $selected->pluck('id'))->whereBetween('date', [$from, $to])->get()
             ->groupBy(fn (RateRestriction $r) => $r->rate_plan_id.'|'.$r->room_type_id);
 
+        $rooms = $calendar->rooms($selected->pluck('id')->all(), $from, $to);
+
         return Inertia::render('rates/calendar', [
             'from' => $from,
             'to' => $to,
@@ -46,6 +49,7 @@ class RateCalendarController extends Controller
             'allRoomTypes' => $allRoomTypes,
             'roomTypes' => $selected->values()->map(fn (RoomType $type) => [
                 ...$type->only(['id', 'name', 'code']),
+                'rooms' => $rooms->get($type->id, collect()),
                 'sellable' => $availability->sellableByDate($type, CarbonImmutable::parse($from), CarbonImmutable::parse($to)),
                 'outOfService' => $availability->outOfServiceByDate($type, CarbonImmutable::parse($from), CarbonImmutable::parse($to)),
                 'plans' => $plans->filter(fn (RatePlan $plan) => $plan->roomTypes->contains('id', $type->id))->values()->map(fn (RatePlan $plan) => [
