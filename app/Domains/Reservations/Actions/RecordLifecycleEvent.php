@@ -11,7 +11,7 @@ use LogicException;
 
 class RecordLifecycleEvent
 {
-    /** @param array{reason?: string} $details */
+    /** @param array<string, mixed> $details */
     public function handle(Reservation $reservation, string $type, ?User $actor, array $details = []): ReservationLifecycleEvent
     {
         if (DB::transactionLevel() === 0) {

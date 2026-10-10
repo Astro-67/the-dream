@@ -47,6 +47,8 @@ class ReservationController extends Controller
         return Inertia::render('reservations/show', [
             'reservation' => $reservation->load('priceLines'),
             'rooms' => app(AssignableRooms::class)->forStay($reservation->getAttribute('room_type_id'), $reservation->arrival->toDateString(), $reservation->departure->toDateString(), $reservation->id),
+            'amendments' => $reservation->lifecycleEvents()->where('type', 'modified')->whereNotNull('snapshot->before')->with('actor:id,name')->get(),
+            'canAmend' => Gate::allows('amend', $reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),
             'can' => ['cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation)],
             'booker' => Booker::query()->findOrFail($reservation->getAttribute('booker_id'))->only(['id', 'name']),

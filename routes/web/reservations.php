@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Web\Reservations\AmendReservationController;
 use App\Http\Controllers\Web\Reservations\AvailabilityController;
 use App\Http\Controllers\Web\Reservations\CancelReservationController;
 use App\Http\Controllers\Web\Reservations\ReservationController;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::get('reservations/availability', AvailabilityController::class)->name('reservations.availability');
     Route::get('reservations/create', [ReservationController::class, 'create'])->name('reservations.create');
+    Route::patch('reservations/{reservation:reservation_number}/amend', AmendReservationController::class)->middleware('property.intent')->name('reservations.amend');
     Route::post('reservations', [ReservationController::class, 'store'])->middleware('property.intent')->name('reservations.store');
     Route::patch('reservations/{reservation:reservation_number}/room-assignment', RoomAssignmentController::class)->middleware('property.intent')->name('reservations.room-assignment');
     Route::post('reservations/{reservation:reservation_number}/void', VoidReservationController::class)->middleware('property.intent')->name('reservations.void');
