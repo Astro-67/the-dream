@@ -7,12 +7,15 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Models\Reservation;
+use App\Http\Requests\AuditsRefusals;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class CreateReservationRequest extends FormRequest
 {
+    use AuditsRefusals;
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', Reservation::class) ?? false;

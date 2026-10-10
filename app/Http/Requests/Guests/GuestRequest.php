@@ -4,12 +4,15 @@ namespace App\Http\Requests\Guests;
 
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
+use App\Http\Requests\AuditsRefusals;
 use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Http\FormRequest;
 
 class GuestRequest extends FormRequest
 {
+    use AuditsRefusals;
+
     public function authorize(): bool
     {
         $guest = $this->route('guest');
