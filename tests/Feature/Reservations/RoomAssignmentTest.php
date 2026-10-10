@@ -2,12 +2,17 @@
 
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
+use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\AssignRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Reservations\Models\ReservationLifecycleEvent;
+use App\Domains\Reservations\Models\ReservationNumberSequence;
+use App\Domains\Reservations\Models\ReservationPriceLine;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
@@ -137,4 +142,20 @@ test('booking refuses a room from another property without selling inventory', f
     });
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->postJson(route('reservations.store'), [...$details, 'room_id' => $room->id, '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors('room_id');
     expect(inTenant($t->a->property, fn () => Reservation::query()->count()))->toBe(0);
+});
+
+test('a conflicting assigned booking rolls back sold inventory prices number and lifecycle', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        $room = Room::query()->sole();
+        app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => $room->id]);
+        expect(fn () => app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => $room->id]))->toThrow(ValidationException::class);
+        expect(Reservation::query()->count())->toBe(1);
+        expect(InventoryRecord::query()->whereBetween('date', ['2026-12-10', '2026-12-11'])->pluck('sold_count')->all())->toBe([1, 1]);
+        expect(ReservationNumberSequence::query()->sole()->last_number)->toBe(1);
+        expect(ReservationPriceLine::query()->count())->toBe(2);
+        expect(ReservationLifecycleEvent::query()->sole()->snapshot['room_id'])->toBe($room->id);
+    });
 });
