@@ -84,6 +84,23 @@ test('search rejects invalid or unbounded stays', function (array $fields, strin
     [['children' => -1], 'children'],
 ]);
 
+test('quotes require a current property rather than combining properties', function () {
+    $t = twoTenants();
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => null])
+        ->actingAs($t->a->owner)->get(route('reservations.availability'))->assertForbidden();
+});
+
+test('room type filters stay within the selected property', function () {
+    $t = twoTenants();
+    [$type] = availabilityRooms($t->a);
+    $other = inTenant($t->a->otherProperty, fn () => app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType(['code' => 'OTHER'])));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->owner)->get(route('reservations.availability', availabilityStay(['room_type_id' => $type->id])))
+        ->assertInertia(fn (Assert $page) => $page->has('roomTypes', 1)->has('results', 1)->where('results.0.id', $type->id));
+    $this->getJson(route('reservations.availability', availabilityStay(['room_type_id' => $other->id])))
+        ->assertUnprocessable()->assertJsonValidationErrors('room_type_id');
+});
+
 test('front desk quotes every night and the stay total without booking', function () {
     $t = twoTenants();
     [$type, $plan] = availabilityRooms($t->a);

@@ -7,14 +7,17 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\DateRange;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
+use App\Domains\Reservations\Policies\AvailabilityPolicy;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 
+#[UsePolicy(AvailabilityPolicy::class)]
 class AvailabilitySearch
 {
     public function __construct(private StayPricing $pricing) {}
 
     /**
-     * @param array{arrival: string, departure: string, adults: int|string, children: int|string, room_type_id?: string|null} $stay
+     * @param  array{arrival: string, departure: string, adults: int|string, children: int|string, room_type_id?: string|null}  $stay
      * @return list<array<string, mixed>>
      */
     public function search(array $stay): array

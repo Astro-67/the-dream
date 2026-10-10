@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Reservations;
 
 use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Reservations\AvailabilitySearch;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,7 +12,7 @@ class AvailabilityRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('viewAny', RoomType::class) ?? false;
+        return $this->user()?->can('viewAny', AvailabilitySearch::class) ?? false;
     }
 
     /** @return array<string, mixed> */
