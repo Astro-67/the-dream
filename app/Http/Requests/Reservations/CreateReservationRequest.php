@@ -23,6 +23,7 @@ class CreateReservationRequest extends FormRequest
         $arrival = rescue(fn () => CarbonImmutable::createFromFormat('!Y-m-d', $this->string('arrival')->value()) ?: null, report: false);
 
         return [
+            'rooms' => ['sometimes', 'integer', 'between:1,20'],
             'arrival' => ['required', 'date_format:Y-m-d'],
             'departure' => ['required', 'date_format:Y-m-d', 'after:arrival', ...($arrival ? ['before_or_equal:'.$arrival->addDays(365)->toDateString()] : [])],
             'adults' => ['required', 'integer', 'between:1,20'],

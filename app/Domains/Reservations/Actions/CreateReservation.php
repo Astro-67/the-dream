@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Support\Audit\Audit;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CreateReservation
@@ -37,24 +38,30 @@ class CreateReservation
                 throw ValidationException::withMessages(['restriction_override_reason' => [...$warnings, __('Give a reason to override these restrictions.')]]);
             }
             $details['restriction_override_reason'] = $warnings !== [] ? $reason : null;
-            app(TakeInventory::class)->handle($type, array_column($quote->nights, 'date'));
+            $rooms = (int) ($details['rooms'] ?? 1);
+            unset($details['rooms']);
+            app(TakeInventory::class)->handle($type, array_column($quote->nights, 'date'), $rooms);
+            $groupId = $rooms > 1 ? (string) Str::ulid() : null;
             // The property lock serializes initial sequence creation as well as allocation.
             $property = Property::query()->whereKey(Tenancy::property()?->id)->lockForUpdate()->firstOrFail();
             $sequence = ReservationNumberSequence::query()->where('property_id', $property->id)->lockForUpdate()->first();
             $sequence ??= ReservationNumberSequence::query()->create(['last_number' => 0]);
-            $sequence->increment('last_number');
-            $number = $property->id.'-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT);
-            $reservation = Reservation::query()->create([
-                ...$details,
-                'reservation_number' => $number,
-                'payment_collector' => $details['payment_collector'] ?? 'property',
-                'status' => ReservationStatus::Confirmed,
-            ]);
-            foreach ($quote->nights as $night) {
-                $reservation->priceLines()->create(['date' => $night['date'], 'amount' => $night['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
+            for ($room = 0; $room < $rooms; $room++) {
+                $sequence->increment('last_number');
+                $number = $property->id.'-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT);
+                $reservation = Reservation::query()->create([
+                    ...$details,
+                    'booking_group_id' => $groupId,
+                    'reservation_number' => $number,
+                    'payment_collector' => $details['payment_collector'] ?? 'property',
+                    'status' => ReservationStatus::Confirmed,
+                ]);
+                foreach ($quote->nights as $night) {
+                    $reservation->priceLines()->create(['date' => $night['date'], 'amount' => $night['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
+                }
+                app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
+                Audit::record($actor, 'created', $reservation, 'Reservation created', ['reservation_number' => $number, 'restriction_override_reason' => $details['restriction_override_reason'], 'restriction_warnings' => $warnings]);
             }
-            app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
-            Audit::record($actor, 'created', $reservation, 'Reservation created', ['reservation_number' => $number, 'restriction_override_reason' => $details['restriction_override_reason'], 'restriction_warnings' => $warnings]);
 
             return $reservation;
         }, attempts: 3));
