@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/ui/empty-state';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -136,9 +137,7 @@ export function IdentityDetails({
                 </p>
             )}
             {documents.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                    No identity documents recorded.
-                </p>
+                <EmptyState message="No identity documents recorded." />
             ) : (
                 documents.map((document, index) => (
                     <dl

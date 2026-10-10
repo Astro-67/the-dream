@@ -1,3 +1,4 @@
+import { EmptyState } from '@/components/ui/empty-state';
 import { formatTime } from '@/lib/utils';
 import { formatDate } from '@/features/platform/format';
 import { NativeSelect } from '@/components/ui/select';
@@ -243,9 +244,7 @@ export function AmendmentHistory({
         <section className="space-y-3">
             <h2 className="text-lg font-semibold">Amendment history</h2>
             {amendments.data.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                    No amendments yet.
-                </p>
+                <EmptyState message="No amendments yet." />
             )}
             {amendments.data.map((amendment) => (
                 <article
