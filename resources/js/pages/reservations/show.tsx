@@ -16,6 +16,12 @@ import {
 } from '@/components/ui/table';
 import { TerminationActions } from '@/features/reservations/termination-actions';
 import { formatDate } from '@/features/platform/format';
+import {
+    AmendmentForm,
+    AmendmentHistory,
+    type Amendment,
+    type AmendmentOptions,
+} from '@/features/reservations/amendment-form';
 import { show } from '@/routes/reservations';
 import { formatMoney } from '@/lib/utils';
 
@@ -24,6 +30,8 @@ type Reservation = {
     reservation_number: string;
     status: string;
     room_id: string | null;
+    room_type_id: string;
+    rate_plan_id: string;
     arrival: string;
     departure: string;
     adults: number;
@@ -48,6 +56,9 @@ export default function Show({
     booker,
     rooms,
     canAssignRoom,
+    canAmend,
+    amendmentOptions,
+    amendments,
     can,
     groupMembers,
 }: {
@@ -57,6 +68,9 @@ export default function Show({
     booker: Named;
     rooms: { id: string; number: string }[];
     canAssignRoom: boolean;
+    canAmend: boolean;
+    amendmentOptions: AmendmentOptions | null;
+    amendments: Amendment[];
     can: { cancel: boolean; void: boolean };
     groupMembers: Pick<
         Reservation,
@@ -169,6 +183,15 @@ export default function Show({
                         )}
                     </Form>
                 )}
+                {canAmend &&
+                    amendmentOptions &&
+                    reservation.status === 'confirmed' && (
+                        <AmendmentForm
+                            reservation={reservation}
+                            options={amendmentOptions}
+                        />
+                    )}
+                <AmendmentHistory amendments={amendments} />
                 <Link
                     className="text-primary underline underline-offset-4"
                     href={`/reservations/${encodeURIComponent(reservation.reservation_number)}/guests`}

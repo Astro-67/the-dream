@@ -30,6 +30,11 @@ class ReservationPolicy
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsVoid, $reservation);
     }
 
+    public function amend(User $user, Reservation $reservation): bool
+    {
+        return $this->cancel($user, $reservation) && ($reservation->room_id === null || $this->assignRoom($user, $reservation));
+    }
+
     public function cancel(User $user, Reservation $reservation): bool
     {
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);

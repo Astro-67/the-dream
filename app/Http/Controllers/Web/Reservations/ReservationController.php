@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Reservations;
 
 use App\Domains\Guests\Models\Booker;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayRestrictions;
@@ -52,6 +53,13 @@ class ReservationController extends Controller
                 ->whereKeyNot($reservation->id)->orderBy('reservation_number')
                 ->get(['reservation_number', 'status', 'arrival', 'departure']),
             'rooms' => app(AssignableRooms::class)->forStay($reservation->getAttribute('room_type_id'), $reservation->arrival->toDateString(), $reservation->departure->toDateString(), $reservation->id),
+            'amendments' => $reservation->lifecycleEvents()->where('type', 'modified')->whereNotNull('snapshot->before')->with('actor:id,name')->get(),
+            'amendmentOptions' => Gate::allows('amend', $reservation) ? [
+                'roomTypes' => RoomType::query()->orderBy('name')->get(['id', 'name']),
+                'ratePlans' => RatePlan::query()->whereNull('deactivated_at')->with('roomTypes:id')->orderBy('name')->get(['id', 'name']),
+                'rooms' => Room::query()->whereNull('deactivated_at')->orderBy('number')->get(['id', 'number', 'room_type_id']),
+            ] : null,
+            'canAmend' => Gate::allows('amend', $reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),
             'can' => ['cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation)],
             'booker' => Booker::query()->findOrFail($reservation->getAttribute('booker_id'))->only(['id', 'name']),
