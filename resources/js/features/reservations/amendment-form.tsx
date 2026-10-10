@@ -1,7 +1,9 @@
+import { formatTime } from '@/lib/utils';
+import { formatDate } from '@/features/platform/format';
 import { NativeSelect } from '@/components/ui/select';
 import { Pagination } from '@/components/ui/pagination';
 import type { Paginated } from '@/types';
-import { Form } from '@inertiajs/react';
+import { Form, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -235,6 +237,8 @@ export function AmendmentHistory({
 }: {
     amendments: Paginated<Amendment>;
 }) {
+    const { tenant } = usePage().props;
+    const timezone = tenant.property?.timezone ?? 'UTC';
     return (
         <section className="space-y-3">
             <h2 className="text-lg font-semibold">Amendment history</h2>
@@ -251,7 +255,8 @@ export function AmendmentHistory({
                     <p>
                         {amendment.actor?.name ?? 'System'} ·{' '}
                         <time dateTime={amendment.occurred_at}>
-                            {new Date(amendment.occurred_at).toLocaleString()}
+                            {formatDate(amendment.occurred_at, timezone)} ·{' '}
+                            {formatTime(amendment.occurred_at, timezone)}
                         </time>
                     </p>
                     <p className="text-sm text-muted-foreground">

@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/utils';
 import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
@@ -48,7 +49,7 @@ export function CalendarRoomRows({
                 cells.push(
                     <TableCell
                         key={date}
-                        aria-label={`Room ${room.number}, ${date}: unassigned`}
+                        aria-label={`Room ${room.number}, ${formatDate(date)}: unassigned`}
                         className="border-b border-l px-2 py-2"
                     />,
                 );
@@ -58,7 +59,7 @@ export function CalendarRoomRows({
             let end = index + 1;
             while (end < dates.length && dates[end] < reservation.departure)
                 end++;
-            const description = `${reservation.guest_name}, ${reservation.reservation_number}, ${reservation.arrival} to ${reservation.departure}, ${reservation.status.replaceAll('_', ' ')}`;
+            const description = `${reservation.guest_name}, ${reservation.reservation_number}, ${formatDate(reservation.arrival)} to ${formatDate(reservation.departure)}, ${reservation.status.replaceAll('_', ' ')}`;
             cells.push(
                 <TableCell
                     key={date}
@@ -93,7 +94,13 @@ export function CalendarRoomRows({
                                 {reservation.status.replaceAll('_', ' ')}
                             </StatusChip>
                             <p className="mt-1">
-                                {reservation.arrival} – {reservation.departure}
+                                <time dateTime={reservation.arrival}>
+                                    {formatDate(reservation.arrival)}
+                                </time>{' '}
+                                –{' '}
+                                <time dateTime={reservation.departure}>
+                                    {formatDate(reservation.departure)}
+                                </time>
                             </p>
                         </TooltipContent>
                     </Tooltip>

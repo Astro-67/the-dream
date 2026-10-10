@@ -1,3 +1,4 @@
+import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
 import { Table, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import type { Paginated } from '@/types';
@@ -80,7 +81,7 @@ export default function Guests({
             <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
                 <header className="space-y-2">
                     <h1 className="text-2xl font-semibold">
-                        Guests · {reservationNumber}
+                        Guests · <Identifier value={reservationNumber} />
                     </h1>
                     <Link
                         className="text-primary underline underline-offset-4"
