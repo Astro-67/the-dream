@@ -57,9 +57,10 @@ export function AmendmentForm({
                     )
                         setWarnings(null);
                 }}
-                onSubmit={async (event) => {
+                onSubmitCapture={async (event) => {
                     if (warnings !== null) return;
                     event.preventDefault();
+                    event.stopPropagation();
                     const form = event.currentTarget;
                     const params = new URLSearchParams();
                     new FormData(form).forEach(
