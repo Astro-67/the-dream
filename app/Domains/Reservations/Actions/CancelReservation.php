@@ -6,6 +6,7 @@ use App\Domains\Inventory\Actions\ReleaseInventory;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Reservations\Models\RoomAssignmentNight;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,8 @@ class CancelReservation
             $type = RoomType::query()->findOrFail($locked->getAttribute('room_type_id'));
             $dates = iterator_to_array($locked->arrival->daysUntil($locked->departure)->excludeEndDate()->map(fn ($date) => $date->toDateString()));
             app(ReleaseInventory::class)->handle($type, $dates);
-            $locked->update(['status' => ReservationStatus::Cancelled]);
+            RoomAssignmentNight::query()->where('reservation_id', $locked->id)->delete();
+            $locked->update(['status' => ReservationStatus::Cancelled, 'room_id' => null]);
             app(RecordLifecycleEvent::class)->handle($locked, 'cancelled', $actor, ['reason' => $reason]);
             Audit::record($actor, 'cancelled', $locked, 'Reservation cancelled', ['reason' => $reason]);
 

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Reservations;
 
 use App\Domains\Guests\Models\Booker;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Models\Reservation;
@@ -31,6 +32,7 @@ class CreateReservationRequest extends FormRequest
             'rate_plan_id' => ['required', 'string', Rule::in(RatePlan::query()->whereNull('deactivated_at')->whereHas('roomTypes', fn ($query) => $query->whereKey($this->string('room_type_id')->value()))->pluck('id')->all())],
             'booker_id' => [$this->isMethod('GET') ? 'nullable' : 'required', 'string', Rule::in(Booker::query()->pluck('id')->all())],
             'source' => [$this->isMethod('GET') ? 'nullable' : 'required', Rule::in(['direct', 'walk-in', 'phone'])],
+            'room_id' => ['nullable', 'string', Rule::in(Room::query()->pluck('id')->all())],
             'payment_collector' => ['sometimes', Rule::in(['property', 'channel'])],
             'restriction_override_reason' => ['nullable', 'string', 'max:2000'],
         ];
