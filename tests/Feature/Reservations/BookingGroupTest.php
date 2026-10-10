@@ -1,7 +1,10 @@
 <?php
 
 use App\Domains\Inventory\Actions\CreateRoom;
+use App\Domains\Inventory\Models\InventoryRecord;
+use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
+use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 
@@ -26,5 +29,28 @@ test('front desk books several rooms with one booker and separate numbers prices
                 ->and($member->priceLines->pluck('amount')->all())->toBe([11000, 11000])
                 ->and($member->lifecycleEvents->sole()->type)->toBe('created');
         }
+    });
+});
+
+test('group details link siblings and cancelling one member leaves the others confirmed', function () {
+    $t = twoTenants();
+    [$member, $sibling] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        app(CreateReservation::class)->handle($t->a->owner, [...$details, 'rooms' => 2]);
+
+        return Reservation::query()->orderBy('reservation_number')->get()->all();
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->get(route('reservations.show', $member))
+        ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->has('groupMembers', 1)->where('groupMembers.0.reservation_number', $sibling->reservation_number));
+    $this->post(route('reservations.cancel', $member), ['reason' => 'One guest withdrew', '_property' => $t->a->property->id])->assertRedirect();
+    $this->get(route('reservations.show', $sibling))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('reservation.status', 'confirmed')->where('groupMembers.0.status', 'cancelled'));
+    inTenant($t->a->property, function () use ($member, $sibling) {
+        expect($member->lifecycleEvents()->pluck('type')->all())->toBe(['created', 'cancelled'])
+            ->and($sibling->lifecycleEvents()->pluck('type')->all())->toBe(['created'])
+            ->and(InventoryRecord::query()->whereBetween('date', ['2026-12-10', '2026-12-11'])->orderBy('date')->pluck('sold_count')->all())->toBe([1, 1]);
     });
 });
