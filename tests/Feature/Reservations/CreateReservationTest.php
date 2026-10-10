@@ -21,6 +21,43 @@ test('front desk books an availability result and opens its reservation detail',
     $this->get($response->headers->get('Location'))->assertOk()->assertInertia(fn (Assert $page) => $page->component('reservations/show')->where('reservation.status', 'confirmed')->where('booker.name', 'Travel Booker')->has('reservation.price_lines', 2));
 });
 
+test('booking refuses an exhausted night without selling any earlier night', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = bookingDetails($owner);
+        app(CreateReservation::class)->handle($owner, [...$details, 'arrival' => '2026-12-11']);
+        expect(fn () => app(CreateReservation::class)->handle($owner, $details))->toThrow(\Illuminate\Validation\ValidationException::class);
+        expect(\App\Domains\Inventory\Models\InventoryRecord::query()->where('room_type_id', $details['room_type_id'])->whereDate('date', '2026-12-10')->sole()->sold_count)->toBe(0)
+            ->and(\App\Domains\Reservations\Models\Reservation::query()->count())->toBe(1)
+            ->and(\App\Domains\Reservations\Models\ReservationLifecycleEvent::query()->count())->toBe(1);
+    });
+});
+
+test('a failed outer transaction rolls back inventory number prices and lifecycle event', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $property) {
+        $details = bookingDetails($owner);
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($owner, $details) {
+                app(CreateReservation::class)->handle($owner, $details);
+                throw new RuntimeException('abort booking');
+            });
+        } catch (RuntimeException $exception) {
+            expect($exception->getMessage())->toBe('abort booking');
+        }
+        expect(\App\Domains\Reservations\Models\Reservation::query()->count())->toBe(0)
+            ->and(\App\Domains\Reservations\Models\ReservationPriceLine::query()->count())->toBe(0)
+            ->and(\App\Domains\Reservations\Models\ReservationLifecycleEvent::query()->count())->toBe(0)
+            ->and(\App\Domains\Reservations\Models\ReservationNumberSequence::query()->count())->toBe(0)
+            ->and(\App\Domains\Inventory\Models\InventoryRecord::query()->sum('sold_count'))->toBe(0);
+        $first = app(CreateReservation::class)->handle($owner, [...$details, 'departure' => '2026-12-11']);
+        $first->update(['status' => ReservationStatus::Cancelled]);
+        $second = app(CreateReservation::class)->handle($owner, [...$details, 'arrival' => '2026-12-11']);
+        expect($first->reservation_number)->toBe($property->id.'-000001')
+            ->and($second->reservation_number)->toBe($property->id.'-000002');
+    });
+});
+
 function bookingDetails($owner): array
 {
     $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
