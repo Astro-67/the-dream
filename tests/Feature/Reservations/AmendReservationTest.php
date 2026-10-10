@@ -71,7 +71,7 @@ test('keeping prices ignores missing rates for retained nights and prices only a
         app(SetRatePrices::class)->handle($owner, RatePlan::query()->sole(), ['room_type_id' => $details['room_type_id'], 'from' => '2026-12-12', 'to' => '2026-12-12', 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'base_price' => 25000, 'extra_adult' => 0, 'extra_child' => 0]);
         $amended = app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'departure' => '2026-12-13', 'room_id' => null, 'pricing' => 'keep']);
         expect($amended->priceLines->pluck('amount')->all())->toBe([11000, 11000, 25000]);
-        expect($amended->lifecycleEvents()->latest('sequence')->first()->snapshot['price_lines'])->toHaveCount(3);
+        expect($amended->lifecycleEvents()->reorder('sequence', 'desc')->first()->snapshot['price_lines'])->toHaveCount(3);
     });
 });
 
