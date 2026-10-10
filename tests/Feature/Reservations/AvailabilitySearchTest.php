@@ -2,7 +2,6 @@
 
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
-use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Rates\Actions\CreateRatePlan;
 use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -28,6 +27,18 @@ function availabilityRooms(TenantFixture $tenant): array
         return [$type, $plan];
     });
 }
+
+test('search rejects invalid or unbounded stays', function (array $fields, string $error) {
+    $t = twoTenants();
+    $this->actingAs($t->a->owner)->getJson(route('reservations.availability', availabilityStay($fields)))
+        ->assertUnprocessable()->assertJsonValidationErrors($error);
+})->with([
+    [['arrival' => 'not-a-date'], 'arrival'],
+    [['departure' => '2026-12-10'], 'departure'],
+    [['departure' => '2027-12-12'], 'departure'],
+    [['adults' => 0], 'adults'],
+    [['children' => -1], 'children'],
+]);
 
 test('front desk quotes every night and the stay total without booking', function () {
     $t = twoTenants();
