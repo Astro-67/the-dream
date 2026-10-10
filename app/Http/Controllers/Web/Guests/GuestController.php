@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Web\Guests;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Actions\UpdateGuest;
 use App\Domains\Guests\Models\Guest;
+use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Guests\GuestRequest;
@@ -50,7 +52,7 @@ class GuestController extends Controller
     {
         Gate::authorize('view', $guest);
 
-        return Inertia::render('guests/show', ['documents' => $guest->identityFields($request->user()?->can('viewIdentity', $guest) ?? false), 'canViewIdentity' => $request->user()?->can('viewIdentity', $guest), 'record' => ['id' => $guest->id, ...$guest->only(Guest::FIELDS)], 'canManage' => $request->user()?->can('update', $guest)]);
+        return Inertia::render('guests/show', ['stays' => Reservation::query()->whereIn('id', ReservationGuest::query()->select('reservation_id')->where('guest_id', $guest->id))->orderByDesc('arrival')->orderByDesc('id')->paginate(50)->withQueryString()->through(fn (Reservation $reservation) => ['reservation_number' => $reservation->reservation_number, 'arrival' => $reservation->arrival->toDateString(), 'departure' => $reservation->departure->toDateString(), 'status' => $reservation->status->value]), 'documents' => $guest->identityFields($request->user()?->can('viewIdentity', $guest) ?? false), 'canViewIdentity' => $request->user()?->can('viewIdentity', $guest), 'record' => ['id' => $guest->id, ...$guest->only(Guest::FIELDS)], 'canManage' => $request->user()?->can('update', $guest)]);
     }
 
     public function edit(Guest $guest, Request $request): Response
