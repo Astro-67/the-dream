@@ -1,9 +1,13 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-return new class extends Migration {
-    public function up(): void {
+
+return new class extends Migration
+{
+    public function up(): void
+    {
         Schema::create('guests', function (Blueprint $table): void {
             $table->ulid('id')->primary();
             $table->foreignUlid('organization_id')->constrained();
@@ -18,5 +22,9 @@ return new class extends Migration {
             $table->index(['organization_id', 'property_id', 'name']);
         });
     }
-    public function down(): void { Schema::dropIfExists('guests'); }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('guests');
+    }
 };

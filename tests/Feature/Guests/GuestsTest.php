@@ -1,7 +1,7 @@
 <?php
 
-use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\Booker;
+use App\Domains\Guests\Models\Guest;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia as Assert;
 

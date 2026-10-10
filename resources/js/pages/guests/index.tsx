@@ -1,2 +1,8 @@
 import { ContactIndex } from '@/features/guests/contact-pages';
-export default function Index(props: Omit<React.ComponentProps<typeof ContactIndex>, 'base' | 'title'>) { return <ContactIndex {...props} base="/guests" title="Guests" />; }
+export default function Index(
+    props: Omit<React.ComponentProps<typeof ContactIndex>, 'base' | 'title'>,
+) {
+    return <ContactIndex {...props} base="/guests" title="Guests" />;
+}
+
+Index.layout = { breadcrumbs: [{ title: 'Guests', href: '/guests' }] };

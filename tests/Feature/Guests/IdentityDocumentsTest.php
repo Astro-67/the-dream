@@ -3,6 +3,7 @@
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\IdentityDocument;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
@@ -18,7 +19,7 @@ test('identity documents are encrypted and excluded from audit and automatic ser
     foreach ($document as $field => $value) {
         $ciphertext = DB::table('identity_documents')->where('id', $identity->id)->value($field);
         expect($ciphertext)->not->toBe($value);
-        expect(Illuminate\Support\Facades\Crypt::decryptString($ciphertext))->toBe($value);
+        expect(Crypt::decryptString($ciphertext))->toBe($value);
     }
     expect($identity->toArray())->not->toHaveKeys(array_keys($document));
     $this->get(route('guests.show', $guest))->assertInertia(fn (Assert $page) => $page->where('documents.0.number', 'P-SECRET-90210'));
@@ -38,7 +39,9 @@ test('every role sees only its permitted identity fields', function (Organizatio
     } else {
         $allowed = in_array($role, [OrganizationRole::Owner, OrganizationRole::FrontDesk], true);
         $response->assertInertia(fn (Assert $page) => $page->where('canViewIdentity', $allowed)->where('documents.0.number', $allowed ? 'SECRET-PASSPORT' : '••••'));
-        if (!$allowed) $response->assertDontSee('SECRET-PASSPORT');
+        if (! $allowed) {
+            $response->assertDontSee('SECRET-PASSPORT');
+        }
     }
     $this->get(route('guests.index'))->assertDontSee('SECRET-PASSPORT');
 })->with(OrganizationRole::cases());

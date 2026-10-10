@@ -1,14 +1,22 @@
 <?php
+
 namespace App\Http\Requests\Guests;
+
 use App\Domains\Guests\Models\Booker;
 use Illuminate\Foundation\Http\FormRequest;
-class BookerRequest extends FormRequest {
-    public function authorize(): bool {
+
+class BookerRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
         $booker = $this->route('booker');
+
         return $booker instanceof Booker ? $this->user()?->can('update', $booker) ?? false : $this->user()?->can('create', Booker::class) ?? false;
     }
+
     /** @return array<string, array<string>> */
-    public function rules(): array {
+    public function rules(): array
+    {
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -18,6 +26,10 @@ class BookerRequest extends FormRequest {
             'notes' => ['nullable', 'string', 'max:5000'],
         ];
     }
+
     /** @return array<string, mixed> */
-    public function details(): array { return $this->safe()->only(Booker::FIELDS); }
+    public function details(): array
+    {
+        return $this->safe()->only(Booker::FIELDS);
+    }
 }
