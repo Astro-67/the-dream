@@ -254,3 +254,21 @@ test('amendment history paginates fifty events and retains query parameters', fu
     });
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->get(route('reservations.show', [$reservation, 'amendments_page' => 2, 'filter' => 'all']))->assertInertia(fn (Assert $page) => $page->has('amendments.data', 1)->where('amendments.total', 51)->where('amendments.current_page', 2)->where('amendments.prev_page_url', fn ($url) => str_contains($url, 'filter=all')));
 });
+
+test('standalone room assign change and clear appear with before and after in history', function () {
+    $t = twoTenants();
+    [$reservation, $first, $second] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        $first = Room::query()->sole();
+        $second = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+
+        return [app(CreateReservation::class)->handle($t->a->owner, $details), $first, $second];
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $before = null;
+    foreach ([$first->id, $second->id, null] as $index => $roomId) {
+        $this->patch(route('reservations.room-assignment', $reservation), ['_property' => $t->a->property->id, 'room_id' => $roomId])->assertSessionHasNoErrors();
+        $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->has('amendments.data', $index + 1)->where('amendments.data.'.$index.'.snapshot.before.room_id', $before)->where('amendments.data.'.$index.'.snapshot.after.room_id', $roomId)->where('amendments.data.'.$index.'.actor.name', $t->a->owner->name));
+        $before = $roomId;
+    }
+});

@@ -229,7 +229,7 @@ export type Amendment = {
     snapshot: {
         before: Record<string, unknown>;
         after: Record<string, unknown>;
-        pricing: string;
+        pricing?: string;
     };
 };
 
@@ -259,9 +259,11 @@ export function AmendmentHistory({
                         </time>
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {amendment.snapshot.pricing === 'keep'
-                            ? 'Original prices kept'
-                            : 'Future nights re-priced'}
+                        {amendment.snapshot.pricing === undefined
+                            ? 'Room assignment changed'
+                            : amendment.snapshot.pricing === 'keep'
+                              ? 'Original prices kept'
+                              : 'Future nights re-priced'}
                     </p>
                     <details>
                         <summary className="cursor-pointer">
