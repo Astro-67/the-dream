@@ -1,4 +1,8 @@
 import { RestrictionFields } from '@/features/rates/restriction-fields';
+import {
+    CalendarRoomRows,
+    type CalendarRoom,
+} from '@/features/reservations/calendar-rows';
 import { Form, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
@@ -39,6 +43,8 @@ type Row = RoomType & {
     sellable: Record<string, number>;
     outOfService: Record<string, number>;
     plans: Plan[];
+    rooms: CalendarRoom[];
+    unassigned: Record<string, number>;
 };
 type Editing = {
     kind: 'prices' | 'restrictions';
@@ -209,6 +215,20 @@ export default function RateCalendar({
                                                 </span>
                                             </span>
                                         </th>
+                                    </tr>
+                                    <CalendarRoomRows
+                                        rooms={room.rooms}
+                                        dates={dates}
+                                    />
+                                    <tr>
+                                        <th scope="row" className={label}>
+                                            Unassigned reservations
+                                        </th>
+                                        {dates.map((date) => (
+                                            <td key={date} className={cell}>
+                                                {room.unassigned[date]}
+                                            </td>
+                                        ))}
                                     </tr>
                                     <tr>
                                         <th scope="row" className={label}>

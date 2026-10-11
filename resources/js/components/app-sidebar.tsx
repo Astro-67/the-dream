@@ -26,11 +26,14 @@ import {
 import { useCan } from '@/hooks/use-can';
 import { dashboard, rateCalendar } from '@/routes';
 import { index as invitations } from '@/routes/invitations';
+import { index as guests } from '@/routes/guests';
+import { index as bookers } from '@/routes/bookers';
 import { index as members } from '@/routes/members';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
 import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
 import { index as ratePlans } from '@/routes/rate-plans';
+import { availability, index as reservations } from '@/routes/reservations';
 import { index as roomTypes } from '@/routes/room-types';
 import { index as taxRules } from '@/routes/tax-rules';
 import { index as rooms } from '@/routes/rooms';
@@ -74,6 +77,16 @@ export function AppSidebar() {
             : []),
         ...(can('reservations.view')
             ? [
+                  {
+                      title: 'Availability',
+                      href: availability(),
+                      icon: CalendarDays,
+                  },
+                  {
+                      title: 'Reservations',
+                      href: reservations(),
+                      icon: CalendarDays,
+                  },
                   { title: 'Room types', href: roomTypes(), icon: BedDouble },
                   { title: 'Rooms', href: rooms(), icon: DoorOpen },
                   { title: 'Rate plans', href: ratePlans(), icon: Tags },
@@ -83,6 +96,12 @@ export function AppSidebar() {
                       icon: CalendarDays,
                   },
                   { title: 'Taxes', href: taxRules(), icon: Percent },
+              ]
+            : []),
+        ...(can('guests.view')
+            ? [
+                  { title: 'Guests', href: guests(), icon: Users },
+                  { title: 'Bookers', href: bookers(), icon: Users },
               ]
             : []),
         ...(can('members.view')
