@@ -1,0 +1,70 @@
+name: Deploy
+
+# Deploys main to the test server once CI passes on it.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    environment: test-server
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      # Wayfinder generates TypeScript route helpers from Laravel routes during the build.
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite
+          tools: composer:v2
+          coverage: none
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Build frontend assets
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          cp .env.example .env
+          php artisan key:generate
+          touch build.sqlite
+          export DB_CONNECTION=sqlite DB_DATABASE=$PWD/build.sqlite
+          php artisan migrate --force
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519
+
+      - name: Upload assets and deploy
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          HOST: ${{ vars.DEPLOY_HOST }}
+          APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
+        run: |
+          rsync -az --delete public/build/ "$HOST:$APP_DIR/public/build.new/"
+          # Copied outside the checkout, which it rewrites while running.
+          scp scripts/deploy.sh "$HOST:deploy-thedream.sh"
+          ssh "$HOST" "bash deploy-thedream.sh $SHA $APP_DIR"
