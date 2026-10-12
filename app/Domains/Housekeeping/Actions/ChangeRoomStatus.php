@@ -10,6 +10,7 @@ use App\Domains\Inventory\Models\Room;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class ChangeRoomStatus
 {
@@ -17,7 +18,7 @@ class ChangeRoomStatus
     {
         return Audit::validationRefusal($actor, $room, 'Housekeeping status change refused', fn () => DB::transaction(function () use ($actor, $room, $to, $reason, $occupancyLifecycle) {
             if ($occupancyLifecycle) {
-                \Illuminate\Support\Facades\Validator::make(['reason' => trim($reason)], ['reason' => ['required', 'string', 'max:1000']])->validate();
+                Validator::make(['reason' => trim($reason)], ['reason' => ['required', 'string', 'max:1000']])->validate();
             }
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             $from = $status->status;

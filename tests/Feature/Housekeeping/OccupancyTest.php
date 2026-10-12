@@ -1,13 +1,19 @@
 <?php
 
-use App\Domains\Housekeeping\Actions\MarkStayoverService;
-use App\Domains\Housekeeping\Models\StayoverService;
 use App\Domains\Housekeeping\Actions\ClearRoomOccupied;
+use App\Domains\Housekeeping\Actions\MarkStayoverService;
 use App\Domains\Housekeeping\Actions\SetRoomOccupied;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
+use App\Domains\Housekeeping\Models\StayoverService;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
+use App\Domains\Tenancy\Enums\OrganizationRole;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia;
 use Tests\Support\InventoryForm;
 
 test('stayover service marking is idempotent for each explicit business date', function () {
@@ -32,13 +38,13 @@ test('occupancy actions refuse empty reasons without changing history', function
     inTenant($property, function () use ($owner) {
         $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
         $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
-        expect(fn () => app(SetRoomOccupied::class)->handle($owner, $room, ' '))->toThrow(\Illuminate\Validation\ValidationException::class);
+        expect(fn () => app(SetRoomOccupied::class)->handle($owner, $room, ' '))->toThrow(ValidationException::class);
         expect(StatusChange::query()->count())->toBe(0);
     });
 });
 
 test('the occupied board shows service only for the property local operating day fallback', function () {
-    $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-12 22:30:00 UTC'));
+    $this->travelTo(CarbonImmutable::parse('2026-10-12 22:30:00 UTC'));
     $t = twoTenants();
     $t->a->property->update(['timezone' => 'Africa/Dar_es_Salaam']);
     $room = inTenant($t->a->property, function () use ($t) {
@@ -46,15 +52,16 @@ test('the occupied board shows service only for the property local operating day
         $room = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
         app(SetRoomOccupied::class)->handle($t->a->owner, $room, 'Check-in');
         app(MarkStayoverService::class)->handle(null, $room, '2026-10-13');
+
         return $room;
     });
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
-    $this->get(route('housekeeping.index', ['status' => 'occupied']))->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page->has('rooms', 1)->where('rooms.0.status', 'occupied')->where('rooms.0.stayoverService', true)->where('businessDate', '2026-10-13'));
-    $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-13 22:30:00 UTC'));
-    $this->get(route('housekeeping.index'))->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page->where('rooms.0.stayoverService', false));
+    $this->get(route('housekeeping.index', ['status' => 'occupied']))->assertInertia(fn (AssertableInertia $page) => $page->has('rooms', 1)->where('rooms.0.status', 'occupied')->where('rooms.0.stayoverService', true)->where('businessDate', '2026-10-13'));
+    $this->travelTo(CarbonImmutable::parse('2026-10-13 22:30:00 UTC'));
+    $this->get(route('housekeeping.index'))->assertInertia(fn (AssertableInertia $page) => $page->where('rooms.0.stayoverService', false));
     inTenant($t->a->property, fn () => app(ClearRoomOccupied::class)->handle($t->a->owner, $room, 'Check-out'));
-    $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-12 22:30:00 UTC'));
-    $this->get(route('housekeeping.index'))->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page->where('rooms.0.stayoverService', false));
+    $this->travelTo(CarbonImmutable::parse('2026-10-12 22:30:00 UTC'));
+    $this->get(route('housekeeping.index'))->assertInertia(fn (AssertableInertia $page) => $page->where('rooms.0.stayoverService', false));
 });
 
 test('internal occupancy and service actions enforce their source statuses', function (HousekeepingStatus $from) {
@@ -62,12 +69,12 @@ test('internal occupancy and service actions enforce their source statuses', fun
     inTenant($property, function () use ($owner, $from) {
         $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
         $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
-        $status = \App\Domains\Housekeeping\Models\RoomStatus::query()->sole();
+        $status = RoomStatus::query()->sole();
         $status->update(['status' => $from]);
         if (in_array($from, [HousekeepingStatus::Clean, HousekeepingStatus::Dirty, HousekeepingStatus::InspectionRequired], true)) {
             expect(app(SetRoomOccupied::class)->handle($owner, $room, 'Check-in')->status)->toBe(HousekeepingStatus::Occupied);
         } else {
-            expect(fn () => app(SetRoomOccupied::class)->handle($owner, $room, 'Check-in'))->toThrow(\Illuminate\Validation\ValidationException::class);
+            expect(fn () => app(SetRoomOccupied::class)->handle($owner, $room, 'Check-in'))->toThrow(ValidationException::class);
             expect(StatusChange::query()->count())->toBe(0);
         }
         $status->refresh()->update(['status' => $from]);
@@ -76,17 +83,18 @@ test('internal occupancy and service actions enforce their source statuses', fun
             expect(app(ClearRoomOccupied::class)->handle(null, $room, 'Check-out')->status)->toBe(HousekeepingStatus::Dirty);
         } else {
             $count = StatusChange::query()->count();
-            expect(fn () => app(ClearRoomOccupied::class)->handle($owner, $room, 'Check-out'))->toThrow(\Illuminate\Validation\ValidationException::class);
-            expect(fn () => app(MarkStayoverService::class)->handle(null, $room, '2026-10-12'))->toThrow(\Illuminate\Validation\ValidationException::class);
+            expect(fn () => app(ClearRoomOccupied::class)->handle($owner, $room, 'Check-out'))->toThrow(ValidationException::class);
+            expect(fn () => app(MarkStayoverService::class)->handle(null, $room, '2026-10-12'))->toThrow(ValidationException::class);
             expect(StatusChange::query()->count())->toBe($count)->and(StayoverService::query()->count())->toBe(0)->and($status->fresh()->status)->toBe($from);
         }
     });
 })->with(HousekeepingStatus::cases());
 
-test('staff cannot enter or leave occupied even with lifecycle input', function (\App\Domains\Tenancy\Enums\OrganizationRole $role) {
+test('staff cannot enter or leave occupied even with lifecycle input', function (OrganizationRole $role) {
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
         return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
     });
     $this->actingAs($t->a->member($role));
@@ -97,9 +105,9 @@ test('staff cannot enter or leave occupied even with lifecycle input', function 
         $this->patchJson(route('housekeeping.status', $room->id), [...$payload, 'status' => $to->value])->assertUnprocessable()->assertJsonValidationErrors('status');
     }
     inTenant($t->a->property, function () {
-        expect(\App\Domains\Housekeeping\Models\RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Occupied)->and(StatusChange::query()->count())->toBe(1);
+        expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Occupied)->and(StatusChange::query()->count())->toBe(1);
     });
-})->with([\App\Domains\Tenancy\Enums\OrganizationRole::Owner, \App\Domains\Tenancy\Enums\OrganizationRole::GroupOperationsManager, \App\Domains\Tenancy\Enums\OrganizationRole::PropertyManager, \App\Domains\Tenancy\Enums\OrganizationRole::Housekeeping]);
+})->with([OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager, OrganizationRole::Housekeeping]);
 
 test('service marking refuses invalid business dates', function () {
     [$owner, , $property] = organizationWithOwner();
@@ -108,7 +116,7 @@ test('service marking refuses invalid business dates', function () {
         $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
         app(SetRoomOccupied::class)->handle($owner, $room, 'Check-in');
         foreach (['2026-02-30', 'tomorrow', '2026-10-12 00:00:00', ''] as $date) {
-            expect(fn () => app(MarkStayoverService::class)->handle(null, $room, $date))->toThrow(\Illuminate\Validation\ValidationException::class);
+            expect(fn () => app(MarkStayoverService::class)->handle(null, $room, $date))->toThrow(ValidationException::class);
         }
         expect(StayoverService::query()->count())->toBe(0);
     });
@@ -119,14 +127,15 @@ test('internal actions cannot mutate rooms outside the current property', functi
     foreach ([$t->a->otherProperty, $t->b->property] as $property) {
         $room = inTenant($property, function () use ($t) {
             $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
             return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
         });
         inTenant($t->a->property, function () use ($t, $room) {
-            expect(fn () => app(SetRoomOccupied::class)->handle($t->a->owner, $room, 'Attempt'))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
-            expect(fn () => app(ClearRoomOccupied::class)->handle($t->a->owner, $room, 'Attempt'))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
-            expect(fn () => app(MarkStayoverService::class)->handle(null, $room, '2026-10-12'))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+            expect(fn () => app(SetRoomOccupied::class)->handle($t->a->owner, $room, 'Attempt'))->toThrow(ModelNotFoundException::class);
+            expect(fn () => app(ClearRoomOccupied::class)->handle($t->a->owner, $room, 'Attempt'))->toThrow(ModelNotFoundException::class);
+            expect(fn () => app(MarkStayoverService::class)->handle(null, $room, '2026-10-12'))->toThrow(ModelNotFoundException::class);
         });
-        inTenant($property, fn () => expect(\App\Domains\Housekeeping\Models\RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Dirty)->and(StatusChange::query()->count())->toBe(0)->and(StayoverService::query()->count())->toBe(0));
+        inTenant($property, fn () => expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Dirty)->and(StatusChange::query()->count())->toBe(0)->and(StayoverService::query()->count())->toBe(0));
     }
 });
 

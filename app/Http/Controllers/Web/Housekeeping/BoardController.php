@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Housekeeping;
 
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Housekeeping\Models\StayoverService;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -29,7 +30,7 @@ class BoardController extends Controller
         ]);
         // ponytail: local calendar date until Spec 7 supplies the open business date.
         $businessDate = now(Tenancy::property()?->timezone)->toDateString();
-        $serviceRooms = \App\Domains\Housekeeping\Models\StayoverService::query()->whereDate('business_date', $businessDate)->pluck('room_id');
+        $serviceRooms = StayoverService::query()->whereDate('business_date', $businessDate)->pluck('room_id');
         $rooms = RoomStatus::query()->with('room.roomType')->get()->sortBy(fn (RoomStatus $status) => $status->room->number)->values();
         $floors = $rooms->map(fn (RoomStatus $status) => $status->room->floor)->unique()->sort()->values();
 
