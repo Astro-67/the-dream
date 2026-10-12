@@ -30,6 +30,32 @@ test('the board filters status and floor without showing another property', func
     $this->getJson(route('housekeeping.index', ['status' => 'invented']))->assertUnprocessable();
 });
 
+test('each role can only change statuses with housekeeping manage and read history with view', function (OrganizationRole $role) {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, function () use ($t) {
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->member($role));
+    $allowed = in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager, OrganizationRole::Housekeeping], true);
+    $response = $this->patch(route('housekeeping.status', $room->id), ['_property' => $t->a->property->id, 'status' => 'clean', 'reason' => 'Cleaning completed']);
+    if ($allowed) {
+        $response->assertRedirect()->assertSessionHasNoErrors();
+        $this->patch(route('housekeeping.status', $room->id), ['_property' => $t->a->property->id, 'status' => 'dirty', 'reason' => 'Spill'])->assertSessionHasNoErrors();
+    } else {
+        $response->assertForbidden();
+    }
+    $history = $this->get(route('housekeeping.history', $room->id));
+    if ($role === OrganizationRole::Finance) {
+        $history->assertForbidden();
+    } else {
+        $history->assertOk()->assertInertia(fn (Assert $page) => $page->component('housekeeping/history')->where('room.number', '101')->has('changes.data', $allowed ? 2 : 0)->missing('guests')->missing('folios')->missing('priceLines'));
+        if ($allowed) {
+            $history->assertInertia(fn (Assert $page) => $page->where('changes.data.0.reason', 'Spill')->where('changes.data.0.from', 'Clean')->where('changes.data.0.to', 'Dirty')->where('changes.data.0.actor', $t->a->member($role)->name)->has('changes.data.0.changedAt'));
+        }
+    }
+})->with(OrganizationRole::cases());
+
 test('the housekeeping board lists room status type and floor for each permitted role', function (OrganizationRole $role) {
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {

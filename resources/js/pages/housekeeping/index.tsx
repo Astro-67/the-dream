@@ -1,7 +1,7 @@
 import { Form, Head } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { NativeSelect } from '@/components/ui/select';
 import type { SelectOption } from '@/types';
 import Heading from '@/components/heading';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -25,8 +25,8 @@ export default function HousekeepingBoard({ rooms, filters, statuses, floors }: 
         <div className="flex flex-col gap-6 p-4 md:p-6">
             <Heading title="Housekeeping" description="Room status across this property." />
             <Form {...index.form()} className="flex flex-wrap items-end gap-4">
-                <div className="grid gap-2"><Label htmlFor="status">Status</Label><NativeSelect id="status" name="status" defaultValue={filters.status}><NativeSelectOption value="">All statuses</NativeSelectOption>{statuses.map(option => <NativeSelectOption key={option.value} value={option.value}>{option.label}</NativeSelectOption>)}</NativeSelect></div>
-                <div className="grid gap-2"><Label htmlFor="floor">Floor</Label><NativeSelect id="floor" name="floor" defaultValue={filters.floor}><NativeSelectOption value="">All floors</NativeSelectOption>{floors.map(option => <NativeSelectOption key={option.value} value={option.value}>{option.label}</NativeSelectOption>)}</NativeSelect></div>
+                <div className="grid gap-2"><Label htmlFor="status">Status</Label><NativeSelect id="status" name="status" defaultValue={filters.status}><option value="">All statuses</option>{statuses.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</NativeSelect></div>
+                <div className="grid gap-2"><Label htmlFor="floor">Floor</Label><NativeSelect id="floor" name="floor" defaultValue={filters.floor}><option value="">All floors</option>{floors.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</NativeSelect></div>
                 <Button type="submit">Filter</Button>
             </Form>
             {rooms.length === 0 ? <EmptyState message="No rooms." /> : <Table>
