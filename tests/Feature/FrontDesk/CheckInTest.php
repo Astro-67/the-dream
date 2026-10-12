@@ -53,6 +53,20 @@ test('front desk checks in a ready arrival, marking the room occupied and record
     });
 });
 
+test('only reservation managers may check in', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    $this->actingAs($t->a->member($role))->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])->assertStatus($allowed ? 302 : 403);
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe($allowed ? ReservationStatus::CheckedIn : ReservationStatus::Confirmed));
+})->with(array_map(fn ($role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager, OrganizationRole::FrontDesk], true)], OrganizationRole::cases()));
+
+test('check-in requires the opening property intent', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    $this->actingAs($t->a->owner)->postJson(route('reservations.check-in', $reservation))->assertUnprocessable()->assertJsonValidationErrors('_property');
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed));
+});
+
 /** Posts check-in and asserts it was refused on $field with nothing changed. */
 function assertCheckInRefused(TenantFixture $tenant, Reservation $reservation, string $field): void
 {
