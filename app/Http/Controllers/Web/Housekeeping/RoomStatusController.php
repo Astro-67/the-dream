@@ -29,6 +29,7 @@ class RoomStatusController extends Controller
                     'id' => $change->id, 'from' => $change->from_status->label(), 'to' => $change->to_status->label(),
                     'reason' => $change->reason, 'actor' => $change->actor->name ?? __('System'),
                     'changedAt' => $change->changed_at->toIso8601String(),
+                    'changedOn' => $change->changed_at->setTimezone(Tenancy::property()?->timezone ?? 'UTC')->toDateString(),
                 ]),
             'timezone' => Tenancy::property()?->timezone,
         ]);

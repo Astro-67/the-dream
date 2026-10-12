@@ -109,6 +109,21 @@ test('housekeeping responses contain no guest identities or reservation financia
     $this->get(route('reservations.index'))->assertForbidden();
 });
 
+test('room history paginates newest first in the property timezone', function () {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, function () use ($t) {
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+        for ($i = 1; $i <= 51; $i++) {
+            app(ChangeRoomStatus::class)->handle($t->a->owner, $room, $i % 2 ? HousekeepingStatus::Clean : HousekeepingStatus::Dirty, 'Change '.$i);
+        }
+        return $room;
+    });
+    $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
+    $this->get(route('housekeeping.history', $room->id))->assertInertia(fn (Assert $page) => $page->has('changes.data', 50)->where('changes.total', 51)->where('changes.data.0.reason', 'Change 51')->where('timezone', 'Africa/Dar_es_Salaam')->has('changes.data.0.changedOn'));
+    $this->get(route('housekeeping.history', [$room->id, 'page' => 2]))->assertInertia(fn (Assert $page) => $page->has('changes.data', 1)->where('changes.data.0.reason', 'Change 1'));
+});
+
 test('the housekeeping board lists room status type and floor for each permitted role', function (OrganizationRole $role) {
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {

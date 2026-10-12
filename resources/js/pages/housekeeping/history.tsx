@@ -21,6 +21,7 @@ type Change = {
     reason: string;
     actor: string;
     changedAt: string;
+    changedOn: string;
 };
 
 export default function RoomHistory({
@@ -58,14 +59,7 @@ export default function RoomHistory({
                                 {changes.data.map((change) => (
                                     <TableRow key={change.id}>
                                         <TableCell className="tabular-nums">
-                                            {formatDate(
-                                                new Intl.DateTimeFormat(
-                                                    'en-CA',
-                                                    { timeZone: timezone },
-                                                ).format(
-                                                    new Date(change.changedAt),
-                                                ),
-                                            )}{' '}
+                                            {formatDate(change.changedOn)}{' '}
                                             {formatTime(
                                                 change.changedAt,
                                                 timezone,
