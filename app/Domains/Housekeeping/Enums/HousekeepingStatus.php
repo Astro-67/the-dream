@@ -10,6 +10,17 @@ enum HousekeepingStatus: string
     case InspectionRequired = 'inspection_required';
     case Unavailable = 'unavailable';
 
+    public function tone(): string
+    {
+        return match ($this) {
+            self::Dirty => 'warning',
+            self::Clean => 'success',
+            self::Occupied => 'occupied',
+            self::InspectionRequired => 'inspection',
+            self::Unavailable => 'unavailable',
+        };
+    }
+
     public function label(): string
     {
         return match ($this) {

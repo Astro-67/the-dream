@@ -31,6 +31,7 @@ class RoomStatusController extends Controller
                 ->through(fn (StatusChange $change) => [
                     'kind' => $change->kind, 'businessDate' => $change->business_date?->toDateString(),
                     'id' => $change->id, 'from' => $change->from_status->label(), 'to' => $change->to_status->label(),
+                    'fromTone' => $change->from_status->tone(), 'toTone' => $change->to_status->tone(),
                     'reason' => $change->reason, 'actor' => $change->actor->name ?? __('System'),
                     'changedAt' => $change->changed_at->toIso8601String(),
                     'changedOn' => $change->changed_at->setTimezone(Tenancy::property()->timezone ?? 'UTC')->toDateString(),

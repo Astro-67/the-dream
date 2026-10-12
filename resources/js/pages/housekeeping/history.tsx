@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { StatusChip, type StatusTone } from '@/components/ui/status-chip';
 import Heading from '@/components/heading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pagination } from '@/components/ui/pagination';
@@ -20,6 +21,8 @@ type Change = {
     businessDate: string | null;
     from: string;
     to: string;
+    fromTone: StatusTone;
+    toTone: StatusTone;
     reason: string;
     actor: string;
     changedAt: string;
@@ -75,8 +78,8 @@ export default function RoomHistory({
                                                 ? `Ready override · Business date ${formatDate(change.businessDate!)}`
                                                 : 'Status change'}
                                         </TableCell>
-                                        <TableCell>{change.from}</TableCell>
-                                        <TableCell>{change.to}</TableCell>
+                                        <TableCell><StatusChip tone={change.fromTone}>{change.from}</StatusChip></TableCell>
+                                        <TableCell><StatusChip tone={change.toTone}>{change.to}</StatusChip></TableCell>
                                         <TableCell>{change.actor}</TableCell>
                                         <TableCell className="whitespace-normal">
                                             {change.reason}
