@@ -1,17 +1,24 @@
 <?php
 
+use App\Domains\Guests\Models\Guest;
+use App\Domains\Housekeeping\Actions\AssignRoom;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
+use App\Domains\Inventory\Models\Room;
+use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 
 test('housekeepers see only their own rooms today and complete cleaning once with history', function () {
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-11 22:30:00', 'UTC'));
+    $this->travelTo(Carbon::parse('2026-10-11 22:30:00', 'UTC'));
     $t = twoTenants();
     $housekeeper = $t->a->member(OrganizationRole::Housekeeping);
     $room = inTenant($t->a->property, function () use ($t) {
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
         return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
     });
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
@@ -31,6 +38,7 @@ test('assignment permissions match each role and housekeepers cannot operate ano
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
         return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
     });
     $this->actingAs($t->a->member($role));
@@ -44,6 +52,7 @@ test('assignment recipients must have cleaning permission and access to the inte
     $t = twoTenants();
     $room = inTenant($t->a->otherProperty, function () use ($t) {
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
         return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
     });
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->otherProperty->id])->actingAs($t->a->owner);
@@ -58,7 +67,8 @@ test('housekeepers cannot complete or remove other assignments or reach another 
     $assignment = inTenant($t->a->property, function () use ($t) {
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
         $room = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
-        return app(\App\Domains\Housekeeping\Actions\AssignRoom::class)->handle($t->a->owner, $room, $t->a->owner->id, '2026-10-12');
+
+        return app(AssignRoom::class)->handle($t->a->owner, $room, $t->a->owner->id, '2026-10-12');
     });
     $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
     $this->get('/housekeeping/my-rooms?date=2026-10-12&housekeeper_id='.$t->a->owner->id)->assertInertia(fn (Assert $page) => $page->has('assignments', 0));
@@ -68,10 +78,28 @@ test('housekeepers cannot complete or remove other assignments or reach another 
     expect(inTenant($t->a->property, fn () => $assignment->fresh()->completed_at))->toBeNull();
 });
 
+test('assignment pages exclude guest identities and reservation financial data', function () {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, function () use ($t) {
+        $guest = Guest::query()->create(['name' => 'PRIVATE-GUEST']);
+        $guest->documents()->create(['type' => 'passport', 'number' => 'SECRET-PASSPORT', 'nationality' => 'TZ', 'issuing_country' => 'TZ', 'expiry' => '2030-12-31']);
+        app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $room = Room::query()->sole();
+        app(AssignRoom::class)->handle($t->a->owner, $room, $t->a->member(OrganizationRole::Housekeeping)->id, '2026-10-12');
+
+        return $room;
+    });
+    foreach ([['/housekeeping/my-rooms', $t->a->member(OrganizationRole::Housekeeping)], ['/housekeeping/assignments', $t->a->owner]] as [$url, $user]) {
+        $this->actingAs($user)->get($url.'?date=2026-10-12')->assertOk()->assertDontSee('PRIVATE-GUEST')->assertDontSee('SECRET-PASSPORT')->assertDontSee('Travel Booker')
+            ->assertInertia(fn (Assert $page) => $page->has('assignments', 1)->missing('guests')->missing('documents')->missing('folios')->missing('payments')->missing('priceLines')->missing('reservations')->where('assignments.0.room.id', $room->id));
+    }
+});
+
 test('supervisors assign and unassign a room for a business date without duplicating it', function () {
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
         return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
     });
     $housekeeper = $t->a->member(OrganizationRole::Housekeeping);
