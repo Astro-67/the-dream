@@ -3,6 +3,7 @@
 namespace App\Domains\Housekeeping\Actions;
 
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Enums\TransitionSource;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Inventory\Models\OutOfServicePeriod;
@@ -27,10 +28,10 @@ class SyncRoomServiceStatus
             $period = $this->activePeriod($room);
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             if ($period !== null && $status->status !== HousekeepingStatus::Unavailable) {
-                return app(ChangeRoomStatus::class)->handle($actor, $room, HousekeepingStatus::Unavailable, $period->reason, serviceChanged: true);
+                return app(ChangeRoomStatus::class)->handle($actor, $room, HousekeepingStatus::Unavailable, $period->reason, source: TransitionSource::ServicePeriod);
             }
             if ($period === null && $status->status === HousekeepingStatus::Unavailable) {
-                return app(ChangeRoomStatus::class)->handle($actor, $room, HousekeepingStatus::Dirty, __('Room returned to service.'), serviceChanged: true);
+                return app(ChangeRoomStatus::class)->handle($actor, $room, HousekeepingStatus::Dirty, __('Room returned to service.'), source: TransitionSource::ServicePeriod);
             }
 
             return $status;

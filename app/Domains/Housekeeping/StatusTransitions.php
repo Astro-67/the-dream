@@ -3,14 +3,15 @@
 namespace App\Domains\Housekeeping;
 
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Enums\TransitionSource;
 use Illuminate\Validation\ValidationException;
 
 /** The single owner of permitted housekeeping transitions. */
 class StatusTransitions
 {
-    public function ensureAllowed(HousekeepingStatus $from, HousekeepingStatus $to, bool $inspectionRequired = false, bool $occupancyLifecycle = false, bool $serviceChanged = false): void
+    public function ensureAllowed(HousekeepingStatus $from, HousekeepingStatus $to, bool $inspectionRequired = false, TransitionSource $source = TransitionSource::Housekeeping): void
     {
-        $allowed = $serviceChanged ? ($to === HousekeepingStatus::Unavailable || ($from === HousekeepingStatus::Unavailable && $to === HousekeepingStatus::Dirty)) : ($occupancyLifecycle ? (
+        $allowed = $source === TransitionSource::ServicePeriod ? ($to === HousekeepingStatus::Unavailable || ($from === HousekeepingStatus::Unavailable && $to === HousekeepingStatus::Dirty)) : ($source === TransitionSource::OccupancyLifecycle ? (
             ($to === HousekeepingStatus::Occupied && in_array($from, [HousekeepingStatus::Clean, HousekeepingStatus::Dirty, HousekeepingStatus::InspectionRequired], true))
             || ($from === HousekeepingStatus::Occupied && $to === HousekeepingStatus::Dirty)
         ) : match ($from) {
