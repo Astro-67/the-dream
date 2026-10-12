@@ -78,8 +78,16 @@ export default function RoomHistory({
                                                 ? `Ready override · Business date ${formatDate(change.businessDate!)}`
                                                 : 'Status change'}
                                         </TableCell>
-                                        <TableCell><StatusChip tone={change.fromTone}>{change.from}</StatusChip></TableCell>
-                                        <TableCell><StatusChip tone={change.toTone}>{change.to}</StatusChip></TableCell>
+                                        <TableCell>
+                                            <StatusChip tone={change.fromTone}>
+                                                {change.from}
+                                            </StatusChip>
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatusChip tone={change.toTone}>
+                                                {change.to}
+                                            </StatusChip>
+                                        </TableCell>
                                         <TableCell>{change.actor}</TableCell>
                                         <TableCell className="whitespace-normal">
                                             {change.reason}
