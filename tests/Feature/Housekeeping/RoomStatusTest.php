@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Housekeeping\Actions\ChangeRoomStatus;
+use App\Domains\Housekeeping\Models\StatusChange;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
@@ -24,6 +26,28 @@ test('existing rooms in different properties are backfilled dirty', function () 
             expect(RoomStatus::query()->where('room_id', $room->id)->sole()->status)->toBe(HousekeepingStatus::Dirty);
         });
     }
+});
+
+test('cleaning and dirtying a room records actor time statuses and reason', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        $before = $room->fresh()->getAttributes();
+        app(ChangeRoomStatus::class)->handle($owner, $room, HousekeepingStatus::Clean, 'Cleaning completed');
+        app(ChangeRoomStatus::class)->handle($owner, $room, HousekeepingStatus::Dirty, 'Needs another clean');
+        $changes = StatusChange::query()->where('room_id', $room->id)->orderBy('id')->get();
+        expect($changes)->toHaveCount(2)
+            ->and($changes[0]->from_status)->toBe(HousekeepingStatus::Dirty)
+            ->and($changes[0]->to_status)->toBe(HousekeepingStatus::Clean)
+            ->and($changes[0]->actor_id)->toBe($owner->id)
+            ->and($changes[0]->changed_at)->not->toBeNull()
+            ->and($changes[0]->reason)->toBe('Cleaning completed')
+            ->and($changes[1]->from_status)->toBe(HousekeepingStatus::Clean)
+            ->and($changes[1]->to_status)->toBe(HousekeepingStatus::Dirty)
+            ->and(RoomStatus::query()->where('room_id', $room->id)->sole()->status)->toBe(HousekeepingStatus::Dirty)
+            ->and($room->fresh()->getAttributes())->toBe($before);
+    });
 });
 
 test('new rooms start dirty without changing their inventory attributes', function () {
