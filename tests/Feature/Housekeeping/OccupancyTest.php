@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Housekeeping\Actions\MarkStayoverService;
+use App\Domains\Housekeeping\Models\StayoverService;
 use App\Domains\Housekeeping\Actions\ClearRoomOccupied;
 use App\Domains\Housekeeping\Actions\SetRoomOccupied;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
@@ -7,6 +9,23 @@ use App\Domains\Housekeeping\Models\StatusChange;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use Tests\Support\InventoryForm;
+
+test('stayover service marking is idempotent for each explicit business date', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        app(SetRoomOccupied::class)->handle($owner, $room, 'Check-in');
+        $first = app(MarkStayoverService::class)->handle($owner, $room, '2026-10-12');
+        $again = app(MarkStayoverService::class)->handle(null, $room, '2026-10-12');
+        app(MarkStayoverService::class)->handle(null, $room, '2026-10-13');
+        expect($again->id)->toBe($first->id)
+            ->and($first->actor_id)->toBe($owner->id)
+            ->and($first->business_date->toDateString())->toBe('2026-10-12')
+            ->and(StayoverService::query()->count())->toBe(2)
+            ->and(StatusChange::query()->count())->toBe(1);
+    });
+});
 
 test('internal occupancy actions record the actor and reason without writing Inventory', function () {
     [$owner, , $property] = organizationWithOwner();
