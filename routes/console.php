@@ -1,9 +1,9 @@
 <?php
 
 use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
-use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Actions\RecalculateInventory;
 use App\Domains\Inventory\Exceptions\InventoryRefused;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;

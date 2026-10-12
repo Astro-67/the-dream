@@ -8,6 +8,7 @@ use App\Domains\Inventory\Actions\ChangeOutOfServicePeriod;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Actions\TakeRoomOutOfService;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\InventoryForm;
 
@@ -55,13 +56,12 @@ test('changing and shortening periods reconciles status without duplicate histor
     });
 });
 
-
 test('automatic rollover follows each property local date and is idempotent', function () {
     $t = twoTenants();
     $this->travelTo(new DateTimeImmutable('2026-10-12 20:59:00 UTC'));
     $t->a->otherProperty->update(['timezone' => 'America/New_York']);
     foreach ([$t->a->property, $t->a->otherProperty, $t->b->property] as $property) {
-        inTenant($property, function () use ($t) {
+        inTenant($property, function () {
             $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
             $room = app(CreateRoom::class)->handle(null, InventoryForm::room($type->id));
             app(TakeRoomOutOfService::class)->handle(null, $room, ['starts_on' => '2026-10-13', 'returns_on' => '2026-10-14', 'reason' => 'Repair']);
@@ -87,7 +87,6 @@ test('automatic rollover follows each property local date and is idempotent', fu
     expect(inTenant($t->a->otherProperty, fn () => RoomStatus::query()->sole()->status))->toBe(HousekeepingStatus::Unavailable);
 });
 
-
 test('manual cleaning is refused as soon as a period starts even before the scheduled sweep', function () {
     $t = twoTenants();
     $this->travelTo(new DateTimeImmutable('2026-10-12 20:59:00 UTC'));
@@ -107,5 +106,41 @@ test('manual cleaning is refused as soon as a period starts even before the sche
     }
     inTenant($t->a->property, function () {
         expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Unavailable)->and(StatusChange::query()->count())->toBe(1);
+    });
+});
+
+test('out of service supersedes every housekeeping status transactionally', function (HousekeepingStatus $from) {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $from) {
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        RoomStatus::query()->sole()->update(['status' => $from]);
+        $before = $room->fresh()->getAttributes();
+        app(TakeRoomOutOfService::class)->handle($owner, $room, ['starts_on' => '2026-10-13', 'returns_on' => '2026-10-14', 'reason' => 'Repair']);
+        expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Unavailable)
+            ->and($room->fresh()->getAttributes())->toBe($before);
+        if ($from === HousekeepingStatus::Unavailable) {
+            expect(StatusChange::query()->count())->toBe(0);
+        } else {
+            expect(StatusChange::query()->sole()->from_status)->toBe($from);
+        }
+    });
+})->with(HousekeepingStatus::cases());
+
+test('rolling back service creation also rolls back housekeeping status and history', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        try {
+            DB::transaction(function () use ($owner, $room) {
+                app(TakeRoomOutOfService::class)->handle($owner, $room, ['starts_on' => '2026-10-13', 'returns_on' => '2026-10-14', 'reason' => 'Repair']);
+                throw new RuntimeException('Abort outer transaction');
+            });
+        } catch (RuntimeException $exception) {
+            expect($exception->getMessage())->toBe('Abort outer transaction');
+        }
+        expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Dirty)
+            ->and(StatusChange::query()->count())->toBe(0)->and($room->outOfServicePeriods()->count())->toBe(0);
     });
 });
