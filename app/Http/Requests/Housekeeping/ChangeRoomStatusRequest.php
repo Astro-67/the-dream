@@ -20,9 +20,7 @@ class ChangeRoomStatusRequest extends FormRequest
 
         $status = RoomStatus::query()->where('room_id', $room->id)->sole();
 
-        return $status->status === HousekeepingStatus::InspectionRequired
-            ? ($this->user()?->can('supervise', RoomStatus::class) ?? false)
-            : ($this->user()?->can('update', $status) ?? false);
+        return $this->user()?->can('update', $status) ?? false;
     }
 
     /** @return array<string, ValidationRule|array<mixed>|string> */

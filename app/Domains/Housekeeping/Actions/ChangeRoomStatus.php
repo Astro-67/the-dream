@@ -13,7 +13,6 @@ use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -32,7 +31,6 @@ class ChangeRoomStatus
                 throw ValidationException::withMessages(['status' => __('The room is out of service. Change its service period before changing housekeeping status.')]);
             }
             if (! $serviceChanged && ! $occupancyLifecycle && $from === HousekeepingStatus::InspectionRequired) {
-                Gate::forUser($actor)->authorize('supervise', RoomStatus::class);
                 if ($to === HousekeepingStatus::Dirty && trim($reason) === '') {
                     throw ValidationException::withMessages(['reason' => __('A reason is required for a failed inspection.')]);
                 }

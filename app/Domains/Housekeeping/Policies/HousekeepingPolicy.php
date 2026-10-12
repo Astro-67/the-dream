@@ -2,6 +2,7 @@
 
 namespace App\Domains\Housekeeping\Policies;
 
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Tenancy\Enums\OrganizationPermission as P;
 use App\Models\User;
@@ -22,7 +23,9 @@ class HousekeepingPolicy
 
     public function update(User $user, RoomStatus $status): bool
     {
-        return Access::allows($user, P::HousekeepingManage, $status);
+        return $status->status === HousekeepingStatus::InspectionRequired
+            ? Access::allows($user, P::HousekeepingSupervise, $status)
+            : Access::allows($user, P::HousekeepingManage, $status);
     }
 
     public function overrideReady(User $user, RoomStatus $status): bool
