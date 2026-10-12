@@ -86,3 +86,26 @@ test('automatic rollover follows each property local date and is idempotent', fu
     });
     expect(inTenant($t->a->otherProperty, fn () => RoomStatus::query()->sole()->status))->toBe(HousekeepingStatus::Unavailable);
 });
+
+
+test('manual cleaning is refused as soon as a period starts even before the scheduled sweep', function () {
+    $t = twoTenants();
+    $this->travelTo(new DateTimeImmutable('2026-10-12 20:59:00 UTC'));
+    $room = inTenant($t->a->property, function () {
+        $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle(null, InventoryForm::room($type->id));
+        app(TakeRoomOutOfService::class)->handle(null, $room, ['starts_on' => '2026-10-13', 'returns_on' => '2026-10-14', 'reason' => 'Repair']);
+
+        return $room;
+    });
+    $this->travelTo(new DateTimeImmutable('2026-10-12 21:00:00 UTC'));
+    $this->actingAs($t->a->owner)->patchJson(route('housekeeping.status', $room->id), ['_property' => $t->a->property->id, 'status' => 'clean', 'reason' => 'Done'])->assertUnprocessable()->assertJsonValidationErrors('status');
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('housekeeping.index'))->assertInertia(fn (Assert $page) => $page->where('rooms.0.status', 'unavailable'));
+    foreach (['dirty', 'clean', 'occupied', 'inspection_required'] as $status) {
+        $this->patchJson(route('housekeeping.status', $room->id), ['_property' => $t->a->property->id, 'status' => $status, 'reason' => 'Attempt'])->assertUnprocessable()->assertJsonValidationErrors('status');
+    }
+    inTenant($t->a->property, function () {
+        expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Unavailable)->and(StatusChange::query()->count())->toBe(1);
+    });
+});

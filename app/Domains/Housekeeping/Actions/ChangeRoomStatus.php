@@ -10,6 +10,7 @@ use App\Domains\Inventory\Models\Room;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ChangeRoomStatus
 {
@@ -19,6 +20,9 @@ class ChangeRoomStatus
             $room = Room::query()->whereKey($room->id)->lockForUpdate()->firstOrFail();
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             $from = $status->status;
+            if (! $serviceChanged && app(SyncRoomServiceStatus::class)->activePeriod($room) !== null) {
+                throw ValidationException::withMessages(['status' => __('The room is out of service. Change its service period before changing housekeeping status.')]);
+            }
             app(StatusTransitions::class)->ensureAllowed($from, $to, $serviceChanged);
             $status->update(['status' => $to]);
             $change = new StatusChange([

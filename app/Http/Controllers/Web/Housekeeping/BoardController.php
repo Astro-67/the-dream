@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Housekeeping;
 
+use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
@@ -27,6 +28,7 @@ class BoardController extends Controller
             'status' => ['nullable', Rule::enum(HousekeepingStatus::class)],
             'floor' => ['nullable', 'string', 'max:16'],
         ]);
+        RoomStatus::query()->with('room')->each(fn (RoomStatus $status) => app(SyncRoomServiceStatus::class)->handle(null, $status->room));
         $rooms = RoomStatus::query()->with('room.roomType')->get()->sortBy(fn (RoomStatus $status) => $status->room->number)->values();
         $floors = $rooms->map(fn (RoomStatus $status) => $status->room->floor)->unique()->sort()->values();
 
