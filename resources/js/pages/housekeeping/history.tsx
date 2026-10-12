@@ -30,10 +30,12 @@ export default function RoomHistory({
     room,
     changes,
     timezone,
+    businessDate,
 }: {
     room: { id: string; number: string };
     changes: Paginated<Change>;
     timezone: string;
+    businessDate: string;
 }) {
     return (
         <>
@@ -41,7 +43,7 @@ export default function RoomHistory({
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <Heading
                     title={`Room ${room.number} history`}
-                    description={`Status changes and readiness overrides, newest first. Times in ${timezone}.`}
+                    description={`Status changes and readiness overrides, newest first. Times in ${timezone}. Business date ${formatDate(businessDate)}.`}
                 />
                 {changes.data.length === 0 ? (
                     <EmptyState message="No room history yet." />

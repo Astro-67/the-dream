@@ -174,6 +174,7 @@ function ReadyOverride({ room }: { room: RoomRow }) {
 
 export default function HousekeepingBoard({
     rooms,
+    businessDate,
     filters,
     statuses,
     floors,
@@ -184,6 +185,7 @@ export default function HousekeepingBoard({
     canOverrideReady,
 }: {
     rooms: RoomRow[];
+    businessDate: string;
     filters: { status: string; floor: string };
     statuses: SelectOption[];
     floors: SelectOption[];
@@ -199,7 +201,7 @@ export default function HousekeepingBoard({
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <Heading
                     title="Housekeeping"
-                    description="Room status across this property."
+                    description={`Room status across this property. Business date ${formatDate(businessDate)}.`}
                 />
                 <Form
                     {...index.form()}
