@@ -4,6 +4,7 @@ use App\Domains\Housekeeping\Actions\ChangeRoomStatus;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
+use App\Domains\Inventory\Actions\ChangeOutOfServicePeriod;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Actions\TakeRoomOutOfService;
@@ -30,4 +31,26 @@ test('taking a room out of service updates the board and records the actor and r
     });
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)
         ->get(route('housekeeping.index'))->assertInertia(fn (Assert $page) => $page->where('rooms.0.status', 'unavailable'));
+});
+
+test('changing and shortening periods reconciles status without duplicate history', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        $period = app(TakeRoomOutOfService::class)->handle($owner, $room, ['starts_on' => '2026-10-14', 'returns_on' => '2026-10-16', 'reason' => 'Repair']);
+        expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Dirty)->and(StatusChange::query()->count())->toBe(0);
+        $action = app(ChangeOutOfServicePeriod::class);
+        $active = ['starts_on' => '2026-10-12', 'returns_on' => '2026-10-16', 'reason' => 'Repair'];
+        $action->handle($owner, $period, $active);
+        expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Unavailable);
+        $action->handle($owner, $period, $active);
+        $action->handle($owner, $period, [...$active, 'reason' => 'Plumbing repair']);
+        expect(StatusChange::query()->count())->toBe(1);
+        $action->handle($owner, $period, [...$active, 'returns_on' => '2026-10-13']);
+        expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Dirty);
+        $change = StatusChange::query()->where('to_status', 'dirty')->sole();
+        expect($change->from_status)->toBe(HousekeepingStatus::Unavailable)->and($change->actor_id)->toBe($owner->id)->and($change->reason)->toBe('Room returned to service.');
+        expect(StatusChange::query()->count())->toBe(2);
+    });
 });
