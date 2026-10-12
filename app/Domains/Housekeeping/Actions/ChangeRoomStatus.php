@@ -12,26 +12,30 @@ use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 class ChangeRoomStatus
 {
-    public function handle(?User $actor, Room $room, HousekeepingStatus $to, string $reason, bool $serviceChanged = false): RoomStatus
+    public function handle(?User $actor, Room $room, HousekeepingStatus $to, string $reason, bool $occupancyLifecycle = false, bool $serviceChanged = false): RoomStatus
     {
-        return Audit::validationRefusal($actor, $room, 'Housekeeping status change refused', fn () => DB::transaction(function () use ($actor, $room, $to, $reason, $serviceChanged) {
+        return Audit::validationRefusal($actor, $room, 'Housekeeping status change refused', fn () => DB::transaction(function () use ($actor, $room, $to, $reason, $occupancyLifecycle, $serviceChanged) {
+            if ($occupancyLifecycle) {
+                Validator::make(['reason' => trim($reason)], ['reason' => ['required', 'string', 'max:1000']])->validate();
+            }
             $room = Room::query()->whereKey($room->id)->lockForUpdate()->firstOrFail();
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             $from = $status->status;
             if (! $serviceChanged && app(SyncRoomServiceStatus::class)->activePeriod($room) !== null) {
                 throw ValidationException::withMessages(['status' => __('The room is out of service. Change its service period before changing housekeeping status.')]);
             }
-            if (! $serviceChanged && $from === HousekeepingStatus::InspectionRequired) {
+            if (! $serviceChanged && ! $occupancyLifecycle && $from === HousekeepingStatus::InspectionRequired) {
                 Gate::forUser($actor)->authorize('supervise', RoomStatus::class);
                 if ($to === HousekeepingStatus::Dirty && trim($reason) === '') {
                     throw ValidationException::withMessages(['reason' => __('A reason is required for a failed inspection.')]);
                 }
             }
-            app(StatusTransitions::class)->ensureAllowed($from, $to, Property::query()->findOrFail($status->property_id)->housekeeping_inspection_required, serviceChanged: $serviceChanged);
+            app(StatusTransitions::class)->ensureAllowed($from, $to, Property::query()->findOrFail($status->property_id)->housekeeping_inspection_required, occupancyLifecycle: $occupancyLifecycle, serviceChanged: $serviceChanged);
             $status->update(['status' => $to]);
             $change = new StatusChange([
                 'room_id' => $room->id, 'actor_id' => $actor?->id,

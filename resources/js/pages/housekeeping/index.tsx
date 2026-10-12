@@ -35,6 +35,7 @@ type RoomRow = {
     roomType: { code: string; name: string };
     status: string;
     statusLabel: string;
+    stayoverService: boolean;
     isReady: boolean;
     readyOverride: { reason: string; business_date: string } | null;
 };
@@ -179,6 +180,7 @@ export default function HousekeepingBoard({
     canManage,
     canSupervise,
     inspectionRequired,
+    stayoverServiceLabel,
     canOverrideReady,
 }: {
     rooms: RoomRow[];
@@ -188,6 +190,7 @@ export default function HousekeepingBoard({
     canManage: boolean;
     canSupervise: boolean;
     inspectionRequired: boolean;
+    stayoverServiceLabel: string;
     canOverrideReady: boolean;
 }) {
     return (
@@ -259,13 +262,22 @@ export default function HousekeepingBoard({
                                     <TableCell>
                                         <StatusChip
                                             tone={
-                                                room.status === 'clean'
-                                                    ? 'success'
-                                                    : 'warning'
+                                                room.status === 'occupied'
+                                                    ? 'occupied'
+                                                    : room.status === 'clean'
+                                                      ? 'success'
+                                                      : 'warning'
                                             }
                                         >
                                             {room.statusLabel}
                                         </StatusChip>
+                                        {room.stayoverService && (
+                                            <div className="mt-1">
+                                                <StatusChip tone="warning">
+                                                    {stayoverServiceLabel}
+                                                </StatusChip>
+                                            </div>
+                                        )}
                                     </TableCell>
                                     <TableCell className="whitespace-normal">
                                         <StatusChip

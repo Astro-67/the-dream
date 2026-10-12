@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Housekeeping;
 use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Housekeeping\Models\StayoverService;
 use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Http\Controllers\Controller;
@@ -30,10 +31,15 @@ class BoardController extends Controller
             'floor' => ['nullable', 'string', 'max:16'],
         ]);
         RoomStatus::query()->with('room')->each(fn (RoomStatus $status) => app(SyncRoomServiceStatus::class)->handle(null, $status->room));
+        // ponytail: local calendar date until Spec 7 supplies the open business date.
+        $businessDate = now(Tenancy::property()?->timezone)->toDateString();
+        $serviceRooms = StayoverService::query()->whereDate('business_date', $businessDate)->pluck('room_id');
         $rooms = RoomStatus::query()->with('room.roomType')->get()->sortBy(fn (RoomStatus $status) => $status->room->number)->values();
         $floors = $rooms->map(fn (RoomStatus $status) => $status->room->floor)->unique()->sort()->values();
 
         return Inertia::render('housekeeping/index', [
+            'businessDate' => $businessDate,
+            'stayoverServiceLabel' => __('Stayover service required'),
             'filters' => ['status' => $filters['status'] ?? '', 'floor' => $filters['floor'] ?? ''],
             'statuses' => array_map(fn ($status) => ['value' => $status->value, 'label' => $status->label()], HousekeepingStatus::cases()),
             'floors' => $floors->map(fn ($floor) => ['value' => $floor ?? '__none', 'label' => $floor ?? __('No floor')]),
@@ -45,6 +51,7 @@ class BoardController extends Controller
                     'roomType' => $status->room->roomType->only(['code', 'name']),
                     'status' => $status->status->value,
                     'statusLabel' => $status->status->label(),
+                    'stayoverService' => $status->status === HousekeepingStatus::Occupied && $serviceRooms->contains($status->room_id),
                     'isReady' => app(RoomReadiness::class)->isReady($status->room),
                     'readyOverride' => app(RoomReadiness::class)->overrideFor($status->room)?->only(['reason', 'business_date']),
                 ]),
