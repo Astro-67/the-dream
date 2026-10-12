@@ -36,9 +36,15 @@ type RoomRow = {
     statusLabel: string;
 };
 
-function ChangeStatus({ room }: { room: RoomRow }) {
-    const to = room.status === 'dirty' ? 'clean' : 'dirty';
-    const label = to === 'clean' ? 'Mark clean' : 'Mark dirty';
+function ChangeStatus({
+    room,
+    to,
+    label,
+}: {
+    room: RoomRow;
+    to: string;
+    label: string;
+}) {
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -106,12 +112,16 @@ export default function HousekeepingBoard({
     statuses,
     floors,
     canManage,
+    canSupervise,
+    inspectionRequired,
 }: {
     rooms: RoomRow[];
     filters: { status: string; floor: string };
     statuses: SelectOption[];
     floors: SelectOption[];
     canManage: boolean;
+    canSupervise: boolean;
+    inspectionRequired: boolean;
 }) {
     return (
         <>
@@ -214,7 +224,39 @@ export default function HousekeepingBoard({
                                                 ['dirty', 'clean'].includes(
                                                     room.status,
                                                 ) && (
-                                                    <ChangeStatus room={room} />
+                                                    <ChangeStatus
+                                                        room={room}
+                                                        to={
+                                                            room.status ===
+                                                            'dirty'
+                                                                ? 'cleaned'
+                                                                : 'dirty'
+                                                        }
+                                                        label={
+                                                            room.status ===
+                                                            'dirty'
+                                                                ? inspectionRequired
+                                                                    ? 'Send for inspection'
+                                                                    : 'Mark cleaned'
+                                                                : 'Mark dirty'
+                                                        }
+                                                    />
+                                                )}
+                                            {canSupervise &&
+                                                room.status ===
+                                                    'inspection_required' && (
+                                                    <>
+                                                        <ChangeStatus
+                                                            room={room}
+                                                            to="clean"
+                                                            label="Pass inspection"
+                                                        />
+                                                        <ChangeStatus
+                                                            room={room}
+                                                            to="dirty"
+                                                            label="Fail inspection"
+                                                        />
+                                                    </>
                                                 )}
                                         </div>
                                     </TableCell>

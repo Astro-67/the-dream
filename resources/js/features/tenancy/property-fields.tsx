@@ -22,6 +22,7 @@ export type PropertyFormOptions = {
 
 /** A property's stored values, as the edit form receives them. */
 export type PropertyValues = {
+    housekeeping_inspection_required: boolean;
     id: string;
     name: string;
     property_type: string;

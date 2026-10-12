@@ -28,6 +28,9 @@ class ChangeRoomStatusRequest extends FormRequest
     /** @return array<string, ValidationRule|array<mixed>|string> */
     public function rules(): array
     {
-        return ['status' => ['required', Rule::enum(HousekeepingStatus::class)], 'reason' => ['required', 'string', 'max:1000']];
+        return [
+            'status' => ['required', Rule::in([...array_column(HousekeepingStatus::cases(), 'value'), 'cleaned'])],
+            'reason' => ['required_unless:status,cleaned', 'nullable', 'string', 'max:1000'],
+        ];
     }
 }

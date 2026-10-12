@@ -1,4 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -43,6 +45,36 @@ export default function EditProperty({ property, ...options }: Props) {
                                 values={property}
                                 errors={errors}
                             />
+                            <div className="grid gap-2">
+                                <Label htmlFor="housekeeping_inspection_required">
+                                    Room inspection
+                                </Label>
+                                <NativeSelect
+                                    id="housekeeping_inspection_required"
+                                    name="housekeeping_inspection_required"
+                                    defaultValue={
+                                        property.housekeeping_inspection_required
+                                            ? '1'
+                                            : '0'
+                                    }
+                                    aria-invalid={
+                                        !!errors.housekeeping_inspection_required
+                                    }
+                                >
+                                    <option value="0">
+                                        No inspection required
+                                    </option>
+                                    <option value="1">
+                                        Inspect cleaned rooms before they are
+                                        ready
+                                    </option>
+                                </NativeSelect>
+                                <InputError
+                                    message={
+                                        errors.housekeeping_inspection_required
+                                    }
+                                />
+                            </div>
                             <div className="flex flex-wrap items-center justify-end gap-3">
                                 <Button variant="ghost" asChild>
                                     <Link href={index()}>Cancel</Link>

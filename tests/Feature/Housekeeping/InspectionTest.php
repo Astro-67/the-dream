@@ -1,16 +1,13 @@
 <?php
 
-use App\Domains\Housekeeping\Actions\ChangeRoomStatus;
 use App\Domains\Housekeeping\Actions\MarkRoomCleaned;
-use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Tenancy\Enums\OrganizationRole;
-use Illuminate\Validation\ValidationException;
-use Tests\Support\InventoryForm;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\InventoryForm;
 use Tests\Support\PropertyForm;
 
 test('property managers can enable inspection and it defaults off', function () {
@@ -35,7 +32,6 @@ test('marking a room cleaned follows its property inspection setting', function 
         expect($change->from_status->value)->toBe('dirty')->and($change->to_status->value)->toBe($expected)->and($change->actor_id)->toBe($owner->id);
     });
 })->with([[false, 'clean'], [true, 'inspection_required']]);
-
 
 test('inspection pass and fail require supervision and preserve history on refusal', function (OrganizationRole $role, string $to) {
     $t = twoTenants();
@@ -63,3 +59,17 @@ test('inspection pass and fail require supervision and preserve history on refus
         }
     });
 })->with(OrganizationRole::cases())->with(['clean', 'dirty']);
+
+test('board cleaning uses the inspection-aware action and exposes the setting', function () {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, function () use ($t) {
+        $t->a->property->update(['housekeeping_inspection_required' => true]);
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
+        return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+    });
+    $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
+    $this->get(route('housekeeping.index'))->assertInertia(fn (Assert $page) => $page->where('inspectionRequired', true)->where('canSupervise', false));
+    $this->patchJson(route('housekeeping.status', $room), ['_property' => $t->a->property->id, 'status' => 'cleaned'])->assertRedirect();
+    $this->get(route('housekeeping.index'))->assertInertia(fn (Assert $page) => $page->where('rooms.0.status', 'inspection_required'));
+});
