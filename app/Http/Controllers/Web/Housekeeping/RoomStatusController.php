@@ -2,10 +2,8 @@
 
 namespace App\Http\Controllers\Web\Housekeeping;
 
-use App\Domains\Housekeeping\Actions\ChangeRoomStatus;
-use App\Domains\Housekeeping\Actions\MarkRoomCleaned;
 use App\Domains\Housekeeping\Actions\OverrideRoomReady;
-use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Actions\UpdateRoomStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
 use App\Domains\Inventory\Models\Room;
@@ -49,15 +47,11 @@ class RoomStatusController extends Controller
         return back();
     }
 
-    public function update(ChangeRoomStatusRequest $request, Room $room, ChangeRoomStatus $change, MarkRoomCleaned $clean): RedirectResponse
+    public function update(ChangeRoomStatusRequest $request, Room $room, UpdateRoomStatus $change): RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
-        if ($request->validated('status') === 'cleaned') {
-            $clean->handle($user, $room);
-        } else {
-            $change->handle($user, $room, HousekeepingStatus::from($request->validated('status')), $request->validated('reason'));
-        }
+        $change->handle($user, $room, $request->validated('status'), $request->validated('reason') ?? '');
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Room :number status updated.', ['number' => $room->number])]);
 
         return back();

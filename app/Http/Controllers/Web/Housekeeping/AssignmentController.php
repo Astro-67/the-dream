@@ -10,13 +10,13 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Housekeeping\AssignmentDateRequest;
 use App\Http\Requests\Housekeeping\AssignmentOperationRequest;
 use App\Http\Requests\Housekeeping\AssignmentRequest;
 use App\Models\User;
 use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -24,10 +24,10 @@ use Inertia\Response;
 
 class AssignmentController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(AssignmentDateRequest $request): Response
     {
         Gate::authorize('supervise', Assignment::class);
-        $date = $this->date($request);
+        $date = $request->businessDate();
 
         return Inertia::render('housekeeping/assignments', [
             'date' => $date,
@@ -38,12 +38,12 @@ class AssignmentController extends Controller
         ]);
     }
 
-    public function own(Request $request): Response
+    public function own(AssignmentDateRequest $request): Response
     {
         Gate::authorize('viewOwn', Assignment::class);
 
         return Inertia::render('housekeeping/my-rooms', [
-            'date' => $date = $this->date($request),
+            'date' => $date = $request->businessDate(),
             'assignments' => $this->rows($date, $request->user()->id),
         ]);
     }
@@ -73,14 +73,6 @@ class AssignmentController extends Controller
         $unassign->handle($user, $assignment);
 
         return back();
-    }
-
-    private function date(Request $request): string
-    {
-        $validated = $request->validate(['date' => ['nullable', 'date_format:Y-m-d']]);
-
-        // ponytail: local calendar date until Spec 7 supplies the open business date.
-        return $validated['date'] ?? now(Tenancy::property()?->timezone)->toDateString();
     }
 
     /** @return Collection<int, array{id: string, room: array{id: string, number: string, floor: string|null}, housekeeper: array{id: string, name: string}, completed: bool}> */

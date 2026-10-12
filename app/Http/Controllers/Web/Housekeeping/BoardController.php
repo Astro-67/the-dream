@@ -2,35 +2,31 @@
 
 namespace App\Http\Controllers\Web\Housekeeping;
 
-use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
+use App\Domains\Housekeeping\Actions\ReconcileRoomServiceStatuses;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StayoverService;
 use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Housekeeping\BoardRequest;
 use App\Models\User;
 use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class BoardController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(BoardRequest $request): Response
     {
         Gate::authorize('viewAny', RoomStatus::class);
         /** @var User $user */
         $user = $request->user();
 
-        $filters = $request->validate([
-            'status' => ['nullable', Rule::enum(HousekeepingStatus::class)],
-            'floor' => ['nullable', 'string', 'max:16'],
-        ]);
-        RoomStatus::query()->with('room')->each(fn (RoomStatus $status) => app(SyncRoomServiceStatus::class)->handle(null, $status->room));
+        $filters = $request->validated();
+        app(ReconcileRoomServiceStatuses::class)->handle();
         // ponytail: local calendar date until Spec 7 supplies the open business date.
         $businessDate = now(Tenancy::property()?->timezone)->toDateString();
         $serviceRooms = StayoverService::query()->whereDate('business_date', $businessDate)->pluck('room_id');
