@@ -1,11 +1,14 @@
 <?php
 
+use App\Domains\Housekeeping\Actions\ChangeRoomStatus;
 use App\Domains\Housekeeping\Actions\MarkRoomCleaned;
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\InventoryForm;
 use Tests\Support\PropertyForm;
@@ -72,4 +75,44 @@ test('board cleaning uses the inspection-aware action and exposes the setting', 
     $this->get(route('housekeeping.index'))->assertInertia(fn (Assert $page) => $page->where('inspectionRequired', true)->where('canSupervise', false));
     $this->patchJson(route('housekeeping.status', $room), ['_property' => $t->a->property->id, 'status' => 'cleaned'])->assertRedirect();
     $this->get(route('housekeeping.index'))->assertInertia(fn (Assert $page) => $page->where('rooms.0.status', 'inspection_required'));
+});
+
+test('all status transitions honor both inspection settings', function (bool $required, string $from, string $to, bool $allowed) {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $property, $required, $from, $to, $allowed) {
+        $property->update(['housekeeping_inspection_required' => $required]);
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        RoomStatus::query()->sole()->update(['status' => $from]);
+        if ($allowed) {
+            app(ChangeRoomStatus::class)->handle($owner, $room, HousekeepingStatus::from($to), 'Status changed');
+        } else {
+            expect(fn () => app(ChangeRoomStatus::class)->handle($owner, $room, HousekeepingStatus::from($to), 'Status changed'))->toThrow(ValidationException::class);
+        }
+        expect(RoomStatus::query()->sole()->status->value)->toBe($allowed ? $to : $from)
+            ->and(StatusChange::query()->count())->toBe($allowed ? 1 : 0);
+    });
+})->with(function () {
+    foreach ([false, true] as $required) {
+        $permitted = $required
+            ? ['dirty:inspection_required', 'clean:dirty', 'inspection_required:clean', 'inspection_required:dirty']
+            : ['dirty:clean', 'clean:dirty', 'inspection_required:clean', 'inspection_required:dirty'];
+        foreach (HousekeepingStatus::cases() as $from) {
+            foreach (HousekeepingStatus::cases() as $to) {
+                yield ($required ? 'inspection on ' : 'inspection off ').$from->value.':'.$to->value => [$required, $from->value, $to->value, in_array($from->value.':'.$to->value, $permitted, true)];
+            }
+        }
+    }
+});
+
+test('failed inspection requires a nonblank reason at the action boundary', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $property) {
+        $property->update(['housekeeping_inspection_required' => true]);
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        app(MarkRoomCleaned::class)->handle($owner, $room);
+        expect(fn () => app(ChangeRoomStatus::class)->handle($owner, $room, HousekeepingStatus::Dirty, '   '))->toThrow(ValidationException::class);
+        expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::InspectionRequired)->and(StatusChange::query()->count())->toBe(1);
+    });
 });

@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class ChangeRoomStatus
 {
@@ -22,6 +23,9 @@ class ChangeRoomStatus
             $from = $status->status;
             if ($from === HousekeepingStatus::InspectionRequired) {
                 Gate::forUser($actor)->authorize('supervise', RoomStatus::class);
+                if ($to === HousekeepingStatus::Dirty && trim($reason) === '') {
+                    throw ValidationException::withMessages(['reason' => __('A reason is required for a failed inspection.')]);
+                }
             }
             app(StatusTransitions::class)->ensureAllowed($from, $to, Property::query()->findOrFail($status->property_id)->housekeeping_inspection_required);
             $status->update(['status' => $to]);
