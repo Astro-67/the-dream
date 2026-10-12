@@ -52,6 +52,7 @@ enum OrganizationPermission: string
     // Housekeeping
     case HousekeepingView = 'housekeeping.view';
     case HousekeepingManage = 'housekeeping.manage';
+    case HousekeepingSupervise = 'housekeeping.supervise';
 
     // Finance and reports
     case FinanceView = 'finance.view';
