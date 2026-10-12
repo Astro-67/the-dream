@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Web\Reservations;
 
 use App\Domains\Guests\Models\Booker;
-use App\Domains\Inventory\Models\Room;
 use App\Domains\Housekeeping\RoomReadiness;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayRestrictions;

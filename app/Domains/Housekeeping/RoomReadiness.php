@@ -4,8 +4,8 @@ namespace App\Domains\Housekeeping;
 
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
-use App\Domains\Inventory\Models\Room;
 use App\Domains\Housekeeping\Models\StatusChange;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Tenancy\Models\Property;
 
 class RoomReadiness

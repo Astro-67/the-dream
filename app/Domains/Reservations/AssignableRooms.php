@@ -2,8 +2,8 @@
 
 namespace App\Domains\Reservations;
 
-use App\Domains\Inventory\Models\Room;
 use App\Domains\Housekeeping\RoomReadiness;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
 use Illuminate\Database\Eloquent\Collection;
 
