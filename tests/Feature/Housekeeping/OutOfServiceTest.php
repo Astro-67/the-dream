@@ -54,3 +54,35 @@ test('changing and shortening periods reconciles status without duplicate histor
         expect(StatusChange::query()->count())->toBe(2);
     });
 });
+
+
+test('automatic rollover follows each property local date and is idempotent', function () {
+    $t = twoTenants();
+    $this->travelTo(new DateTimeImmutable('2026-10-12 20:59:00 UTC'));
+    $t->a->otherProperty->update(['timezone' => 'America/New_York']);
+    foreach ([$t->a->property, $t->a->otherProperty, $t->b->property] as $property) {
+        inTenant($property, function () use ($t) {
+            $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+            $room = app(CreateRoom::class)->handle(null, InventoryForm::room($type->id));
+            app(TakeRoomOutOfService::class)->handle(null, $room, ['starts_on' => '2026-10-13', 'returns_on' => '2026-10-14', 'reason' => 'Repair']);
+            expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Dirty);
+        });
+    }
+    $this->travelTo(new DateTimeImmutable('2026-10-12 21:00:00 UTC'));
+    $this->artisan('housekeeping:sync-service')->assertSuccessful();
+    $this->artisan('housekeeping:sync-service')->assertSuccessful();
+    foreach ([$t->a->property, $t->b->property] as $property) {
+        inTenant($property, function () {
+            expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Unavailable)
+                ->and(StatusChange::query()->count())->toBe(1)->and(StatusChange::query()->sole()->actor_id)->toBeNull();
+        });
+    }
+    expect(inTenant($t->a->otherProperty, fn () => RoomStatus::query()->sole()->status))->toBe(HousekeepingStatus::Dirty);
+    $this->travelTo(new DateTimeImmutable('2026-10-13 21:00:00 UTC'));
+    $this->artisan('housekeeping:sync-service')->assertSuccessful();
+    $this->artisan('housekeeping:sync-service')->assertSuccessful();
+    inTenant($t->a->property, function () {
+        expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Dirty)->and(StatusChange::query()->count())->toBe(2);
+    });
+    expect(inTenant($t->a->otherProperty, fn () => RoomStatus::query()->sole()->status))->toBe(HousekeepingStatus::Unavailable);
+});

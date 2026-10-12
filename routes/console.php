@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Actions\RecalculateInventory;
 use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\RoomType;
@@ -236,3 +238,16 @@ Artisan::command('inventory:extend', function (RecalculateInventory $recalculate
 
 Schedule::command('inventory:extend')->daily()->withoutOverlapping();
 Schedule::command('outbox:sweep')->everyMinute()->withoutOverlapping();
+
+Artisan::command('housekeeping:sync-service', function (SyncRoomServiceStatus $sync): int {
+    $properties = Tenancy::within(TenantContext::platform('housekeeping service-period rollover'), fn () => Property::query()->active()->get());
+    foreach ($properties as $property) {
+        Tenancy::within(TenantContext::forProperty($property), function () use ($sync): void {
+            Room::query()->each(fn (Room $room) => $sync->handle(null, $room));
+        });
+    }
+
+    return self::SUCCESS;
+})->purpose('Reconcile housekeeping with property-local service periods');
+
+Schedule::command('housekeeping:sync-service')->everyMinute()->withoutOverlapping();
