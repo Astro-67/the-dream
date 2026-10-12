@@ -33,6 +33,7 @@ class PropertyRequest extends FormRequest
         return [
             ...self::propertyRules(),
             'name' => ['required', 'string', 'max:255'],
+            'housekeeping_inspection_required' => ['sometimes', 'boolean'],
         ];
     }
 

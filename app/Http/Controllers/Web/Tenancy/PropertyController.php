@@ -106,6 +106,7 @@ class PropertyController extends Controller
                 'timezone' => $property->timezone,
                 'currency' => $property->currency->value,
                 'jurisdiction_profile' => $property->jurisdiction_profile->value,
+                'housekeeping_inspection_required' => $property->housekeeping_inspection_required,
                 // Zanzibar-only: never sent for a mainland property.
                 ...(JurisdictionRules::hasZraHotelCode($property->jurisdiction_profile) ? ['zra_hotel_code' => $property->zra_hotel_code] : []),
             ],
