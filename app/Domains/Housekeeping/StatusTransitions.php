@@ -8,10 +8,11 @@ use Illuminate\Validation\ValidationException;
 /** The single owner of permitted housekeeping transitions. */
 class StatusTransitions
 {
-    public function ensureAllowed(HousekeepingStatus $from, HousekeepingStatus $to): void
+    public function ensureAllowed(HousekeepingStatus $from, HousekeepingStatus $to, bool $inspectionRequired = false): void
     {
         $allowed = match ($from) {
-            HousekeepingStatus::Dirty => $to === HousekeepingStatus::Clean,
+            HousekeepingStatus::Dirty => $to === ($inspectionRequired ? HousekeepingStatus::InspectionRequired : HousekeepingStatus::Clean),
+            HousekeepingStatus::InspectionRequired => in_array($to, [HousekeepingStatus::Clean, HousekeepingStatus::Dirty], true),
             HousekeepingStatus::Clean => $to === HousekeepingStatus::Dirty,
             default => false,
         };

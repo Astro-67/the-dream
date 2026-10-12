@@ -39,9 +39,15 @@ type RoomRow = {
     readyOverride: { reason: string; business_date: string } | null;
 };
 
-function ChangeStatus({ room }: { room: RoomRow }) {
-    const to = room.status === 'dirty' ? 'clean' : 'dirty';
-    const label = to === 'clean' ? 'Mark clean' : 'Mark dirty';
+function ChangeStatus({
+    room,
+    to,
+    label,
+}: {
+    room: RoomRow;
+    to: string;
+    label: string;
+}) {
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -64,9 +70,11 @@ function ChangeStatus({ room }: { room: RoomRow }) {
                         <div className="grid gap-4">
                             <PropertyIntent />
                             <input type="hidden" name="status" value={to} />
-                            <Label htmlFor={`reason-${room.id}`}>Reason</Label>
+                            <Label htmlFor={`reason-${room.id}-${to}`}>
+                                Reason
+                            </Label>
                             <Input
-                                id={`reason-${room.id}`}
+                                id={`reason-${room.id}-${to}`}
                                 name="reason"
                                 required
                                 maxLength={1000}
@@ -169,6 +177,8 @@ export default function HousekeepingBoard({
     statuses,
     floors,
     canManage,
+    canSupervise,
+    inspectionRequired,
     canOverrideReady,
 }: {
     rooms: RoomRow[];
@@ -176,6 +186,8 @@ export default function HousekeepingBoard({
     statuses: SelectOption[];
     floors: SelectOption[];
     canManage: boolean;
+    canSupervise: boolean;
+    inspectionRequired: boolean;
     canOverrideReady: boolean;
 }) {
     return (
@@ -313,7 +325,39 @@ export default function HousekeepingBoard({
                                                 ['dirty', 'clean'].includes(
                                                     room.status,
                                                 ) && (
-                                                    <ChangeStatus room={room} />
+                                                    <ChangeStatus
+                                                        room={room}
+                                                        to={
+                                                            room.status ===
+                                                            'dirty'
+                                                                ? 'cleaned'
+                                                                : 'dirty'
+                                                        }
+                                                        label={
+                                                            room.status ===
+                                                            'dirty'
+                                                                ? inspectionRequired
+                                                                    ? 'Send for inspection'
+                                                                    : 'Mark cleaned'
+                                                                : 'Mark dirty'
+                                                        }
+                                                    />
+                                                )}
+                                            {canSupervise &&
+                                                room.status ===
+                                                    'inspection_required' && (
+                                                    <>
+                                                        <ChangeStatus
+                                                            room={room}
+                                                            to="clean"
+                                                            label="Pass inspection"
+                                                        />
+                                                        <ChangeStatus
+                                                            room={room}
+                                                            to="dirty"
+                                                            label="Fail inspection"
+                                                        />
+                                                    </>
                                                 )}
                                         </div>
                                     </TableCell>

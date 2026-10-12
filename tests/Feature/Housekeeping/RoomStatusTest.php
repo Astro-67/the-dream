@@ -51,7 +51,7 @@ test('every other status transition is refused without changing status or histor
 })->with(function () {
     foreach (HousekeepingStatus::cases() as $from) {
         foreach (HousekeepingStatus::cases() as $to) {
-            if (($from === HousekeepingStatus::Dirty && $to === HousekeepingStatus::Clean) || ($from === HousekeepingStatus::Clean && $to === HousekeepingStatus::Dirty)) {
+            if (($from === HousekeepingStatus::Dirty && $to === HousekeepingStatus::Clean) || ($from === HousekeepingStatus::Clean && $to === HousekeepingStatus::Dirty) || ($from === HousekeepingStatus::InspectionRequired && in_array($to, [HousekeepingStatus::Clean, HousekeepingStatus::Dirty], true))) {
                 continue;
             }
             yield $from->value.' to '.$to->value => [$from, $to];
