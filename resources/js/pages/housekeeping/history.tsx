@@ -16,6 +16,8 @@ import type { Paginated } from '@/types';
 
 type Change = {
     id: string;
+    kind: string;
+    businessDate: string | null;
     from: string;
     to: string;
     reason: string;
@@ -39,16 +41,17 @@ export default function RoomHistory({
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <Heading
                     title={`Room ${room.number} history`}
-                    description={`Status changes, newest first. Times in ${timezone}.`}
+                    description={`Status changes and readiness overrides, newest first. Times in ${timezone}.`}
                 />
                 {changes.data.length === 0 ? (
-                    <EmptyState message="No status changes yet." />
+                    <EmptyState message="No room history yet." />
                 ) : (
                     <div>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>When</TableHead>
+                                    <TableHead>Event</TableHead>
                                     <TableHead>From</TableHead>
                                     <TableHead>To</TableHead>
                                     <TableHead>Changed by</TableHead>
@@ -64,6 +67,11 @@ export default function RoomHistory({
                                                 change.changedAt,
                                                 timezone,
                                             )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {change.kind === 'ready_override'
+                                                ? `Ready override · Business date ${formatDate(change.businessDate!)}`
+                                                : 'Status change'}
                                         </TableCell>
                                         <TableCell>{change.from}</TableCell>
                                         <TableCell>{change.to}</TableCell>

@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Web\Housekeeping;
 
 use App\Domains\Housekeeping\Actions\ChangeRoomStatus;
+use App\Domains\Housekeeping\Actions\OverrideRoomReady;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
 use App\Domains\Inventory\Models\Room;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Housekeeping\ChangeRoomStatusRequest;
+use App\Http\Requests\Housekeeping\OverrideRoomReadyRequest;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +28,7 @@ class RoomStatusController extends Controller
             'room' => $room->only(['id', 'number']),
             'changes' => StatusChange::query()->where('room_id', $room->id)->with('actor')->orderByDesc('changed_at')->orderByDesc('id')->paginate(50)->withQueryString()
                 ->through(fn (StatusChange $change) => [
+                    'kind' => $change->kind, 'businessDate' => $change->business_date?->toDateString(),
                     'id' => $change->id, 'from' => $change->from_status->label(), 'to' => $change->to_status->label(),
                     'reason' => $change->reason, 'actor' => $change->actor->name ?? __('System'),
                     'changedAt' => $change->changed_at->toIso8601String(),
@@ -33,6 +36,16 @@ class RoomStatusController extends Controller
                 ]),
             'timezone' => Tenancy::property()?->timezone,
         ]);
+    }
+
+    public function overrideReady(OverrideRoomReadyRequest $request, Room $room, OverrideRoomReady $override): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $override->handle($user, $room, $request->validated('reason'));
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Room :number readiness overridden for this business date.', ['number' => $room->number])]);
+
+        return back();
     }
 
     public function update(ChangeRoomStatusRequest $request, Room $room, ChangeRoomStatus $change): RedirectResponse

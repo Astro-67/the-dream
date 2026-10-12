@@ -18,7 +18,12 @@ type Named = { id: string; name: string };
 export type AmendmentOptions = {
     roomTypes: Named[];
     ratePlans: (Named & { room_types: { id: string }[] })[];
-    rooms: { id: string; number: string; room_type_id: string }[];
+    rooms: {
+        id: string;
+        number: string;
+        room_type_id: string;
+        isReady: boolean;
+    }[];
 };
 type Stay = {
     reservation_number: string;
@@ -212,7 +217,10 @@ export function AmendmentForm({
                                     )
                                     .map((room) => (
                                         <option key={room.id} value={room.id}>
-                                            {room.number}
+                                            {room.number} —{' '}
+                                            {room.isReady
+                                                ? 'Ready'
+                                                : 'Not ready'}
                                         </option>
                                     ))}
                             </NativeSelect>

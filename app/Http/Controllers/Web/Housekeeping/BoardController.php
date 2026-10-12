@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Housekeeping;
 use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -44,8 +45,11 @@ class BoardController extends Controller
                     'roomType' => $status->room->roomType->only(['code', 'name']),
                     'status' => $status->status->value,
                     'statusLabel' => $status->status->label(),
+                    'isReady' => app(RoomReadiness::class)->isReady($status->room),
+                    'readyOverride' => app(RoomReadiness::class)->overrideFor($status->room)?->only(['reason', 'business_date']),
                 ]),
             'canManage' => Access::allows($user, OrganizationPermission::HousekeepingManage, Tenancy::property()),
+            'canOverrideReady' => Access::allows($user, OrganizationPermission::HousekeepingOverrideReady, Tenancy::property()),
             'canSupervise' => $user->can('supervise', RoomStatus::class),
         ]);
     }
