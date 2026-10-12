@@ -21,8 +21,19 @@ class BoardController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        $filters = $request->validate([
+            'status' => ['nullable', \Illuminate\Validation\Rule::enum(\App\Domains\Housekeeping\Enums\HousekeepingStatus::class)],
+            'floor' => ['nullable', 'string', 'max:16'],
+        ]);
+        $rooms = RoomStatus::query()->with('room.roomType')->get()->sortBy(fn (RoomStatus $status) => $status->room->number)->values();
+        $floors = $rooms->map(fn (RoomStatus $status) => $status->room->floor)->unique()->sort()->values();
+
         return Inertia::render('housekeeping/index', [
-            'rooms' => RoomStatus::query()->with('room.roomType')->get()->sortBy(fn (RoomStatus $status) => $status->room->number)->values()->map(fn (RoomStatus $status) => [
+            'filters' => ['status' => $filters['status'] ?? '', 'floor' => $filters['floor'] ?? ''],
+            'statuses' => array_map(fn ($status) => ['value' => $status->value, 'label' => $status->label()], \App\Domains\Housekeeping\Enums\HousekeepingStatus::cases()),
+            'floors' => $floors->map(fn ($floor) => ['value' => $floor ?? '__none', 'label' => $floor ?? __('No floor')]),
+            'rooms' => $rooms->filter(fn (RoomStatus $status) => (empty($filters['status']) || $status->status->value === $filters['status'])
+                && (!isset($filters['floor']) || $filters['floor'] === '' || ($status->room->floor ?? '__none') === $filters['floor']))->values()->map(fn (RoomStatus $status) => [
                 'id' => $status->room_id,
                 'number' => $status->room->number,
                 'floor' => $status->room->floor,
