@@ -84,6 +84,20 @@ return [
 
         return $this->actingAs($t->a->owner)->get(route('housekeeping.history', $room->id))->assertNotFound();
     }),
+    'housekeeping.override-ready' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoRoom) {
+        $room = $bravoRoom($t);
+        $before = inTenant($t->b->property, fn () => RoomStatus::query()->sole()->getAttributes());
+        $responses = [];
+        foreach ([$t->a->property->id, $t->b->property->id] as $intent) {
+            $response = $this->actingAs($t->a->owner)->post(route('housekeeping.override-ready', $room->id), ['_property' => $intent, 'reason' => 'Attempt']);
+            $response->assertStatus($intent === $t->a->property->id ? 404 : 403);
+            $responses[] = $response;
+        }
+        expect(inTenant($t->b->property, fn () => RoomStatus::query()->sole()->getAttributes()))->toBe($before);
+        expect(inTenant($t->b->property, fn () => StatusChange::query()->count()))->toBe(0);
+
+        return $responses;
+    }),
     'housekeeping.status' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoRoom) {
         $room = $bravoRoom($t);
         $before = inTenant($t->b->property, fn () => RoomStatus::query()->sole()->getAttributes());

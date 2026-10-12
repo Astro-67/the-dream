@@ -13,5 +13,6 @@ Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(func
     Route::delete('housekeeping/assignments/{assignment}', [AssignmentController::class, 'destroy'])->name('housekeeping.assignments.destroy');
     Route::get('housekeeping', [BoardController::class, 'index'])->name('housekeeping.index');
     Route::get('housekeeping/rooms/{room}/history', [RoomStatusController::class, 'history'])->name('housekeeping.history');
+    Route::post('housekeeping/rooms/{room}/override-ready', [RoomStatusController::class, 'overrideReady'])->name('housekeeping.override-ready');
     Route::patch('housekeeping/rooms/{room}/status', [RoomStatusController::class, 'update'])->name('housekeeping.status');
 });
