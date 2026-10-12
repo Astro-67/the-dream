@@ -7,5 +7,6 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(function () {
     Route::get('housekeeping', [BoardController::class, 'index'])->name('housekeeping.index');
     Route::get('housekeeping/rooms/{room}/history', [RoomStatusController::class, 'history'])->name('housekeeping.history');
+    Route::post('housekeeping/rooms/{room}/override-ready', [RoomStatusController::class, 'overrideReady'])->name('housekeeping.override-ready');
     Route::patch('housekeeping/rooms/{room}/status', [RoomStatusController::class, 'update'])->name('housekeeping.status');
 });
