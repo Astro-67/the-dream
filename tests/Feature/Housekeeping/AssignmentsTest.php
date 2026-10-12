@@ -27,6 +27,47 @@ test('housekeepers see only their own rooms today and complete cleaning once wit
     $this->get(route('housekeeping.history', $room))->assertInertia(fn (Assert $page) => $page->has('changes.data', 1)->where('changes.data.0.actor', $housekeeper->name)->where('changes.data.0.from', 'Dirty')->where('changes.data.0.to', 'Clean')->where('changes.data.0.reason', 'Cleaning completed'));
 });
 
+test('assignment permissions match each role and housekeepers cannot operate another list', function (OrganizationRole $role) {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, function () use ($t) {
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+    });
+    $this->actingAs($t->a->member($role));
+    $supervisor = in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager], true);
+    $this->get('/housekeeping/assignments')->assertStatus($supervisor ? 200 : 403);
+    $this->post('/housekeeping/assignments', ['_property' => $t->a->property->id, 'business_date' => '2026-10-12', 'housekeeper_id' => $t->a->member(OrganizationRole::Housekeeping)->id, 'room_id' => $room->id])->assertStatus($supervisor ? 302 : 403);
+    $this->get('/housekeeping/my-rooms')->assertStatus($supervisor || $role === OrganizationRole::Housekeeping ? 200 : 403);
+})->with(OrganizationRole::cases());
+
+test('assignment recipients must have cleaning permission and access to the intended property', function () {
+    $t = twoTenants();
+    $room = inTenant($t->a->otherProperty, function () use ($t) {
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->otherProperty->id])->actingAs($t->a->owner);
+    foreach ([$t->a->member(OrganizationRole::Housekeeping)->id, $t->a->member(OrganizationRole::FrontDesk)->id, $t->b->member(OrganizationRole::Housekeeping)->id, 'missing'] as $userId) {
+        $this->postJson('/housekeeping/assignments', ['_property' => $t->a->otherProperty->id, 'business_date' => '2026-10-12', 'housekeeper_id' => $userId, 'room_id' => $room->id])->assertUnprocessable()->assertJsonValidationErrors('housekeeper_id');
+    }
+    $this->get('/housekeeping/assignments?date=2026-10-12')->assertInertia(fn (Assert $page) => $page->has('assignments', 0)->has('housekeepers', 2));
+});
+
+test('housekeepers cannot complete or remove other assignments or reach another property', function () {
+    $t = twoTenants();
+    $assignment = inTenant($t->a->property, function () use ($t) {
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+        return app(\App\Domains\Housekeeping\Actions\AssignRoom::class)->handle($t->a->owner, $room, $t->a->owner->id, '2026-10-12');
+    });
+    $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
+    $this->get('/housekeeping/my-rooms?date=2026-10-12&housekeeper_id='.$t->a->owner->id)->assertInertia(fn (Assert $page) => $page->has('assignments', 0));
+    $this->post('/housekeeping/assignments/'.$assignment->id.'/done', ['_property' => $t->a->property->id])->assertForbidden();
+    $this->delete('/housekeeping/assignments/'.$assignment->id, ['_property' => $t->a->property->id])->assertForbidden();
+    $this->post('/housekeeping/assignments/'.$assignment->id.'/done', ['_property' => $t->a->otherProperty->id])->assertForbidden();
+    expect(inTenant($t->a->property, fn () => $assignment->fresh()->completed_at))->toBeNull();
+});
+
 test('supervisors assign and unassign a room for a business date without duplicating it', function () {
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {
