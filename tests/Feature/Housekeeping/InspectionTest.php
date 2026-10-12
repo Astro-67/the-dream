@@ -116,3 +116,23 @@ test('failed inspection requires a nonblank reason at the action boundary', func
         expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::InspectionRequired)->and(StatusChange::query()->count())->toBe(1);
     });
 });
+
+test('inspection settings reject invalid values and preserve omission on unrelated edits', function () {
+    $t = twoTenants();
+    inTenant($t->a->property, fn () => $t->a->property->update(['housekeeping_inspection_required' => true]));
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager));
+    $payload = PropertyForm::payload(['_property' => $t->a->property->id]);
+    $this->putJson(route('properties.update', $t->a->property), [...$payload, 'housekeeping_inspection_required' => 'invalid'])->assertUnprocessable()->assertJsonValidationErrors('housekeeping_inspection_required');
+    $this->put(route('properties.update', $t->a->property), $payload)->assertSessionHasNoErrors();
+    $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('property.housekeeping_inspection_required', true));
+    $this->put(route('properties.update', $t->a->property), [...$payload, 'housekeeping_inspection_required' => false])->assertSessionHasNoErrors();
+    $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('property.housekeeping_inspection_required', false));
+});
+
+test('housekeeping cannot edit the property inspection setting', function () {
+    $t = twoTenants();
+    $this->actingAs($t->a->member(OrganizationRole::Housekeeping))->put(route('properties.update', $t->a->property), PropertyForm::payload([
+        '_property' => $t->a->property->id, 'housekeeping_inspection_required' => true,
+    ]))->assertForbidden();
+    expect(inTenant($t->a->property, fn () => $t->a->property->fresh()->housekeeping_inspection_required))->toBeFalse();
+});
