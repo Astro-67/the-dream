@@ -64,6 +64,29 @@ test('housekeepers can complete again after a failed inspection', function () {
     $this->get(route('housekeeping.history', $assignment->room_id))->assertInertia(fn (Assert $page) => $page->where('changes.data.0.to', 'Inspection required')->where('changes.data.0.actor', $housekeeper->name));
 });
 
+test('housekeeping form refusals are audited before actions run', function (string $operation, string $stage) {
+    $t = twoTenants();
+    $assignment = inTenant($t->a->property, function () use ($t) {
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+
+        return app(AssignRoom::class)->handle($t->a->owner, $room, $t->a->owner->id, '2026-10-12');
+    });
+    $this->actingAs($stage === 'validation' ? $t->a->owner : $t->a->member(OrganizationRole::FrontDesk));
+    $payload = ['_property' => $t->a->property->id];
+    $response = match ($operation) {
+        'status' => $this->patchJson(route('housekeeping.status', $assignment->room_id), $payload),
+        'create' => $this->postJson('/housekeeping/assignments', $payload),
+        'complete' => $this->postJson('/housekeeping/assignments/'.$assignment->id.'/done', $payload),
+        'delete' => $this->deleteJson('/housekeeping/assignments/'.$assignment->id, $payload),
+    };
+    $response->assertStatus($stage === 'validation' ? 422 : 403);
+    inTenant($t->a->property, function () use ($stage) {
+        $audit = Activity::query()->where('event', 'refused')->sole();
+        expect($audit->getExtraProperty('result'))->toBe('refused')->and($audit->getExtraProperty('stage'))->toBe($stage);
+    });
+})->with([['status', 'authorization'], ['status', 'validation'], ['create', 'authorization'], ['create', 'validation'], ['complete', 'authorization'], ['delete', 'authorization']]);
+
 test('assignment permissions match each role and housekeepers cannot operate another list', function (OrganizationRole $role) {
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {

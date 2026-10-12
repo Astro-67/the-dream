@@ -5,6 +5,7 @@ namespace App\Http\Requests\Housekeeping;
 use App\Domains\Housekeeping\Models\Assignment;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
+use App\Http\Requests\AuditsRefusals;
 use App\Models\User;
 use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
@@ -15,6 +16,8 @@ use Illuminate\Validation\Rule;
 
 class AssignmentRequest extends FormRequest
 {
+    use AuditsRefusals;
+
     public function authorize(): bool
     {
         return $this->user()?->can('supervise', Assignment::class) ?? false;

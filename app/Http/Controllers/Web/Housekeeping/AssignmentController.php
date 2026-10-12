@@ -10,6 +10,7 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Housekeeping\AssignmentOperationRequest;
 use App\Http\Requests\Housekeeping\AssignmentRequest;
 use App\Models\User;
 use App\Support\Tenancy\Access;
@@ -47,9 +48,8 @@ class AssignmentController extends Controller
         ]);
     }
 
-    public function complete(Request $request, Assignment $assignment, CompleteAssignment $complete): RedirectResponse
+    public function complete(AssignmentOperationRequest $request, Assignment $assignment, CompleteAssignment $complete): RedirectResponse
     {
-        Gate::authorize('complete', $assignment);
         /** @var User $user */
         $user = $request->user();
         $complete->handle($user, $assignment);
@@ -66,9 +66,8 @@ class AssignmentController extends Controller
         return back();
     }
 
-    public function destroy(Request $request, Assignment $assignment, UnassignRoom $unassign): RedirectResponse
+    public function destroy(AssignmentOperationRequest $request, Assignment $assignment, UnassignRoom $unassign): RedirectResponse
     {
-        Gate::authorize('delete', $assignment);
         /** @var User $user */
         $user = $request->user();
         $unassign->handle($user, $assignment);

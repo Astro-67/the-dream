@@ -5,12 +5,15 @@ namespace App\Http\Requests\Housekeeping;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
+use App\Http\Requests\AuditsRefusals;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class ChangeRoomStatusRequest extends FormRequest
 {
+    use AuditsRefusals;
+
     public function authorize(): bool
     {
         $room = $this->route('room');
