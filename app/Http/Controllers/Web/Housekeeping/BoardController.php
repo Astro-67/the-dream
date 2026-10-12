@@ -27,10 +27,15 @@ class BoardController extends Controller
             'status' => ['nullable', Rule::enum(HousekeepingStatus::class)],
             'floor' => ['nullable', 'string', 'max:16'],
         ]);
+        // ponytail: local calendar date until Spec 7 supplies the open business date.
+        $businessDate = now(Tenancy::property()?->timezone)->toDateString();
+        $serviceRooms = \App\Domains\Housekeeping\Models\StayoverService::query()->whereDate('business_date', $businessDate)->pluck('room_id');
         $rooms = RoomStatus::query()->with('room.roomType')->get()->sortBy(fn (RoomStatus $status) => $status->room->number)->values();
         $floors = $rooms->map(fn (RoomStatus $status) => $status->room->floor)->unique()->sort()->values();
 
         return Inertia::render('housekeeping/index', [
+            'businessDate' => $businessDate,
+            'stayoverServiceLabel' => __('Stayover service required'),
             'filters' => ['status' => $filters['status'] ?? '', 'floor' => $filters['floor'] ?? ''],
             'statuses' => array_map(fn ($status) => ['value' => $status->value, 'label' => $status->label()], HousekeepingStatus::cases()),
             'floors' => $floors->map(fn ($floor) => ['value' => $floor ?? '__none', 'label' => $floor ?? __('No floor')]),
@@ -42,6 +47,7 @@ class BoardController extends Controller
                     'roomType' => $status->room->roomType->only(['code', 'name']),
                     'status' => $status->status->value,
                     'statusLabel' => $status->status->label(),
+                    'stayoverService' => $status->status === HousekeepingStatus::Occupied && $serviceRooms->contains($status->room_id),
                 ]),
             'canManage' => Access::allows($user, OrganizationPermission::HousekeepingManage, Tenancy::property()),
             'canSupervise' => $user->can('supervise', RoomStatus::class),

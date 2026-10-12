@@ -34,6 +34,7 @@ type RoomRow = {
     roomType: { code: string; name: string };
     status: string;
     statusLabel: string;
+    stayoverService: boolean;
 };
 
 function ChangeStatus({ room }: { room: RoomRow }) {
@@ -106,12 +107,14 @@ export default function HousekeepingBoard({
     statuses,
     floors,
     canManage,
+    stayoverServiceLabel,
 }: {
     rooms: RoomRow[];
     filters: { status: string; floor: string };
     statuses: SelectOption[];
     floors: SelectOption[];
     canManage: boolean;
+    stayoverServiceLabel: string;
 }) {
     return (
         <>
@@ -181,13 +184,22 @@ export default function HousekeepingBoard({
                                     <TableCell>
                                         <StatusChip
                                             tone={
-                                                room.status === 'clean'
-                                                    ? 'success'
-                                                    : 'warning'
+                                                room.status === 'occupied'
+                                                    ? 'occupied'
+                                                    : room.status === 'clean'
+                                                      ? 'success'
+                                                      : 'warning'
                                             }
                                         >
                                             {room.statusLabel}
                                         </StatusChip>
+                                        {room.stayoverService && (
+                                            <div className="mt-1">
+                                                <StatusChip tone="warning">
+                                                    {stayoverServiceLabel}
+                                                </StatusChip>
+                                            </div>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <Identifier
