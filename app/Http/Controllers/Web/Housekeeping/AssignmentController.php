@@ -1,0 +1,89 @@
+<?php
+
+namespace App\Http\Controllers\Web\Housekeeping;
+
+use App\Domains\Housekeeping\Actions\AssignRoom;
+use App\Domains\Housekeeping\Actions\CompleteAssignment;
+use App\Domains\Housekeeping\Actions\UnassignRoom;
+use App\Domains\Housekeeping\Models\Assignment;
+use App\Domains\Inventory\Models\Room;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
+use App\Domains\Tenancy\Models\OrganizationMembership;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Housekeeping\AssignmentDateRequest;
+use App\Http\Requests\Housekeeping\AssignmentOperationRequest;
+use App\Http\Requests\Housekeeping\AssignmentRequest;
+use App\Models\User;
+use App\Support\Tenancy\Access;
+use App\Support\Tenancy\Tenancy;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class AssignmentController extends Controller
+{
+    public function index(AssignmentDateRequest $request): Response
+    {
+        Gate::authorize('supervise', Assignment::class);
+        $date = $request->businessDate();
+
+        return Inertia::render('housekeeping/assignments', [
+            'date' => $date,
+            'assignments' => $this->rows($date, null),
+            'rooms' => Room::query()->active()->orderBy('number')->get()->map(fn (Room $room) => $room->only(['id', 'number'])),
+            'housekeepers' => OrganizationMembership::query()->with('user')->get()->map(fn (OrganizationMembership $member) => $member->user)
+                ->filter(fn (User $user) => Access::allows($user, OrganizationPermission::HousekeepingManage, Tenancy::property()))->values()->map(fn (User $user) => $user->only(['id', 'name'])),
+        ]);
+    }
+
+    public function own(AssignmentDateRequest $request): Response
+    {
+        Gate::authorize('viewOwn', Assignment::class);
+
+        return Inertia::render('housekeeping/my-rooms', [
+            'date' => $date = $request->businessDate(),
+            'assignments' => $this->rows($date, $request->user()->id),
+        ]);
+    }
+
+    public function complete(AssignmentOperationRequest $request, Assignment $assignment, CompleteAssignment $complete): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $complete->handle($user, $assignment);
+
+        return back();
+    }
+
+    public function store(AssignmentRequest $request, AssignRoom $assign): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $assign->handle($user, Room::query()->findOrFail($request->validated('room_id')), $request->validated('housekeeper_id'), $request->validated('business_date'));
+
+        return back();
+    }
+
+    public function destroy(AssignmentOperationRequest $request, Assignment $assignment, UnassignRoom $unassign): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $unassign->handle($user, $assignment);
+
+        return back();
+    }
+
+    /** @return Collection<int, array{id: string, room: array{id: string, number: string, floor: string|null}, housekeeper: array{id: string, name: string}, completed: bool}> */
+    private function rows(string $date, ?string $housekeeperId): Collection
+    {
+        return Assignment::query()->where('business_date', $date)->when($housekeeperId, fn ($query) => $query->where('housekeeper_id', $housekeeperId))
+            ->with(['room.roomType', 'housekeeper'])->orderBy('id')->get()->map(fn (Assignment $assignment) => [
+                'id' => $assignment->id,
+                'room' => $assignment->room->only(['id', 'number', 'floor']),
+                'housekeeper' => $assignment->housekeeper->only(['id', 'name']),
+                'completed' => $assignment->completed_at !== null,
+            ]);
+    }
+}

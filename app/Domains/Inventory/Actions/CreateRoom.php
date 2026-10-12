@@ -2,6 +2,7 @@
 
 namespace App\Domains\Inventory\Actions;
 
+use App\Domains\Housekeeping\Actions\InitializeRoomStatus;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Models\User;
@@ -21,6 +22,7 @@ class CreateRoom
         return DB::transaction(function () use ($actor, $details) {
             $type = RoomType::query()->whereKey($details['room_type_id'])->lockForUpdate()->firstOrFail();
             $room = Room::query()->create($details);
+            app(InitializeRoomStatus::class)->handle($room);
             app(RecalculateInventory::class)->handle($type);
 
             Audit::record($actor, 'created', $room, 'Room created', [

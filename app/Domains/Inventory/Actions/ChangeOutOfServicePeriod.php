@@ -2,6 +2,7 @@
 
 namespace App\Domains\Inventory\Actions;
 
+use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
 use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\OutOfServicePeriod;
 use App\Domains\Inventory\Models\Room;
@@ -32,12 +33,15 @@ class ChangeOutOfServicePeriod
             $period->fill(Arr::only($details, ['starts_on', 'returns_on', 'reason']));
 
             if (! $period->isDirty()) {
+                app(SyncRoomServiceStatus::class)->handle($actor, $room);
+
                 return $period;
             }
 
             TakeRoomOutOfService::ensureFree($period->room, $details['starts_on'], $details['returns_on'], $period);
             $period->save();
             app(RecalculateInventory::class)->handle($type);
+            app(SyncRoomServiceStatus::class)->handle($actor, $room);
 
             Audit::record($actor, 'updated', $period, 'Out-of-service period changed', ['old' => $old, 'attributes' => $period->details()]);
 

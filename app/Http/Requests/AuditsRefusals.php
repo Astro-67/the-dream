@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Guests\Models\Guest;
+use App\Domains\Housekeeping\Models\Assignment;
 use App\Domains\Reservations\Models\Reservation;
 use App\Support\Audit\Audit;
 use Illuminate\Contracts\Validation\Validator;
@@ -25,11 +26,12 @@ trait AuditsRefusals
 
     private function auditRefusal(string $stage): void
     {
-        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker');
+        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment');
         if (! $subject instanceof Model) {
             $subject = match (true) {
                 $this->routeIs('guests.*') => new Guest,
                 $this->routeIs('bookers.*') => new Booker,
+                $this->routeIs('housekeeping.*') => new Assignment,
                 default => new Reservation,
             };
         }

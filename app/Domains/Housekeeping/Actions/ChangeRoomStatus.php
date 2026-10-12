@@ -1,0 +1,59 @@
+<?php
+
+namespace App\Domains\Housekeeping\Actions;
+
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Enums\TransitionSource;
+use App\Domains\Housekeeping\Models\Assignment;
+use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Housekeeping\Models\StatusChange;
+use App\Domains\Housekeeping\RoomReadiness;
+use App\Domains\Housekeeping\StatusTransitions;
+use App\Domains\Inventory\Models\Room;
+use App\Domains\Tenancy\Models\Property;
+use App\Models\User;
+use App\Support\Audit\Audit;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+
+class ChangeRoomStatus
+{
+    public function handle(?User $actor, Room $room, HousekeepingStatus $to, string $reason, TransitionSource $source = TransitionSource::Housekeeping): RoomStatus
+    {
+        return Audit::validationRefusal($actor, $room, 'Housekeeping status change refused', fn () => DB::transaction(function () use ($actor, $room, $to, $reason, $source) {
+            if ($source === TransitionSource::OccupancyLifecycle) {
+                Validator::make(['reason' => trim($reason)], ['reason' => ['required', 'string', 'max:1000']])->validate();
+            }
+            $room = Room::query()->whereKey($room->id)->lockForUpdate()->firstOrFail();
+            $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
+            $from = $status->status;
+            if ($source !== TransitionSource::ServicePeriod && app(SyncRoomServiceStatus::class)->activePeriod($room) !== null) {
+                throw ValidationException::withMessages(['status' => __('The room is out of service. Change its service period before changing housekeeping status.')]);
+            }
+            if ($source === TransitionSource::Housekeeping && $from === HousekeepingStatus::InspectionRequired) {
+                if ($to === HousekeepingStatus::Dirty && trim($reason) === '') {
+                    throw ValidationException::withMessages(['reason' => __('A reason is required for a failed inspection.')]);
+                }
+            }
+            app(StatusTransitions::class)->ensureAllowed($from, $to, Property::query()->findOrFail($status->property_id)->housekeeping_inspection_required, source: $source);
+            $status->update(['status' => $to]);
+            if ($from === HousekeepingStatus::InspectionRequired && $to === HousekeepingStatus::Dirty) {
+                Assignment::query()->where('room_id', $room->id)
+                    ->whereDate('business_date', app(RoomReadiness::class)->businessDate($room))
+                    ->update(['completed_at' => null]);
+            }
+            $change = new StatusChange([
+                'room_id' => $room->id, 'actor_id' => $actor?->id,
+                'from_status' => $from, 'to_status' => $to,
+                'reason' => $reason, 'changed_at' => now(),
+            ]);
+            $change->forceFill(['organization_id' => $status->organization_id, 'property_id' => $status->property_id])->save();
+            Audit::record($actor, 'status_changed', $status, 'Housekeeping status changed', [
+                'from' => $from->value, 'to' => $to->value, 'reason' => $reason,
+            ]);
+
+            return $status;
+        }));
+    }
+}
