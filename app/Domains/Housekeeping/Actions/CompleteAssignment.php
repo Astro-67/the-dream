@@ -12,7 +12,7 @@ class CompleteAssignment
 {
     public function handle(User $actor, Assignment $assignment): void
     {
-        DB::transaction(function () use ($actor, $assignment) {
+        Audit::validationRefusal($actor, $assignment, 'Housekeeping completion refused', fn () => DB::transaction(function () use ($actor, $assignment) {
             $assignment = Assignment::query()->whereKey($assignment->id)->lockForUpdate()->sole();
             if ($assignment->completed_at !== null) {
                 return;
@@ -22,6 +22,6 @@ class CompleteAssignment
             app(ChangeRoomStatus::class)->handle($actor, $assignment->room, HousekeepingStatus::Clean, __('Cleaning completed'));
             $assignment->update(['completed_at' => now()]);
             Audit::record($actor, 'completed', $assignment, 'Housekeeping cleaning completed');
-        });
+        }));
     }
 }

@@ -2,6 +2,8 @@
 
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Housekeeping\Actions\AssignRoom;
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Models\Room;
@@ -9,6 +11,7 @@ use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Illuminate\Support\Carbon;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 
@@ -93,6 +96,22 @@ test('assignment pages exclude guest identities and reservation financial data',
         $this->actingAs($user)->get($url.'?date=2026-10-12')->assertOk()->assertDontSee('PRIVATE-GUEST')->assertDontSee('SECRET-PASSPORT')->assertDontSee('Travel Booker')
             ->assertInertia(fn (Assert $page) => $page->has('assignments', 1)->missing('guests')->missing('documents')->missing('folios')->missing('payments')->missing('priceLines')->missing('reservations')->where('assignments.0.room.id', $room->id));
     }
+});
+
+test('refused cleaning leaves an assignment unfinished and records no status history', function () {
+    $t = twoTenants();
+    $assignment = inTenant($t->a->property, function () use ($t) {
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+        RoomStatus::query()->where('room_id', $room->id)->sole()->update(['status' => HousekeepingStatus::Unavailable]);
+
+        return app(AssignRoom::class)->handle($t->a->owner, $room, $t->a->member(OrganizationRole::Housekeeping)->id, '2026-10-12');
+    });
+    $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
+    $this->postJson('/housekeeping/assignments/'.$assignment->id.'/done', ['_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors('status');
+    $this->get('/housekeeping/my-rooms?date=2026-10-12')->assertInertia(fn (Assert $page) => $page->where('assignments.0.completed', false));
+    $this->get(route('housekeeping.history', $assignment->room_id))->assertInertia(fn (Assert $page) => $page->has('changes.data', 0));
+    expect(inTenant($t->a->property, fn () => Activity::query()->where('description', 'Housekeeping completion refused')->sole()->getExtraProperty('result')))->toBe('refused');
 });
 
 test('supervisors assign and unassign a room for a business date without duplicating it', function () {
