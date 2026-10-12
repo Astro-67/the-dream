@@ -50,6 +50,45 @@ test('cleaning and dirtying a room records actor time statuses and reason', func
     });
 });
 
+test('every other status transition is refused without changing status or history', function (HousekeepingStatus $from, HousekeepingStatus $to) {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $from, $to) {
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        RoomStatus::query()->where('room_id', $room->id)->sole()->update(['status' => $from]);
+        try {
+            app(ChangeRoomStatus::class)->handle($owner, $room, $to, 'Attempt');
+            test()->fail('Transition should be refused');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            expect($exception->errors()['status'][0])->toContain('not allowed');
+        }
+        expect(RoomStatus::query()->where('room_id', $room->id)->sole()->status)->toBe($from)
+            ->and(StatusChange::query()->count())->toBe(0);
+        expect(\Spatie\Activitylog\Models\Activity::query()->where('description', 'Housekeeping status change refused')->sole()->getExtraProperty('result'))->toBe('refused');
+    });
+})->with(function () {
+    foreach (HousekeepingStatus::cases() as $from) {
+        foreach (HousekeepingStatus::cases() as $to) {
+            if (($from === HousekeepingStatus::Dirty && $to === HousekeepingStatus::Clean) || ($from === HousekeepingStatus::Clean && $to === HousekeepingStatus::Dirty)) {
+                continue;
+            }
+            yield $from->value.' to '.$to->value => [$from, $to];
+        }
+    }
+});
+
+test('history refuses updates and deletion', function (string $operation) {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $operation) {
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        app(ChangeRoomStatus::class)->handle($owner, $room, HousekeepingStatus::Clean, 'Done');
+        $change = StatusChange::query()->sole();
+        expect(fn () => $operation === 'update' ? $change->update(['reason' => 'Tampered']) : $change->delete())->toThrow(LogicException::class, 'append-only');
+        expect($change->fresh()->reason)->toBe('Done');
+    });
+})->with(['update', 'delete']);
+
 test('new rooms start dirty without changing their inventory attributes', function () {
     [$owner, , $property] = organizationWithOwner();
     inTenant($property, function () use ($owner) {

@@ -2,6 +2,7 @@
 
 namespace App\Domains\Housekeeping\Actions;
 
+use App\Domains\Housekeeping\StatusTransitions;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
@@ -14,9 +15,10 @@ class ChangeRoomStatus
 {
     public function handle(?User $actor, Room $room, HousekeepingStatus $to, string $reason): RoomStatus
     {
-        return DB::transaction(function () use ($actor, $room, $to, $reason) {
+        return Audit::validationRefusal($actor, $room, 'Housekeeping status change refused', fn () => DB::transaction(function () use ($actor, $room, $to, $reason) {
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             $from = $status->status;
+            app(StatusTransitions::class)->ensureAllowed($from, $to);
             $status->update(['status' => $to]);
             $change = new StatusChange([
                 'room_id' => $room->id, 'actor_id' => $actor?->id,
@@ -29,6 +31,6 @@ class ChangeRoomStatus
             ]);
 
             return $status;
-        });
+        }));
     }
 }
