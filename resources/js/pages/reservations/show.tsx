@@ -68,7 +68,7 @@ export default function Show({
     roomType: Named;
     ratePlan: Named;
     booker: Named;
-    rooms: { id: string; number: string }[];
+    rooms: { id: string; number: string; isReady: boolean }[];
     canAssignRoom: boolean;
     canAmend: boolean;
     amendmentOptions: AmendmentOptions | null;
@@ -170,7 +170,10 @@ export default function Show({
                                     <option value="">Unassigned</option>
                                     {rooms.map((room) => (
                                         <option key={room.id} value={room.id}>
-                                            {room.number}
+                                            {room.number} —{' '}
+                                            {room.isReady
+                                                ? 'Ready'
+                                                : 'Not ready'}
                                         </option>
                                     ))}
                                 </NativeSelect>

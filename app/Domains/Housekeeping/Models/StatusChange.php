@@ -20,11 +20,13 @@ use LogicException;
  * @property string|null $actor_id
  * @property HousekeepingStatus $from_status
  * @property HousekeepingStatus $to_status
+ * @property string $kind
+ * @property CarbonImmutable|null $business_date
  * @property string $reason
  * @property CarbonImmutable $changed_at
  * @property-read User|null $actor
  */
-#[Fillable(['room_id', 'actor_id', 'from_status', 'to_status', 'reason', 'changed_at'])]
+#[Fillable(['room_id', 'actor_id', 'from_status', 'to_status', 'reason', 'changed_at', 'kind', 'business_date'])]
 class StatusChange extends Model
 {
     use BelongsToProperty, HasUlids;
@@ -36,7 +38,7 @@ class StatusChange extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['from_status' => HousekeepingStatus::class, 'to_status' => HousekeepingStatus::class, 'changed_at' => 'immutable_datetime'];
+        return ['business_date' => 'immutable_date', 'from_status' => HousekeepingStatus::class, 'to_status' => HousekeepingStatus::class, 'changed_at' => 'immutable_datetime'];
     }
 
     /** @return BelongsTo<User, $this> */
