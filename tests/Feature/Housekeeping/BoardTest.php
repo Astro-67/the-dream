@@ -56,6 +56,51 @@ test('each role can only change statuses with housekeeping manage and read histo
     }
 })->with(OrganizationRole::cases());
 
+test('status requests reject invalid transitions and missing reasons with clear errors', function () {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, function () use ($t) {
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+    });
+    $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
+    $payload = ['_property' => $t->a->property->id, 'status' => 'occupied', 'reason' => 'Attempt'];
+    $this->patchJson(route('housekeeping.status', $room->id), $payload)->assertUnprocessable()->assertJsonValidationErrors('status');
+    $this->patchJson(route('housekeeping.status', $room->id), [...$payload, 'status' => 'invented'])->assertUnprocessable()->assertJsonValidationErrors('status');
+    $this->patchJson(route('housekeeping.status', $room->id), [...$payload, 'status' => 'clean', 'reason' => ' '])->assertUnprocessable()->assertJsonValidationErrors('reason');
+    expect(inTenant($t->a->property, fn () => RoomStatus::query()->sole()->status))->toBe(HousekeepingStatus::Dirty);
+});
+
+test('housekeeping cannot access another property in the same organization', function () {
+    $t = twoTenants();
+    $room = inTenant($t->a->otherProperty, function () use ($t) {
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+    });
+    $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
+    $this->get(route('housekeeping.history', $room->id))->assertNotFound();
+    $this->patch(route('housekeeping.status', $room->id), ['_property' => $t->a->property->id, 'status' => 'clean', 'reason' => 'Attempt'])->assertNotFound();
+    $this->patch(route('housekeeping.status', $room->id), ['_property' => $t->a->otherProperty->id, 'status' => 'clean', 'reason' => 'Attempt'])->assertForbidden();
+    expect(inTenant($t->a->otherProperty, fn () => RoomStatus::query()->sole()->status))->toBe(HousekeepingStatus::Dirty);
+});
+
+test('housekeeping responses contain no guest identities or reservation financial data', function () {
+    $t = twoTenants();
+    [$guest, $room] = inTenant($t->a->property, function () use ($t) {
+        $guest = \App\Domains\Guests\Models\Guest::query()->create(['name' => 'PRIVATE-GUEST']);
+        $guest->documents()->create(['type' => 'passport', 'number' => 'SECRET-PASSPORT', 'nationality' => 'TZ', 'issuing_country' => 'TZ', 'expiry' => '2030-12-31']);
+        $details = \Tests\Support\BookingForm::details($t->a->owner);
+        app(\App\Domains\Reservations\Actions\CreateReservation::class)->handle($t->a->owner, $details);
+        return [$guest, \App\Domains\Inventory\Models\Room::query()->sole()];
+    });
+    $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
+    foreach (['housekeeping.index', 'housekeeping.history'] as $route) {
+        $this->get(route($route, $route === 'housekeeping.history' ? $room->id : []))->assertOk()->assertDontSee('SECRET-PASSPORT')->assertDontSee('PRIVATE-GUEST')->assertDontSee('Travel Booker')
+            ->assertInertia(fn (Assert $page) => $page->missing('guests')->missing('documents')->missing('folios')->missing('priceLines')->missing('payments')->missing('reservations'));
+    }
+    $this->get(route('guests.show', $guest))->assertForbidden();
+    $this->get(route('reservations.index'))->assertForbidden();
+});
+
 test('the housekeeping board lists room status type and floor for each permitted role', function (OrganizationRole $role) {
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {
