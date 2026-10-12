@@ -117,6 +117,7 @@ test('room history paginates newest first in the property timezone', function ()
         for ($i = 1; $i <= 51; $i++) {
             app(ChangeRoomStatus::class)->handle($t->a->owner, $room, $i % 2 ? HousekeepingStatus::Clean : HousekeepingStatus::Dirty, 'Change '.$i);
         }
+
         return $room;
     });
     $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
