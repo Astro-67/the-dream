@@ -48,6 +48,7 @@ class BoardController extends Controller
                     'isReady' => app(RoomReadiness::class)->isReady($status->room),
                     'readyOverride' => app(RoomReadiness::class)->overrideFor($status->room)?->only(['reason', 'business_date']),
                 ]),
+            'inspectionRequired' => Tenancy::property()->housekeeping_inspection_required,
             'canManage' => Access::allows($user, OrganizationPermission::HousekeepingManage, Tenancy::property()),
             'canOverrideReady' => Access::allows($user, OrganizationPermission::HousekeepingOverrideReady, Tenancy::property()),
             'canSupervise' => $user->can('supervise', RoomStatus::class),

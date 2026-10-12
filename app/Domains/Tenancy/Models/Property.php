@@ -36,13 +36,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property Currency $currency
  * @property JurisdictionProfile $jurisdiction_profile
  * @property string|null $zra_hotel_code
+ * @property bool $housekeeping_inspection_required
  * @property CarbonImmutable|null $archived_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
 #[Fillable([
     'organization_id', 'name', 'property_type', 'address_line', 'city', 'region', 'postal_code',
-    'phone', 'email', 'timezone', 'currency', 'jurisdiction_profile', 'zra_hotel_code',
+    'phone', 'email', 'timezone', 'currency', 'jurisdiction_profile', 'zra_hotel_code', 'housekeeping_inspection_required',
 ])]
 #[UseFactory(PropertyFactory::class)]
 #[UsePolicy(PropertyPolicy::class)]
@@ -63,6 +64,7 @@ class Property extends Model
             'currency' => Currency::class,
             'jurisdiction_profile' => JurisdictionProfile::class,
             'archived_at' => 'datetime',
+            'housekeeping_inspection_required' => 'boolean',
         ];
     }
 

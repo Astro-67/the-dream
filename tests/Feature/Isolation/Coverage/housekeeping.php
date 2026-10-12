@@ -102,10 +102,12 @@ return [
         $room = $bravoRoom($t);
         $before = inTenant($t->b->property, fn () => RoomStatus::query()->sole()->getAttributes());
         $responses = [];
-        foreach ([$t->a->property->id, $t->b->property->id] as $intent) {
-            $response = $this->actingAs($t->a->owner)->patch(route('housekeeping.status', $room->id), ['_property' => $intent, 'status' => 'clean', 'reason' => 'Attempt']);
-            $response->assertStatus($intent === $t->a->property->id ? 404 : 403);
-            $responses[] = $response;
+        foreach (['clean', 'cleaned', 'inspection_required', 'dirty'] as $target) {
+            foreach ([$t->a->property->id, $t->b->property->id] as $intent) {
+                $response = $this->actingAs($t->a->owner)->patch(route('housekeeping.status', $room->id), ['_property' => $intent, 'status' => $target, 'reason' => 'Attempt']);
+                $response->assertStatus($intent === $t->a->property->id ? 404 : 403);
+                $responses[] = $response;
+            }
         }
         expect(inTenant($t->b->property, fn () => RoomStatus::query()->sole()->getAttributes()))->toBe($before);
         expect(inTenant($t->b->property, fn () => StatusChange::query()->count()))->toBe(0);

@@ -7,9 +7,11 @@ use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
 use App\Domains\Housekeeping\StatusTransitions;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class ChangeRoomStatus
@@ -23,7 +25,13 @@ class ChangeRoomStatus
             if (! $serviceChanged && app(SyncRoomServiceStatus::class)->activePeriod($room) !== null) {
                 throw ValidationException::withMessages(['status' => __('The room is out of service. Change its service period before changing housekeeping status.')]);
             }
-            app(StatusTransitions::class)->ensureAllowed($from, $to, $serviceChanged);
+            if (! $serviceChanged && $from === HousekeepingStatus::InspectionRequired) {
+                Gate::forUser($actor)->authorize('supervise', RoomStatus::class);
+                if ($to === HousekeepingStatus::Dirty && trim($reason) === '') {
+                    throw ValidationException::withMessages(['reason' => __('A reason is required for a failed inspection.')]);
+                }
+            }
+            app(StatusTransitions::class)->ensureAllowed($from, $to, Property::query()->findOrFail($status->property_id)->housekeeping_inspection_required, serviceChanged: $serviceChanged);
             $status->update(['status' => $to]);
             $change = new StatusChange([
                 'room_id' => $room->id, 'actor_id' => $actor?->id,

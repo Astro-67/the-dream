@@ -30,6 +30,7 @@ final readonly class PropertyDetails
         public Currency $currency,
         public JurisdictionProfile $jurisdictionProfile,
         ?string $zraHotelCode = null,
+        public ?bool $housekeepingInspectionRequired = null,
     ) {
         $this->zraHotelCode = JurisdictionRules::hasZraHotelCode($jurisdictionProfile) && filled($zraHotelCode)
             ? $zraHotelCode
@@ -54,6 +55,7 @@ final readonly class PropertyDetails
             currency: Currency::from(self::string($input, 'currency')),
             jurisdictionProfile: JurisdictionProfile::from(self::string($input, 'jurisdiction_profile')),
             zraHotelCode: self::optionalString($input, 'zra_hotel_code'),
+            housekeepingInspectionRequired: array_key_exists('housekeeping_inspection_required', $input) ? (bool) $input['housekeeping_inspection_required'] : null,
         );
     }
 
@@ -75,6 +77,7 @@ final readonly class PropertyDetails
             'currency' => $this->currency,
             'jurisdiction_profile' => $this->jurisdictionProfile,
             'zra_hotel_code' => $this->zraHotelCode,
+            ...($this->housekeepingInspectionRequired !== null ? ['housekeeping_inspection_required' => $this->housekeepingInspectionRequired] : []),
         ];
     }
 
