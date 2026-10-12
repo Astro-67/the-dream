@@ -43,7 +43,7 @@ class BoardController extends Controller
                     'status' => $status->status->value,
                     'statusLabel' => $status->status->label(),
                 ]),
-            'inspectionRequired' => Tenancy::property()?->housekeeping_inspection_required ?? false,
+            'inspectionRequired' => Tenancy::property()->housekeeping_inspection_required,
             'canManage' => Access::allows($user, OrganizationPermission::HousekeepingManage, Tenancy::property()),
             'canSupervise' => $user->can('supervise', RoomStatus::class),
         ]);
