@@ -17,7 +17,7 @@ use LogicException;
  * @property string $organization_id
  * @property string $property_id
  * @property string $room_id
- * @property int|null $actor_id
+ * @property string|null $actor_id
  * @property HousekeepingStatus $from_status
  * @property HousekeepingStatus $to_status
  * @property string $reason

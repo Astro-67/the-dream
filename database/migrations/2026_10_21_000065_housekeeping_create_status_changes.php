@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignUlid('organization_id')->constrained()->cascadeOnDelete();
             $table->foreignUlid('property_id')->constrained()->cascadeOnDelete();
             $table->foreignUlid('room_id')->constrained()->restrictOnDelete();
-            $table->foreignId('actor_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignUlid('actor_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('from_status');
             $table->string('to_status');
             $table->text('reason');

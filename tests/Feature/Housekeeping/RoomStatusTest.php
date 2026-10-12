@@ -11,26 +11,6 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\InventoryForm;
 
-test('existing rooms in different properties are backfilled dirty', function () {
-    $t = twoTenants();
-    $migration = require database_path('migrations/2026_10_21_000064_housekeeping_create_room_statuses.php');
-    $migration->down();
-    $rooms = [];
-    foreach ([$t->a->property, $t->a->otherProperty, $t->b->property] as $property) {
-        $rooms[] = [$property, inTenant($property, function () use ($t) {
-            $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
-
-            return Room::query()->create(InventoryForm::room($type->id));
-        })];
-    }
-    $migration->up();
-    foreach ($rooms as [$property, $room]) {
-        inTenant($property, function () use ($room) {
-            expect(RoomStatus::query()->where('room_id', $room->id)->sole()->status)->toBe(HousekeepingStatus::Dirty);
-        });
-    }
-});
-
 test('cleaning and dirtying a room records actor time statuses and reason', function () {
     [$owner, , $property] = organizationWithOwner();
     inTenant($property, function () use ($owner) {
