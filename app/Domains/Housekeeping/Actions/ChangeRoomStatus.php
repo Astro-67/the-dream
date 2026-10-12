@@ -16,6 +16,9 @@ class ChangeRoomStatus
     public function handle(?User $actor, Room $room, HousekeepingStatus $to, string $reason, bool $occupancyLifecycle = false): RoomStatus
     {
         return Audit::validationRefusal($actor, $room, 'Housekeeping status change refused', fn () => DB::transaction(function () use ($actor, $room, $to, $reason, $occupancyLifecycle) {
+            if ($occupancyLifecycle) {
+                \Illuminate\Support\Facades\Validator::make(['reason' => trim($reason)], ['reason' => ['required', 'string', 'max:1000']])->validate();
+            }
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             $from = $status->status;
             app(StatusTransitions::class)->ensureAllowed($from, $to, $occupancyLifecycle);

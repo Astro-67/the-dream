@@ -27,6 +27,16 @@ test('stayover service marking is idempotent for each explicit business date', f
     });
 });
 
+test('occupancy actions refuse empty reasons without changing history', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        expect(fn () => app(SetRoomOccupied::class)->handle($owner, $room, ' '))->toThrow(\Illuminate\Validation\ValidationException::class);
+        expect(StatusChange::query()->count())->toBe(0);
+    });
+});
+
 test('internal occupancy actions record the actor and reason without writing Inventory', function () {
     [$owner, , $property] = organizationWithOwner();
     inTenant($property, function () use ($owner) {
