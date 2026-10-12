@@ -2,6 +2,7 @@
 
 namespace App\Domains\Housekeeping;
 
+use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
@@ -12,6 +13,10 @@ class RoomReadiness
 {
     public function isReady(Room $room): bool
     {
+        if (app(SyncRoomServiceStatus::class)->activePeriod($room) !== null) {
+            return false;
+        }
+
         return RoomStatus::query()->where('room_id', $room->id)->value('status') === HousekeepingStatus::Clean || $this->overrideFor($room) !== null;
     }
 

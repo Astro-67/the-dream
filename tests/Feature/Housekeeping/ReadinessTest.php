@@ -5,12 +5,29 @@ use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
+use App\Domains\Inventory\Actions\TakeRoomOutOfService;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
+
+test('a clean room becomes unready when its service period starts without reconciliation', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $this->travelTo(new DateTimeImmutable('2026-10-12 10:00:00 UTC'));
+    inTenant($property, function () use ($owner) {
+        $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
+        RoomStatus::query()->sole()->update(['status' => HousekeepingStatus::Clean]);
+        app(TakeRoomOutOfService::class)->handle($owner, $room, [
+            'starts_on' => '2026-10-13', 'returns_on' => '2026-10-15', 'reason' => 'Repairs',
+        ]);
+        expect(app(RoomReadiness::class)->isReady($room))->toBeTrue();
+        $this->travelTo(new DateTimeImmutable('2026-10-13 10:00:00 UTC'));
+        expect(app(RoomReadiness::class)->isReady($room))->toBeFalse();
+    });
+});
 
 test('only clean rooms are ready without an override', function (HousekeepingStatus $status) {
     [$owner, , $property] = organizationWithOwner();
