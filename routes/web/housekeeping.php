@@ -6,6 +6,8 @@ use App\Http\Controllers\Web\Housekeeping\RoomStatusController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(function () {
+    Route::get('housekeeping/my-rooms', [AssignmentController::class, 'own'])->name('housekeeping.my-rooms');
+    Route::post('housekeeping/assignments/{assignment}/done', [AssignmentController::class, 'complete'])->name('housekeeping.assignments.complete');
     Route::get('housekeeping/assignments', [AssignmentController::class, 'index'])->name('housekeeping.assignments.index');
     Route::post('housekeeping/assignments', [AssignmentController::class, 'store'])->name('housekeeping.assignments.store');
     Route::delete('housekeeping/assignments/{assignment}', [AssignmentController::class, 'destroy'])->name('housekeeping.assignments.destroy');

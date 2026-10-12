@@ -35,6 +35,26 @@ class AssignmentController extends Controller
         ]);
     }
 
+    public function own(Request $request): Response
+    {
+        Gate::authorize('viewOwn', Assignment::class);
+
+        return Inertia::render('housekeeping/my-rooms', [
+            'date' => $date = $this->date($request),
+            'assignments' => $this->rows($date, $request->user()->id),
+        ]);
+    }
+
+    public function complete(Request $request, Assignment $assignment, \App\Domains\Housekeeping\Actions\CompleteAssignment $complete): RedirectResponse
+    {
+        Gate::authorize('complete', $assignment);
+        /** @var User $user */
+        $user = $request->user();
+        $complete->handle($user, $assignment);
+
+        return back();
+    }
+
     public function store(AssignmentRequest $request, AssignRoom $assign): RedirectResponse
     {
         /** @var User $user */
