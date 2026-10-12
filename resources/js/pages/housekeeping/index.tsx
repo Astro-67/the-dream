@@ -67,9 +67,11 @@ function ChangeStatus({
                         <div className="grid gap-4">
                             <PropertyIntent />
                             <input type="hidden" name="status" value={to} />
-                            <Label htmlFor={`reason-${room.id}`}>Reason</Label>
+                            <Label htmlFor={`reason-${room.id}-${to}`}>
+                                Reason
+                            </Label>
                             <Input
-                                id={`reason-${room.id}`}
+                                id={`reason-${room.id}-${to}`}
                                 name="reason"
                                 required
                                 maxLength={1000}
