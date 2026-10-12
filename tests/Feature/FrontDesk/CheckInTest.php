@@ -1,13 +1,17 @@
 <?php
 
 use App\Domains\Guests\Actions\CreateGuest;
+use App\Domains\Guests\Actions\ReplaceIdentityDocuments;
+use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Reservations\Actions\AssignRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
 use Tests\Support\BookingForm;
@@ -47,4 +51,78 @@ test('front desk checks in a ready arrival, marking the room occupied and record
         $event = $reservation->lifecycleEvents()->where('type', 'checked_in')->sole();
         expect($event->actor_id)->toBe($actor->id)->and($event->snapshot['status'])->toBe('checked_in');
     });
+});
+
+/** Posts check-in and asserts it was refused on $field with nothing changed. */
+function assertCheckInRefused(TenantFixture $tenant, Reservation $reservation, string $field): void
+{
+    $statuses = fn () => inTenant($tenant->property, fn () => RoomStatus::query()->pluck('status', 'room_id')->all());
+    $before = $statuses();
+    test()->actingAs($tenant->owner)->postJson(route('reservations.check-in', $reservation), ['_property' => $tenant->property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors($field);
+    expect($statuses())->toBe($before);
+    inTenant($tenant->property, fn () => expect($reservation->lifecycleEvents()->where('type', 'checked_in')->exists())->toBeFalse());
+}
+
+test('check-in is refused for a reservation that is not confirmed', function (ReservationStatus $status) {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    inTenant($t->a->property, fn () => $reservation->update(['status' => $status]));
+    assertCheckInRefused($t->a, $reservation, 'reservation');
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe($status));
+})->with(array_filter(ReservationStatus::cases(), fn ($status) => $status !== ReservationStatus::Confirmed));
+
+test('check-in is refused unless the reservation arrives on the property current date', function (string $now) {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    $this->travelTo(CarbonImmutable::parse($now, 'UTC'));
+    assertCheckInRefused($t->a, $reservation, 'reservation');
+})->with([
+    'the evening before, local time' => '2026-12-09 20:59:00',
+    'the next local day' => '2026-12-10 21:00:00',
+]);
+
+test('check-in is refused without an assigned room', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    inTenant($t->a->property, fn () => app(AssignRoom::class)->handle($t->a->owner, $reservation, null));
+    assertCheckInRefused($t->a, $reservation, 'room');
+});
+
+test('check-in is refused while the room is not ready', function (HousekeepingStatus $status) {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    inTenant($t->a->property, fn () => RoomStatus::query()->where('room_id', $reservation->room_id)->update(['status' => $status]));
+    assertCheckInRefused($t->a, $reservation, 'room');
+})->with(array_filter(HousekeepingStatus::cases(), fn ($status) => $status !== HousekeepingStatus::Clean));
+
+test('at a Zanzibar property check-in is refused while any guest misses an identity field', function (array $documents) {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    inTenant($t->a->property, function () use ($t, $reservation, $documents) {
+        $guest = app(CreateGuest::class)->handle($t->a->owner, ['name' => 'Second Guest', 'documents' => $documents]);
+        ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+    });
+    assertCheckInRefused($t->a, $reservation, 'guests');
+})->with([
+    'no document' => [[]],
+    'no nationality' => [[['type' => 'passport', 'number' => 'P7654321']]],
+    'no number' => [[['type' => 'national_id', 'number' => '', 'nationality' => 'TZ']]],
+]);
+
+test('at a Zanzibar property check-in is refused with no registered guest', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    inTenant($t->a->property, fn () => ReservationGuest::query()->delete());
+    assertCheckInRefused($t->a, $reservation, 'guests');
+});
+
+test('at a mainland property only the configured registration fields are enforced', function () {
+    $t = twoTenants();
+    $t->a->property->update(['jurisdiction_profile' => JurisdictionProfile::MainlandTanzania, 'zra_hotel_code' => null, 'registration_fields' => ['number']]);
+    $reservation = arrivingToday($t->a, [['type' => 'passport', 'number' => '']]);
+    assertCheckInRefused($t->a, $reservation, 'guests');
+    inTenant($t->a->property, fn () => app(ReplaceIdentityDocuments::class)->handle(Guest::query()->sole(), [['type' => 'passport', 'number' => 'P1234567']]));
+    $this->actingAs($t->a->owner)->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn));
 });
