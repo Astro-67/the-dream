@@ -37,6 +37,7 @@ import { availability, index as reservations } from '@/routes/reservations';
 import { index as roomTypes } from '@/routes/room-types';
 import { index as taxRules } from '@/routes/tax-rules';
 import { index as rooms } from '@/routes/rooms';
+import { index as housekeeping } from '@/routes/housekeeping';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -97,6 +98,9 @@ export function AppSidebar() {
                   },
                   { title: 'Taxes', href: taxRules(), icon: Percent },
               ]
+            : []),
+        ...(can('housekeeping.view')
+            ? [{ title: 'Housekeeping', href: housekeeping(), icon: DoorOpen }]
             : []),
         ...(can('guests.view')
             ? [

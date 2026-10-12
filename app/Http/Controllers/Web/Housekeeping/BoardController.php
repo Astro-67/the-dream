@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Housekeeping;
 
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Http\Controllers\Controller;
@@ -10,6 +11,7 @@ use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,7 +24,7 @@ class BoardController extends Controller
         $user = $request->user();
 
         $filters = $request->validate([
-            'status' => ['nullable', \Illuminate\Validation\Rule::enum(\App\Domains\Housekeeping\Enums\HousekeepingStatus::class)],
+            'status' => ['nullable', Rule::enum(HousekeepingStatus::class)],
             'floor' => ['nullable', 'string', 'max:16'],
         ]);
         $rooms = RoomStatus::query()->with('room.roomType')->get()->sortBy(fn (RoomStatus $status) => $status->room->number)->values();
@@ -30,17 +32,17 @@ class BoardController extends Controller
 
         return Inertia::render('housekeeping/index', [
             'filters' => ['status' => $filters['status'] ?? '', 'floor' => $filters['floor'] ?? ''],
-            'statuses' => array_map(fn ($status) => ['value' => $status->value, 'label' => $status->label()], \App\Domains\Housekeeping\Enums\HousekeepingStatus::cases()),
+            'statuses' => array_map(fn ($status) => ['value' => $status->value, 'label' => $status->label()], HousekeepingStatus::cases()),
             'floors' => $floors->map(fn ($floor) => ['value' => $floor ?? '__none', 'label' => $floor ?? __('No floor')]),
             'rooms' => $rooms->filter(fn (RoomStatus $status) => (empty($filters['status']) || $status->status->value === $filters['status'])
-                && (!isset($filters['floor']) || $filters['floor'] === '' || ($status->room->floor ?? '__none') === $filters['floor']))->values()->map(fn (RoomStatus $status) => [
-                'id' => $status->room_id,
-                'number' => $status->room->number,
-                'floor' => $status->room->floor,
-                'roomType' => $status->room->roomType->only(['code', 'name']),
-                'status' => $status->status->value,
-                'statusLabel' => $status->status->label(),
-            ]),
+                && (! isset($filters['floor']) || $filters['floor'] === '' || ($status->room->floor ?? '__none') === $filters['floor']))->values()->map(fn (RoomStatus $status) => [
+                    'id' => $status->room_id,
+                    'number' => $status->room->number,
+                    'floor' => $status->room->floor,
+                    'roomType' => $status->room->roomType->only(['code', 'name']),
+                    'status' => $status->status->value,
+                    'statusLabel' => $status->status->label(),
+                ]),
             'canManage' => Access::allows($user, OrganizationPermission::HousekeepingManage, Tenancy::property()),
             'canSupervise' => $user->can('supervise', RoomStatus::class),
         ]);

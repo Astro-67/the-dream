@@ -1,12 +1,16 @@
 <?php
 
+use App\Domains\Guests\Models\Guest;
 use App\Domains\Housekeeping\Actions\ChangeRoomStatus;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
+use App\Domains\Inventory\Models\Room;
+use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 
 test('the board filters status and floor without showing another property', function () {
@@ -34,6 +38,7 @@ test('each role can only change statuses with housekeeping manage and read histo
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
         return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
     });
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->member($role));
@@ -60,6 +65,7 @@ test('status requests reject invalid transitions and missing reasons with clear 
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
         return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
     });
     $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
@@ -74,6 +80,7 @@ test('housekeeping cannot access another property in the same organization', fun
     $t = twoTenants();
     $room = inTenant($t->a->otherProperty, function () use ($t) {
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
         return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
     });
     $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
@@ -86,11 +93,12 @@ test('housekeeping cannot access another property in the same organization', fun
 test('housekeeping responses contain no guest identities or reservation financial data', function () {
     $t = twoTenants();
     [$guest, $room] = inTenant($t->a->property, function () use ($t) {
-        $guest = \App\Domains\Guests\Models\Guest::query()->create(['name' => 'PRIVATE-GUEST']);
+        $guest = Guest::query()->create(['name' => 'PRIVATE-GUEST']);
         $guest->documents()->create(['type' => 'passport', 'number' => 'SECRET-PASSPORT', 'nationality' => 'TZ', 'issuing_country' => 'TZ', 'expiry' => '2030-12-31']);
-        $details = \Tests\Support\BookingForm::details($t->a->owner);
-        app(\App\Domains\Reservations\Actions\CreateReservation::class)->handle($t->a->owner, $details);
-        return [$guest, \App\Domains\Inventory\Models\Room::query()->sole()];
+        $details = BookingForm::details($t->a->owner);
+        app(CreateReservation::class)->handle($t->a->owner, $details);
+
+        return [$guest, Room::query()->sole()];
     });
     $this->actingAs($t->a->member(OrganizationRole::Housekeeping));
     foreach (['housekeeping.index', 'housekeeping.history'] as $route) {
@@ -105,11 +113,13 @@ test('the housekeeping board lists room status type and floor for each permitted
     $t = twoTenants();
     $room = inTenant($t->a->property, function () use ($t) {
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
         return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
     });
     $response = $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->member($role))->get(route('housekeeping.index'));
     if ($role === OrganizationRole::Finance) {
         $response->assertForbidden();
+
         return;
     }
     $response->assertOk()->assertInertia(fn (Assert $page) => $page

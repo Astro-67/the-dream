@@ -27,7 +27,7 @@ class RoomStatusController extends Controller
             'changes' => StatusChange::query()->where('room_id', $room->id)->with('actor')->orderByDesc('changed_at')->orderByDesc('id')->paginate(50)->withQueryString()
                 ->through(fn (StatusChange $change) => [
                     'id' => $change->id, 'from' => $change->from_status->label(), 'to' => $change->to_status->label(),
-                    'reason' => $change->reason, 'actor' => $change->actor?->name ?? __('System'),
+                    'reason' => $change->reason, 'actor' => $change->actor->name ?? __('System'),
                     'changedAt' => $change->changed_at->toIso8601String(),
                 ]),
             'timezone' => Tenancy::property()?->timezone,

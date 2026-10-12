@@ -1,13 +1,15 @@
 <?php
 
 use App\Domains\Housekeeping\Actions\ChangeRoomStatus;
-use App\Domains\Housekeeping\Models\StatusChange;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Housekeeping\Models\StatusChange;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
-use Tests\Support\InventoryForm;
 use App\Domains\Inventory\Models\Room;
+use Illuminate\Validation\ValidationException;
+use Spatie\Activitylog\Models\Activity;
+use Tests\Support\InventoryForm;
 
 test('existing rooms in different properties are backfilled dirty', function () {
     $t = twoTenants();
@@ -17,6 +19,7 @@ test('existing rooms in different properties are backfilled dirty', function () 
     foreach ([$t->a->property, $t->a->otherProperty, $t->b->property] as $property) {
         $rooms[] = [$property, inTenant($property, function () use ($t) {
             $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+
             return Room::query()->create(InventoryForm::room($type->id));
         })];
     }
@@ -59,12 +62,12 @@ test('every other status transition is refused without changing status or histor
         try {
             app(ChangeRoomStatus::class)->handle($owner, $room, $to, 'Attempt');
             test()->fail('Transition should be refused');
-        } catch (\Illuminate\Validation\ValidationException $exception) {
+        } catch (ValidationException $exception) {
             expect($exception->errors()['status'][0])->toContain('not allowed');
         }
         expect(RoomStatus::query()->where('room_id', $room->id)->sole()->status)->toBe($from)
             ->and(StatusChange::query()->count())->toBe(0);
-        expect(\Spatie\Activitylog\Models\Activity::query()->where('description', 'Housekeeping status change refused')->sole()->getExtraProperty('result'))->toBe('refused');
+        expect(Activity::query()->where('description', 'Housekeeping status change refused')->sole()->getExtraProperty('result'))->toBe('refused');
     });
 })->with(function () {
     foreach (HousekeepingStatus::cases() as $from) {

@@ -3,11 +3,11 @@
 namespace App\Domains\Housekeeping\Models;
 
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
-use App\Domains\Inventory\Models\Room;
 use App\Domains\Housekeeping\Policies\HousekeepingPolicy;
-use Illuminate\Database\Eloquent\Attributes\UsePolicy;
+use App\Domains\Inventory\Models\Room;
 use App\Support\Tenancy\BelongsToProperty;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
