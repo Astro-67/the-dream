@@ -7,6 +7,7 @@ use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
 use App\Domains\Housekeeping\StatusTransitions;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ class ChangeRoomStatus
         return Audit::validationRefusal($actor, $room, 'Housekeeping status change refused', fn () => DB::transaction(function () use ($actor, $room, $to, $reason) {
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             $from = $status->status;
-            app(StatusTransitions::class)->ensureAllowed($from, $to);
+            app(StatusTransitions::class)->ensureAllowed($from, $to, Property::query()->findOrFail($status->property_id)->housekeeping_inspection_required);
             $status->update(['status' => $to]);
             $change = new StatusChange([
                 'room_id' => $room->id, 'actor_id' => $actor?->id,
