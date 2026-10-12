@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Web\Reservations;
 
 use App\Domains\Guests\Models\Booker;
-use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
@@ -58,10 +57,7 @@ class ReservationController extends Controller
             'amendmentOptions' => Gate::allows('amend', $reservation) ? [
                 'roomTypes' => RoomType::query()->orderBy('name')->get(['id', 'name']),
                 'ratePlans' => RatePlan::query()->whereNull('deactivated_at')->with('roomTypes:id')->orderBy('name')->get(['id', 'name']),
-                'rooms' => Room::query()->whereNull('deactivated_at')->orderBy('number')->get(['id', 'number', 'room_type_id', 'property_id'])->each(function (Room $room) {
-                    $room->setAttribute('isReady', app(RoomReadiness::class)->isReady($room));
-                    $room->makeHidden('property_id');
-                }),
+                'rooms' => Room::query()->whereNull('deactivated_at')->orderBy('number')->get(['id', 'number', 'room_type_id', 'property_id'])->each(fn (Room $room) => app(AssignableRooms::class)->shapeOption($room)),
             ] : null,
             'canAmend' => Gate::allows('amend', $reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),

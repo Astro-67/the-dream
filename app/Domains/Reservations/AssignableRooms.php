@@ -15,9 +15,12 @@ class AssignableRooms
         return Room::query()->active()->where('room_type_id', $roomTypeId)
             ->whereDoesntHave('outOfServicePeriods', fn ($query) => $query->whereDate('starts_on', '<', $departure)->whereDate('returns_on', '>', $arrival))
             ->whereNotIn('id', RoomAssignmentNight::query()->select('room_id')->whereDate('date', '>=', $arrival)->whereDate('date', '<', $departure)->when($reservationId, fn ($query) => $query->where('reservation_id', '!=', $reservationId)))
-            ->orderBy('number')->get(['id', 'number', 'property_id'])->each(function (Room $room) {
-                $room->setAttribute('isReady', app(RoomReadiness::class)->isReady($room));
-                $room->makeHidden('property_id');
-            });
+            ->orderBy('number')->get(['id', 'number', 'property_id'])->each(fn (Room $room) => $this->shapeOption($room));
+    }
+
+    public function shapeOption(Room $room): void
+    {
+        $room->setAttribute('isReady', app(RoomReadiness::class)->isReady($room));
+        $room->makeHidden('property_id');
     }
 }
