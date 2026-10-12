@@ -27,8 +27,7 @@ class BoardController extends Controller
 
         $filters = $request->validated();
         app(ReconcileRoomServiceStatuses::class)->handle();
-        // ponytail: local calendar date until Spec 7 supplies the open business date.
-        $businessDate = now(Tenancy::property()?->timezone)->toDateString();
+        $businessDate = app(RoomReadiness::class)->businessDate(Tenancy::property());
         $serviceRooms = StayoverService::query()->whereDate('business_date', $businessDate)->pluck('room_id');
         $rooms = RoomStatus::query()->with('room.roomType')->get()->sortBy(fn (RoomStatus $status) => $status->room->number)->values();
         $floors = $rooms->map(fn (RoomStatus $status) => $status->room->floor)->unique()->sort()->values();

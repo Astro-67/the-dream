@@ -4,9 +4,9 @@ namespace App\Domains\Housekeeping\Actions;
 
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Inventory\Models\OutOfServicePeriod;
 use App\Domains\Inventory\Models\Room;
-use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -15,8 +15,7 @@ class SyncRoomServiceStatus
 {
     public function activePeriod(Room $room): ?OutOfServicePeriod
     {
-        $property = Property::query()->findOrFail($room->property_id);
-        $date = now($property->timezone)->toDateString();
+        $date = app(RoomReadiness::class)->businessDate($room);
 
         return $room->outOfServicePeriods()->whereDate('starts_on', '<=', $date)->whereDate('returns_on', '>', $date)->first();
     }

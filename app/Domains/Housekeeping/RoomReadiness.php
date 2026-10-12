@@ -22,10 +22,12 @@ class RoomReadiness
         return $status !== HousekeepingStatus::Unavailable && ($status === HousekeepingStatus::Clean || $this->overrideFor($room) !== null);
     }
 
-    public function businessDate(Room $room): string
+    public function businessDate(Room|Property $subject): string
     {
         // ponytail: local date until Spec 7 supplies the open business-date clock.
-        return now(Property::query()->findOrFail($room->property_id)->timezone)->toDateString();
+        $property = $subject instanceof Property ? $subject : Property::query()->findOrFail($subject->property_id);
+
+        return now($property->timezone)->toDateString();
     }
 
     public function overrideFor(Room $room): ?StatusChange
