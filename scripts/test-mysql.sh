@@ -22,5 +22,5 @@ export DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT="$port" DB_DATABASE=testing
 # Migrate once up front: a broken migration fails here in seconds instead of
 # every test retrying migrate:fresh, which looks like a hang.
 php artisan migrate --force --env=testing --no-interaction
-# Coverage-free runs still exceed the CLI default of 128M on the full suite.
-php -d memory_limit=1G vendor/bin/pest "$@"
+# One process per core; Laravel gives each its own testing_test_N database.
+vendor/bin/pest --parallel "$@"

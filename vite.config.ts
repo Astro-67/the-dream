@@ -51,6 +51,11 @@ export default defineConfig({
             ],
         },
     },
+    // Pre-commit (.vite-hooks/pre-commit): fix staged files so CI's checks see clean code.
+    staged: {
+        '*.php': 'vendor/bin/pint',
+        '*': 'vp check --fix',
+    },
     lint: {
         ignorePatterns: [
             'vendor/**',
