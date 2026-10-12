@@ -17,7 +17,9 @@ class RoomReadiness
             return false;
         }
 
-        return RoomStatus::query()->where('room_id', $room->id)->value('status') === HousekeepingStatus::Clean || $this->overrideFor($room) !== null;
+        $status = RoomStatus::query()->where('room_id', $room->id)->value('status');
+
+        return $status !== HousekeepingStatus::Unavailable && ($status === HousekeepingStatus::Clean || $this->overrideFor($room) !== null);
     }
 
     public function businessDate(Room $room): string
