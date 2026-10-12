@@ -40,3 +40,14 @@ test('only owners and property managers can record readiness overrides with an a
         $this->get(route('housekeeping.history', $room->id))->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page->where('changes.data.0.reason', 'Guest waiting at the desk')->where('changes.data.0.kind', 'ready_override')->where('changes.data.0.actor', $t->a->member($role)->name)->has('changes.data.0.businessDate'));
     }
 })->with(\App\Domains\Tenancy\Enums\OrganizationRole::cases());
+
+
+test('room choices display current readiness without blocking assignment', function () {
+    [$owner, , $property] = organizationWithOwner();
+    [$details, $reservation] = inTenant($property, function () use ($owner) {
+        $details = \Tests\Support\BookingForm::details($owner);
+        return [$details, app(\App\Domains\Reservations\Actions\CreateReservation::class)->handle($owner, $details)];
+    });
+    $this->actingAs($owner)->get(route('reservations.create', $details))->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page->where('rooms.0.isReady', false));
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page->where('rooms.0.isReady', false)->where('amendmentOptions.rooms.0.isReady', false));
+});

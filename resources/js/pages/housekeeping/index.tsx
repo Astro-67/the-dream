@@ -15,7 +15,7 @@ import {
     TableHead,
     TableCell,
 } from '@/components/ui/table';
-import { history, index, status } from '@/routes/housekeeping';
+import { history, index, status, overrideReady } from '@/routes/housekeeping';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,8 @@ type RoomRow = {
     roomType: { code: string; name: string };
     status: string;
     statusLabel: string;
+    isReady: boolean;
+    readyOverride: { reason: string; business_date: string } | null;
 };
 
 function ChangeStatus({ room }: { room: RoomRow }) {
@@ -100,18 +102,46 @@ function ChangeStatus({ room }: { room: RoomRow }) {
     );
 }
 
+function ReadyOverride({ room }: { room: RoomRow }) {
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="secondary" className="pointer-coarse:min-h-11">Override ready</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Override readiness: room {room.number}</DialogTitle>
+                <DialogDescription>This makes the room ready for the current business date only. Its housekeeping status will not change. Record a reason.</DialogDescription>
+                <Form {...overrideReady.form(room.id)} options={{ preserveScroll: true }}>
+                    {({ processing, errors, wasSuccessful }) => (
+                        <div className="grid gap-4">
+                            <PropertyIntent />
+                            <Label htmlFor={`override-reason-${room.id}`}>Reason</Label>
+                            <Input id={`override-reason-${room.id}`} name="reason" required maxLength={1000} aria-invalid={!!errors.reason} />
+                            <InputError message={errors.reason ?? errors._property} />
+                            {wasSuccessful && <p role="status">Readiness overridden for this business date.</p>}
+                            <Button type="submit" disabled={processing || wasSuccessful || !navigator.onLine}>{processing ? 'Saving…' : 'Override ready'}</Button>
+                        </div>
+                    )}
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function HousekeepingBoard({
     rooms,
     filters,
     statuses,
     floors,
     canManage,
+    canOverrideReady,
 }: {
     rooms: RoomRow[];
     filters: { status: string; floor: string };
     statuses: SelectOption[];
     floors: SelectOption[];
     canManage: boolean;
+    canOverrideReady: boolean;
 }) {
     return (
         <>
@@ -165,6 +195,7 @@ export default function HousekeepingBoard({
                             <TableRow>
                                 <TableHead>Room</TableHead>
                                 <TableHead>Status</TableHead>
+                                <TableHead>Readiness</TableHead>
                                 <TableHead>Room type</TableHead>
                                 <TableHead>Floor</TableHead>
                                 <TableHead>
@@ -189,6 +220,12 @@ export default function HousekeepingBoard({
                                             {room.statusLabel}
                                         </StatusChip>
                                     </TableCell>
+                                    <TableCell className="whitespace-normal">
+                                        <StatusChip tone={room.isReady ? 'success' : 'warning'}>
+                                            {room.readyOverride ? 'Ready · Override' : room.isReady ? 'Ready' : 'Not ready'}
+                                        </StatusChip>
+                                        {room.readyOverride && <p className="mt-2 text-sm text-muted-foreground">{room.readyOverride.reason}</p>}
+                                    </TableCell>
                                     <TableCell>
                                         <Identifier
                                             value={room.roomType.code}
@@ -210,6 +247,7 @@ export default function HousekeepingBoard({
                                                     History
                                                 </Link>
                                             </Button>
+                                            {canOverrideReady && !room.isReady && <ReadyOverride room={room} />}
                                             {canManage &&
                                                 ['dirty', 'clean'].includes(
                                                     room.status,

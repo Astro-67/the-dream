@@ -50,7 +50,7 @@ export default function Create({
     roomType: Named;
     ratePlan: Named;
     bookers: Paginated<Named>;
-    rooms: { id: string; number: string }[];
+    rooms: { id: string; number: string; isReady: boolean }[];
     restrictionWarnings: string[];
 }) {
     const [source, setSource] = useState(stay.source ?? 'direct');
@@ -250,7 +250,7 @@ export default function Create({
                                     <option value="">Leave unassigned</option>
                                     {rooms.map((room) => (
                                         <option key={room.id} value={room.id}>
-                                            {room.number}
+                                            {room.number} — {room.isReady ? 'Ready' : 'Not ready'}
                                         </option>
                                     ))}
                                 </NativeSelect>
