@@ -38,6 +38,15 @@ final class JurisdictionRules
     }
 
     /**
+     * Whether a property under this profile chooses its own registration
+     * fields. Takes the profile so a property form can ask before saving.
+     */
+    public static function configuresRegistrationFields(JurisdictionProfile $profile): bool
+    {
+        return self::of($profile)->configuresRegistrationFields();
+    }
+
+    /**
      * Whether a property under this profile records a ZRA hotel code. Takes
      * the profile so a property form can ask before the property is saved.
      */

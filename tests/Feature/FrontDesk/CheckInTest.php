@@ -14,6 +14,7 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
+use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
 
@@ -51,6 +52,24 @@ test('front desk checks in a ready arrival, marking the room occupied and record
         $event = $reservation->lifecycleEvents()->where('type', 'checked_in')->sole();
         expect($event->actor_id)->toBe($actor->id)->and($event->snapshot['status'])->toBe('checked_in');
     });
+});
+
+test('today\'s arrivals list offers check-in to those who may check in', function (OrganizationRole $role, bool $offered) {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    $this->actingAs($t->a->member($role))->get(route('reservations.index', ['list' => 'arrivals']))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.reservation_number', $reservation->reservation_number)->where('reservations.data.0.can_check_in', $offered));
+})->with([[OrganizationRole::FrontDesk, true], [OrganizationRole::PropertyManager, true], [OrganizationRole::Finance, false]]);
+
+test('check-in is not offered for another date or a checked-in arrival', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $this->travelTo(CarbonImmutable::parse('2026-12-11 09:00:00', 'Africa/Dar_es_Salaam'));
+    $this->get(route('reservations.index', ['list' => 'all']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.can_check_in', false));
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
+    $this->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id]);
+    $this->get(route('reservations.index', ['list' => 'arrivals']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.status', 'checked_in')->where('reservations.data.0.can_check_in', false));
 });
 
 test('only reservation managers may check in', function (OrganizationRole $role, bool $allowed) {

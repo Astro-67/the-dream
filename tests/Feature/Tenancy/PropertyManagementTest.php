@@ -134,6 +134,24 @@ test('moving a property to mainland Tanzania drops its Zanzibar-only fields', fu
             ->missing('tenant.property.zraHotelCode'));
 });
 
+test('a mainland property configures the registration fields check-in requires', function () {
+    $t = twoTenants();
+    $property = $t->a->otherProperty;
+    $this->actingAs($t->a->owner);
+    $this->get(route('properties.edit', $property))->assertInertia(fn (Assert $page) => $page->where('property.registration_fields', [])->has('registrationFieldOptions', 5));
+    $this->put(route('properties.update', $property), PropertyForm::payload(['_property' => $property->id, 'registration_fields' => ['type', 'number']]))->assertSessionHasNoErrors();
+    $this->get(route('properties.edit', $property))->assertInertia(fn (Assert $page) => $page->where('property.registration_fields', ['type', 'number']));
+    $this->putJson(route('properties.update', $property), PropertyForm::payload(['_property' => $property->id, 'registration_fields' => ['shoe_size']]))->assertJsonValidationErrors('registration_fields.0');
+});
+
+test('a Zanzibar property never stores or is sent configurable registration fields', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $this->actingAs($owner);
+    $this->put(route('properties.update', $property), PropertyForm::payload(['_property' => $property->id, 'jurisdiction_profile' => 'zanzibar', 'registration_fields' => ['expiry']]))->assertSessionHasNoErrors();
+    expect($property->fresh()->registration_fields)->toBeNull();
+    $this->get(route('properties.edit', $property))->assertInertia(fn (Assert $page) => $page->missing('property.registration_fields'));
+});
+
 test('a group operations manager adds and edits properties', function () {
     $t = twoTenants();
     $manager = $t->a->member(OrganizationRole::GroupOperationsManager);

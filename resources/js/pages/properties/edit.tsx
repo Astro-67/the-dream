@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import InputError from '@/components/input-error';
@@ -12,9 +13,26 @@ import type {
 import { PropertyFields } from '@/features/tenancy/property-fields';
 import { index, update } from '@/routes/properties';
 
-type Props = PropertyFormOptions & { property: PropertyValues };
+type Props = PropertyFormOptions & {
+    property: PropertyValues & { registration_fields?: string[] };
+    registrationFieldOptions: string[];
+};
 
-export default function EditProperty({ property, ...options }: Props) {
+const registrationFieldLabels: Record<string, string> = {
+    type: 'Document type',
+    number: 'Document number',
+    nationality: 'Nationality',
+    issuing_country: 'Issuing country',
+    expiry: 'Expiry date',
+};
+
+export default function EditProperty({
+    property,
+    registrationFieldOptions,
+    ...options
+}: Props) {
+    const configuresRegistration = property.registration_fields !== undefined;
+
     return (
         <>
             <Head title={`Edit ${property.name}`} />
@@ -33,6 +51,15 @@ export default function EditProperty({ property, ...options }: Props) {
                     {...update.form(property.id)}
                     disableWhileProcessing
                     options={{ preserveScroll: true }}
+                    transform={(data) =>
+                        configuresRegistration
+                            ? {
+                                  ...data,
+                                  registration_fields:
+                                      data.registration_fields ?? [],
+                              }
+                            : data
+                    }
                     className="flex flex-col gap-6"
                 >
                     {({ processing, errors }) => (
@@ -75,6 +102,45 @@ export default function EditProperty({ property, ...options }: Props) {
                                     }
                                 />
                             </div>
+                            {configuresRegistration && (
+                                <fieldset className="grid gap-3">
+                                    <legend className="mb-1 text-sm font-medium">
+                                        Guest registration at check-in
+                                    </legend>
+                                    <p className="text-sm text-muted-foreground">
+                                        Identity document fields every guest
+                                        needs before check-in.
+                                    </p>
+                                    {registrationFieldOptions.map((field) => (
+                                        <div
+                                            key={field}
+                                            className="flex items-center gap-3"
+                                        >
+                                            <Checkbox
+                                                id={`registration-${field}`}
+                                                name="registration_fields[]"
+                                                value={field}
+                                                defaultChecked={property.registration_fields?.includes(
+                                                    field,
+                                                )}
+                                            />
+                                            <Label
+                                                htmlFor={`registration-${field}`}
+                                            >
+                                                {registrationFieldLabels[
+                                                    field
+                                                ] ?? field}
+                                            </Label>
+                                        </div>
+                                    ))}
+                                    <InputError
+                                        message={
+                                            errors.registration_fields ??
+                                            errors['registration_fields.0']
+                                        }
+                                    />
+                                </fieldset>
+                            )}
                             <div className="flex flex-wrap items-center justify-end gap-3">
                                 <Button variant="ghost" asChild>
                                     <Link href={index()}>Cancel</Link>

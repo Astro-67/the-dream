@@ -17,6 +17,11 @@ final class ZanzibarRules implements ProfileRules
         return true;
     }
 
+    public function configuresRegistrationFields(): bool
+    {
+        return false;
+    }
+
     /** PRD §6: every guest, any document type. */
     public function requiredRegistrationFields(array $configured): array
     {
