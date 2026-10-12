@@ -170,7 +170,10 @@ export default function Show({
                                     <option value="">Unassigned</option>
                                     {rooms.map((room) => (
                                         <option key={room.id} value={room.id}>
-                                            {room.number} — {room.isReady ? 'Ready' : 'Not ready'}
+                                            {room.number} —{' '}
+                                            {room.isReady
+                                                ? 'Ready'
+                                                : 'Not ready'}
                                         </option>
                                     ))}
                                 </NativeSelect>
