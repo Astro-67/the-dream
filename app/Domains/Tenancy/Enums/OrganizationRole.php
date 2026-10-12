@@ -58,7 +58,7 @@ enum OrganizationRole: string
                 P::PropertiesView, P::PropertiesUpdate,
                 P::MembersView, P::MembersInvite, P::OutboxRecover, P::InventoryManage, P::RatesManage, P::TaxManage,
                 P::ReservationsView, P::ReservationsManage, P::ReservationsVoid, P::RoomsAssign, P::GuestsView, P::GuestsRegister, P::GuestsMerge,
-                P::HousekeepingView, P::HousekeepingManage, P::HousekeepingSupervise,
+                P::HousekeepingView, P::HousekeepingManage, P::HousekeepingSupervise, P::HousekeepingOverrideReady,
                 P::FiscalExceptionsReview, P::ReportsView,
                 P::ChannelsManage, P::ApprovalsManage,
             ],

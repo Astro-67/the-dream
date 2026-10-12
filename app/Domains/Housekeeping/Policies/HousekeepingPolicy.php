@@ -25,6 +25,11 @@ class HousekeepingPolicy
         return Access::allows($user, P::HousekeepingManage, $status);
     }
 
+    public function overrideReady(User $user, RoomStatus $status): bool
+    {
+        return Access::allows($user, P::HousekeepingOverrideReady, $status);
+    }
+
     public function supervise(User $user): bool
     {
         return Tenancy::property() !== null && Access::allows($user, P::HousekeepingSupervise, Tenancy::property());
