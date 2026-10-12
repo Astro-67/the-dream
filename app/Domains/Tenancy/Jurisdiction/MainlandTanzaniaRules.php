@@ -21,4 +21,10 @@ final class MainlandTanzaniaRules implements ProfileRules
     {
         return false;
     }
+
+    /** PRD §6: configured by the property. */
+    public function requiredRegistrationFields(array $configured): array
+    {
+        return $configured;
+    }
 }
