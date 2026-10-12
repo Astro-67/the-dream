@@ -6,9 +6,11 @@ set -euo pipefail
 
 name="the-dream-test-mysql-$$"
 
+# Throwaway data lives in RAM with fsync off, so per-test commits stay cheap.
 # Docker picks a free host port unless TEST_MYSQL_PORT is set, so parallel worktrees don't collide.
 docker run -d --rm --name "$name" -p "127.0.0.1:${TEST_MYSQL_PORT:-}:3306" \
-    -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=testing mysql:8.0 >/dev/null
+    --tmpfs /var/lib/mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=testing mysql:8.0 --innodb-flush-log-at-trx-commit=0 --sync-binlog=0 --skip-log-bin \
+    --innodb-doublewrite=0 >/dev/null
 trap 'docker stop "$name" >/dev/null' EXIT
 port="$(docker port "$name" 3306/tcp | head -n1 | sed 's/.*://')"
 
@@ -20,4 +22,5 @@ export DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT="$port" DB_DATABASE=testing
 # Migrate once up front: a broken migration fails here in seconds instead of
 # every test retrying migrate:fresh, which looks like a hang.
 php artisan migrate --force --env=testing --no-interaction
-vendor/bin/pest "$@"
+# Coverage-free runs still exceed the CLI default of 128M on the full suite.
+php -d memory_limit=1G vendor/bin/pest "$@"
