@@ -13,12 +13,12 @@ use Illuminate\Support\Facades\DB;
 
 class ChangeRoomStatus
 {
-    public function handle(?User $actor, Room $room, HousekeepingStatus $to, string $reason): RoomStatus
+    public function handle(?User $actor, Room $room, HousekeepingStatus $to, string $reason, bool $occupancyLifecycle = false): RoomStatus
     {
-        return Audit::validationRefusal($actor, $room, 'Housekeeping status change refused', fn () => DB::transaction(function () use ($actor, $room, $to, $reason) {
+        return Audit::validationRefusal($actor, $room, 'Housekeeping status change refused', fn () => DB::transaction(function () use ($actor, $room, $to, $reason, $occupancyLifecycle) {
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             $from = $status->status;
-            app(StatusTransitions::class)->ensureAllowed($from, $to);
+            app(StatusTransitions::class)->ensureAllowed($from, $to, $occupancyLifecycle);
             $status->update(['status' => $to]);
             $change = new StatusChange([
                 'room_id' => $room->id, 'actor_id' => $actor?->id,
