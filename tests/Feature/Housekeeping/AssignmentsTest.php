@@ -2,6 +2,8 @@
 
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Housekeeping\Actions\AssignRoom;
+use App\Domains\Housekeeping\Actions\ChangeRoomStatus;
+use App\Domains\Housekeeping\Actions\MarkRoomCleaned;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
@@ -40,6 +42,27 @@ test('housekeepers see only their own rooms today and complete cleaning once wit
     'inspection required' => [true, 'Inspection required'],
     'inspection skipped' => [false, 'Clean'],
 ]);
+
+test('housekeepers can complete again after a failed inspection', function () {
+    $t = twoTenants();
+    $housekeeper = $t->a->member(OrganizationRole::Housekeeping);
+    $assignment = inTenant($t->a->property, function () use ($t, $housekeeper) {
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+
+        return app(AssignRoom::class)->handle($t->a->owner, $room, $housekeeper->id, now($t->a->property->timezone)->toDateString());
+    });
+    $payload = ['_property' => $t->a->property->id];
+    $this->actingAs($housekeeper)->post('/housekeeping/assignments/'.$assignment->id.'/done', $payload)->assertSessionHasNoErrors();
+    inTenant($t->a->property, function () use ($t, $assignment) {
+        $t->a->property->update(['housekeeping_inspection_required' => true]);
+        app(ChangeRoomStatus::class)->handle($t->a->owner, $assignment->room, HousekeepingStatus::Dirty, 'Needs inspection');
+        app(MarkRoomCleaned::class)->handle($t->a->owner, $assignment->room);
+    });
+    $this->actingAs($t->a->owner)->patchJson(route('housekeeping.status', $assignment->room_id), [...$payload, 'status' => 'dirty', 'reason' => 'Dust on shelves'])->assertRedirect();
+    $this->actingAs($housekeeper)->post('/housekeeping/assignments/'.$assignment->id.'/done', $payload)->assertSessionHasNoErrors();
+    $this->get(route('housekeeping.history', $assignment->room_id))->assertInertia(fn (Assert $page) => $page->where('changes.data.0.to', 'Inspection required')->where('changes.data.0.actor', $housekeeper->name));
+});
 
 test('assignment permissions match each role and housekeepers cannot operate another list', function (OrganizationRole $role) {
     $t = twoTenants();
