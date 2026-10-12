@@ -37,7 +37,8 @@ import { availability, index as reservations } from '@/routes/reservations';
 import { index as roomTypes } from '@/routes/room-types';
 import { index as taxRules } from '@/routes/tax-rules';
 import { index as rooms } from '@/routes/rooms';
-import { index as housekeeping } from '@/routes/housekeeping';
+import { index as housekeeping, myRooms } from '@/routes/housekeeping';
+import { index as assignments } from '@/routes/housekeeping/assignments';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -101,6 +102,18 @@ export function AppSidebar() {
             : []),
         ...(can('housekeeping.view')
             ? [{ title: 'Housekeeping', href: housekeeping(), icon: DoorOpen }]
+            : []),
+        ...(can('housekeeping.manage')
+            ? [{ title: 'My rooms', href: myRooms(), icon: DoorOpen }]
+            : []),
+        ...(can('housekeeping.supervise')
+            ? [
+                  {
+                      title: 'Cleaning assignments',
+                      href: assignments(),
+                      icon: Users,
+                  },
+              ]
             : []),
         ...(can('guests.view')
             ? [
