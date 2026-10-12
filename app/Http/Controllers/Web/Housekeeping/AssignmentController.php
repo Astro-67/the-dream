@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Housekeeping;
 
 use App\Domains\Housekeeping\Actions\AssignRoom;
+use App\Domains\Housekeeping\Actions\CompleteAssignment;
 use App\Domains\Housekeeping\Actions\UnassignRoom;
 use App\Domains\Housekeeping\Models\Assignment;
 use App\Domains\Inventory\Models\Room;
@@ -15,6 +16,7 @@ use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -45,7 +47,7 @@ class AssignmentController extends Controller
         ]);
     }
 
-    public function complete(Request $request, Assignment $assignment, \App\Domains\Housekeeping\Actions\CompleteAssignment $complete): RedirectResponse
+    public function complete(Request $request, Assignment $assignment, CompleteAssignment $complete): RedirectResponse
     {
         Gate::authorize('complete', $assignment);
         /** @var User $user */
@@ -82,8 +84,8 @@ class AssignmentController extends Controller
         return $validated['date'] ?? now(Tenancy::property()?->timezone)->toDateString();
     }
 
-    /** @return \Illuminate\Support\Collection<int, array<string, mixed>> */
-    private function rows(string $date, ?string $housekeeperId): \Illuminate\Support\Collection
+    /** @return Collection<int, array{id: string, room: array{id: string, number: string, floor: string|null}, housekeeper: array{id: string, name: string}, completed: bool}> */
+    private function rows(string $date, ?string $housekeeperId): Collection
     {
         return Assignment::query()->where('business_date', $date)->when($housekeeperId, fn ($query) => $query->where('housekeeper_id', $housekeeperId))
             ->with(['room.roomType', 'housekeeper'])->orderBy('id')->get()->map(fn (Assignment $assignment) => [
