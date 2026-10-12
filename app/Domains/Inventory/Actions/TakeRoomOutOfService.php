@@ -2,6 +2,7 @@
 
 namespace App\Domains\Inventory\Actions;
 
+use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
 use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\OutOfServicePeriod;
 use App\Domains\Inventory\Models\Room;
@@ -29,6 +30,7 @@ class TakeRoomOutOfService
             self::ensureFree($room, $details['starts_on'], $details['returns_on']);
             $period = $room->outOfServicePeriods()->create($details);
             app(RecalculateInventory::class)->handle($type);
+            app(SyncRoomServiceStatus::class)->handle($actor, $room);
 
             Audit::record($actor, 'created', $period, 'Room taken out of service', ['attributes' => $period->details()]);
 
