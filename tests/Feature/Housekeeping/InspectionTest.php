@@ -35,3 +35,31 @@ test('marking a room cleaned follows its property inspection setting', function 
         expect($change->from_status->value)->toBe('dirty')->and($change->to_status->value)->toBe($expected)->and($change->actor_id)->toBe($owner->id);
     });
 })->with([[false, 'clean'], [true, 'inspection_required']]);
+
+
+test('inspection pass and fail require supervision and preserve history on refusal', function (OrganizationRole $role, string $to) {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, function () use ($t) {
+        $t->a->property->update(['housekeeping_inspection_required' => true]);
+        $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
+        $room = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
+        app(MarkRoomCleaned::class)->handle($t->a->owner, $room);
+
+        return $room;
+    });
+    $this->actingAs($t->a->member($role));
+    $allowed = in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager], true);
+    $response = $this->patchJson(route('housekeeping.status', $room), ['_property' => $t->a->property->id, 'status' => $to, 'reason' => 'Inspection result']);
+    if ($allowed) {
+        $response->assertRedirect();
+    } else {
+        $response->assertForbidden();
+    }
+    inTenant($t->a->property, function () use ($allowed, $to) {
+        expect(RoomStatus::query()->sole()->status->value)->toBe($allowed ? $to : 'inspection_required')
+            ->and(StatusChange::query()->count())->toBe($allowed ? 2 : 1);
+        if ($allowed) {
+            expect(StatusChange::query()->orderByDesc('id')->first()->reason)->toBe('Inspection result');
+        }
+    });
+})->with(OrganizationRole::cases())->with(['clean', 'dirty']);

@@ -11,6 +11,7 @@ use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class ChangeRoomStatus
 {
@@ -19,6 +20,9 @@ class ChangeRoomStatus
         return Audit::validationRefusal($actor, $room, 'Housekeeping status change refused', fn () => DB::transaction(function () use ($actor, $room, $to, $reason) {
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             $from = $status->status;
+            if ($from === HousekeepingStatus::InspectionRequired) {
+                Gate::forUser($actor)->authorize('supervise', RoomStatus::class);
+            }
             app(StatusTransitions::class)->ensureAllowed($from, $to, Property::query()->findOrFail($status->property_id)->housekeeping_inspection_required);
             $status->update(['status' => $to]);
             $change = new StatusChange([

@@ -12,6 +12,7 @@ class StatusTransitions
     {
         $allowed = match ($from) {
             HousekeepingStatus::Dirty => $to === ($inspectionRequired ? HousekeepingStatus::InspectionRequired : HousekeepingStatus::Clean),
+            HousekeepingStatus::InspectionRequired => in_array($to, [HousekeepingStatus::Clean, HousekeepingStatus::Dirty], true),
             HousekeepingStatus::Clean => $to === HousekeepingStatus::Dirty,
             default => false,
         };
