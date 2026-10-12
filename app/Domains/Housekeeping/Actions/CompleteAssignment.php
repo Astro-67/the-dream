@@ -2,7 +2,6 @@
 
 namespace App\Domains\Housekeeping\Actions;
 
-use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\Assignment;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -18,8 +17,7 @@ class CompleteAssignment
                 return;
             }
 
-            // #65: switch to MarkRoomCleaned
-            app(ChangeRoomStatus::class)->handle($actor, $assignment->room, HousekeepingStatus::Clean, __('Cleaning completed'));
+            app(MarkRoomCleaned::class)->handle($actor, $assignment->room);
             $assignment->update(['completed_at' => now()]);
             Audit::record($actor, 'completed', $assignment, 'Housekeeping cleaning completed');
         }));

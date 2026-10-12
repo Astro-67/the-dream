@@ -15,11 +15,12 @@ use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 
-test('housekeepers see only their own rooms today and complete cleaning once with history', function () {
+test('housekeepers see only their own rooms today and complete cleaning once with history', function (bool $inspectionRequired, string $expectedStatus) {
     $this->travelTo(Carbon::parse('2026-10-11 22:30:00', 'UTC'));
     $t = twoTenants();
     $housekeeper = $t->a->member(OrganizationRole::Housekeeping);
-    $room = inTenant($t->a->property, function () use ($t) {
+    $room = inTenant($t->a->property, function () use ($t, $inspectionRequired) {
+        $t->a->property->update(['housekeeping_inspection_required' => $inspectionRequired]);
         $type = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType());
 
         return app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($type->id));
@@ -34,8 +35,11 @@ test('housekeepers see only their own rooms today and complete cleaning once wit
     $this->post('/housekeeping/assignments/'.$id.'/done', ['_property' => $t->a->property->id])->assertRedirect()->assertSessionHasNoErrors();
     $this->post('/housekeeping/assignments/'.$id.'/done', ['_property' => $t->a->property->id])->assertRedirect()->assertSessionHasNoErrors();
     $this->get('/housekeeping/my-rooms')->assertInertia(fn (Assert $page) => $page->has('assignments', 1)->where('assignments.0.completed', true));
-    $this->get(route('housekeeping.history', $room))->assertInertia(fn (Assert $page) => $page->has('changes.data', 1)->where('changes.data.0.actor', $housekeeper->name)->where('changes.data.0.from', 'Dirty')->where('changes.data.0.to', 'Clean')->where('changes.data.0.reason', 'Cleaning completed'));
-});
+    $this->get(route('housekeeping.history', $room))->assertInertia(fn (Assert $page) => $page->has('changes.data', 1)->where('changes.data.0.actor', $housekeeper->name)->where('changes.data.0.from', 'Dirty')->where('changes.data.0.to', $expectedStatus)->where('changes.data.0.reason', 'Cleaning completed'));
+})->with([
+    'inspection required' => [true, 'Inspection required'],
+    'inspection skipped' => [false, 'Clean'],
+]);
 
 test('assignment permissions match each role and housekeepers cannot operate another list', function (OrganizationRole $role) {
     $t = twoTenants();
