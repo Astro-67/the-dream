@@ -25,6 +25,10 @@ class PostRoomCharge
                 return $existing;
             }
             $line = $reservation->priceLines()->whereDate('date', $date)->first();
+            if ($line === null && $date >= $reservation->departure->toDateString()) {
+                // Price lines end before departure; an unchecked-out extra night repeats the last night's price, with taxes for the charged date.
+                $line = $reservation->priceLines()->whereDate('date', '<', $reservation->departure->toDateString())->reorder()->latest('date')->first();
+            }
             if ($line === null) {
                 throw ValidationException::withMessages(['reservation' => __('This reservation has no price line for the business date.')]);
             }
