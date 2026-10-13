@@ -4,6 +4,7 @@ namespace App\Domains\Billing\Actions;
 
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\Billing\Models\PostingApproval;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -38,13 +39,17 @@ class ReversePosting
     }
 
     /** Refuses a posting that already cancels another, or that something already cancels. */
-    public static function ensureCancellable(Posting $posting, string $field = 'posting'): void
+    public static function ensureCancellable(Posting $posting, string $field = 'posting', ?string $exceptApproval = null): void
     {
         if (in_array($posting->type, ['reversal', 'transfer_out'], true)) {
             throw ValidationException::withMessages([$field => __('This posting cancels another and cannot be reversed or moved.')]);
         }
         if (Posting::query()->where('related_posting_id', $posting->id)->exists()) {
             throw ValidationException::withMessages([$field => __('This posting has already been reversed or moved.')]);
+        }
+        if (PostingApproval::query()->where('original_posting_id', $posting->id)->where('status', 'pending')
+            ->when($exceptApproval !== null, fn ($query) => $query->whereKeyNot($exceptApproval))->exists()) {
+            throw ValidationException::withMessages([$field => __('This posting is awaiting reversal approval.')]);
         }
     }
 
