@@ -127,7 +127,7 @@ test('the page data carries the member\'s permissions for the current property',
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->where('auth.permissions', [
             'finance.view', 'guests.view', 'housekeeping.view', 'members.view',
-            'properties.view', 'reports.view', 'reservations.view',
+            'night_audit.view', 'properties.view', 'reports.view', 'reservations.view',
         ]));
 });
 
