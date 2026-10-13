@@ -109,6 +109,7 @@ class PropertyController extends Controller
                 'jurisdiction_profile' => $property->jurisdiction_profile->value,
                 'housekeeping_inspection_required' => $property->housekeeping_inspection_required,
                 'receipt_prefix' => $property->receipt_prefix,
+                'close_time' => substr($property->close_time, 0, 5),
                 // Zanzibar-only: never sent for a mainland property.
                 ...(JurisdictionRules::hasZraHotelCode($property->jurisdiction_profile) ? ['zra_hotel_code' => $property->zra_hotel_code] : []),
                 ...(JurisdictionRules::configuresRegistrationFields($property->jurisdiction_profile) ? ['registration_fields' => $property->registration_fields ?? []] : []),

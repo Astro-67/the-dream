@@ -18,6 +18,7 @@ type Props = PropertyFormOptions & {
     property: PropertyValues & {
         registration_fields?: string[];
         receipt_prefix: string;
+        close_time: string;
     };
     registrationFieldOptions: string[];
 };
@@ -119,6 +120,25 @@ export default function EditProperty({
                                     aria-invalid={!!errors.receipt_prefix}
                                 />
                                 <InputError message={errors.receipt_prefix} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="close_time">Close time</Label>
+                                <Input
+                                    id="close_time"
+                                    name="close_time"
+                                    type="time"
+                                    defaultValue={property.close_time}
+                                    aria-invalid={!!errors.close_time}
+                                    aria-describedby="close_time_hint"
+                                />
+                                <p
+                                    id="close_time_hint"
+                                    className="text-sm text-muted-foreground"
+                                >
+                                    Night audit closes the business date at this
+                                    local time.
+                                </p>
+                                <InputError message={errors.close_time} />
                             </div>
                             {configuresRegistration && (
                                 <fieldset className="grid gap-3">

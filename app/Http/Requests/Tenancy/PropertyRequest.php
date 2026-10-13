@@ -37,6 +37,7 @@ class PropertyRequest extends FormRequest
             'housekeeping_inspection_required' => ['sometimes', 'boolean'],
             'registration_fields' => ['sometimes', 'array'],
             'receipt_prefix' => ['sometimes', 'string', 'max:10', 'regex:/^[A-Za-z0-9\/-]+$/'],
+            'close_time' => ['sometimes', 'date_format:H:i'],
             'registration_fields.*' => ['distinct', Rule::in(IdentityDocument::FIELDS)],
         ];
     }
