@@ -2,6 +2,7 @@
 
 namespace App\Domains\Billing\Models;
 
+use App\Domains\Reservations\Models\Reservation;
 use App\Models\User;
 use App\Support\Money\Currency;
 use App\Support\Money\Money;
@@ -48,6 +49,7 @@ use LogicException;
  * @property-read Receipt|null $receipt
  * @property-read Posting|null $related
  * @property-read Posting|null $cancelledBy
+ * @property-read Reservation|null $reservation
  */
 #[Fillable(['folio_id', 'reservation_id', 'price_line_id', 'related_posting_id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at', 'method', 'reference', 'card_last_four', 'card_brand', 'cashier_shift_id'])]
 #[UseEloquentBuilder(PostingBuilder::class)]
@@ -76,6 +78,12 @@ class Posting extends Model
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return BelongsTo<Reservation, $this> */
+    public function reservation(): BelongsTo
+    {
+        return $this->belongsTo(Reservation::class);
     }
 
     /** @return HasOne<Receipt, $this> */

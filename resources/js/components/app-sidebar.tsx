@@ -33,6 +33,7 @@ import { index as invitations } from '@/routes/invitations';
 import { index as guests } from '@/routes/guests';
 import { index as bookers } from '@/routes/bookers';
 import { index as members } from '@/routes/members';
+import { index as nightAudit } from '@/routes/night-audit';
 import { index as openBalances } from '@/routes/open-balances';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
 import { index as platformStaff } from '@/routes/platform/staff';
@@ -116,6 +117,9 @@ export function AppSidebar() {
                       icon: Wallet,
                   },
               ]
+            : []),
+        ...(can('night_audit.view')
+            ? [{ title: 'Night audit', href: nightAudit(), icon: CalendarDays }]
             : []),
         ...(can('charges.post', 'finance.view')
             ? [

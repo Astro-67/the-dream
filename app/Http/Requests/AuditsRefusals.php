@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Domains\Billing\Models\ApprovalThreshold;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\PostingApproval;
+use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Housekeeping\Models\Assignment;
@@ -38,6 +39,7 @@ trait AuditsRefusals
                 $this->routeIs('cashier-shifts.*') => new CashierShift,
                 $this->routeIs('approvals.*') => new PostingApproval,
                 $this->routeIs('approval-thresholds.*') => new ApprovalThreshold,
+                $this->routeIs('night-audit.*') => new BusinessDateClose,
                 default => new Reservation,
             };
         }

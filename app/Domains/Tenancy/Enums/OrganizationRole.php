@@ -52,7 +52,7 @@ enum OrganizationRole: string
                 P::MembersView, P::InventoryManage, P::RatesManage,
                 P::ReservationsView, P::ReservationsManage, P::ReservationsVoid, P::RoomsAssign, P::GuestsView, P::GuestsRegister, P::GuestsMerge,
                 P::HousekeepingView, P::HousekeepingManage, P::HousekeepingSupervise,
-                P::FinanceView, P::ReportsView,
+                P::FinanceView, P::ReportsView, P::NightAuditView, P::NightAuditClose,
             ],
             self::PropertyManager => [
                 P::PropertiesView, P::PropertiesUpdate,
@@ -60,22 +60,22 @@ enum OrganizationRole: string
                 P::ReservationsView, P::ReservationsManage, P::ReservationsVoid, P::RoomsAssign, P::GuestsView, P::GuestsRegister, P::GuestsMerge, P::CheckoutOverrideBalance,
                 P::HousekeepingView, P::HousekeepingManage, P::HousekeepingSupervise, P::HousekeepingOverrideReady,
                 P::FiscalExceptionsReview, P::ReportsView,
-                P::ChannelsManage, P::ApprovalsManage,
+                P::ChannelsManage, P::ApprovalsManage, P::NightAuditView, P::NightAuditClose,
             ],
             self::FrontDesk => [
                 P::ReservationsView, P::ReservationsManage, P::RoomsAssign,
                 P::GuestsView, P::GuestsRegister, P::GuestIdentityView,
-                P::ChargesPost, P::HousekeepingView,
+                P::ChargesPost, P::HousekeepingView, P::NightAuditView,
             ],
             self::Finance => [
                 P::ReservationsView, P::GuestsView, P::ChargesPost, P::TaxManage,
-                P::FinanceView, P::FinanceCorrect, P::PaymentsRefund, P::FoliosWriteOff, P::FiscalExceptionsReview, P::ReportsView,
+                P::FinanceView, P::FinanceCorrect, P::PaymentsRefund, P::FoliosWriteOff, P::FiscalExceptionsReview, P::ReportsView, P::NightAuditView,
             ],
             self::Housekeeping => [P::HousekeepingView, P::HousekeepingManage],
             self::Auditor => [
                 P::PropertiesView, P::MembersView,
                 P::ReservationsView, P::GuestsView, P::HousekeepingView,
-                P::FinanceView, P::ReportsView,
+                P::FinanceView, P::ReportsView, P::NightAuditView,
             ],
         });
     }
