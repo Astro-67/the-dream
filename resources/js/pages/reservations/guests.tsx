@@ -23,14 +23,17 @@ export default function Guests({
     reservationNumber,
     guests,
     canAttach,
+    inHouse,
     canViewIdentity,
 }: {
     reservationNumber: string;
     guests: Paginated<Contact>;
     canAttach: boolean;
+    inHouse: boolean;
     canViewIdentity: boolean;
 }) {
     const base = `/reservations/${encodeURIComponent(reservationNumber)}`;
+    const action = inHouse ? `${base}/add-guest` : `${base}/guests`;
     const intent = usePropertyIntent();
     const [matches, setMatches] = useState<Match[] | null>(null);
     const [searching, setSearching] = useState(false);
@@ -130,9 +133,11 @@ export default function Guests({
                             Check for a returning guest, then choose to link a
                             record or create a new one. Nothing is linked or
                             merged automatically.
+                            {inHouse &&
+                                ' This stay is in house, so the guest must meet the registration rules.'}
                         </p>
                         <Form
-                            action={`${base}/guests`}
+                            action={action}
                             method="post"
                             disableWhileProcessing
                             className="space-y-4"
@@ -142,6 +147,8 @@ export default function Guests({
                                     <PropertyIntent />
                                     <InputError message={errors._property} />
                                     <InputError message={errors.guest_id} />
+                                    <InputError message={errors.reservation} />
+                                    <InputError message={errors.guests} />
                                     {(['name', 'email', 'phone'] as const).map(
                                         (field) => (
                                             <div
@@ -264,7 +271,7 @@ export default function Guests({
                                             {match.phone ?? 'No phone'}
                                         </p>
                                         <Form
-                                            action={`${base}/guests`}
+                                            action={action}
                                             method="post"
                                             disableWhileProcessing
                                         >
@@ -279,6 +286,8 @@ export default function Guests({
                                                     <InputError
                                                         message={
                                                             errors.guest_id ??
+                                                            errors.guests ??
+                                                            errors.reservation ??
                                                             errors._property
                                                         }
                                                     />

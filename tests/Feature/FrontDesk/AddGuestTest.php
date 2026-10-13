@@ -8,6 +8,7 @@ use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
 
@@ -119,6 +120,15 @@ test('only staff who manage reservations and register guests may add a guest', f
     $allowed ? $response->assertRedirect()->assertSessionHasNoErrors() : $response->assertForbidden();
     expect(addGuestCounts($t->a, $reservation))->toBe($allowed ? ['guests' => 1, 'events' => 1] : ['guests' => 0, 'events' => 0]);
 })->with(array_map(fn ($role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager, OrganizationRole::FrontDesk], true)], OrganizationRole::cases()));
+
+test('in house, the guests page adds through registration and plain attaching is refused', function () {
+    $t = twoTenants();
+    $reservation = addGuestStay($t->a);
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
+    $this->get(route('reservations.guests.create', $reservation))->assertInertia(fn (AssertableInertia $page) => $page->where('inHouse', true)->where('canAttach', true));
+    $this->postJson(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'name' => 'Unregistered'])->assertUnprocessable()->assertJsonValidationErrors('reservation');
+    expect(addGuestCounts($t->a, $reservation))->toBe(['guests' => 0, 'events' => 0]);
+});
 
 test('adding a guest requires the opening property intent', function () {
     $t = twoTenants();
