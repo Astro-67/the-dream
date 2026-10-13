@@ -17,6 +17,7 @@ use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
+use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 use Tests\Support\TenantFixture;
@@ -178,6 +179,19 @@ test('only reservation managers may move a guest', function (OrganizationRole $r
     $this->actingAs($t->a->member($role))->post(route('reservations.room-move', $reservation), ['_property' => $t->a->property->id, 'room_id' => $new->id])->assertStatus($allowed ? 302 : 403);
     inTenant($t->a->property, fn () => expect($reservation->fresh()->room_id)->toBe($allowed ? $new->id : roomNumbered($t->a, '101')->id));
 })->with(array_map(fn ($role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager, OrganizationRole::FrontDesk], true)], OrganizationRole::cases()));
+
+test('the reservation page offers in-house moves to free rooms of any type', function (OrganizationRole $role, bool $offered) {
+    $t = twoTenants();
+    $reservation = inHouse($t->a);
+    $suite = suite($t->a, $reservation);
+    inTenant($t->a->property, fn () => RoomStatus::query()->where('room_id', $suite->id)->update(['status' => HousekeepingStatus::Dirty]));
+    $this->actingAs($t->a->member($role))->get(route('reservations.show', $reservation))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('can.moveRoom', $offered)
+            ->where('moveRooms', $offered ? [
+                ['id' => roomNumbered($t->a, '102')->id, 'number' => '102', 'roomType' => 'Deluxe Double', 'isReady' => true],
+                ['id' => $suite->id, 'number' => '201', 'roomType' => 'Suite', 'isReady' => false],
+            ] : []));
+})->with([[OrganizationRole::FrontDesk, true], [OrganizationRole::Finance, false]]);
 
 test('a room move requires the opening property intent', function () {
     $t = twoTenants();

@@ -26,6 +26,10 @@ import {
 } from '@/features/reservations/amendment-form';
 import { show } from '@/routes/reservations';
 import { formatMoney } from '@/lib/utils';
+import {
+    RoomMoveForm,
+    type MoveRoom,
+} from '@/features/front-desk/room-move-form';
 
 type Named = { id: string; name: string };
 type Reservation = {
@@ -62,6 +66,7 @@ export default function Show({
     amendmentOptions,
     amendments,
     can,
+    moveRooms,
     groupMembers,
 }: {
     reservation: Reservation;
@@ -73,7 +78,8 @@ export default function Show({
     canAmend: boolean;
     amendmentOptions: AmendmentOptions | null;
     amendments: Paginated<Amendment>;
-    can: { cancel: boolean; void: boolean };
+    can: { cancel: boolean; void: boolean; moveRoom: boolean };
+    moveRooms: MoveRoom[];
     groupMembers: Pick<
         Reservation,
         'reservation_number' | 'status' | 'arrival' | 'departure'
@@ -186,6 +192,12 @@ export default function Show({
                             </>
                         )}
                     </Form>
+                )}
+                {can.moveRoom && (
+                    <RoomMoveForm
+                        number={reservation.reservation_number}
+                        rooms={moveRooms}
+                    />
                 )}
                 {canAmend &&
                     amendmentOptions &&

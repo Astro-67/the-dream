@@ -9,6 +9,7 @@ use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\AssignableRooms;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\CreateReservationRequest;
@@ -44,6 +45,7 @@ class ReservationController extends Controller
     public function show(Reservation $reservation): Response
     {
         Gate::authorize('view', $reservation);
+        $canMove = $reservation->status === ReservationStatus::CheckedIn && Gate::allows('moveRoom', $reservation);
 
         return Inertia::render('reservations/show', [
             'reservation' => $reservation->load('priceLines'),
@@ -61,7 +63,8 @@ class ReservationController extends Controller
             ] : null,
             'canAmend' => Gate::allows('amend', $reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),
-            'can' => ['cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation)],
+            'can' => ['cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation), 'moveRoom' => $canMove],
+            'moveRooms' => $canMove ? app(AssignableRooms::class)->forMove($reservation) : [],
             'booker' => Booker::query()->findOrFail($reservation->getAttribute('booker_id'))->only(['id', 'name']),
             'roomType' => RoomType::query()->findOrFail($reservation->getAttribute('room_type_id'))->only(['id', 'name']),
             'ratePlan' => RatePlan::query()->findOrFail($reservation->getAttribute('rate_plan_id'))->only(['id', 'name']),
