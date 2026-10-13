@@ -31,7 +31,7 @@ class AddGuest
             if ($locked->status !== ReservationStatus::CheckedIn) {
                 throw ValidationException::withMessages(['reservation' => __('Guests can be added only to checked-in reservations.')]);
             }
-            $guest = ! empty($details['guest_id']) ? Guest::query()->findOrFail($details['guest_id']) : app(CreateGuest::class)->handle($actor, $details);
+            $guest = ! empty($details['guest_id']) ? Guest::query()->whereKey($details['guest_id'])->firstOrFail() : app(CreateGuest::class)->handle($actor, $details);
             if (ReservationGuest::query()->where(['reservation_id' => $locked->id, 'guest_id' => $guest->id])->exists()) {
                 throw ValidationException::withMessages(['guest_id' => __(':guest is already staying on this reservation.', ['guest' => $guest->name])]);
             }
