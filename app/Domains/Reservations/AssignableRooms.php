@@ -35,7 +35,7 @@ class AssignableRooms
             ->whereDoesntHave('outOfServicePeriods', fn ($query) => $query->whereDate('starts_on', '<', $to)->whereDate('returns_on', '>', $from))
             ->whereNotIn('id', RoomAssignmentNight::query()->select('room_id')->whereDate('date', '>=', $from)->whereDate('date', '<', $to)->where('reservation_id', '!=', $reservation->id))
             ->orderBy('number')->get()
-            ->map(fn (Room $room) => ['id' => $room->id, 'number' => (string) $room->getAttribute('number'), 'roomType' => (string) $room->roomType?->name, 'isReady' => $readiness->isReady($room)])->all();
+            ->map(fn (Room $room) => ['id' => $room->id, 'number' => (string) $room->getAttribute('number'), 'roomType' => $room->roomType->name, 'isReady' => $readiness->isReady($room)])->all();
     }
 
     public function shapeOption(Room $room): void
