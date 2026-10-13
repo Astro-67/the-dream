@@ -2,6 +2,7 @@
 
 namespace App\Domains\FrontDesk\Actions;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Registration;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
@@ -32,7 +33,7 @@ class CheckIn
             if ($locked->status !== ReservationStatus::Confirmed) {
                 throw ValidationException::withMessages(['reservation' => __('Only confirmed reservations can be checked in.')]);
             }
-            if ($locked->arrival->toDateString() !== $readiness->businessDate($property)) {
+            if ($locked->arrival->toDateString() !== BusinessDate::of($property)) {
                 throw ValidationException::withMessages(['reservation' => __('Only reservations arriving on the current business date can be checked in.')]);
             }
             $room = $locked->room_id === null ? null : Room::query()->whereKey($locked->room_id)->lockForUpdate()->firstOrFail();

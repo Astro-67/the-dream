@@ -3,11 +3,10 @@
 namespace App\Domains\Reservations\Actions;
 
 use App\Domains\Billing\Models\Folio;
-use App\Domains\Housekeeping\RoomReadiness;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\ReservationLists;
-use App\Support\Tenancy\Tenancy;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Gate;
 
@@ -16,7 +15,7 @@ class ListReservations
     /** @return LengthAwarePaginator<int, Reservation> */
     public function handle(string $list, string $date, string $search): LengthAwarePaginator
     {
-        $today = app(RoomReadiness::class)->businessDate(Tenancy::property() ?? throw new \LogicException('Reservation lists require a property.'));
+        $today = BusinessDate::current();
         $reservations = app(ReservationLists::class)->query($list, $date, $search)->paginate(50)->withQueryString();
         $reservations->getCollection()->each(fn (Reservation $reservation) => $reservation->setAttribute('can_check_in', $reservation->status === ReservationStatus::Confirmed
             && $reservation->arrival->toDateString() === $today && Gate::allows('checkIn', $reservation))

@@ -2,6 +2,7 @@
 
 namespace App\Domains\Reservations\Actions;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Actions\RetakeInventory;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\DateRange;
@@ -29,8 +30,7 @@ class AmendReservation
                 throw ValidationException::withMessages(['reservation' => __('Only confirmed reservations can be amended.')]);
             }
             $property = Property::query()->findOrFail($reservation->property_id);
-            // ponytail: Spec 7 will supply the open business date; use the property's local date until then.
-            $today = now($property->timezone)->toDateString();
+            $today = BusinessDate::of($property);
             if ($details['arrival'] < $today && $details['arrival'] !== $reservation->arrival->toDateString()) {
                 throw ValidationException::withMessages(['arrival' => __('A changed arrival cannot be in the past at this property.')]);
             }

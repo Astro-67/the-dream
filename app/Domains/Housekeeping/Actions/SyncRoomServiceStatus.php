@@ -2,10 +2,10 @@
 
 namespace App\Domains\Housekeeping\Actions;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Enums\TransitionSource;
 use App\Domains\Housekeeping\Models\RoomStatus;
-use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Inventory\Models\OutOfServicePeriod;
 use App\Domains\Inventory\Models\Room;
 use App\Models\User;
@@ -16,7 +16,7 @@ class SyncRoomServiceStatus
 {
     public function activePeriod(Room $room): ?OutOfServicePeriod
     {
-        $date = app(RoomReadiness::class)->businessDate($room);
+        $date = BusinessDate::of($room);
 
         return $room->outOfServicePeriods()->whereDate('starts_on', '<=', $date)->whereDate('returns_on', '>', $date)->first();
     }

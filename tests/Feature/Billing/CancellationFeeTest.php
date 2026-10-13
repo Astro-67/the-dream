@@ -43,7 +43,7 @@ function bookedWithPolicy(array $policy): array
 function cancelOn(User $owner, Reservation $reservation, string $localDate): ?FeeProposal
 {
     $property = Property::query()->withoutGlobalScopes()->findOrFail($reservation->property_id);
-    test()->travelTo(CarbonImmutable::parse($localDate.' 23:30', $property->timezone));
+    $property->update(['business_date' => $localDate]);
 
     return inTenant($property, function () use ($owner, $reservation) {
         app(CancelReservation::class)->handle($owner, $reservation, 'Guest changed plans');

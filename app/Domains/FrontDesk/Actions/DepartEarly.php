@@ -2,7 +2,7 @@
 
 namespace App\Domains\FrontDesk\Actions;
 
-use App\Domains\Housekeeping\RoomReadiness;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Actions\ReleaseInventory;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\DateRange;
@@ -29,7 +29,7 @@ class DepartEarly
             if ($locked->status !== ReservationStatus::CheckedIn) {
                 throw ValidationException::withMessages(['reservation' => __('Only in-house reservations can depart early.')]);
             }
-            $today = app(RoomReadiness::class)->businessDate(Property::query()->findOrFail($locked->property_id));
+            $today = BusinessDate::of($locked);
             $previous = $locked->departure->toDateString();
             if ($today < $locked->arrival->toDateString() || $today >= $previous) {
                 throw ValidationException::withMessages(['reservation' => __('An early departure must be during the stay with a night left.')]);

@@ -5,6 +5,7 @@ namespace App\Domains\Billing\Actions;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Rates\Enums\ChargeKind;
 use App\Domains\Rates\TaxCalculator;
 use App\Domains\Reservations\Models\Reservation;
@@ -38,8 +39,7 @@ class ResolveFee
             $resolution = ['status' => $decision === 'post' ? 'posted' : 'waived', 'reason' => $reason, 'resolved_by' => $actor?->id, 'resolved_at' => now()];
             if ($decision === 'post') {
                 $property = Property::query()->findOrFail($folio->property_id);
-                // ponytail: before Spec 7 owns the open business date, use the property's local date.
-                $date = now($property->timezone)->toDateString();
+                $date = BusinessDate::of($property);
                 $reservation = Reservation::query()->findOrFail($folio->reservation_id);
                 try {
                     $breakdown = TaxCalculator::forProperty($property, $proposal->amount, $folio->currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Extra);

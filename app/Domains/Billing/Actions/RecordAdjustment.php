@@ -6,6 +6,7 @@ use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\PostingApproval;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -52,7 +53,7 @@ class RecordAdjustment
                 'amount' => $type === 'refund' ? $amount : -$amount, 'currency' => $folio->currency,
                 'method' => $method, 'reference' => $details['reference'] ?? null, 'cashier_shift_id' => $shift?->id,
                 'tax_lines' => [], 'tax_rule_ids' => [], 'idempotency_key' => $details['idempotency_key'],
-                'actor_id' => $actor?->id, 'business_date' => now($property->timezone)->toDateString(), 'posted_at' => now(),
+                'actor_id' => $actor?->id, 'business_date' => BusinessDate::of($property), 'posted_at' => now(),
             ]);
         }, attempts: 3));
     }

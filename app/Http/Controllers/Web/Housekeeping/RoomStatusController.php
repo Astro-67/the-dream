@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Web\Housekeeping;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Housekeeping\Actions\OverrideRoomReady;
 use App\Domains\Housekeeping\Actions\UpdateRoomStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
-use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Inventory\Models\Room;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Housekeeping\ChangeRoomStatusRequest;
@@ -25,7 +25,7 @@ class RoomStatusController extends Controller
         Gate::authorize('view', RoomStatus::query()->where('room_id', $room->id)->sole());
 
         return Inertia::render('housekeeping/history', [
-            'businessDate' => app(RoomReadiness::class)->businessDate($room),
+            'businessDate' => BusinessDate::of($room),
             'room' => $room->only(['id', 'number']),
             'changes' => StatusChange::query()->where('room_id', $room->id)->with('actor')->orderByDesc('changed_at')->orderByDesc('id')->paginate(50)->withQueryString()
                 ->through(fn (StatusChange $change) => [

@@ -7,6 +7,7 @@ use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\Receipt;
 use App\Domains\Billing\Models\ReceiptSequence;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
@@ -58,8 +59,7 @@ class RecordPayment
             }
             $shift = $method === 'cash' ? $this->openShift($actor) : null;
             $property = Property::query()->findOrFail($folio->property_id);
-            // ponytail: before Spec 7 owns the open business date, use the property's local date.
-            $date = now($property->timezone)->toDateString();
+            $date = BusinessDate::of($property);
             $posting = Posting::query()->create([
                 'folio_id' => $folio->id, 'type' => 'payment',
                 'category' => $reservation->status === ReservationStatus::Confirmed ? 'deposit' : 'payment',

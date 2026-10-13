@@ -4,11 +4,13 @@ namespace App\Domains\Billing\Actions;
 
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -34,8 +36,7 @@ class ProposeFee
             }
             if ($kind === 'cancellation' && $plan->cancellation_free_days !== null) {
                 $property = Property::query()->findOrFail($reservation->property_id);
-                // ponytail: before Spec 7 owns the open business date, use the property's local date.
-                $today = now($property->timezone)->startOfDay();
+                $today = CarbonImmutable::parse(BusinessDate::of($property));
                 if ((int) $today->diffInDays($reservation->arrival, false) >= $plan->cancellation_free_days) {
                     return null;
                 }

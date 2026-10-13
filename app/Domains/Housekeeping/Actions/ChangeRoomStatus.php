@@ -2,12 +2,12 @@
 
 namespace App\Domains\Housekeeping\Actions;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Enums\TransitionSource;
 use App\Domains\Housekeeping\Models\Assignment;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
-use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Housekeeping\StatusTransitions;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Tenancy\Models\Property;
@@ -40,7 +40,7 @@ class ChangeRoomStatus
             $status->update(['status' => $to]);
             if ($from === HousekeepingStatus::InspectionRequired && $to === HousekeepingStatus::Dirty) {
                 Assignment::query()->where('room_id', $room->id)
-                    ->whereDate('business_date', app(RoomReadiness::class)->businessDate($room))
+                    ->whereDate('business_date', BusinessDate::of($room))
                     ->update(['completed_at' => null]);
             }
             $change = new StatusChange([

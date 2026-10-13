@@ -6,6 +6,7 @@ use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\PostingApproval;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -44,7 +45,7 @@ class ResolvePostingApproval
                     }
                 }
                 $property = Property::query()->findOrFail($folio->property_id);
-                $posting = Posting::query()->create([...$attributes, 'posted_at' => now(), 'business_date' => now($property->timezone)->toDateString()]);
+                $posting = Posting::query()->create([...$attributes, 'posted_at' => now(), 'business_date' => BusinessDate::of($property)]);
             }
             $approval->update([
                 'status' => $decision === 'approve' ? 'approved' : 'rejected', 'resolved_by' => $actor->id,

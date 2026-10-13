@@ -2,8 +2,7 @@
 
 namespace App\Http\Requests\Housekeeping;
 
-use App\Domains\Housekeeping\RoomReadiness;
-use App\Support\Tenancy\Tenancy;
+use App\Domains\FrontDesk\BusinessDate;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AssignmentDateRequest extends FormRequest
@@ -16,6 +15,6 @@ class AssignmentDateRequest extends FormRequest
 
     public function businessDate(): string
     {
-        return $this->validated('date') ?? app(RoomReadiness::class)->businessDate(Tenancy::property());
+        return $this->validated('date') ?? BusinessDate::current();
     }
 }

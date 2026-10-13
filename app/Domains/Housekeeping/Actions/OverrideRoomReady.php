@@ -2,10 +2,10 @@
 
 namespace App\Domains\Housekeeping\Actions;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Housekeeping\Models\StatusChange;
-use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Inventory\Models\Room;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -22,7 +22,7 @@ class OverrideRoomReady
             if ($status->status === HousekeepingStatus::Unavailable || app(SyncRoomServiceStatus::class)->activePeriod($room) !== null) {
                 throw ValidationException::withMessages(['reason' => __('An out-of-service room cannot be made ready. Return it to service first.')]);
             }
-            $date = app(RoomReadiness::class)->businessDate($room);
+            $date = BusinessDate::of($room);
             $override = new StatusChange([
                 'room_id' => $room->id, 'actor_id' => $actor->id,
                 'from_status' => $status->status, 'to_status' => $status->status,

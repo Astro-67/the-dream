@@ -150,3 +150,10 @@ test('the housekeeping board lists room status type and floor for each permitted
         ->where('canSupervise', in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager], true))
         ->missing('guests')->missing('identityDocuments')->missing('folios')->missing('priceLines')->missing('payments'));
 })->with(OrganizationRole::cases());
+
+test('the board reads the stored business date, not the property local date', function () {
+    $t = twoTenants();
+    $t->a->property->update(['business_date' => '2026-10-01']);
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $this->get(route('housekeeping.index'))->assertInertia(fn (Assert $page) => $page->where('businessDate', '2026-10-01'));
+});
