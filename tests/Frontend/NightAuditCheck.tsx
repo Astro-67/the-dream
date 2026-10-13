@@ -19,7 +19,19 @@ const summary = renderToStaticMarkup(
                 labels={{
                     title: 'Night audit',
                     charges: 'Room charges posted',
+                    noShows: 'No-shows proposed',
+                    proposed: 'Proposed',
+                    confirm: 'Confirm no-show',
                 }}
+                noShowsProposed={1}
+                noShows={[
+                    {
+                        id: 'proposal',
+                        reservation_number: 'R-AUDIT-002',
+                        status: 'proposed',
+                        can_resolve: true,
+                    },
+                ]}
                 charges={{
                     data: [
                         {
@@ -50,4 +62,7 @@ const summary = renderToStaticMarkup(
 assert.match(summary, />R-AUDIT-001</);
 assert.match(summary, /USD 129\.80/);
 assert.match(summary, /VAT: USD 19\.80/);
+assert.match(summary, /No-shows proposed: 1/);
+assert.match(summary, />R-AUDIT-002</);
+assert.match(summary, /Confirm no-show/);
 console.log('Night audit summary: PASS');

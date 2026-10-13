@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
@@ -9,6 +10,7 @@ use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\NoShowProposal;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 use Tests\Support\Isolation\RouteCoverage;
@@ -61,6 +63,23 @@ return [
         inTenant($t->b->property, fn () => expect(BusinessDateClose::query()->count())->toBe(0)
             ->and(Posting::query()->count())->toBe(0)
             ->and($t->b->property->fresh()->business_date->toDateString())->toBe($date));
+
+        return $responses;
+    }),
+    'no-show-proposals.resolve' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $t->b->property->update(['business_date' => '2026-12-10']);
+        $proposal = inTenant($t->b->property, function () use ($t) {
+            app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            app(CloseBusinessDate::class)->handle(null, $t->b->property, '2026-12-10');
+
+            return NoShowProposal::query()->sole();
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('no-show-proposals.resolve', $proposal), ['_property' => $t->a->property->id, 'decision' => 'confirm'])->assertNotFound();
+        }
+        inTenant($t->b->property, fn () => expect($proposal->fresh()->status)->toBe('proposed')
+            ->and($proposal->reservation->status)->toBe(ReservationStatus::Confirmed));
 
         return $responses;
     }),

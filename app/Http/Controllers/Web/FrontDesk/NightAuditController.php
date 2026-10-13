@@ -6,6 +6,7 @@ use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
+use App\Domains\Reservations\Models\NoShowProposal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FrontDesk\CloseBusinessDateRequest;
 use App\Models\User;
@@ -53,7 +54,17 @@ class NightAuditController extends Controller
                 'tax_lines' => $posting->tax_lines,
             ]);
 
-        return Inertia::render('night-audit/show', ['close' => $this->row($businessDateClose), 'charges' => $charges, 'labels' => $this->labels()]);
+        $noShows = NoShowProposal::query()->whereDate('business_date', $businessDateClose->business_date->toDateString())
+            ->with('reservation:id,reservation_number')->orderBy('id')->get();
+
+        return Inertia::render('night-audit/show', [
+            'close' => $this->row($businessDateClose), 'charges' => $charges, 'labels' => $this->labels(),
+            'noShowsProposed' => $noShows->count(),
+            'noShows' => $noShows->map(fn (NoShowProposal $proposal) => [
+                'id' => $proposal->id, 'reservation_number' => $proposal->reservation->reservation_number,
+                'status' => $proposal->status, 'can_resolve' => $proposal->status === 'proposed' && Gate::allows('resolve', $proposal),
+            ]),
+        ]);
     }
 
     /** @return array<string, mixed> */
@@ -77,6 +88,9 @@ class NightAuditController extends Controller
             'charges' => __('Room charges posted'), 'noCharges' => __('No in-house room charges were posted for this date.'),
             'reservation' => __('Reservation number'), 'price' => __('Nightly price'), 'taxes' => __('Taxes'),
             'amount' => __('Amount'), 'back' => __('Back to night audit'),
+            'noShows' => __('No-shows proposed'), 'noShowsHelp' => __('Reservations not arrived by the end of their arrival date. Confirming releases the room and proposes the no-show fee.'),
+            'status' => __('Status'), 'confirm' => __('Confirm no-show'), 'reject' => __('Reject'),
+            'proposed' => __('Proposed'), 'confirmed' => __('Confirmed'), 'rejected' => __('Rejected'),
         ];
     }
 }

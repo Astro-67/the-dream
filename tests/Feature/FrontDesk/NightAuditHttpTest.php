@@ -1,12 +1,16 @@
 <?php
 
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
+use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\NoShowProposal;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 
 test('a property manager starts night audit and reads the room charge summary', function () {
     $tenants = twoTenants();
@@ -67,3 +71,48 @@ test('night audit refuses malformed or non-current business dates without openin
     expect($property->fresh()->business_date->toDateString())->toBe('2026-12-10');
     inTenant($property, fn () => expect(BusinessDateClose::query()->count())->toBe(0));
 })->with(['2026-12-09', '2026-12-11', '2026-02-30', 'not-a-date']);
+
+test('the close summary lists its no-show proposals and a manager confirms or rejects each', function () {
+    $tenants = twoTenants();
+    $property = $tenants->a->property;
+    $property->update(['business_date' => '2026-12-10']);
+    [$first, $second] = inTenant($property, function () use ($tenants) {
+        $details = BookingForm::details($tenants->a->owner);
+        app(CreateRoom::class)->handle($tenants->a->owner, [...InventoryForm::room($details['room_type_id']), 'number' => '2']);
+
+        return [app(CreateReservation::class)->handle($tenants->a->owner, $details), app(CreateReservation::class)->handle($tenants->a->owner, $details)];
+    });
+    $manager = $tenants->a->member(OrganizationRole::PropertyManager);
+    $this->actingAs($manager)->post(route('night-audit.store'), ['_property' => $property->id, 'business_date' => '2026-12-10']);
+    [$close, $proposal, $other] = inTenant($property, fn () => [BusinessDateClose::query()->sole(),
+        NoShowProposal::query()->where('reservation_id', $first->id)->sole(), NoShowProposal::query()->where('reservation_id', $second->id)->sole()]);
+
+    $this->get(route('night-audit.show', $close))->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('noShowsProposed', 2)->has('noShows', 2)
+        ->where('noShows.0.reservation_number', $first->reservation_number)
+        ->where('noShows.0.status', 'proposed')->where('noShows.0.can_resolve', true));
+    $this->post(route('no-show-proposals.resolve', $proposal), ['_property' => $property->id, 'decision' => 'confirm'])
+        ->assertRedirect(route('night-audit.show', $close));
+    $this->post(route('no-show-proposals.resolve', $other), ['_property' => $property->id, 'decision' => 'reject']);
+
+    inTenant($property, fn () => expect($first->fresh()->status)->toBe(ReservationStatus::NoShow)
+        ->and($second->fresh()->status)->toBe(ReservationStatus::Confirmed)
+        ->and($other->fresh()->status)->toBe('rejected'));
+});
+
+test('staff without the close permission cannot confirm or reject a no-show', function (OrganizationRole $role) {
+    $tenants = twoTenants();
+    $property = $tenants->a->property;
+    $property->update(['business_date' => '2026-12-10']);
+    $proposal = inTenant($property, function () use ($tenants, $property) {
+        app(CreateReservation::class)->handle($tenants->a->owner, BookingForm::details($tenants->a->owner));
+        app(CloseBusinessDate::class)->handle(null, $property, '2026-12-10');
+
+        return NoShowProposal::query()->sole();
+    });
+    $this->actingAs($tenants->a->member($role))
+        ->post(route('no-show-proposals.resolve', $proposal), ['_property' => $property->id, 'decision' => 'confirm'])
+        ->assertForbidden();
+    inTenant($property, fn () => expect($proposal->fresh()->status)->toBe('proposed')
+        ->and($proposal->reservation->status)->toBe(ReservationStatus::Confirmed));
+})->with([OrganizationRole::FrontDesk, OrganizationRole::Finance, OrganizationRole::Housekeeping, OrganizationRole::Auditor]);

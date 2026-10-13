@@ -16,8 +16,13 @@ the date being closed.
 
 - **#88 scheduler:** capture the date when dispatching a tenant-aware job. Enter
   the property's context, then call the action with that date and a null actor.
-- **#89 no-shows:** call the proposal action before advancing the date, inside
-  this transaction. Key proposals by reservation/date and never auto-confirm.
+- **#89 no-shows:** `Reservations\Actions\ProposeNoShows` runs before the date
+  advances and creates one `NoShowProposal` per confirmed reservation arriving
+  on or before the closing date (unique per reservation; `business_date` is the
+  proposing close). Status `proposed` until a `night_audit.close` holder runs
+  `ConfirmNoShow` (terminates as `no_show`, proposes the fee, records
+  `no_show_confirmed`) or `RejectNoShow`. Open proposals:
+  `NoShowProposal::where('status', 'proposed')`.
 - **#91 stayovers and price events:** extend the locked reservation loop before
   advancing the date. Record `nightly_price_changed` with `RecordLifecycleEvent`
   under the reservation lock; the business date is still the closing date.
