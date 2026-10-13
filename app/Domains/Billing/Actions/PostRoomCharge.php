@@ -28,11 +28,7 @@ class PostRoomCharge
             if ($reservation->status !== ReservationStatus::CheckedIn || $date < $reservation->arrival->toDateString()) {
                 throw ValidationException::withMessages(['reservation' => __('Room charges require an in-house reservation on the business date.')]);
             }
-            $line = $reservation->priceLines()->whereDate('date', $date)->first();
-            if ($line === null && $date >= $reservation->departure->toDateString()) {
-                // Price lines end before departure; an unchecked-out extra night repeats the last night's price, with taxes for the charged date.
-                $line = $reservation->priceLines()->whereDate('date', '<', $reservation->departure->toDateString())->reorder()->latest('date')->first();
-            }
+            $line = $reservation->nightPrice($date);
             if ($line === null) {
                 throw ValidationException::withMessages(['reservation' => __('This reservation has no price line for the business date.')]);
             }
