@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
@@ -76,6 +77,20 @@ test('a property-collected reservation has no channel-collected payment', functi
     inTenant($property, function () use ($owner) {
         expect(fn () => app(RecordPayment::class)->handle($owner, paymentFolio($owner), ['method' => 'channel_collected', 'currency' => 'USD']))
             ->toThrow(ValidationException::class);
+    });
+});
+
+test('channel collection cannot be posted again on another folio of the reservation', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $first = paymentFolio($owner, ['payment_collector' => 'channel', 'channel_collected_amount' => 24000]);
+        $second = app(OpenFolio::class)->handle($owner, Reservation::query()->findOrFail($first->reservation_id), 'USD');
+        app(RecordPayment::class)->handle($owner, $first, ['method' => 'channel_collected', 'currency' => 'USD']);
+
+        expect(fn () => app(RecordPayment::class)->handle($owner, $second, ['method' => 'channel_collected', 'currency' => 'USD']))
+            ->toThrow(ValidationException::class);
+        expect($second->fresh()->balance()->amount)->toBe(0)
+            ->and(Receipt::query()->count())->toBe(1);
     });
 });
 

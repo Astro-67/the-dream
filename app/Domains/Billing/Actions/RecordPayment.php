@@ -43,7 +43,8 @@ class RecordPayment
             if ($details['currency'] !== $folio->currency->value) {
                 throw ValidationException::withMessages(['currency' => __('This folio is in :currency.', ['currency' => $folio->currency->value])]);
             }
-            $reservation = Reservation::query()->findOrFail($folio->reservation_id);
+            $reservation = Reservation::query()->whereKey($folio->reservation_id)
+                ->when($method === 'channel_collected', fn ($query) => $query->lockForUpdate())->firstOrFail();
             $amount = $method === 'channel_collected' ? $this->channelCollected($reservation, $folio) : (int) ($details['amount'] ?? 0);
             if ($amount <= 0) {
                 throw ValidationException::withMessages(['amount' => __('Enter an amount above zero.')]);
@@ -90,7 +91,8 @@ class RecordPayment
         if ($planCurrency !== null && $planCurrency !== $folio->currency->value) {
             throw ValidationException::withMessages(['currency' => __('The channel collected :currency.', ['currency' => $planCurrency])]);
         }
-        if (Posting::query()->where('folio_id', $folio->id)->where('method', 'channel_collected')->exists()) {
+        if (Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
+            ->where('type', 'payment')->where('method', 'channel_collected')->exists()) {
             throw ValidationException::withMessages(['method' => __('The channel-collected amount is already posted.')]);
         }
 
