@@ -19,6 +19,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { TerminationActions } from '@/features/reservations/termination-actions';
+import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
 import { StayLengthActions } from '@/features/front-desk/stay-length-actions';
 import { formatDate } from '@/features/platform/format';
 import {
@@ -97,6 +98,8 @@ export default function Show({
         void: boolean;
         moveRoom: boolean;
         changeStay: boolean;
+        checkOut: boolean;
+        overrideBalance: boolean;
     };
     moveRooms: MoveRoom[];
     groupMembers: Pick<
@@ -139,6 +142,13 @@ export default function Show({
                         <TerminationActions
                             number={reservation.reservation_number}
                             can={can}
+                        />
+                    )}
+                    {reservation.status === 'checked_in' && can.checkOut && (
+                        <CheckOutDialog
+                            number={reservation.reservation_number}
+                            balances={totals}
+                            canOverride={can.overrideBalance}
                         />
                     )}
                     {reservation.status === 'checked_in' && can.changeStay && (

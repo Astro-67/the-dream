@@ -45,6 +45,17 @@ class ReservationPolicy
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
     }
 
+    public function checkOut(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+    }
+
+    /** Check out leaving an open balance after departure. */
+    public function checkOutWithBalance(User $user, Reservation $reservation): bool
+    {
+        return $this->checkOut($user, $reservation) && Access::allows($user, P::CheckoutOverrideBalance, $reservation);
+    }
+
     public function moveRoom(User $user, Reservation $reservation): bool
     {
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
