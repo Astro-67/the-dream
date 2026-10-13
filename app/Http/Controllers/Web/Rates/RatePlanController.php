@@ -66,7 +66,9 @@ class RatePlanController extends Controller
         Gate::authorize('update', $ratePlan);
 
         return Inertia::render('rates/edit', [
-            'plan' => [...$ratePlan->only(['id', 'name', 'code']), 'currency' => $ratePlan->currency->value, 'room_type_ids' => $ratePlan->roomTypes()->pluck('room_types.id')->all(), 'baseName' => $ratePlan->basePlan?->name],
+            'plan' => [...$ratePlan->only(['id', 'name', 'code']), 'currency' => $ratePlan->currency->value, 'room_type_ids' => $ratePlan->roomTypes()->pluck('room_types.id')->all(), 'baseName' => $ratePlan->basePlan?->name,
+                ...$ratePlan->only(['cancellation_free_days', 'cancellation_percent', 'no_show_percent']),
+                'cancellation_charge' => $ratePlan->cancellation_charge?->value, 'no_show_charge' => $ratePlan->no_show_charge?->value],
             'roomTypes' => RoomType::query()->orderBy('code')->get(['id', 'name', 'code']),
         ]);
     }
@@ -75,7 +77,7 @@ class RatePlanController extends Controller
     {
         /** @var User $actor */
         $actor = $request->user();
-        /** @var array{name: string, code: string, room_type_ids?: list<string>} $details */
+        /** @var array{name: string, code: string, room_type_ids?: list<string>, cancellation_free_days?: int|null, cancellation_charge?: string|null, cancellation_percent?: int|null, no_show_charge?: string|null, no_show_percent?: int|null} $details */
         $details = $request->validated();
         $update->handle($actor, $ratePlan, $details);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Rate plan updated.')]);
