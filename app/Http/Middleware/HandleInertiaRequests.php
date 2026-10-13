@@ -95,6 +95,7 @@ class HandleInertiaRequests extends Middleware
             'currency' => $property->currency->value,
             'jurisdictionProfile' => $property->jurisdiction_profile->value,
             'jurisdictionLabel' => $property->jurisdiction_profile->label(),
+            'businessDate' => $property->business_date->toDateString(),
         ];
 
         // Zanzibar-only fields never reach a mainland property's pages.

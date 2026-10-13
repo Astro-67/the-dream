@@ -101,3 +101,10 @@ test('after switching, the client is told to drop the previous property\'s pages
     // Only the switch clears history; ordinary visits keep it.
     expect($this->get(route('dashboard'))->viewData('page')['clearHistory'] ?? false)->toBeFalse();
 });
+
+test('the header shows the current property business date', function () {
+    $t = twoTenants();
+    $t->a->property->update(['business_date' => '2026-10-01']);
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->member(OrganizationRole::FrontDesk));
+    $this->get(route('reservations.index'))->assertInertia(fn (Assert $page) => $page->where('tenant.property.businessDate', '2026-10-01'));
+});
