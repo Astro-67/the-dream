@@ -11,7 +11,10 @@ const summary = renderToStaticMarkup(
             version: null,
             clearHistory: false,
             encryptHistory: false,
-            props: { errors: {} },
+            props: {
+                errors: {},
+                tenant: { property: { id: 'property', timezone: 'UTC' } },
+            },
         }}
         initialComponent={() => (
             <Show
