@@ -9,6 +9,7 @@ use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\NoShowProposal;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 
@@ -114,6 +115,10 @@ test('staff without the close permission cannot confirm or reject a no-show', fu
     foreach (['confirm', 'reject'] as $decision) {
         $this->post(route('no-show-proposals.'.$decision, $proposal), ['_property' => $property->id])->assertForbidden();
     }
+    $refusals = inTenant($property, fn () => Activity::query()->where('description', 'Sensitive form refused')->get());
+    expect($refusals)->toHaveCount(2)
+        ->and($refusals->pluck('subject_type')->unique()->all())->toBe([$proposal->getMorphClass()])
+        ->and($refusals->pluck('subject_id')->unique()->all())->toBe([$proposal->id]);
     inTenant($property, fn () => expect($proposal->fresh()->status)->toBe('proposed')
         ->and($proposal->reservation->status)->toBe(ReservationStatus::Confirmed));
 })->with([OrganizationRole::FrontDesk, OrganizationRole::Finance, OrganizationRole::Housekeeping, OrganizationRole::Auditor]);
