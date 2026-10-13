@@ -29,9 +29,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('postings', function (Blueprint $table) {
+            // MySQL backs the reservation_id foreign key with this unique index, so the key goes first.
+            $table->dropForeign(['reservation_id']);
             $table->dropUnique('postings_reservation_night_category_unique');
             $table->dropConstrainedForeignId('price_line_id');
-            $table->dropConstrainedForeignId('reservation_id');
+            $table->dropColumn('reservation_id');
         });
         Schema::dropIfExists('business_date_closes');
     }
