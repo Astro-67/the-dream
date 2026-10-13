@@ -1,5 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import InputError from '@/components/input-error';
@@ -14,7 +15,10 @@ import { PropertyFields } from '@/features/tenancy/property-fields';
 import { index, update } from '@/routes/properties';
 
 type Props = PropertyFormOptions & {
-    property: PropertyValues & { registration_fields?: string[] };
+    property: PropertyValues & {
+        registration_fields?: string[];
+        receipt_prefix: string;
+    };
     registrationFieldOptions: string[];
 };
 
@@ -101,6 +105,20 @@ export default function EditProperty({
                                         errors.housekeeping_inspection_required
                                     }
                                 />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="receipt_prefix">
+                                    Receipt number prefix
+                                </Label>
+                                <Input
+                                    id="receipt_prefix"
+                                    name="receipt_prefix"
+                                    defaultValue={property.receipt_prefix}
+                                    maxLength={10}
+                                    pattern="[A-Za-z0-9/\-]+"
+                                    aria-invalid={!!errors.receipt_prefix}
+                                />
+                                <InputError message={errors.receipt_prefix} />
                             </div>
                             {configuresRegistration && (
                                 <fieldset className="grid gap-3">

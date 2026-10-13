@@ -36,6 +36,7 @@ class PropertyRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'housekeeping_inspection_required' => ['sometimes', 'boolean'],
             'registration_fields' => ['sometimes', 'array'],
+            'receipt_prefix' => ['sometimes', 'string', 'max:10', 'regex:/^[A-Za-z0-9\/-]+$/'],
             'registration_fields.*' => ['distinct', Rule::in(IdentityDocument::FIELDS)],
         ];
     }

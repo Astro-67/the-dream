@@ -8,6 +8,7 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
+use Tests\Support\PropertyForm;
 use Tests\Support\TwoTenants;
 
 /** @return array{0: TwoTenants, 1: Folio} */
@@ -97,4 +98,15 @@ test('front desk records the channel-collected amount when booking', function ()
     $this->postJson(route('reservations.store'), [...$details, '_property' => $t->a->property->id, 'payment_collector' => 'channel'])->assertJsonValidationErrors('channel_collected_amount');
 
     expect(inTenant($t->a->property, fn () => Reservation::query()->sole()->channel_collected_amount))->toBe(15000);
+});
+
+test('an owner configures the receipt prefix on the property', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $this->actingAs($owner);
+
+    $this->put(route('properties.update', $property), PropertyForm::payload(['_property' => $property->id, 'receipt_prefix' => 'SD-']))->assertSessionHasNoErrors();
+    $this->get(route('properties.edit', $property))->assertInertia(fn (Assert $page) => $page->where('property.receipt_prefix', 'SD-'));
+    $this->putJson(route('properties.update', $property), PropertyForm::payload(['_property' => $property->id, 'receipt_prefix' => 'way too long prefix']))->assertJsonValidationErrors('receipt_prefix');
+
+    expect($property->fresh()->receipt_prefix)->toBe('SD-');
 });
