@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Web\FrontDesk\AddGuestController;
 use App\Http\Controllers\Web\FrontDesk\CheckInController;
+use App\Http\Controllers\Web\FrontDesk\CheckOutController;
 use App\Http\Controllers\Web\FrontDesk\DepartEarlyController;
 use App\Http\Controllers\Web\FrontDesk\ExtendStayController;
 use App\Http\Controllers\Web\FrontDesk\RoomMoveController;
@@ -25,6 +26,7 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::post('reservations/{reservation:reservation_number}/void', VoidReservationController::class)->middleware('property.intent')->name('reservations.void');
     Route::post('reservations/{reservation:reservation_number}/cancel', CancelReservationController::class)->middleware('property.intent')->name('reservations.cancel');
     Route::post('reservations/{reservation:reservation_number}/check-in', CheckInController::class)->middleware('property.intent')->name('reservations.check-in');
+    Route::post('reservations/{reservation:reservation_number}/check-out', CheckOutController::class)->middleware('property.intent')->name('reservations.check-out');
     Route::post('reservations/{reservation:reservation_number}/room-move', RoomMoveController::class)->middleware('property.intent')->name('reservations.room-move');
     Route::post('reservations/{reservation:reservation_number}/add-guest', AddGuestController::class)->middleware('property.intent')->name('reservations.add-guest');
     Route::post('reservations/{reservation:reservation_number}/extend', ExtendStayController::class)->middleware('property.intent')->name('reservations.extend');
