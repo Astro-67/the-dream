@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use LogicException;
 
 /**
@@ -35,8 +36,13 @@ use LogicException;
  * @property string|null $actor_id
  * @property CarbonImmutable $business_date
  * @property CarbonImmutable $posted_at
+ * @property string|null $method a payment's method
+ * @property string|null $reference
+ * @property string|null $card_last_four
+ * @property string|null $card_brand
+ * @property-read Receipt|null $receipt
  */
-#[Fillable(['folio_id', 'type', 'category', 'description', 'quantity', 'unit_price', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at'])]
+#[Fillable(['folio_id', 'type', 'category', 'description', 'quantity', 'unit_price', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at', 'method', 'reference', 'card_last_four', 'card_brand'])]
 #[UseEloquentBuilder(PostingBuilder::class)]
 class Posting extends Model
 {
@@ -63,6 +69,12 @@ class Posting extends Model
     public function actor(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return HasOne<Receipt, $this> */
+    public function receipt(): HasOne
+    {
+        return $this->hasOne(Receipt::class);
     }
 
     protected static function booted(): void
