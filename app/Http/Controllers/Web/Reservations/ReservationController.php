@@ -52,27 +52,32 @@ class ReservationController extends Controller
     {
         Gate::authorize('view', $reservation);
         $canMove = $reservation->status === ReservationStatus::CheckedIn && Gate::allows('moveRoom', $reservation);
-        // ponytail: a stay's postings are bounded by its nights and extras; paginate if long stays make this heavy.
-        $folios = Folio::query()->where('reservation_id', $reservation->id)->with(['postings.actor:id,name', 'postings.receipt:id,posting_id,number'])->orderBy('created_at')->get();
-        // Reversals and transfers link to the posting they cancel; show the link from both ends.
-        $postings = $folios->flatMap(fn (Folio $folio) => $folio->postings)->keyBy('id');
-        $cancelledBy = $postings->whereNotNull('related_posting_id')->keyBy('related_posting_id');
+        $folios = Folio::query()->where('reservation_id', $reservation->id)->withSum('postings as balance_amount', 'amount')
+            ->orderBy('created_at')->orderBy('id')->paginate(50, ['*'], 'folios_page')->withQueryString();
+        $totals = Folio::query()->where('folios.reservation_id', $reservation->id)
+            ->leftJoin('postings', 'postings.folio_id', '=', 'folios.id')->select('folios.currency')
+            ->selectRaw("COALESCE(SUM(postings.amount), 0) as balance_total, COALESCE(SUM(CASE WHEN postings.type = 'charge' THEN postings.amount ELSE 0 END), 0) as charge_total")
+            ->groupBy('folios.currency')->orderBy('folios.currency')->get();
+        $folioPage = clone $folios;
+        $folioPage->setCollection(clone $folios->getCollection());
 
         return Inertia::render('reservations/show', [
-            'folios' => $folios->map(fn (Folio $folio) => [
-                'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => $folio->balance()->amount,
-                'postings' => $folio->postings->map(fn (Posting $posting) => [
-                    ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),
-                    'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
-                    'related' => ($related = $postings->get($posting->related_posting_id ?? '')) === null ? null : $related->only(['id', 'type', 'category', 'folio_id']),
-                    'cancelled_by' => $cancelledBy->get($posting->id)?->only(['id', 'type', 'folio_id']),
-                    ...$posting->only(['method', 'reference', 'card_last_four', 'card_brand']), 'receipt' => $posting->receipt?->only(['id', 'number']),
-                ])->all(),
-            ])->all(),
-            'totals' => $folios->groupBy(fn (Folio $folio) => $folio->currency->value)->map(fn ($group, string $currency) => [
-                'currency' => $currency,
-                'charges' => (int) $group->sum(fn (Folio $folio) => $folio->postings->where('type', 'charge')->sum('amount')),
-                'balance' => (int) $group->sum(fn (Folio $folio) => $folio->balance()->amount),
+            'folios' => $folioPage->through(fn (Folio $folio, int $index) => [
+                'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => (int) $folio->getAttribute('balance_amount'),
+                'number' => ($folios->firstItem() ?? 1) + $index,
+                'postings' => $folio->postings()->with(['actor:id,name', 'receipt:id,posting_id,number', 'related:id,type,category,folio_id', 'cancelledBy:id,type,folio_id,related_posting_id'])
+                    ->paginate(50, ['*'], 'postings_page_'.$folio->id)->withQueryString()->through(fn (Posting $posting) => [
+                        ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),
+                        'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
+                        'related' => $posting->related?->only(['id', 'type', 'category', 'folio_id']),
+                        'cancelled_by' => $posting->cancelledBy?->only(['id', 'type', 'folio_id']),
+                        ...$posting->only(['method', 'reference', 'card_last_four', 'card_brand']), 'receipt' => $posting->receipt?->only(['id', 'number']),
+                    ]),
+            ]),
+            'totals' => $totals->map(fn (Folio $total) => [
+                'currency' => $total->currency->value,
+                'charges' => (int) $total->getAttribute('charge_total'),
+                'balance' => (int) $total->getAttribute('balance_total'),
             ])->values()->all(),
             'feeProposals' => FeeProposal::query()->where('reservation_id', $reservation->id)->orderBy('created_at')->get()->map(fn (FeeProposal $fee) => [
                 ...$fee->only(['id', 'kind', 'amount', 'status', 'reason', 'fiscal_exception_candidate']), 'currency' => $fee->currency->value,
@@ -80,7 +85,7 @@ class ReservationController extends Controller
             ])->all(),
             'canPostCharge' => $folios->isNotEmpty() && Gate::allows('postCharge', $folios->first()),
             'canReverse' => $folios->isNotEmpty() && Gate::allows('reverse', $folios->first()),
-            'canTransfer' => $folios->count() > 1 && Gate::allows('transfer', $folios->first()),
+            'canTransfer' => $folios->total() > 1 && $folios->isNotEmpty() && Gate::allows('transfer', $folios->first()),
             'canOpenFolio' => Gate::allows('create', [Folio::class, $reservation]),
             'folioCurrencies' => array_map(fn (Currency $currency) => $currency->value, JurisdictionRules::allowedCurrencies(Property::query()->findOrFail($reservation->property_id))),
             'canRecordPayment' => $folios->isNotEmpty() && Gate::allows('recordPayment', $folios->first()),

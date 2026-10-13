@@ -106,7 +106,7 @@ export default function Show({
         Reservation,
         'reservation_number' | 'status' | 'arrival' | 'departure'
     >[];
-    folios: Folio[];
+    folios: Paginated<Folio>;
     totals: FolioTotal[];
     canPostCharge: boolean;
     feeProposals: FeeProposal[];

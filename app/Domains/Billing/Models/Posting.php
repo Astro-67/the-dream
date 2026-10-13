@@ -44,6 +44,8 @@ use LogicException;
  * @property string|null $card_brand
  * @property string|null $cashier_shift_id the shift whose cash drawer a cash posting went through
  * @property-read Receipt|null $receipt
+ * @property-read Posting|null $related
+ * @property-read Posting|null $cancelledBy
  */
 #[Fillable(['folio_id', 'related_posting_id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at', 'method', 'reference', 'card_last_four', 'card_brand', 'cashier_shift_id'])]
 #[UseEloquentBuilder(PostingBuilder::class)]
@@ -78,6 +80,18 @@ class Posting extends Model
     public function receipt(): HasOne
     {
         return $this->hasOne(Receipt::class);
+    }
+
+    /** @return BelongsTo<Posting, $this> */
+    public function related(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'related_posting_id');
+    }
+
+    /** @return HasOne<Posting, $this> */
+    public function cancelledBy(): HasOne
+    {
+        return $this->hasOne(self::class, 'related_posting_id');
     }
 
     protected static function booted(): void

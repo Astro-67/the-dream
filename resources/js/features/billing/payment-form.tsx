@@ -3,6 +3,7 @@ import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
@@ -133,7 +134,12 @@ export function PaymentForm({
                         className="sm:col-span-2"
                     />
                     <div className="sm:col-span-2">
-                        <Button disabled={processing}>Record payment</Button>
+                        <Button disabled={processing}>
+                            <span className="size-4">
+                                {processing && <Spinner />}
+                            </span>
+                            Record payment
+                        </Button>
                     </div>
                 </>
             )}

@@ -65,6 +65,19 @@ test('a resubmitted payment form posts once and issues one receipt', function ()
     expect(inTenant($t->a->property, fn () => [Posting::query()->count(), Receipt::query()->count()]))->toBe([1, 1]);
 });
 
+test('the non-fiscal receipt label uses the active translation', function () {
+    [$t, $folio] = folioForPayments();
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->post(route('folios.payments.store', $folio), [
+        '_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 100, 'idempotency_key' => 'translated-receipt',
+    ])->assertSessionHasNoErrors();
+    $receipt = inTenant($t->a->property, fn () => Receipt::query()->sole());
+    app('translator')->addLines(['*.Non-fiscal receipt' => 'Risiti isiyo ya kodi'], 'sw');
+    app()->setLocale('sw');
+
+    $this->get(route('receipts.show', $receipt))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('receipt.label', 'Risiti isiyo ya kodi'));
+});
+
 test('the payment form refuses a full card number, cash and a missing key', function () {
     [$t, $folio] = folioForPayments();
 
@@ -83,9 +96,9 @@ test('the reservation shows payments, deposits, receipts and the payment collect
 
     $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('reservation.payment_collector', 'channel')->where('reservation.channel_collected_amount', 24000)
-        ->where('folios.0.balance', -24000)
-        ->where('folios.0.postings.0.type', 'payment')->where('folios.0.postings.0.category', 'deposit')
-        ->where('folios.0.postings.0.method', 'channel_collected')->where('folios.0.postings.0.receipt.number', 'RCT-000001')
+        ->where('folios.data.0.balance', -24000)
+        ->where('folios.data.0.postings.data.0.type', 'payment')->where('folios.data.0.postings.data.0.category', 'deposit')
+        ->where('folios.data.0.postings.data.0.method', 'channel_collected')->where('folios.data.0.postings.data.0.receipt.number', 'RCT-000001')
         ->where('totals', [['currency' => 'USD', 'charges' => 0, 'balance' => -24000]]));
 });
 

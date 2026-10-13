@@ -1,4 +1,5 @@
 import { Form, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
+import { Identifier } from '@/components/ui/identifier';
+import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/utils';
 import { reverse, transfer } from '@/routes/postings';
 import { store as openFolio } from '@/routes/reservations/folios';
@@ -39,7 +42,7 @@ export function folioName(folios: Folio[], id: string) {
 
     return index === -1
         ? 'another folio'
-        : `folio ${index + 1} (${folios[index].currency})`;
+        : `folio ${folios[index].number} (${folios[index].currency})`;
 }
 
 /** The reversal or transfer this posting belongs to, read from both ends. */
@@ -103,11 +106,16 @@ export function PostingActions({
 
     return (
         <div className="flex justify-end gap-2">
-            {canTransfer && targets.length > 0 && (
+            {canTransfer && (
                 <CorrectionDialog
                     action={transfer.form(posting.id)}
                     trigger="Move"
-                    title="Move this charge to another folio?"
+                    title={
+                        <>
+                            Move posting <Identifier value={posting.id} /> to
+                            another folio?
+                        </>
+                    }
                     description={`${formatMoney(posting.amount, folio.currency)} leaves this folio and is posted to the folio you choose. Both postings stay on record.`}
                     submit="Move charge"
                     target={targets.map((other) => ({
@@ -121,7 +129,11 @@ export function PostingActions({
                 <CorrectionDialog
                     action={reverse.form(posting.id)}
                     trigger="Reverse"
-                    title="Reverse this posting?"
+                    title={
+                        <>
+                            Reverse posting <Identifier value={posting.id} />?
+                        </>
+                    }
                     description={`A reversal of ${formatMoney(-posting.amount, folio.currency)} is posted and linked to it. The original stays on the folio; post a new charge afterwards if one is needed.`}
                     submit="Post reversal"
                     destructive
@@ -144,13 +156,15 @@ function CorrectionDialog({
 }: {
     action: { action: string; method: 'post' };
     trigger: string;
-    title: string;
+    title: React.ReactNode;
     description: string;
     submit: string;
     destructive?: boolean;
     target?: { id: string; label: string }[];
     idPrefix: string;
 }) {
+    const [targetId, setTargetId] = useState(target?.[0]?.id ?? 'other');
+
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -176,7 +190,15 @@ function CorrectionDialog({
                                     </Label>
                                     <NativeSelect
                                         id={`${idPrefix}-folio`}
-                                        name="folio_id"
+                                        name={
+                                            targetId === 'other'
+                                                ? undefined
+                                                : 'folio_id'
+                                        }
+                                        value={targetId}
+                                        onChange={(event) =>
+                                            setTargetId(event.target.value)
+                                        }
                                         required
                                         aria-invalid={Boolean(errors.folio_id)}
                                     >
@@ -188,7 +210,38 @@ function CorrectionDialog({
                                                 {option.label}
                                             </option>
                                         ))}
+                                        <option value="other">
+                                            Another folio by ID
+                                        </option>
                                     </NativeSelect>
+                                    {targetId === 'other' && (
+                                        <>
+                                            <Label
+                                                htmlFor={`${idPrefix}-folio-id`}
+                                            >
+                                                Folio ID
+                                            </Label>
+                                            <Input
+                                                id={`${idPrefix}-folio-id`}
+                                                name="folio_id"
+                                                required
+                                                maxLength={26}
+                                                aria-invalid={Boolean(
+                                                    errors.folio_id,
+                                                )}
+                                                aria-describedby={`${idPrefix}-folio-help`}
+                                            />
+                                            <p
+                                                id={`${idPrefix}-folio-help`}
+                                                className="text-sm text-muted-foreground"
+                                            >
+                                                Copy the ID from the destination
+                                                folio, including one on another
+                                                page. It must use the same
+                                                currency.
+                                            </p>
+                                        </>
+                                    )}
                                     <InputError message={errors.folio_id} />
                                 </div>
                             )}
@@ -219,6 +272,9 @@ function CorrectionDialog({
                                     disabled={processing}
                                     type="submit"
                                 >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     {submit}
                                 </Button>
                             </DialogFooter>
@@ -264,6 +320,9 @@ export function OpenFolioForm() {
                         </NativeSelect>
                     </div>
                     <Button variant="secondary" disabled={processing}>
+                        <span className="size-4">
+                            {processing && <Spinner />}
+                        </span>
                         Open folio
                     </Button>
                     <InputError message={errors.currency} className="w-full" />

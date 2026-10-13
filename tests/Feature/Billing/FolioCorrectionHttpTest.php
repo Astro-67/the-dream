@@ -89,11 +89,11 @@ test('the folio view shows reversal and transfer links and the correction abilit
     $this->actingAs($t->a->member(OrganizationRole::Finance))->post(route('postings.reverse', $charge), ['_property' => $t->a->property->id, 'reason' => 'Wrong guest']);
 
     $this->actingAs($t->a->member(OrganizationRole::Finance))->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
-        ->where('folios.0.id', $folio->id)->has('folios.0.postings', 4)
-        ->where('folios.0.postings.0.id', $charge->id)->where('folios.0.postings.0.cancelled_by', fn ($link) => $link['type'] === 'reversal')
-        ->where('folios.0.postings.2.type', 'transfer_out')->where('folios.0.postings.2.related', fn ($link) => $link['category'] === 'laundry')
-        ->where('folios.0.postings.3.type', 'reversal')->where('folios.0.postings.3.reason', 'Wrong guest')->where('folios.0.postings.3.related.id', $charge->id)
-        ->where('folios.1.id', $second->id)->where('folios.1.postings.0.id', $in->id)->where('folios.1.postings.0.related.folio_id', $folio->id)
+        ->where('folios.data.0.id', $folio->id)->has('folios.data.0.postings.data', 4)
+        ->where('folios.data.0.postings.data.0.id', $charge->id)->where('folios.data.0.postings.data.0.cancelled_by', fn ($link) => $link['type'] === 'reversal')
+        ->where('folios.data.0.postings.data.2.type', 'transfer_out')->where('folios.data.0.postings.data.2.related', fn ($link) => $link['category'] === 'laundry')
+        ->where('folios.data.0.postings.data.3.type', 'reversal')->where('folios.data.0.postings.data.3.reason', 'Wrong guest')->where('folios.data.0.postings.data.3.related.id', $charge->id)
+        ->where('folios.data.1.id', $second->id)->where('folios.data.1.postings.data.0.id', $in->id)->where('folios.data.1.postings.data.0.related.folio_id', $folio->id)
         ->where('canReverse', true)->where('canTransfer', true)->where('canOpenFolio', true)
         ->has('folioCurrencies', 3));
     $this->actingAs($t->a->member(OrganizationRole::Auditor))->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page

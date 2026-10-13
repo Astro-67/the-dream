@@ -25,8 +25,8 @@ test('finance records a repeat-safe refund with a reason', function () {
     $this->post(route('folios.refunds.store', $folio), $details)->assertRedirect();
     $this->post(route('folios.refunds.store', $folio), $details)->assertRedirect();
     $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
-        ->where('folios.0.balance', 500)->has('folios.0.postings', 1)
-        ->where('folios.0.postings.0.type', 'refund')->where('folios.0.postings.0.reason', 'Deposit returned'));
+        ->where('folios.data.0.balance', 500)->has('folios.data.0.postings.data', 1)
+        ->where('folios.data.0.postings.data.0.type', 'refund')->where('folios.data.0.postings.data.0.reason', 'Deposit returned'));
 });
 
 test('a refund above the currency threshold waits for a different approver', function () {
@@ -39,7 +39,7 @@ test('a refund above the currency threshold waits for a different approver', fun
     $this->post(route('folios.refunds.store', $folio), [
         '_property' => $t->a->property->id, 'amount' => 500, 'method' => 'bank_transfer', 'reason' => 'Deposit returned', 'idempotency_key' => 'pending-1',
     ])->assertRedirect();
-    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.0.balance', 0)->has('folios.0.postings', 0));
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.data.0.balance', 0)->has('folios.data.0.postings.data', 0));
     $approvalId = null;
     $this->get(route('approvals.index'))->assertOk()->assertInertia(function (Assert $page) use (&$approvalId) {
         $page->has('approvals.data', 1)->where('approvals.data.0.status', 'pending')
@@ -56,7 +56,7 @@ test('a refund above the currency threshold waits for a different approver', fun
     $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->post(route('approvals.resolve', $approvalId), [
         '_property' => $t->a->property->id, 'decision' => 'approve',
     ])->assertRedirect()->assertSessionHasNoErrors();
-    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.0.balance', 500)->has('folios.0.postings', 1));
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.data.0.balance', 500)->has('folios.data.0.postings.data', 1));
 });
 
 test('a reversal above threshold posts only after approval and cannot be moved while pending', function () {
@@ -72,7 +72,7 @@ test('a reversal above threshold posts only after approval and cannot be moved w
     $this->actingAs($t->a->member(OrganizationRole::Finance))->post(route('postings.reverse', $charge), [
         '_property' => $t->a->property->id, 'reason' => 'Wrong folio',
     ])->assertSessionHasNoErrors();
-    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.0.balance', 500)->has('folios.0.postings', 1));
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.data.0.balance', 500)->has('folios.data.0.postings.data', 1));
     $approval = inTenant($t->a->property, fn () => PostingApproval::query()->sole());
     $target = inTenant($t->a->property, fn () => app(OpenFolio::class)->handle($t->a->owner, $reservation, 'USD'));
     $this->post(route('postings.transfer', $charge), ['_property' => $t->a->property->id, 'folio_id' => $target->id, 'reason' => 'Move'])->assertSessionHasErrors('posting');
@@ -80,7 +80,7 @@ test('a reversal above threshold posts only after approval and cannot be moved w
     $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->post(route('approvals.resolve', $approval), [
         '_property' => $t->a->property->id, 'decision' => 'approve',
     ])->assertSessionHasNoErrors();
-    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.0.balance', 0)->has('folios.0.postings', 2)->where('folios.0.postings.1.related.id', $charge->id));
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.data.0.balance', 0)->has('folios.data.0.postings.data', 2)->where('folios.data.0.postings.data.1.related.id', $charge->id));
 });
 
 test('each role has explicit refund and write-off access', function (OrganizationRole $role, bool $allowed) {
@@ -143,7 +143,7 @@ test('write-offs clear only unpaid balances and require reasons', function () {
     $this->postJson(route('folios.write-offs.store', $folio), [...$details, 'amount' => 501])->assertUnprocessable()->assertJsonValidationErrors('amount');
     $this->post(route('folios.write-offs.store', $folio), $details)->assertSessionHasNoErrors();
     $this->post(route('folios.write-offs.store', $folio), $details)->assertSessionHasNoErrors();
-    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.0.balance', 0)->has('folios.0.postings', 2)->where('folios.0.postings.1.type', 'write_off'));
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.data.0.balance', 0)->has('folios.data.0.postings.data', 2)->where('folios.data.0.postings.data.1.type', 'write_off'));
 });
 
 test('cash refunds require the requesting cashiers open shift and reduce expected cash', function () {

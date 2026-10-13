@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Identifier } from '@/components/ui/identifier';
+import { Pagination } from '@/components/ui/pagination';
+import { Spinner } from '@/components/ui/spinner';
 import { NativeSelect } from '@/components/ui/select';
 import {
     Table,
@@ -26,6 +29,7 @@ import {
     PostingLink,
 } from './folio-corrections';
 import { show as showReceipt } from '@/routes/receipts';
+import type { Paginated } from '@/types';
 
 export type Posting = {
     id: string;
@@ -55,7 +59,8 @@ export type Folio = {
     id: string;
     currency: string;
     balance: number;
-    postings: Posting[];
+    number: number;
+    postings: Paginated<Posting>;
 };
 export type FolioTotal = { currency: string; charges: number; balance: number };
 
@@ -74,13 +79,13 @@ const postingCategories = {
 };
 
 export function FolioPanel({
-    folios,
+    folios: folioPage,
     totals,
     canPostCharge,
     canRecordPayment = false,
     channelCollected = false,
 }: {
-    folios: Folio[];
+    folios: Paginated<Folio>;
     totals: FolioTotal[];
     canPostCharge: boolean;
     canRecordPayment?: boolean;
@@ -88,6 +93,7 @@ export function FolioPanel({
 }) {
     const { tenant } = usePage().props;
     const timezone = tenant.property?.timezone ?? 'UTC';
+    const folios = folioPage.data;
 
     return (
         <section className="space-y-4">
@@ -107,14 +113,19 @@ export function FolioPanel({
                     </div>
                 ))}
             </dl>
-            {folios.map((folio, index) => (
+            {folios.map((folio) => (
                 <div key={folio.id} className="space-y-3">
-                    {folios.length > 1 && (
+                    {folioPage.total > 1 && (
                         <h3 className="font-semibold">
-                            Folio {index + 1} ({folio.currency})
+                            Folio {folio.number} ({folio.currency}){' '}
+                            <Identifier
+                                value={folio.id}
+                                copyable
+                                className="text-sm"
+                            />
                         </h3>
                     )}
-                    {folio.postings.length === 0 ? (
+                    {folio.postings.data.length === 0 ? (
                         <EmptyState message="Nothing posted yet. Post an extra below when the guest uses one." />
                     ) : (
                         <Table>
@@ -132,7 +143,7 @@ export function FolioPanel({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {folio.postings.map((posting) => (
+                                {folio.postings.data.map((posting) => (
                                     <TableRow key={posting.id}>
                                         <TableCell>
                                             {formatDate(
@@ -170,7 +181,12 @@ export function FolioPanel({
                                                     className="text-sm underline underline-offset-4"
                                                 >
                                                     Receipt{' '}
-                                                    {posting.receipt.number}
+                                                    <Identifier
+                                                        value={
+                                                            posting.receipt
+                                                                .number
+                                                        }
+                                                    />
                                                 </Link>
                                             )}
                                             {posting.description && (
@@ -221,6 +237,7 @@ export function FolioPanel({
                             </TableBody>
                         </Table>
                     )}
+                    <Pagination page={folio.postings} />
                     {canPostCharge && <ExtraChargeForm folio={folio} />}
                     {canRecordPayment && (
                         <PaymentForm
@@ -231,6 +248,7 @@ export function FolioPanel({
                     <AdjustmentForms folio={folio} />
                 </div>
             ))}
+            <Pagination page={folioPage} />
             <OpenFolioForm />
         </section>
     );
@@ -317,7 +335,12 @@ function ExtraChargeForm({ folio }: { folio: Folio }) {
                         className="sm:col-span-2"
                     />
                     <div className="sm:col-span-2">
-                        <Button disabled={processing}>Post charge</Button>
+                        <Button disabled={processing}>
+                            <span className="size-4">
+                                {processing && <Spinner />}
+                            </span>
+                            Post charge
+                        </Button>
                     </div>
                 </>
             )}

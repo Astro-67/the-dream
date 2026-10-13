@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
+import { Spinner } from '@/components/ui/spinner';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
     Table,
@@ -16,7 +17,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { formatDate, formatMoney, formatTime } from '@/lib/utils';
+import { formatDate } from '@/features/platform/format';
+import { formatMoney, formatTime } from '@/lib/utils';
 import { close, index, store } from '@/routes/cashier-shifts';
 import type { Paginated } from '@/types';
 
@@ -41,7 +43,7 @@ type Shift = {
 function When({ instant, timezone }: { instant: string; timezone: string }) {
     return (
         <>
-            {formatDate(instant)} {formatTime(instant, timezone)}
+            {formatDate(instant, timezone)} {formatTime(instant, timezone)}
         </>
     );
 }
@@ -78,7 +80,12 @@ function OpenShiftForm({ currencies }: { currencies: string[] }) {
                     </div>
                     <InputError message={errors.shift ?? errors.floats} />
                     <div>
-                        <Button disabled={processing}>Open shift</Button>
+                        <Button disabled={processing}>
+                            <span className="size-4">
+                                {processing && <Spinner />}
+                            </span>
+                            Open shift
+                        </Button>
                     </div>
                 </>
             )}
@@ -134,7 +141,12 @@ function CloseShiftForm({ shift }: { shift: Shift }) {
                         />
                     </div>
                     <div>
-                        <Button disabled={processing}>Close shift</Button>
+                        <Button disabled={processing}>
+                            <span className="size-4">
+                                {processing && <Spinner />}
+                            </span>
+                            Close shift
+                        </Button>
                     </div>
                 </>
             )}

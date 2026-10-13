@@ -1,5 +1,8 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenFolio;
+use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Actions\ReversePosting;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Reservations\Actions\CreateReservation;
@@ -54,10 +57,52 @@ test('the reservation shows its folio postings, totals per currency and balance'
     $this->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'category' => 'laundry', 'quantity' => 1, 'unit_price' => 1000, 'idempotency_key' => 'b']);
 
     $this->actingAs($t->a->member(OrganizationRole::Auditor))->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
-        ->has('folios', 1)
-        ->where('folios.0.id', $folio->id)->where('folios.0.currency', 'USD')
-        ->where('folios.0.balance', 1300)
-        ->has('folios.0.postings', 2)
-        ->where('folios.0.postings.0.category', 'minibar')->where('folios.0.postings.0.amount', 300)
+        ->has('folios.data', 1)
+        ->where('folios.data.0.id', $folio->id)->where('folios.data.0.currency', 'USD')
+        ->where('folios.data.0.balance', 1300)
+        ->has('folios.data.0.postings.data', 2)
+        ->where('folios.data.0.postings.data.0.category', 'minibar')->where('folios.data.0.postings.data.0.amount', 300)
         ->where('totals', [['currency' => 'USD', 'charges' => 1300, 'balance' => 1300]]));
+});
+
+test('posting pages stay bounded while totals and reversal links span all pages', function () {
+    $t = twoTenants();
+    [$reservation, $folio, $charge] = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $folio = Folio::query()->sole();
+        $charge = null;
+        for ($index = 0; $index < 51; $index++) {
+            $posting = app(PostExtraCharge::class)->handle($t->a->owner, $folio, ['category' => 'other', 'quantity' => 1, 'unit_price' => 10]);
+            $charge ??= $posting;
+        }
+        app(ReversePosting::class)->handle($t->a->owner, $charge, 'Wrong charge');
+
+        return [$reservation, $folio, $charge];
+    });
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->has('folios.data.0.postings.data', 50)->where('folios.data.0.postings.total', 52)
+        ->where('folios.data.0.balance', 500)->where('totals.0.balance', 500)->where('totals.0.charges', 510)
+        ->where('folios.data.0.postings.data.0.cancelled_by.type', 'reversal'));
+    $this->get(route('reservations.show', [$reservation, 'postings_page_'.$folio->id => 2]))->assertInertia(fn (Assert $page) => $page
+        ->has('folios.data.0.postings.data', 2)->where('folios.data.0.postings.current_page', 2)
+        ->where('folios.data.0.postings.data.1.related.id', $charge->id)->where('totals.0.balance', 500));
+});
+
+test('folio pages stay bounded and currency totals include folios outside the page', function () {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        for ($index = 0; $index < 50; $index++) {
+            $folio = app(OpenFolio::class)->handle($t->a->owner, $reservation, 'USD');
+        }
+        app(PostExtraCharge::class)->handle($t->a->owner, $folio, ['category' => 'other', 'quantity' => 1, 'unit_price' => 100]);
+
+        return $reservation;
+    });
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->has('folios.data', 50)->where('folios.total', 51)->where('totals.0.balance', 100));
+    $this->get(route('reservations.show', [$reservation, 'folios_page' => 2]))->assertInertia(fn (Assert $page) => $page
+        ->has('folios.data', 1)->where('folios.current_page', 2)->where('folios.data.0.balance', 100)->where('totals.0.balance', 100));
 });

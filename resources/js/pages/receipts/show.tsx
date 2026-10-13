@@ -1,7 +1,9 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Identifier } from '@/components/ui/identifier';
-import { StatusChip } from '@/components/ui/status-chip';
+import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import { paymentMethods } from '@/features/billing/payment-form';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
@@ -41,23 +43,31 @@ export default function Show({
 }) {
     const { tenant } = usePage().props;
     const timezone = tenant.property?.timezone ?? 'UTC';
+    const [paper, setPaper] = useState('a4');
     const method =
         paymentMethods[receipt.method as keyof typeof paymentMethods] ??
         receipt.method;
 
     return (
         <>
-            <Head title={`Receipt ${receipt.number}`} />
-            <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
+            <Head title={`${receipt.label} ${receipt.number}`}>
+                <style media="print">{`@page { size: ${paper === 'thermal' ? '80mm 200mm' : 'A4'}; margin: ${paper === 'thermal' ? '4mm' : '12mm'}; }`}</style>
+            </Head>
+            <div
+                data-paper={paper}
+                className="receipt-print flex max-w-[720px] flex-col gap-6 p-4 md:p-6"
+            >
                 <header className="space-y-3">
                     <p className="text-sm text-muted-foreground">
                         {property.name}, {property.address_line},{' '}
                         {property.city}. {property.phone}, {property.email}
                     </p>
                     <h1 className="text-2xl font-semibold">
-                        Receipt <Identifier value={receipt.number} copyable />
+                        {receipt.label.toUpperCase()}
                     </h1>
-                    <StatusChip tone="info">{receipt.label}</StatusChip>
+                    <p>
+                        <Identifier value={receipt.number} copyable />
+                    </p>
                     <p className="text-sm text-muted-foreground">
                         This is not a fiscal receipt.
                     </p>
@@ -137,7 +147,18 @@ export default function Show({
                         </div>
                     ))}
                 </dl>
-                <div className="print:hidden">
+                <div className="flex flex-wrap items-end gap-3 print:hidden">
+                    <div className="space-y-2">
+                        <Label htmlFor="receipt-paper">Paper size</Label>
+                        <NativeSelect
+                            id="receipt-paper"
+                            value={paper}
+                            onChange={(event) => setPaper(event.target.value)}
+                        >
+                            <option value="a4">A4</option>
+                            <option value="thermal">80 mm thermal</option>
+                        </NativeSelect>
+                    </div>
                     <Button variant="outline" onClick={() => window.print()}>
                         Print receipt
                     </Button>

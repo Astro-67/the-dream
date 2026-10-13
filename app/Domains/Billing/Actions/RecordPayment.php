@@ -30,6 +30,9 @@ class RecordPayment
     public function handle(?User $actor, Folio $folio, array $details): Posting
     {
         return Audit::validationRefusal($actor, $folio, 'Payment refused', fn () => DB::transaction(function () use ($actor, $folio, $details) {
+            $reservation = $details['method'] === 'channel_collected'
+                ? Reservation::query()->whereKey($folio->reservation_id)->lockForUpdate()->firstOrFail()
+                : null;
             $folio = Folio::query()->whereKey($folio->id)->lockForUpdate()->firstOrFail();
             $key = $details['idempotency_key'] ?? (string) Str::ulid();
             $existing = Posting::query()->where('folio_id', $folio->id)->where('idempotency_key', $key)->first();
@@ -43,8 +46,7 @@ class RecordPayment
             if ($details['currency'] !== $folio->currency->value) {
                 throw ValidationException::withMessages(['currency' => __('This folio is in :currency.', ['currency' => $folio->currency->value])]);
             }
-            $reservation = Reservation::query()->whereKey($folio->reservation_id)
-                ->when($method === 'channel_collected', fn ($query) => $query->lockForUpdate())->firstOrFail();
+            $reservation ??= Reservation::query()->findOrFail($folio->reservation_id);
             $amount = $method === 'channel_collected' ? $this->channelCollected($reservation, $folio) : (int) ($details['amount'] ?? 0);
             if ($amount <= 0) {
                 throw ValidationException::withMessages(['amount' => __('Enter an amount above zero.')]);

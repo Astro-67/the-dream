@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Billing;
 
-use App\Domains\Billing\Actions\RecordAdjustment;
+use App\Domains\Billing\Actions\RecordPayment;
 use App\Http\Requests\AuditsRefusals;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -22,7 +22,7 @@ class RecordAdjustmentRequest extends FormRequest
         return [
             'amount' => ['required', 'integer', 'min:1', 'max:1000000000000'],
             'reason' => ['required', 'string', 'max:255'],
-            'method' => $this->routeIs('folios.refunds.store') ? ['required', Rule::in(RecordAdjustment::METHODS)] : ['exclude'],
+            'method' => $this->routeIs('folios.refunds.store') ? ['required', Rule::in(RecordPayment::METHODS)] : ['exclude'],
             'reference' => ['nullable', 'string', 'max:255'],
             'idempotency_key' => ['required', 'string', 'max:100'],
         ];

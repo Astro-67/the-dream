@@ -2,6 +2,7 @@ import { Form } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
+import { Identifier } from '@/components/ui/identifier';
 import {
     Dialog,
     DialogClose,
@@ -89,7 +90,10 @@ export function StayLengthActions({
                 </DialogTrigger>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Depart early today?</DialogTitle>
+                        <DialogTitle>
+                            Depart reservation <Identifier value={number} />{' '}
+                            early today?
+                        </DialogTitle>
                         <DialogDescription>
                             The departure moves to today. Tonight and later
                             nights are released for sale and their prices

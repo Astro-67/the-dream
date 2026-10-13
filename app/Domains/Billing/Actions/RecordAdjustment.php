@@ -14,8 +14,6 @@ use Illuminate\Validation\ValidationException;
 
 class RecordAdjustment
 {
-    public const array METHODS = ['cash', 'bank_transfer', 'mobile_money', 'card', 'channel_collected'];
-
     /** @param array{amount: int, reason: string, idempotency_key: string, method?: string|null, reference?: string|null} $details */
     public function handle(?User $actor, Folio $folio, string $type, array $details): Posting|PostingApproval
     {
@@ -38,7 +36,7 @@ class RecordAdjustment
                 throw ValidationException::withMessages(['amount' => __('A write-off cannot exceed the unpaid balance.')]);
             }
             $method = $type === 'refund' ? ($details['method'] ?? null) : null;
-            if ($type === 'refund' && ! in_array($method, self::METHODS, true)) {
+            if ($type === 'refund' && ! in_array($method, RecordPayment::METHODS, true)) {
                 throw ValidationException::withMessages(['method' => __('Choose a refund method.')]);
             }
             $shift = $method === 'cash' && $actor !== null

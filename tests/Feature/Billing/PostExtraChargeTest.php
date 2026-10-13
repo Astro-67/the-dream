@@ -28,8 +28,8 @@ test('an extra charge stores quantity, unit price, amount, tax lines and the rul
         expect($posting->only(['type', 'category', 'description', 'quantity', 'unit_price', 'net', 'amount']))
             ->toBe(['type' => 'charge', 'category' => 'minibar', 'description' => 'Two sodas', 'quantity' => 2, 'unit_price' => 250, 'net' => 500, 'amount' => 590])
             ->and($posting->currency)->toBe(Currency::USD)
-            ->and($posting->tax_lines)->toBe([['name' => 'VAT', 'kind' => 'percentage', 'inclusive' => false, 'rate' => 1800, 'per_person_night' => null, 'amount' => 90]])
-            ->and($posting->tax_rule_ids)->toBe([$vat->id])
+            ->and($posting->tax_lines)->toEqual([['name' => 'VAT', 'kind' => 'percentage', 'inclusive' => false, 'rate' => 1800, 'per_person_night' => null, 'amount' => 90]])
+            ->and($posting->tax_rule_ids)->toEqual([$vat->id])
             ->and($posting->actor_id)->toBe($owner->id);
     });
 });
@@ -46,7 +46,7 @@ test('changing a tax rule after posting leaves the posting tax lines unchanged',
 
         $stored = Posting::query()->findOrFail($posting->id);
         expect($stored->amount)->toBe(1180)->and($stored->tax_lines[0]['rate'])->toBe(1800)->and($stored->tax_lines[0]['amount'])->toBe(180)
-            ->and($stored->tax_rule_ids)->toBe([$vat->id]);
+            ->and($stored->tax_rule_ids)->toEqual([$vat->id]);
     });
 });
 
