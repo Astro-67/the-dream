@@ -14,6 +14,7 @@ use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
 
@@ -61,4 +62,67 @@ test('front desk checks out a settled stay, marking the room dirty and recording
         $event = $reservation->lifecycleEvents()->where('type', 'checked_out')->sole();
         expect($event->actor_id)->toBe($actor->id)->and($event->snapshot['status'])->toBe('checked_out');
     });
+});
+
+test('check-out is refused while any folio balance is not zero', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    chargeBeforeCheckOut($t->a, $reservation, 1500);
+
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('balance');
+
+    inTenant($t->a->property, function () use ($reservation) {
+        expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn)
+            ->and(RoomStatus::query()->where('room_id', $reservation->room_id)->sole()->status)->toBe(HousekeepingStatus::Occupied)
+            ->and($reservation->lifecycleEvents()->where('type', 'checked_out')->exists())->toBeFalse();
+    });
+});
+
+test('a credit balance also refuses check-out', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    inTenant($t->a->property, fn () => app(RecordPayment::class)->handle($t->a->owner, Folio::query()->where('reservation_id', $reservation->id)->sole(), ['method' => 'bank_transfer', 'amount' => 500, 'currency' => 'USD']));
+
+    $this->actingAs($t->a->owner)->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('balance');
+});
+
+test('only managers and owners may override an open balance, with a reason, and the override is audited', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    chargeBeforeCheckOut($t->a, $reservation, 1500);
+    $actor = $role === OrganizationRole::Owner ? $t->a->owner : $t->a->member($role);
+
+    $response = $this->actingAs($actor)->post(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id, 'override_reason' => 'Company pays by invoice']);
+
+    $allowed ? $response->assertRedirect(route('reservations.show', $reservation))->assertSessionHasNoErrors() : $response->assertForbidden();
+    inTenant($t->a->property, function () use ($reservation, $allowed) {
+        expect($reservation->fresh()->status)->toBe($allowed ? ReservationStatus::CheckedOut : ReservationStatus::CheckedIn);
+        if ($allowed) {
+            $event = $reservation->lifecycleEvents()->where('type', 'checked_out')->sole();
+            expect($event->snapshot['override_reason'])->toBe('Company pays by invoice')
+                ->and($event->snapshot['open_balances'])->toBe([['amount' => 1500, 'currency' => 'USD']]);
+            $audit = Activity::query()->where('event', 'checked_out')->sole();
+            expect($audit->properties['override_reason'])->toBe('Company pays by invoice');
+        }
+    });
+})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::PropertyManager], true)], OrganizationRole::cases()));
+
+test('an override needs a reason', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    chargeBeforeCheckOut($t->a, $reservation, 1500);
+
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id, 'override_reason' => '   '])
+        ->assertUnprocessable()->assertJsonValidationErrors('balance');
+});
+
+test('only an in-house reservation can be checked out', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    inTenant($t->a->property, fn () => $reservation->update(['status' => ReservationStatus::Confirmed]));
+
+    $this->actingAs($t->a->owner)->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('reservation');
 });

@@ -15,7 +15,7 @@ class CheckOutController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $checkOut->handle($user, $reservation);
+        $checkOut->handle($user, $reservation, $request->validated('override_reason'));
 
         return to_route('reservations.show', $reservation)->with('toast', ['type' => 'success', 'message' => __('Guest checked out.')]);
     }
