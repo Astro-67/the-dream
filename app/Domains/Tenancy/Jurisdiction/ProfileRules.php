@@ -24,4 +24,6 @@ interface ProfileRules
      * @return list<string> identity document fields every guest needs at check-in
      */
     public function requiredRegistrationFields(array $configured): array;
+
+    public function marksFeesAsFiscalExceptions(): bool;
 }

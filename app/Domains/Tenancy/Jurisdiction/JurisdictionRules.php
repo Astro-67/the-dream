@@ -48,6 +48,15 @@ final class JurisdictionRules
     }
 
     /**
+     * Whether a posted cancellation or no-show fee is a fiscal exception
+     * candidate: a charge with no path into the fiscal system (M3).
+     */
+    public static function marksFeesAsFiscalExceptions(Property $property): bool
+    {
+        return self::of($property->jurisdiction_profile)->marksFeesAsFiscalExceptions();
+    }
+
+    /**
      * Whether a property under this profile records a ZRA hotel code. Takes
      * the profile so a property form can ask before the property is saved.
      */

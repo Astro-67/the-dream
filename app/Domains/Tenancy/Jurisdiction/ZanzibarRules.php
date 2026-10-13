@@ -27,4 +27,10 @@ final class ZanzibarRules implements ProfileRules
     {
         return ['type', 'number', 'nationality'];
     }
+
+    /** VFMS has no path for cancellation or no-show fees (glossary: Fiscal exception). */
+    public function marksFeesAsFiscalExceptions(): bool
+    {
+        return true;
+    }
 }

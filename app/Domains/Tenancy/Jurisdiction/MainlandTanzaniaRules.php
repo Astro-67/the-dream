@@ -32,4 +32,10 @@ final class MainlandTanzaniaRules implements ProfileRules
     {
         return $configured;
     }
+
+    /** No VFMS on the mainland. */
+    public function marksFeesAsFiscalExceptions(): bool
+    {
+        return false;
+    }
 }

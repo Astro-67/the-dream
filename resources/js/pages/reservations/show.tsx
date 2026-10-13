@@ -1,3 +1,5 @@
+import { FeeProposals } from '@/features/billing/fee-proposals';
+import type { FeeProposal } from '@/features/billing/fee-proposals';
 import { NativeSelect } from '@/components/ui/select';
 import type { Paginated } from '@/types';
 import { Form, Head, Link } from '@inertiajs/react';
@@ -77,6 +79,7 @@ export default function Show({
     folios,
     totals,
     canPostCharge,
+    feeProposals,
 }: {
     reservation: Reservation;
     roomType: Named;
@@ -101,6 +104,7 @@ export default function Show({
     folios: Folio[];
     totals: FolioTotal[];
     canPostCharge: boolean;
+    feeProposals: FeeProposal[];
 }) {
     return (
         <>
@@ -235,6 +239,7 @@ export default function Show({
                     totals={totals}
                     canPostCharge={canPostCharge}
                 />
+                <FeeProposals fees={feeProposals} />
                 <AmendmentHistory amendments={amendments} />
                 <Link
                     className="text-primary underline underline-offset-4"

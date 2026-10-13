@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Rates;
 
 use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Rates\Enums\FeeCharge;
 use App\Domains\Rates\Models\RatePlan;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Http\FormRequest;
@@ -28,6 +29,11 @@ class UpdateRatePlanRequest extends FormRequest
                 'room_type_ids' => ['required', 'array', 'min:1'],
                 'room_type_ids.*' => ['required', 'string', 'distinct', Rule::in(RoomType::query()->pluck('id')->all())],
             ]),
+            'cancellation_free_days' => ['nullable', 'integer', 'between:0,365'],
+            'cancellation_charge' => ['nullable', Rule::enum(FeeCharge::class)],
+            'cancellation_percent' => ['nullable', 'required_if:cancellation_charge,percent', 'integer', 'between:1,100'],
+            'no_show_charge' => ['nullable', Rule::enum(FeeCharge::class)],
+            'no_show_percent' => ['nullable', 'required_if:no_show_charge,percent', 'integer', 'between:1,100'],
         ];
     }
 

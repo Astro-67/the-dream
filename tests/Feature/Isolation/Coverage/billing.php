@@ -2,8 +2,11 @@
 
 use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\Rates\Models\RatePlan;
+use App\Domains\Reservations\Actions\CancelReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
 use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
@@ -71,6 +74,25 @@ return [
         $responses[] = $this->actingAs($t->a->owner)->post(route('postings.transfer', $own), ['_property' => $t->a->property->id, 'folio_id' => $target->id, 'reason' => 'attack'])->assertSessionHasErrors('folio_id');
         expect(inTenant($t->b->property, fn () => Posting::query()->count()))->toBe(1)
             ->and(inTenant($t->a->property, fn () => Posting::query()->count()))->toBe(1);
+
+        return $responses;
+    }),
+    'fee-proposals.resolve' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $proposal = inTenant($t->b->property, function () use ($t) {
+            $details = BookingForm::details($t->b->owner);
+            RatePlan::query()->whereKey($details['rate_plan_id'])->update(['cancellation_charge' => 'full_stay']);
+            app(CancelReservation::class)->handle($t->b->owner, app(CreateReservation::class)->handle($t->b->owner, $details), 'Bravo cancelled');
+
+            return FeeProposal::query()->sole();
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('fee-proposals.resolve', $proposal), ['_property' => $t->a->property->id, 'decision' => 'post', 'reason' => 'attack'])->assertNotFound();
+        }
+        $responses[] = $this->actingAs($t->a->owner)->post(route('fee-proposals.resolve', $proposal), ['_property' => $t->b->property->id, 'decision' => 'waive', 'reason' => 'attack'])->assertForbidden();
+        inTenant($t->b->property, function () use ($proposal) {
+            expect($proposal->fresh()->status)->toBe('proposed')->and(Posting::query()->count())->toBe(0);
+        });
 
         return $responses;
     }),
