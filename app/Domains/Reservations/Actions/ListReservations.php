@@ -15,12 +15,12 @@ class ListReservations
     /** @return LengthAwarePaginator<int, Reservation> */
     public function handle(string $list, string $date, string $search): LengthAwarePaginator
     {
-        $today = BusinessDate::current();
+        $businessDate = BusinessDate::current();
         $reservations = app(ReservationLists::class)->query($list, $date, $search)->paginate(50)->withQueryString();
         $reservations->getCollection()->each(fn (Reservation $reservation) => $reservation->setAttribute('can_check_in', $reservation->status === ReservationStatus::Confirmed
-            && $reservation->arrival->toDateString() === $today && Gate::allows('checkIn', $reservation))
+            && $reservation->arrival->toDateString() === $businessDate && Gate::allows('checkIn', $reservation))
             ->setAttribute('can_check_out', $reservation->status === ReservationStatus::CheckedIn
-                && $reservation->departure->toDateString() <= $today && Gate::allows('checkOut', $reservation)));
+                && $reservation->departure->toDateString() <= $businessDate && Gate::allows('checkOut', $reservation)));
         $leaving = $reservations->getCollection()->filter(fn (Reservation $reservation) => $reservation->getAttribute('can_check_out'));
         $folios = Folio::query()->whereIn('reservation_id', $leaving->modelKeys())->withSum('postings as balance_amount', 'amount')->get()->groupBy('reservation_id');
         $leaving->each(fn (Reservation $reservation) => $reservation->setAttribute('can_override_balance', Gate::allows('checkOutWithBalance', $reservation))
