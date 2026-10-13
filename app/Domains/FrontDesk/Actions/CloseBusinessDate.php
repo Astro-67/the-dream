@@ -3,15 +3,18 @@
 namespace App\Domains\FrontDesk\Actions;
 
 use App\Domains\Billing\Actions\PostRoomCharge;
+use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
+use App\Domains\FrontDesk\Models\ExceptionListItem;
 use App\Domains\Housekeeping\Actions\MarkStayoverService;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Reservations\Actions\ProposeNoShows;
 use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\NoShowProposal;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -46,6 +49,7 @@ class CloseBusinessDate
                 $this->recordPriceChange($actor, $reservation, $charge, $date);
             }
             app(ProposeNoShows::class)->handle($property, $date);
+            $this->carryExceptions($close, $property->business_date->addDay()->toDateString());
             $this->markStayovers($actor, $property, $property->business_date->addDay()->toDateString());
             $property->update(['business_date' => $property->business_date->addDay()->toDateString()]);
             $close->update(['completed_at' => now()]);
@@ -66,6 +70,25 @@ class CloseBusinessDate
         app(RecordLifecycleEvent::class)->handle($reservation, 'nightly_price_changed', $actor, [
             'date' => $next->getAttribute('date')->toDateString(), 'previous_amount' => $charge->unit_price, 'amount' => $next->getAttribute('amount'), 'currency' => $currency,
         ]);
+    }
+
+    /** Unresolved items never stall the close; they go on the next date's list. */
+    private function carryExceptions(BusinessDateClose $close, string $nextDate): void
+    {
+        $items = [
+            ...NoShowProposal::query()->where('status', 'proposed')->with('reservation:id,reservation_number')->get()
+                ->map(fn (NoShowProposal $p) => ['no_show', $p->id, $p->reservation->reservation_number]),
+            ...Reservation::query()->where('status', ReservationStatus::CheckedIn)->whereDate('departure', '<', $nextDate)->get()
+                ->map(fn (Reservation $r) => ['departure', $r->id, $r->reservation_number]),
+            ...CashierShift::query()->where('status', 'open')->with('user:id,name')->get()
+                ->map(fn (CashierShift $s) => ['cashier_shift', $s->id, $s->user->name]),
+        ];
+        foreach ($items as [$kind, $subject, $reference]) {
+            ExceptionListItem::query()->create([
+                'business_date_close_id' => $close->id, 'business_date' => $nextDate,
+                'kind' => $kind, 'subject_id' => $subject, 'reference' => $reference,
+            ]);
+        }
     }
 
     private function markStayovers(?User $actor, Property $property, string $nextDate): void
