@@ -108,6 +108,7 @@ class PropertyController extends Controller
                 'currency' => $property->currency->value,
                 'jurisdiction_profile' => $property->jurisdiction_profile->value,
                 'housekeeping_inspection_required' => $property->housekeeping_inspection_required,
+                'stayover_service_on_close' => $property->stayover_service_on_close,
                 'receipt_prefix' => $property->receipt_prefix,
                 'close_time' => substr($property->close_time, 0, 5),
                 // Zanzibar-only: never sent for a mainland property.

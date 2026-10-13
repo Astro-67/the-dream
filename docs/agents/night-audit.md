@@ -27,6 +27,9 @@ the date being closed.
   advancing the date. Record `nightly_price_changed` with `RecordLifecycleEvent`
   under the reservation lock; the business date is still the closing date.
   Stayover service marking also belongs in this transaction, behind its setting.
+  Done: `properties.stayover_service_on_close` marks every occupied room for the
+  next date; `nightly_price_changed` compares the posted night with the next
+  price line and records `date`, `previous_amount`, `amount`, `currency`.
 
 The summary selects original room charges by property and closing date, so it
 includes charges recovered from a partial attempt. History and charges are
