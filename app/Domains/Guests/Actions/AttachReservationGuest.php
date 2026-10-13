@@ -16,7 +16,7 @@ class AttachReservationGuest
     /** @param array<string, mixed> $details */
     public function handle(User $actor, Reservation $reservation, array $details): void
     {
-        DB::transaction(function () use ($actor, $reservation, $details) {
+        Audit::validationRefusal($actor, $reservation, 'Guest attachment refused', fn () => DB::transaction(function () use ($actor, $reservation, $details) {
             $locked = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();
             if ($locked->status === ReservationStatus::CheckedIn) {
                 throw ValidationException::withMessages(['reservation' => __('This guest is in house: add guests through registration.')]);
@@ -26,6 +26,6 @@ class AttachReservationGuest
             if ($link->wasRecentlyCreated) {
                 Audit::record($actor, 'guest_attached', $locked, 'Guest attached to reservation', ['guest_id' => $guest->id]);
             }
-        });
+        }));
     }
 }

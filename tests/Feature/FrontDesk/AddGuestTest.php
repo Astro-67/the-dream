@@ -9,6 +9,7 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
 
@@ -128,6 +129,7 @@ test('in house, the guests page adds through registration and plain attaching is
     $this->get(route('reservations.guests.create', $reservation))->assertInertia(fn (AssertableInertia $page) => $page->where('inHouse', true)->where('canAttach', true));
     $this->postJson(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'name' => 'Unregistered'])->assertUnprocessable()->assertJsonValidationErrors('reservation');
     expect(addGuestCounts($t->a, $reservation))->toBe(['guests' => 0, 'events' => 0]);
+    expect(Activity::query()->where('subject_id', $reservation->id)->where('description', 'Guest attachment refused')->where('event', 'refused')->exists())->toBeTrue();
 });
 
 test('adding a guest requires the opening property intent', function () {

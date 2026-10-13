@@ -13,6 +13,7 @@ use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 
 /** A folio on a new reservation in the property in context. */
@@ -31,6 +32,7 @@ test('opening a shift records a float in each currency, one open shift per user 
         expect($shift->status)->toBe('open')->and($shift->user_id)->toBe($owner->id)
             ->and($shift->floats)->toEqual(['TZS' => 500000, 'USD' => 10000]);
         expect(fn () => app(OpenCashierShift::class)->handle($owner, ['USD' => 100]))->toThrow(ValidationException::class);
+        expect(Activity::query()->where('description', 'Cashier shift open refused')->where('event', 'refused')->sole()->getExtraProperty('result'))->toBe('refused');
     });
 });
 
@@ -48,7 +50,7 @@ test('a cash payment needs an open shift of the cashier recording it, and counts
 
         expect($payment->method)->toBe('cash')->and($payment->cashier_shift_id)->toBe($shift->id)
             ->and($payment->receipt?->number)->toBe('RCT-000001')
-            ->and($shift->expectedCash())->toBe(['USD' => 13000]);
+            ->and($shift->expectedCash())->toEqual(['USD' => 13000]);
     });
 });
 
@@ -65,9 +67,9 @@ test('closing counts cash per currency, a variance needs a reason, and a closed 
         $closed = app(CloseCashierShift::class)->handle($owner, $shift, ['TZS' => 50000, 'USD' => 12500], 'Change given twice');
 
         expect($closed->status)->toBe('closed')
-            ->and($closed->expected)->toBe(['TZS' => 50000, 'USD' => 13000])
-            ->and($closed->counted)->toBe(['TZS' => 50000, 'USD' => 12500])
-            ->and($closed->variance())->toBe(['TZS' => 0, 'USD' => -500])
+            ->and($closed->expected)->toEqual(['TZS' => 50000, 'USD' => 13000])
+            ->and($closed->counted)->toEqual(['TZS' => 50000, 'USD' => 12500])
+            ->and($closed->variance())->toEqual(['TZS' => 0, 'USD' => -500])
             ->and($closed->variance_reason)->toBe('Change given twice');
         expect(fn () => app(RecordPayment::class)->handle($owner, $folio, ['method' => 'cash', 'amount' => 100, 'currency' => 'USD']))->toThrow(ValidationException::class);
         expect(fn () => app(CloseCashierShift::class)->handle($owner, $closed, ['TZS' => 50000, 'USD' => 13000], null))->toThrow(ValidationException::class);
@@ -83,7 +85,7 @@ test('a shift whose count matches closes without a reason', function () {
 
         $closed = app(CloseCashierShift::class)->handle($owner, $shift, ['USD' => 10000], null);
 
-        expect($closed->variance())->toBe(['USD' => 0])->and($closed->variance_reason)->toBeNull();
+        expect($closed->variance())->toEqual(['USD' => 0])->and($closed->variance_reason)->toBeNull();
     });
 });
 
