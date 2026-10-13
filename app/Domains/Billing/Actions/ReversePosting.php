@@ -4,6 +4,7 @@ namespace App\Domains\Billing\Actions;
 
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\Billing\Models\PostingApproval;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -17,34 +18,37 @@ use Illuminate\Validation\ValidationException;
  */
 class ReversePosting
 {
-    public function handle(?User $actor, Posting $original, string $reason): Posting
+    public function handle(?User $actor, Posting $original, string $reason): Posting|PostingApproval
     {
         return Audit::validationRefusal($actor, $original, 'Reversal refused', fn () => DB::transaction(function () use ($actor, $original, $reason) {
             $reason = trim($reason);
             if ($reason === '') {
                 throw ValidationException::withMessages(['reason' => __('A reversal needs a reason.')]);
             }
-            Folio::query()->whereKey($original->folio_id)->lockForUpdate()->firstOrFail();
+            $folio = Folio::query()->whereKey($original->folio_id)->lockForUpdate()->firstOrFail();
             $original = Posting::query()->findOrFail($original->id);
             self::ensureCancellable($original);
-            $reversal = Posting::query()->create(self::negative($original, [
-                'folio_id' => $original->folio_id, 'type' => 'reversal', 'reason' => $reason,
-                'idempotency_key' => 'reversal:'.$original->id, 'actor_id' => $actor?->id,
-            ]));
-            Audit::record($actor, 'created', $reversal, 'Posting reversed', ['folio_id' => $original->folio_id, 'reverses' => $original->id, 'amount' => $reversal->amount, 'currency' => $reversal->currency->value, 'reason' => $reason]);
+            $rejected = PostingApproval::query()->where('original_posting_id', $original->id)->where('status', 'rejected')->count();
 
-            return $reversal;
+            return app(SubmitControlledPosting::class)->handle($actor, $folio, self::negative($original, [
+                'folio_id' => $original->folio_id, 'type' => 'reversal', 'reason' => $reason,
+                'idempotency_key' => 'reversal:'.$original->id.($rejected > 0 ? ':'.$rejected : ''), 'actor_id' => $actor?->id,
+            ]));
         }));
     }
 
     /** Refuses a posting that already cancels another, or that something already cancels. */
-    public static function ensureCancellable(Posting $posting, string $field = 'posting'): void
+    public static function ensureCancellable(Posting $posting, string $field = 'posting', ?string $exceptApproval = null): void
     {
         if (in_array($posting->type, ['reversal', 'transfer_out'], true)) {
             throw ValidationException::withMessages([$field => __('This posting cancels another and cannot be reversed or moved.')]);
         }
         if (Posting::query()->where('related_posting_id', $posting->id)->exists()) {
             throw ValidationException::withMessages([$field => __('This posting has already been reversed or moved.')]);
+        }
+        if (PostingApproval::query()->where('original_posting_id', $posting->id)->where('status', 'pending')
+            ->when($exceptApproval !== null, fn ($query) => $query->whereKeyNot($exceptApproval))->exists()) {
+            throw ValidationException::withMessages([$field => __('This posting is awaiting reversal approval.')]);
         }
     }
 

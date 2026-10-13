@@ -69,7 +69,7 @@ enum OrganizationRole: string
             ],
             self::Finance => [
                 P::ReservationsView, P::GuestsView, P::ChargesPost, P::TaxManage,
-                P::FinanceView, P::FinanceCorrect, P::FiscalExceptionsReview, P::ReportsView,
+                P::FinanceView, P::FinanceCorrect, P::PaymentsRefund, P::FoliosWriteOff, P::FiscalExceptionsReview, P::ReportsView,
             ],
             self::Housekeeping => [P::HousekeepingView, P::HousekeepingManage],
             self::Auditor => [

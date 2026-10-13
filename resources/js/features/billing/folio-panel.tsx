@@ -18,6 +18,7 @@ import {
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
 import { PaymentForm, paymentMethods } from '@/features/billing/payment-form';
+import { AdjustmentForms } from '@/features/billing/adjustment-form';
 import { store } from '@/routes/folios/charges';
 import {
     OpenFolioForm,
@@ -62,8 +63,14 @@ const categories = {
     minibar: 'Minibar',
     laundry: 'Laundry',
     other: 'Other',
+};
+
+const postingCategories = {
+    ...categories,
     deposit: 'Deposit',
     payment: 'Payment',
+    refund: 'Refund',
+    write_off: 'Write-off',
 };
 
 export function FolioPanel({
@@ -143,8 +150,8 @@ export function FolioPanel({
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            {categories[
-                                                posting.category as keyof typeof categories
+                                            {postingCategories[
+                                                posting.category as keyof typeof postingCategories
                                             ] ?? posting.category}
                                             {posting.method && (
                                                 <div className="text-sm text-muted-foreground">
@@ -221,6 +228,7 @@ export function FolioPanel({
                             channelCollected={channelCollected}
                         />
                     )}
+                    <AdjustmentForms folio={folio} />
                 </div>
             ))}
             <OpenFolioForm />

@@ -3,11 +3,15 @@
 use App\Domains\Billing\Actions\OpenCashierShift;
 use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Actions\RecordAdjustment;
 use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Actions\SetApprovalThreshold;
+use App\Domains\Billing\Models\ApprovalThreshold;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\Billing\Models\PostingApproval;
 use App\Domains\Billing\Models\Receipt;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CancelReservation;
@@ -19,6 +23,74 @@ use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
 return [
+    'folios.refunds.store' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $folio = inTenant($t->b->property, function () use ($t) {
+            app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+
+            return Folio::query()->sole();
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('folios.refunds.store', $folio), [
+                '_property' => $t->a->property->id, 'amount' => 100, 'method' => 'bank_transfer', 'reason' => 'attack', 'idempotency_key' => 'attack',
+            ])->assertNotFound();
+        }
+        expect(inTenant($t->b->property, fn () => [Posting::query()->count(), PostingApproval::query()->count()]))->toBe([0, 0]);
+
+        return $responses;
+    }),
+    'folios.write-offs.store' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $folio = inTenant($t->b->property, function () use ($t) {
+            app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+
+            return Folio::query()->sole();
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('folios.write-offs.store', $folio), [
+                '_property' => $t->a->property->id, 'amount' => 100, 'reason' => 'attack', 'idempotency_key' => 'attack',
+            ])->assertNotFound();
+        }
+        expect(inTenant($t->b->property, fn () => [Posting::query()->count(), PostingApproval::query()->count()]))->toBe([0, 0]);
+
+        return $responses;
+    }),
+    'approvals.index' => RouteCoverage::attempt(function (TwoTenants $t) {
+        inTenant($t->b->property, function () use ($t) {
+            app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            app(SetApprovalThreshold::class)->handle($t->b->owner, 'USD', 0);
+            app(RecordAdjustment::class)->handle($t->b->owner, Folio::query()->sole(), 'refund', [
+                'amount' => 100, 'method' => 'bank_transfer', 'reason' => $t->b->property->name, 'idempotency_key' => 'bravo',
+            ]);
+        });
+
+        return $this->actingAs($t->a->owner)->get(route('approvals.index'))->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('approvals.data', 0)->has('thresholds', 0));
+    }),
+    'approvals.resolve' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $approval = inTenant($t->b->property, function () use ($t) {
+            app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            app(SetApprovalThreshold::class)->handle($t->b->owner, 'USD', 0);
+
+            return app(RecordAdjustment::class)->handle($t->b->owner, Folio::query()->sole(), 'refund', [
+                'amount' => 100, 'method' => 'bank_transfer', 'reason' => 'Refund', 'idempotency_key' => 'bravo',
+            ]);
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('approvals.resolve', $approval), ['_property' => $t->a->property->id, 'decision' => 'approve'])->assertNotFound();
+        }
+        expect(inTenant($t->b->property, fn () => [PostingApproval::query()->sole()->status, Posting::query()->count()]))->toBe(['pending', 0]);
+
+        return $responses;
+    }),
+    'approval-thresholds.update' => RouteCoverage::attempt(function (TwoTenants $t) {
+        inTenant($t->b->property, fn () => app(SetApprovalThreshold::class)->handle($t->b->owner, 'USD', 77));
+        $response = $this->actingAs($t->a->owner)->put(route('approval-thresholds.update'), ['_property' => $t->b->property->id, 'currency' => 'USD', 'amount' => 99])->assertForbidden();
+        expect(inTenant($t->b->property, fn () => ApprovalThreshold::query()->sole()->amount))->toBe(77);
+
+        return $response;
+    }),
     'folios.charges.store' => RouteCoverage::attempt(function (TwoTenants $t) {
         $folio = inTenant($t->b->property, function () use ($t) {
             app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));

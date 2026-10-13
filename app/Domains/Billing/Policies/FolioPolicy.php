@@ -42,4 +42,14 @@ class FolioPolicy
     {
         return $this->postCharge($user, $folio);
     }
+
+    public function refund(User $user, Folio $folio): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::PaymentsRefund, $folio);
+    }
+
+    public function writeOff(User $user, Folio $folio): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::FoliosWriteOff, $folio);
+    }
 }

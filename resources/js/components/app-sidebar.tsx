@@ -28,6 +28,7 @@ import {
 import { useCan } from '@/hooks/use-can';
 import { dashboard, rateCalendar } from '@/routes';
 import { index as cashierShifts } from '@/routes/cashier-shifts';
+import { index as approvals } from '@/routes/approvals';
 import { index as invitations } from '@/routes/invitations';
 import { index as guests } from '@/routes/guests';
 import { index as bookers } from '@/routes/bookers';
@@ -78,6 +79,9 @@ export function AppSidebar() {
     const can = useCan();
     const navItems: NavItem[] = [
         ...mainNavItems,
+        ...(can('approvals.manage')
+            ? [{ title: 'Approvals', href: approvals(), icon: ShieldCheck }]
+            : []),
         ...(can('properties.view')
             ? [{ title: 'Properties', href: properties(), icon: Hotel }]
             : []),

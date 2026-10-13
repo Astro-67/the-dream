@@ -59,6 +59,8 @@ enum OrganizationPermission: string
     // Finance and reports
     case FinanceView = 'finance.view';
     case FinanceCorrect = 'finance.correct';
+    case PaymentsRefund = 'payments.refund';
+    case FoliosWriteOff = 'folios.write_off';
     case FiscalExceptionsReview = 'fiscal.exceptions.review';
     case ReportsView = 'reports.view';
 

@@ -6,6 +6,7 @@ use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\ReversePosting;
 use App\Domains\Billing\Actions\TransferPosting;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\Billing\Models\PostingApproval;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Billing\OpenFolioRequest;
@@ -24,9 +25,9 @@ class FolioCorrectionController extends Controller
 
     public function reverse(ReversePostingRequest $request, Posting $posting, ReversePosting $reverse): RedirectResponse
     {
-        $reverse->handle($request->user(), $posting, $request->string('reason')->toString());
+        $result = $reverse->handle($request->user(), $posting, $request->string('reason')->toString());
 
-        return $this->back($request->folio()->reservation_id, __('Posting reversed.'));
+        return $this->back($request->folio()->reservation_id, $result instanceof PostingApproval ? __('Reversal awaiting approval.') : __('Posting reversed.'));
     }
 
     public function transfer(TransferPostingRequest $request, Posting $posting, TransferPosting $transfer): RedirectResponse
