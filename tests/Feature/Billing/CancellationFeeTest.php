@@ -5,6 +5,8 @@ use App\Domains\Billing\Actions\ResolveFee;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\Rates\Actions\ChangeTaxRule;
+use App\Domains\Rates\Actions\CreateTaxRule;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CancelReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
@@ -149,6 +151,24 @@ test('waiving a proposed fee posts nothing and audits the reason', function () {
             ->and(Activity::query()->where('description', 'Fee waived')->sole()->getExtraProperty('reason'))->toBe('Regular guest');
     });
 });
+
+test('fees freeze applicable tax lines and rule versions when posted', function (string $kind) {
+    [$owner, $reservation] = bookedWithPolicy(['cancellation_charge' => 'full_stay', 'no_show_charge' => 'full_stay']);
+    $property = Property::query()->withoutGlobalScopes()->findOrFail($reservation->property_id);
+    $this->travelTo(CarbonImmutable::parse('2026-12-09 10:00', $property->timezone));
+    inTenant($property, function () use ($owner, $reservation, $kind) {
+        $terms = ['name' => 'VAT', 'kind' => 'percentage', 'rate' => 1800, 'amount' => null, 'currency' => null, 'inclusive' => false, 'applies_to' => 'both', 'rounding' => 'half_up', 'effective_from' => '2026-01-01', 'effective_to' => null];
+        $rule = app(CreateTaxRule::class)->handle($owner, $terms);
+        $proposal = app(ProposeFee::class)->handle($owner, $reservation, $kind);
+        $resolved = app(ResolveFee::class)->handle($owner, $proposal, 'post', 'Policy');
+
+        app(ChangeTaxRule::class)->handle($owner, $rule, [...$terms, 'rate' => 2000, 'effective_from' => '2026-12-01']);
+        $posting = Posting::query()->findOrFail($resolved->posting_id);
+        expect($posting->net)->toBe(22000)->and($posting->amount)->toBe(25960)
+            ->and($posting->tax_lines)->toEqual([['name' => 'VAT', 'kind' => 'percentage', 'inclusive' => false, 'rate' => 1800, 'per_person_night' => null, 'amount' => 3960]])
+            ->and($posting->tax_rule_ids)->toEqual([$rule->id]);
+    });
+})->with(['cancellation', 'no_show']);
 
 test('the no-show fee proposal follows the plan no-show fee', function (array $policy, ?int $fee) {
     [$owner, $reservation] = bookedWithPolicy($policy);
