@@ -8,7 +8,7 @@ use App\Support\Money\Money;
 use App\Support\Tenancy\BelongsToProperty;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -37,6 +37,7 @@ use LogicException;
  * @property CarbonImmutable $posted_at
  */
 #[Fillable(['folio_id', 'type', 'category', 'description', 'quantity', 'unit_price', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at'])]
+#[UseEloquentBuilder(PostingBuilder::class)]
 class Posting extends Model
 {
     use BelongsToProperty, HasUlids;
@@ -68,27 +69,5 @@ class Posting extends Model
     {
         static::updating(fn () => throw new LogicException('Postings are append-only.'));
         static::deleting(fn () => throw new LogicException('Postings are append-only.'));
-    }
-
-    /**
-     * Query builder that also refuses mass updates and deletes, which skip model events.
-     *
-     * @param  \Illuminate\Database\Query\Builder  $query
-     * @return Builder<static>
-     */
-    public function newEloquentBuilder($query): Builder
-    {
-        return new class($query) extends Builder
-        {
-            public function update(array $values)
-            {
-                throw new LogicException('Postings are append-only.');
-            }
-
-            public function delete()
-            {
-                throw new LogicException('Postings are append-only.');
-            }
-        };
     }
 }
