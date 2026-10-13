@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { formatMoney } from '@/lib/utils';
 import { create, deactivate, edit, prices } from '@/routes/rate-plans';
+import { Spinner } from '@/components/ui/spinner';
 
 type Plan = {
     id: string;
@@ -81,6 +82,9 @@ function DeactivatePlan({ plan }: { plan: Plan }) {
                                     disabled={processing}
                                     type="submit"
                                 >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     Deactivate plan
                                 </Button>
                             </DialogFooter>

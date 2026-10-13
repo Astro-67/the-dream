@@ -4,11 +4,11 @@ import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
 import { StatusChip } from '@/components/ui/status-chip';
 import type { StatusTone } from '@/components/ui/status-chip';
 import { formatMoney } from '@/lib/utils';
 import { resolve } from '@/routes/fee-proposals';
+import { Spinner } from '@/components/ui/spinner';
 
 export type FeeProposal = {
     id: string;
@@ -106,6 +106,9 @@ function ResolveFeeForm({ fee }: { fee: FeeProposal }) {
                             variant="outline"
                             disabled={processing}
                         >
+                            <span className="size-4">
+                                {processing && <Spinner />}
+                            </span>
                             Waive fee
                         </Button>
                     </div>

@@ -16,8 +16,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
 import { departEarly, extend } from '@/routes/reservations';
+import { Spinner } from '@/components/ui/spinner';
 
 /** Extend an in-house stay, or end it today. */
 export function StayLengthActions({
@@ -74,6 +74,9 @@ export function StayLengthActions({
                                             variant="outline"
                                             disabled={processing}
                                         >
+                                            <span className="size-4">
+                                                {processing && <Spinner />}
+                                            </span>
                                             Keep dates
                                         </Button>
                                     </DialogClose>
@@ -119,6 +122,9 @@ export function StayLengthActions({
                                             variant="outline"
                                             disabled={processing}
                                         >
+                                            <span className="size-4">
+                                                {processing && <Spinner />}
+                                            </span>
                                             Keep dates
                                         </Button>
                                     </DialogClose>

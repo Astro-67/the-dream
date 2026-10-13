@@ -24,6 +24,7 @@ import {
 import { archive, create, edit, index, restore } from '@/routes/properties';
 import { formatDate } from '@/features/platform/format';
 import type { Currency, JurisdictionProfile } from '@/types';
+import { Spinner } from '@/components/ui/spinner';
 
 type PropertyRow = {
     id: string;
@@ -90,6 +91,9 @@ function ArchiveProperty({ property }: { property: PropertyRow }) {
                                     disabled={processing}
                                     type="submit"
                                 >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     Archive property
                                 </Button>
                             </DialogFooter>
@@ -114,6 +118,9 @@ function RestoreProperty({ property }: { property: ArchivedPropertyRow }) {
                         type="submit"
                         aria-label={`Restore ${property.name}`}
                     >
+                        <span className="size-4">
+                            {processing && <Spinner />}
+                        </span>
                         Restore
                     </Button>
                 </>

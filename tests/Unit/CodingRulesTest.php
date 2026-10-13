@@ -75,3 +75,33 @@ test('each console command name is registered once', function () {
 
     expect($duplicates)->toBeEmpty('The later registration silently replaces the earlier one: '.implode(', ', $duplicates));
 });
+
+test('test helper functions are declared once (Pest loads every file into one namespace)', function () {
+    $hits = sourceMatches('tests', '.php', '/^function\s+\w+\s*\(/');
+    $names = array_map(fn (string $hit) => preg_replace('/^.*?function\s+(\w+).*$/', '$1', $hit), $hits);
+    $duplicates = array_keys(array_filter(array_count_values($names), fn (int $count) => $count > 1));
+
+    expect($duplicates)->toBeEmpty('Rename so parallel tickets cannot collide: '.implode(', ', $duplicates));
+});
+
+test('buttons disabled while processing show a spinner (design.md: Buttons)', function () {
+    $root = dirname(__DIR__, 2);
+    $hits = [];
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/resources/js')) as $file) {
+        if (! str_ends_with($file->getPathname(), '.tsx')) {
+            continue;
+        }
+
+        preg_match_all('/<Button\b(?:(?!<\/Button>|<Button\b).)*<\/Button>/s', file_get_contents($file->getPathname()), $buttons, PREG_OFFSET_CAPTURE);
+
+        foreach ($buttons[0] as [$button, $offset]) {
+            if (preg_match('/disabled=\{[^}]*\bprocessing\b/', $button) && ! str_contains($button, '<Spinner')) {
+                $line = substr_count(file_get_contents($file->getPathname()), "\n", 0, $offset) + 1;
+                $hits[] = substr($file->getPathname(), strlen($root) + 1).':'.$line;
+            }
+        }
+    }
+
+    expect($hits)->toBeEmpty("Show <Spinner /> in a size-4 slot while processing:\n".implode("\n", $hits));
+});

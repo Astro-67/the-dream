@@ -39,6 +39,7 @@ import {
     type Folio,
     type FolioTotal,
 } from '@/features/billing/folio-panel';
+import { Spinner } from '@/components/ui/spinner';
 
 type Named = { id: string; name: string };
 type Reservation = {
@@ -239,6 +240,9 @@ export default function Show({
                                     <InputError message={errors.room_id} />
                                 </div>
                                 <Button disabled={processing}>
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     Save room assignment
                                 </Button>
                             </>

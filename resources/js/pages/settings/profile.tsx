@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/profile';
 import type { Auth } from '@/types';
 import { send } from '@/routes/verification';
+import { Spinner } from '@/components/ui/spinner';
 
 type PageProps = {
     auth: Auth;
@@ -115,6 +116,9 @@ export default function Profile({
                                     disabled={processing}
                                     data-test="update-profile-button"
                                 >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     Save
                                 </Button>
                             </div>

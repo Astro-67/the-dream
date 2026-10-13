@@ -10,6 +10,7 @@ import { store as refund } from '@/routes/folios/refunds';
 import { store as writeOff } from '@/routes/folios/write-offs';
 import { paymentMethods } from './payment-form';
 import type { Folio } from './folio-panel';
+import { Spinner } from '@/components/ui/spinner';
 
 export function AdjustmentForms({ folio }: { folio: Folio }) {
     const { canRefund, canWriteOff } = usePage<{
@@ -126,6 +127,9 @@ function AdjustmentForm({
                             message={errors.idempotency_key ?? errors._property}
                         />
                         <Button variant="outline" disabled={processing}>
+                            <span className="size-4">
+                                {processing && <Spinner />}
+                            </span>
                             Request {label.toLowerCase()}
                         </Button>
                     </div>

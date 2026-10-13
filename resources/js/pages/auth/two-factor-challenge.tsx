@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/input-otp';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
 import { store } from '@/routes/two-factor/login';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function TwoFactorChallenge() {
     const [showRecoveryInput, setShowRecoveryInput] = useState<boolean>(false);
@@ -109,6 +110,9 @@ export default function TwoFactorChallenge() {
                                 className="w-full"
                                 disabled={processing}
                             >
+                                <span className="size-4">
+                                    {processing && <Spinner />}
+                                </span>
                                 Continue
                             </Button>
 

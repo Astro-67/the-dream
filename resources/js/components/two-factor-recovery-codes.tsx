@@ -11,6 +11,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { regenerateRecoveryCodes } from '@/routes/two-factor';
+import { Spinner } from '@/components/ui/spinner';
 
 type Props = {
     recoveryCodesList: string[];
@@ -92,6 +93,9 @@ export default function TwoFactorRecoveryCodes({
                                     disabled={processing}
                                     aria-describedby="regenerate-warning"
                                 >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     <RefreshCw /> Regenerate codes
                                 </Button>
                             )}

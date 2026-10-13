@@ -14,9 +14,9 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/utils';
 import { checkOut } from '@/routes/reservations';
+import { Spinner } from '@/components/ui/spinner';
 
 /**
  * Check out an in-house stay. Shows each currency's balance; while any isn't
@@ -93,6 +93,9 @@ export function CheckOutDialog({
                                         variant="outline"
                                         disabled={processing}
                                     >
+                                        <span className="size-4">
+                                            {processing && <Spinner />}
+                                        </span>
                                         Not now
                                     </Button>
                                 </DialogClose>

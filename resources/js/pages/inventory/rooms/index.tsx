@@ -26,6 +26,7 @@ import {
 import { index as roomTypesIndex } from '@/routes/room-types';
 import { create, deactivate, edit, index } from '@/routes/rooms';
 import type { SelectOption } from '@/types';
+import { Spinner } from '@/components/ui/spinner';
 
 type RoomRow = {
     id: string;
@@ -68,6 +69,9 @@ function DeactivateRoom({ room }: { room: RoomRow }) {
                                     disabled={processing}
                                     type="submit"
                                 >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     Deactivate room
                                 </Button>
                             </DialogFooter>

@@ -69,6 +69,15 @@
             "bun run types:check",
             "@test"
         ],
+        "check:fast": [
+            "Composer\\Config::disableProcessTimeout",
+            "bun run build",
+            "@php artisan test --compact",
+            "@lint:check",
+            "@types:check",
+            "bun run types:check",
+            "bun run check"
+        ],
         "types:check": [
             "phpstan analyse --memory-limit=1G"
         ],

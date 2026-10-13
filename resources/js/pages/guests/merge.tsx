@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pagination } from '@/components/ui/pagination';
-import { Spinner } from '@/components/ui/spinner';
 import {
     Table,
     TableBody,
@@ -24,6 +23,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import type { Paginated } from '@/types';
+import { Spinner } from '@/components/ui/spinner';
 
 type Candidate = {
     id: string;
@@ -155,6 +155,11 @@ export default function Merge({
                                                                                 processing
                                                                             }
                                                                         >
+                                                                            <span className="size-4">
+                                                                                {processing && (
+                                                                                    <Spinner />
+                                                                                )}
+                                                                            </span>
                                                                             Keep
                                                                             both
                                                                             guests

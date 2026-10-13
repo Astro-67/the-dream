@@ -13,6 +13,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { destroy } from '@/routes/members';
+import { Spinner } from '@/components/ui/spinner';
 
 type Props = {
     member: { id: string; name: string; isYou: boolean };
@@ -63,6 +64,9 @@ export function RemoveMember({ member, trigger }: Props) {
                                     disabled={processing}
                                     type="submit"
                                 >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     {member.isYou
                                         ? 'Leave organization'
                                         : 'Remove member'}

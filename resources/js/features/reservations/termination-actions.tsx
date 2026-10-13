@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
 import { cancel, voidMethod } from '@/routes/reservations';
+import { Spinner } from '@/components/ui/spinner';
 
 export function TerminationActions({
     number,
@@ -87,6 +87,11 @@ export function TerminationActions({
                                                     variant="outline"
                                                     disabled={processing}
                                                 >
+                                                    <span className="size-4">
+                                                        {processing && (
+                                                            <Spinner />
+                                                        )}
+                                                    </span>
                                                     Keep reservation
                                                 </Button>
                                             </DialogClose>
