@@ -58,14 +58,6 @@ test('a card payment refuses anything but the last four digits', function (strin
     });
 })->with(['4111111111111111', '42', 'abcd']);
 
-test('cash is refused until cashier shifts exist', function () {
-    [$owner, , $property] = organizationWithOwner();
-    inTenant($property, function () use ($owner) {
-        expect(fn () => app(RecordPayment::class)->handle($owner, paymentFolio($owner), ['method' => 'cash', 'amount' => 100, 'currency' => 'USD']))
-            ->toThrow(ValidationException::class);
-    });
-});
-
 test('the channel-collected amount on the reservation posts once as a channel payment', function () {
     [$owner, , $property] = organizationWithOwner();
     inTenant($property, function () use ($owner) {

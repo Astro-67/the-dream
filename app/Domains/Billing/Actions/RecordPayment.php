@@ -2,6 +2,7 @@
 
 namespace App\Domains\Billing\Actions;
 
+use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\Receipt;
@@ -18,12 +19,12 @@ use Illuminate\Validation\ValidationException;
 /**
  * Records money received on a folio and issues its non-fiscal receipt. A payment
  * is stored with a negative amount, so it reduces the folio balance; one taken
- * before arrival is a deposit. Cash is not accepted here: it needs a cashier shift.
+ * before arrival is a deposit. Cash needs the recording cashier's open shift, and counts towards it.
  * The same idempotency key on the same folio posts once and issues one receipt (FIN-03).
  */
 class RecordPayment
 {
-    public const array METHODS = ['bank_transfer', 'mobile_money', 'card', 'channel_collected'];
+    public const array METHODS = ['cash', 'bank_transfer', 'mobile_money', 'card', 'channel_collected'];
 
     /** @param array{method: string, amount?: int|null, currency: string, reference?: string|null, card_last_four?: string|null, card_brand?: string|null, idempotency_key?: string|null} $details */
     public function handle(?User $actor, Folio $folio, array $details): Posting
@@ -52,13 +53,14 @@ class RecordPayment
             if ($card !== [] && $card['card_last_four'] !== null && preg_match('/^\d{4}$/', $card['card_last_four']) !== 1) {
                 throw ValidationException::withMessages(['card_last_four' => __('Enter only the last four digits of the card.')]);
             }
+            $shift = $method === 'cash' ? $this->openShift($actor) : null;
             $property = Property::query()->findOrFail($folio->property_id);
             // ponytail: before Spec 7 owns the open business date, use the property's local date.
             $date = now($property->timezone)->toDateString();
             $posting = Posting::query()->create([
                 'folio_id' => $folio->id, 'type' => 'payment',
                 'category' => $reservation->status === ReservationStatus::Confirmed ? 'deposit' : 'payment',
-                'method' => $method, 'reference' => $details['reference'] ?? null, ...$card,
+                'method' => $method, 'cashier_shift_id' => $shift?->id, 'reference' => $details['reference'] ?? null, ...$card,
                 'quantity' => 1, 'unit_price' => $amount, 'net' => $amount, 'amount' => -$amount, 'currency' => $folio->currency,
                 'tax_lines' => [], 'tax_rule_ids' => [],
                 'idempotency_key' => $key, 'actor_id' => $actor?->id, 'business_date' => $date, 'posted_at' => now(),
@@ -68,6 +70,14 @@ class RecordPayment
 
             return $posting->setRelation('receipt', $receipt);
         }, attempts: 3));
+    }
+
+    /** The cashier's open shift, locked so a closing count cannot miss this cash. */
+    private function openShift(?User $actor): CashierShift
+    {
+        // where(..., null) would match closed shifts, so a system actor never takes cash.
+        return ($actor === null ? null : CashierShift::query()->where('open_user_id', $actor->id)->lockForUpdate()->first())
+            ?? throw ValidationException::withMessages(['method' => __('Open a cashier shift before taking cash.')]);
     }
 
     private function channelCollected(Reservation $reservation, Folio $folio): int

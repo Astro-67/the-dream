@@ -42,9 +42,10 @@ use LogicException;
  * @property string|null $reference
  * @property string|null $card_last_four
  * @property string|null $card_brand
+ * @property string|null $cashier_shift_id the shift whose cash drawer a cash posting went through
  * @property-read Receipt|null $receipt
  */
-#[Fillable(['folio_id', 'related_posting_id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at', 'method', 'reference', 'card_last_four', 'card_brand'])]
+#[Fillable(['folio_id', 'related_posting_id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at', 'method', 'reference', 'card_last_four', 'card_brand', 'cashier_shift_id'])]
 #[UseEloquentBuilder(PostingBuilder::class)]
 class Posting extends Model
 {
