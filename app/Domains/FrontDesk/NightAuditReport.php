@@ -5,6 +5,7 @@ namespace App\Domains\FrontDesk;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\FrontDesk\Models\ExceptionListItem;
+use App\Domains\Reservations\Enums\NoShowProposalStatus;
 use App\Domains\Reservations\Models\NoShowProposal;
 use Illuminate\Support\Facades\Gate;
 
@@ -49,7 +50,7 @@ final class NightAuditReport
             'exceptionsCarried' => ExceptionListItem::query()->where('business_date_close_id', $close->id)->count(),
             'noShows' => $noShows->map(fn (NoShowProposal $proposal) => [
                 'id' => $proposal->id, 'reservation_number' => $proposal->reservation->reservation_number,
-                'status' => $proposal->status, 'can_resolve' => $proposal->status === 'proposed' && Gate::allows('resolve', $proposal),
+                'status' => $proposal->status, 'can_resolve' => $proposal->status === NoShowProposalStatus::Proposed && Gate::allows('resolve', $proposal),
             ]),
         ];
     }

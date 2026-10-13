@@ -9,6 +9,7 @@ use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Enums\NoShowProposalStatus;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\NoShowProposal;
 use Tests\Support\BookingForm;
@@ -29,7 +30,7 @@ $attackNoShow = fn (string $route) => function (TwoTenants $t) use ($route) {
     foreach ($t->a->members() as $member) {
         $responses[] = $this->actingAs($member)->post(route($route, $proposal), ['_property' => $t->a->property->id])->assertNotFound();
     }
-    inTenant($t->b->property, fn () => expect($proposal->fresh()->status)->toBe('proposed')
+    inTenant($t->b->property, fn () => expect($proposal->fresh()->status)->toBe(NoShowProposalStatus::Proposed)
         ->and($proposal->reservation->status)->toBe(ReservationStatus::Confirmed));
 
     return $responses;

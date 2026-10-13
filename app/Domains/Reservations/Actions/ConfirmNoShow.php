@@ -3,6 +3,7 @@
 namespace App\Domains\Reservations\Actions;
 
 use App\Domains\Billing\Actions\ProposeFee;
+use App\Domains\Reservations\Enums\NoShowProposalStatus;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\NoShowProposal;
 use App\Domains\Reservations\Models\Reservation;
@@ -23,7 +24,7 @@ class ConfirmNoShow
             $proposal = NoShowProposal::lockOpen($proposal);
             $reservation = app(TerminateReservation::class)->handle($actor, $proposal->reservation, 'No-show', ReservationStatus::NoShow);
             app(ProposeFee::class)->handle($actor, $reservation, 'no_show');
-            $proposal->resolve($actor, 'confirmed');
+            $proposal->resolve($actor, NoShowProposalStatus::Confirmed);
 
             return $reservation;
         }));

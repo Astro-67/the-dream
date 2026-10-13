@@ -3,9 +3,11 @@
 namespace App\Domains\FrontDesk\Actions;
 
 use App\Domains\Billing\Actions\PostRoomCharge;
+use App\Domains\Billing\Enums\CashierShiftStatus;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\FrontDesk\Enums\ExceptionKind;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\FrontDesk\Models\ExceptionListItem;
 use App\Domains\Housekeeping\Actions\MarkStayoverService;
@@ -13,6 +15,7 @@ use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Reservations\Actions\ProposeNoShows;
 use App\Domains\Reservations\Actions\RecordLifecycleEvent;
+use App\Domains\Reservations\Enums\NoShowProposalStatus;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\NoShowProposal;
 use App\Domains\Reservations\Models\Reservation;
@@ -77,18 +80,15 @@ class CloseBusinessDate
     private function carryExceptions(BusinessDateClose $close, Property $property, string $nextDate): void
     {
         $items = [
-            ...NoShowProposal::query()->where('property_id', $property->id)->where('status', 'proposed')->with('reservation:id,reservation_number')->get()
-                ->map(fn (NoShowProposal $p) => ['no_show', $p->id, $p->reservation->reservation_number]),
+            ...NoShowProposal::query()->where('property_id', $property->id)->where('status', NoShowProposalStatus::Proposed)->with('reservation:id,reservation_number')->get()
+                ->map(fn (NoShowProposal $p) => ['kind' => ExceptionKind::NoShow, 'subject_id' => $p->id, 'reference' => $p->reservation->reservation_number]),
             ...Reservation::query()->where('property_id', $property->id)->where('status', ReservationStatus::CheckedIn)->whereDate('departure', '<', $nextDate)->get()
-                ->map(fn (Reservation $r) => ['departure', $r->id, $r->reservation_number]),
-            ...CashierShift::query()->where('property_id', $property->id)->where('status', 'open')->with('user:id,name')->get()
-                ->map(fn (CashierShift $s) => ['cashier_shift', $s->id, $s->user->name]),
+                ->map(fn (Reservation $r) => ['kind' => ExceptionKind::Departure, 'subject_id' => $r->id, 'reference' => $r->reservation_number]),
+            ...CashierShift::query()->where('property_id', $property->id)->where('status', CashierShiftStatus::Open)->with('user:id,name')->get()
+                ->map(fn (CashierShift $s) => ['kind' => ExceptionKind::CashierShift, 'subject_id' => $s->id, 'reference' => $s->user->name]),
         ];
-        foreach ($items as [$kind, $subject, $reference]) {
-            ExceptionListItem::query()->create([
-                'business_date_close_id' => $close->id, 'business_date' => $nextDate,
-                'kind' => $kind, 'subject_id' => $subject, 'reference' => $reference,
-            ]);
+        foreach ($items as $item) {
+            ExceptionListItem::query()->create(['business_date_close_id' => $close->id, 'business_date' => $nextDate, ...$item]);
         }
     }
 

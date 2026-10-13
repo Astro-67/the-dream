@@ -2,6 +2,7 @@
 
 namespace App\Domains\FrontDesk\Models;
 
+use App\Domains\FrontDesk\Enums\ExceptionKind;
 use App\Support\Tenancy\BelongsToProperty;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $property_id
  * @property string $business_date_close_id the close that carried it
  * @property CarbonImmutable $business_date the date whose list it is on
- * @property string $kind 'no_show', 'departure' or 'cashier_shift'
+ * @property ExceptionKind $kind
  * @property string $subject_id no-show proposal, reservation or cashier shift
  * @property string $reference reservation number or cashier name
  */
@@ -29,6 +30,6 @@ class ExceptionListItem extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['business_date' => 'immutable_date'];
+        return ['business_date' => 'immutable_date', 'kind' => ExceptionKind::class];
     }
 }

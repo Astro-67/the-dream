@@ -8,6 +8,7 @@ use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\ConfirmNoShow;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Actions\RejectNoShow;
+use App\Domains\Reservations\Enums\NoShowProposalStatus;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\NoShowProposal;
 use App\Domains\Tenancy\Models\Property;
@@ -33,7 +34,7 @@ test('closing proposes each unarrived reservation past its arrival date once wit
         app(CloseBusinessDate::class)->handle(null, $property->fresh(), '2026-12-11');
 
         $proposal = NoShowProposal::query()->where('reservation_id', $unarrived->id)->sole();
-        expect($proposal->status)->toBe('proposed')
+        expect($proposal->status)->toBe(NoShowProposalStatus::Proposed)
             ->and($proposal->business_date->toDateString())->toBe('2026-12-10')
             ->and(NoShowProposal::query()->pluck('reservation_id')->all())->toEqualCanonicalizing([$unarrived->id, $tomorrow->id])
             ->and($unarrived->fresh()->status)->toBe(ReservationStatus::Confirmed)
@@ -66,7 +67,7 @@ test('confirming a no-show releases its inventory, proposes the no-show fee and 
             ->and(InventoryRecord::query()->whereDate('date', '2026-12-11')->sole()->sold_count)->toBe($before - 1)
             ->and(FeeProposal::query()->sole()->only(['kind', 'amount', 'status']))->toBe(['kind' => 'no_show', 'amount' => 11000, 'status' => 'proposed'])
             ->and($reservation->lifecycleEvents()->reorder()->latest('sequence')->first()->type)->toBe('no_show_confirmed')
-            ->and($proposal->fresh()->only(['status', 'resolved_by']))->toBe(['status' => 'confirmed', 'resolved_by' => $owner->id]);
+            ->and($proposal->fresh()->only(['status', 'resolved_by']))->toBe(['status' => NoShowProposalStatus::Confirmed, 'resolved_by' => $owner->id]);
         expect(fn () => app(ConfirmNoShow::class)->handle($owner, $proposal))->toThrow(ValidationException::class);
     });
 });
@@ -81,7 +82,7 @@ test('rejecting a no-show resolves the proposal and leaves the reservation as it
         expect($proposal->reservation->fresh()->status)->toBe(ReservationStatus::Confirmed)
             ->and($proposal->reservation->lifecycleEvents()->count())->toBe(1)
             ->and(FeeProposal::query()->count())->toBe(0)
-            ->and($proposal->fresh()->status)->toBe('rejected');
+            ->and($proposal->fresh()->status)->toBe(NoShowProposalStatus::Rejected);
         expect(fn () => app(ConfirmNoShow::class)->handle($owner, $proposal))->toThrow(ValidationException::class);
     });
 });

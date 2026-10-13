@@ -3,6 +3,7 @@
 use App\Domains\Billing\Actions\CloseCashierShift;
 use App\Domains\Billing\Actions\OpenCashierShift;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
+use App\Domains\FrontDesk\Enums\ExceptionKind;
 use App\Domains\FrontDesk\Models\ExceptionListItem;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
@@ -31,9 +32,9 @@ test('closing carries open no-shows, departures not checked out and open shifts 
 
         expect($close->completed_at)->not->toBeNull()
             ->and(ExceptionListItem::query()->get()->map->only(['business_date_close_id', 'kind', 'subject_id'])->all())->toEqualCanonicalizing([
-                ['business_date_close_id' => $close->id, 'kind' => 'no_show', 'subject_id' => NoShowProposal::query()->where('reservation_id', $unarrived->id)->sole()->id],
-                ['business_date_close_id' => $close->id, 'kind' => 'departure', 'subject_id' => $overdue->id],
-                ['business_date_close_id' => $close->id, 'kind' => 'cashier_shift', 'subject_id' => $shift->id],
+                ['business_date_close_id' => $close->id, 'kind' => ExceptionKind::NoShow, 'subject_id' => NoShowProposal::query()->where('reservation_id', $unarrived->id)->sole()->id],
+                ['business_date_close_id' => $close->id, 'kind' => ExceptionKind::Departure, 'subject_id' => $overdue->id],
+                ['business_date_close_id' => $close->id, 'kind' => ExceptionKind::CashierShift, 'subject_id' => $shift->id],
             ])
             ->and(ExceptionListItem::query()->pluck('business_date')->map->toDateString()->unique()->all())->toBe(['2026-12-11']);
     });
@@ -55,6 +56,6 @@ test('an item resolved before the next close is not carried again', function () 
         $next = app(CloseBusinessDate::class)->handle(null, $property->fresh(), '2026-12-11');
 
         expect(ExceptionListItem::query()->where('business_date_close_id', $next->id)->get()->map->only(['kind', 'reference'])->all())
-            ->toBe([['kind' => 'no_show', 'reference' => $open->reservation_number]]);
+            ->toBe([['kind' => ExceptionKind::NoShow, 'reference' => $open->reservation_number]]);
     });
 });

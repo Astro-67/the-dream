@@ -2,6 +2,7 @@
 
 namespace App\Domains\Reservations\Actions;
 
+use App\Domains\Reservations\Enums\NoShowProposalStatus;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\NoShowProposal;
 use App\Domains\Reservations\Models\Reservation;
@@ -23,7 +24,7 @@ class ProposeNoShows
             ->whereNotIn('id', NoShowProposal::query()->select('reservation_id'))
             ->orderBy('id')->get();
         foreach ($reservations as $reservation) {
-            $proposal = NoShowProposal::query()->create(['reservation_id' => $reservation->id, 'business_date' => $date, 'status' => 'proposed']);
+            $proposal = NoShowProposal::query()->create(['reservation_id' => $reservation->id, 'business_date' => $date, 'status' => NoShowProposalStatus::Proposed]);
             Audit::record(null, 'created', $proposal, 'No-show proposed', ['reservation_id' => $reservation->id, 'business_date' => $date]);
         }
 

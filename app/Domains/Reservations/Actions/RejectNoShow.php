@@ -2,6 +2,7 @@
 
 namespace App\Domains\Reservations\Actions;
 
+use App\Domains\Reservations\Enums\NoShowProposalStatus;
 use App\Domains\Reservations\Models\NoShowProposal;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -13,7 +14,7 @@ class RejectNoShow
     public function handle(User $actor, NoShowProposal $proposal): NoShowProposal
     {
         return Audit::validationRefusal($actor, $proposal, 'No-show rejection refused', fn () => DB::transaction(
-            fn () => NoShowProposal::lockOpen($proposal)->resolve($actor, 'rejected'),
+            fn () => NoShowProposal::lockOpen($proposal)->resolve($actor, NoShowProposalStatus::Rejected),
         ));
     }
 }

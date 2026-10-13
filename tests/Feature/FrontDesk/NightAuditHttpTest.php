@@ -5,6 +5,7 @@ use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Enums\NoShowProposalStatus;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\NoShowProposal;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -98,7 +99,7 @@ test('the close summary lists its no-show proposals and a manager confirms or re
 
     inTenant($property, fn () => expect($first->fresh()->status)->toBe(ReservationStatus::NoShow)
         ->and($second->fresh()->status)->toBe(ReservationStatus::Confirmed)
-        ->and($other->fresh()->status)->toBe('rejected'));
+        ->and($other->fresh()->status)->toBe(NoShowProposalStatus::Rejected));
 });
 
 test('staff without the close permission cannot confirm or reject a no-show', function (OrganizationRole $role) {
@@ -119,7 +120,7 @@ test('staff without the close permission cannot confirm or reject a no-show', fu
     expect($refusals)->toHaveCount(2)
         ->and($refusals->pluck('subject_type')->unique()->all())->toBe([$proposal->getMorphClass()])
         ->and($refusals->pluck('subject_id')->unique()->all())->toBe([$proposal->id]);
-    inTenant($property, fn () => expect($proposal->fresh()->status)->toBe('proposed')
+    inTenant($property, fn () => expect($proposal->fresh()->status)->toBe(NoShowProposalStatus::Proposed)
         ->and($proposal->reservation->status)->toBe(ReservationStatus::Confirmed));
 })->with([OrganizationRole::FrontDesk, OrganizationRole::Finance, OrganizationRole::Housekeeping, OrganizationRole::Auditor]);
 

@@ -6,6 +6,7 @@ use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordAdjustment;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Actions\SetApprovalThreshold;
+use App\Domains\Billing\Enums\CashierShiftStatus;
 use App\Domains\Billing\Models\ApprovalThreshold;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\FeeProposal;
@@ -246,7 +247,7 @@ return [
         foreach ($t->a->members() as $member) {
             $responses[] = $this->actingAs($member)->post(route('cashier-shifts.close', $shift), ['_property' => $t->a->property->id, 'counted' => ['USD' => 0], 'variance_reason' => 'attack'])->assertNotFound();
         }
-        expect(inTenant($t->b->property, fn () => $shift->fresh()->status))->toBe('open');
+        expect(inTenant($t->b->property, fn () => $shift->fresh()->status))->toBe(CashierShiftStatus::Open);
 
         return $responses;
     }),

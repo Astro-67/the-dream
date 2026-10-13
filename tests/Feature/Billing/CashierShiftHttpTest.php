@@ -3,6 +3,7 @@
 use App\Domains\Billing\Actions\CloseCashierShift;
 use App\Domains\Billing\Actions\OpenCashierShift;
 use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Enums\CashierShiftStatus;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Reservations\Actions\CreateReservation;
@@ -29,7 +30,7 @@ test('only roles with charges.post open and close their own shift', function (Or
         $shift = inTenant($t->a->property, fn () => CashierShift::query()->sole());
         $this->post(route('cashier-shifts.close', $shift), ['_property' => $t->a->property->id, 'counted' => ['USD' => 10000, 'TZS' => 0]])
             ->assertRedirect(route('cashier-shifts.index'))->assertSessionHasNoErrors();
-        expect(inTenant($t->a->property, fn () => $shift->fresh()->status))->toBe('closed');
+        expect(inTenant($t->a->property, fn () => $shift->fresh()->status))->toBe(CashierShiftStatus::Closed);
     }
 })->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()));
 
@@ -40,7 +41,7 @@ test('a cashier cannot close another cashier\'s shift', function () {
     $this->actingAs($t->a->member(OrganizationRole::Finance))
         ->post(route('cashier-shifts.close', $shift), ['_property' => $t->a->property->id, 'counted' => ['USD' => 100]])->assertForbidden();
 
-    expect(inTenant($t->a->property, fn () => $shift->fresh()->status))->toBe('open');
+    expect(inTenant($t->a->property, fn () => $shift->fresh()->status))->toBe(CashierShiftStatus::Open);
 });
 
 test('the close form needs a reason for a variance, and a second open shift is refused', function () {

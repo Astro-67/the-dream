@@ -2,6 +2,7 @@
 
 namespace App\Domains\Billing\Actions;
 
+use App\Domains\Billing\Enums\CashierShiftStatus;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Models\User;
@@ -32,7 +33,7 @@ class OpenCashierShift
             }
             try {
                 $shift = CashierShift::query()->create([
-                    'user_id' => $actor->id, 'open_user_id' => $actor->id, 'status' => 'open',
+                    'user_id' => $actor->id, 'open_user_id' => $actor->id, 'status' => CashierShiftStatus::Open,
                     'floats' => array_map('intval', $floats), 'opened_at' => now(),
                 ]);
             } catch (UniqueConstraintViolationException) {

@@ -2,6 +2,7 @@
 
 namespace App\Domains\Reservations\Models;
 
+use App\Domains\Reservations\Enums\NoShowProposalStatus;
 use App\Domains\Reservations\Policies\NoShowProposalPolicy;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -23,7 +24,7 @@ use Illuminate\Validation\ValidationException;
  * @property string $property_id
  * @property string $reservation_id
  * @property CarbonImmutable $business_date the close that proposed it
- * @property string $status 'proposed', 'confirmed' or 'rejected'
+ * @property NoShowProposalStatus $status
  * @property string|null $resolved_by
  * @property CarbonImmutable|null $resolved_at
  * @property-read Reservation $reservation
@@ -37,25 +38,24 @@ class NoShowProposal extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['business_date' => 'immutable_date', 'resolved_at' => 'immutable_datetime'];
+        return ['business_date' => 'immutable_date', 'resolved_at' => 'immutable_datetime', 'status' => NoShowProposalStatus::class];
     }
 
     /** Locks a proposal still awaiting a decision; refuses one already resolved. Needs a transaction. */
     public static function lockOpen(self $proposal): self
     {
         $locked = self::query()->whereKey($proposal->id)->lockForUpdate()->firstOrFail();
-        if ($locked->status !== 'proposed') {
+        if ($locked->status !== NoShowProposalStatus::Proposed) {
             throw ValidationException::withMessages(['no_show' => __('This no-show has already been confirmed or rejected.')]);
         }
 
         return $locked;
     }
 
-    /** @param 'confirmed'|'rejected' $status */
-    public function resolve(User $actor, string $status): self
+    public function resolve(User $actor, NoShowProposalStatus $status): self
     {
         $this->update(['status' => $status, 'resolved_by' => $actor->id, 'resolved_at' => now()]);
-        Audit::record($actor, $status, $this, 'No-show '.$status, ['reservation_id' => $this->reservation_id]);
+        Audit::record($actor, $status->value, $this, 'No-show '.$status->value, ['reservation_id' => $this->reservation_id]);
 
         return $this;
     }

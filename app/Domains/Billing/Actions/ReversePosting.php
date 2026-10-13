@@ -2,6 +2,7 @@
 
 namespace App\Domains\Billing\Actions;
 
+use App\Domains\Billing\Enums\CashierShiftStatus;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
@@ -31,7 +32,7 @@ class ReversePosting
             self::ensureCancellable($original);
             if ($original->cashier_shift_id !== null) {
                 $shift = CashierShift::query()->whereKey($original->cashier_shift_id)->lockForUpdate()->firstOrFail();
-                if ($shift->status !== 'open') {
+                if ($shift->status !== CashierShiftStatus::Open) {
                     throw ValidationException::withMessages(['posting' => __('This cash posting belongs to a closed shift and cannot be reversed.')]);
                 }
             }
