@@ -36,3 +36,9 @@ includes charges recovered from a partial attempt. History and charges are
 paginated. Extend summary props for proposal and service results rather than
 adding work to controllers. Deployments must run `organizations:sync-roles`
 for the new `night_audit.view` and `night_audit.close` permissions.
+
+**#90 exceptions:** before advancing, the close snapshots open no-show
+proposals, checked-in departures due on or before the closing date, and open
+cashier shifts as `FrontDesk\Models\ExceptionListItem` rows dated the next
+business date. The index shows the current date's list; the summary shows
+`exceptionsCarried`.

@@ -50,12 +50,14 @@ export default function Show({
     charges,
     noShows = [],
     noShowsProposed = 0,
+    exceptionsCarried = 0,
     labels,
 }: {
     close: { business_date: string; actor: string };
     charges: Paginated<Charge>;
     noShows?: NoShow[];
     noShowsProposed?: number;
+    exceptionsCarried?: number;
     labels: Record<string, string>;
 }) {
     return (
@@ -69,6 +71,8 @@ export default function Show({
                         {formatDate(close.business_date, 'UTC')}
                         {' · '}
                         {labels.actor}: {close.actor}
+                        {' · '}
+                        {labels.exceptionsCarried}: {exceptionsCarried}
                     </p>
                 </header>
                 <Button variant="outline" asChild className="self-start">

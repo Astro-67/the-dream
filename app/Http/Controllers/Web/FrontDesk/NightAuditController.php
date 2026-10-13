@@ -6,6 +6,7 @@ use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
+use App\Domains\FrontDesk\Models\ExceptionListItem;
 use App\Domains\Reservations\Models\NoShowProposal;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FrontDesk\CloseBusinessDateRequest;
@@ -26,6 +27,8 @@ class NightAuditController extends Controller
 
         return Inertia::render('night-audit/index', [
             'closes' => $closes, 'businessDate' => BusinessDate::current(),
+            'exceptions' => ExceptionListItem::query()->whereDate('business_date', BusinessDate::current())->orderBy('kind')->orderBy('reference')
+                ->get(['id', 'kind', 'reference']),
             'canClose' => Gate::allows('create', BusinessDateClose::class), 'labels' => $this->labels(),
         ]);
     }
@@ -60,6 +63,7 @@ class NightAuditController extends Controller
         return Inertia::render('night-audit/show', [
             'close' => $this->row($businessDateClose), 'charges' => $charges, 'labels' => $this->labels(),
             'noShowsProposed' => $noShows->count(),
+            'exceptionsCarried' => ExceptionListItem::query()->where('business_date_close_id', $businessDateClose->id)->count(),
             'noShows' => $noShows->map(fn (NoShowProposal $proposal) => [
                 'id' => $proposal->id, 'reservation_number' => $proposal->reservation->reservation_number,
                 'status' => $proposal->status, 'can_resolve' => $proposal->status === 'proposed' && Gate::allows('resolve', $proposal),
@@ -90,6 +94,9 @@ class NightAuditController extends Controller
             'amount' => __('Amount'), 'back' => __('Back to night audit'),
             'noShows' => __('No-shows proposed'), 'noShowsHelp' => __('Reservations not arrived by the end of their arrival date. Confirming releases the room and proposes the no-show fee.'),
             'status' => __('Status'), 'confirm' => __('Confirm no-show'), 'reject' => __('Reject'),
+            'exceptions' => __('Exceptions for this business date'), 'noExceptions' => __('Nothing was carried from the last close.'),
+            'exceptionsCarried' => __('Exceptions carried to the next date'), 'kind' => __('Item'), 'reference' => __('Reference'),
+            'no_show' => __('No-show awaiting decision'), 'departure' => __('Departure not checked out'), 'cashier_shift' => __('Cashier shift still open'),
             'proposed' => __('Proposed'), 'confirmed' => __('Confirmed'), 'rejected' => __('Rejected'),
         ];
     }

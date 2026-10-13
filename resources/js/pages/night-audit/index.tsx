@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pagination } from '@/components/ui/pagination';
 import { Spinner } from '@/components/ui/spinner';
+import { StatusChip } from '@/components/ui/status-chip';
 import {
     Table,
     TableBody,
@@ -18,6 +19,12 @@ import { formatTime } from '@/lib/utils';
 import { show, store } from '@/routes/night-audit';
 import type { Paginated } from '@/types';
 
+type ExceptionItem = {
+    id: string;
+    kind: 'no_show' | 'departure' | 'cashier_shift';
+    reference: string;
+};
+
 type Close = {
     id: string;
     business_date: string;
@@ -29,11 +36,13 @@ export default function Index({
     closes,
     businessDate,
     canClose,
+    exceptions = [],
     labels,
 }: {
     closes: Paginated<Close>;
     businessDate: string;
     canClose: boolean;
+    exceptions?: ExceptionItem[];
     labels: Record<string, string>;
 }) {
     const { tenant } = usePage().props;
@@ -77,6 +86,38 @@ export default function Index({
                         )}
                     </Form>
                 )}
+                <section aria-labelledby="exception-list">
+                    <h2
+                        id="exception-list"
+                        className="mb-3 text-lg font-semibold"
+                    >
+                        {labels.exceptions}
+                    </h2>
+                    {exceptions.length === 0 ? (
+                        <EmptyState message={labels.noExceptions} />
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>{labels.kind}</TableHead>
+                                    <TableHead>{labels.reference}</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {exceptions.map((item) => (
+                                    <TableRow key={item.id}>
+                                        <TableCell>
+                                            <StatusChip tone="warning">
+                                                {labels[item.kind]}
+                                            </StatusChip>
+                                        </TableCell>
+                                        <TableCell>{item.reference}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </section>
                 <section aria-labelledby="close-history">
                     <h2
                         id="close-history"

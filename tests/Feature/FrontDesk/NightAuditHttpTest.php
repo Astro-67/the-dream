@@ -116,3 +116,18 @@ test('staff without the close permission cannot confirm or reject a no-show', fu
     inTenant($property, fn () => expect($proposal->fresh()->status)->toBe('proposed')
         ->and($proposal->reservation->status)->toBe(ReservationStatus::Confirmed));
 })->with([OrganizationRole::FrontDesk, OrganizationRole::Finance, OrganizationRole::Housekeeping, OrganizationRole::Auditor]);
+
+test('the manager sees the current date exception list and the close summary counts what it carried', function () {
+    $tenants = twoTenants();
+    $property = $tenants->a->property;
+    $property->update(['business_date' => '2026-12-10']);
+    $reservation = inTenant($property, fn () => app(CreateReservation::class)->handle($tenants->a->owner, BookingForm::details($tenants->a->owner)));
+    $manager = $tenants->a->member(OrganizationRole::PropertyManager);
+    $this->actingAs($manager)->post(route('night-audit.store'), ['_property' => $property->id, 'business_date' => '2026-12-10']);
+    $close = inTenant($property, fn () => BusinessDateClose::query()->sole());
+
+    $this->get(route('night-audit.index'))->assertInertia(fn (AssertableInertia $page) => $page
+        ->has('exceptions', 1)->where('exceptions.0.kind', 'no_show')
+        ->where('exceptions.0.reference', $reservation->reservation_number));
+    $this->get(route('night-audit.show', $close))->assertInertia(fn (AssertableInertia $page) => $page->where('exceptionsCarried', 1));
+});
