@@ -30,6 +30,11 @@ import {
     RoomMoveForm,
     type MoveRoom,
 } from '@/features/front-desk/room-move-form';
+import {
+    FolioPanel,
+    type Folio,
+    type FolioTotal,
+} from '@/features/billing/folio-panel';
 
 type Named = { id: string; name: string };
 type Reservation = {
@@ -68,6 +73,9 @@ export default function Show({
     can,
     moveRooms,
     groupMembers,
+    folios,
+    totals,
+    canPostCharge,
 }: {
     reservation: Reservation;
     roomType: Named;
@@ -84,6 +92,9 @@ export default function Show({
         Reservation,
         'reservation_number' | 'status' | 'arrival' | 'departure'
     >[];
+    folios: Folio[];
+    totals: FolioTotal[];
+    canPostCharge: boolean;
 }) {
     return (
         <>
@@ -207,6 +218,11 @@ export default function Show({
                             options={amendmentOptions}
                         />
                     )}
+                <FolioPanel
+                    folios={folios}
+                    totals={totals}
+                    canPostCharge={canPostCharge}
+                />
                 <AmendmentHistory amendments={amendments} />
                 <Link
                     className="text-primary underline underline-offset-4"

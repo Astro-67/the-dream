@@ -66,6 +66,6 @@ final class TaxCalculator
 
         $net = $amount - array_sum(array_column(array_filter($lines, fn (array $line) => $line['inclusive']), 'amount'));
 
-        return new TaxBreakdown($currency, $net, $lines);
+        return new TaxBreakdown($currency, $net, $lines, $applying->pluck('id')->filter()->values()->all());
     }
 }
