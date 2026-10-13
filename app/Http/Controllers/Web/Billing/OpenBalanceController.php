@@ -20,7 +20,7 @@ class OpenBalanceController extends Controller
         $folios = Folio::query()
             ->join('reservations', 'reservations.id', '=', 'folios.reservation_id')
             ->where('reservations.status', ReservationStatus::CheckedOut->value)
-            ->where($balance, '!=', 0)
+            ->whereRaw('('.$balance->toSql().') <> 0', $balance->getBindings())
             ->select(['folios.id', 'folios.currency', 'reservations.reservation_number', 'reservations.departure'])
             ->selectSub($balance, 'balance')
             ->orderBy('reservations.departure')->orderBy('reservations.reservation_number')
