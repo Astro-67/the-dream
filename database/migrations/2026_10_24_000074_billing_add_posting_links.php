@@ -25,13 +25,16 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('folios', function (Blueprint $table) {
-            $table->unique(['reservation_id', 'currency']);
-            $table->dropIndex(['reservation_id']);
-        });
+        if (! Schema::hasIndex('folios', ['reservation_id', 'currency'], 'unique')) {
+            Schema::table('folios', function (Blueprint $table) {
+                $table->unique(['reservation_id', 'currency']);
+                $table->dropIndex(['reservation_id']);
+            });
+        }
         Schema::table('postings', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('related_posting_id');
-            $table->dropColumn('reason');
+            $table->dropForeign(['related_posting_id']);
+            $table->dropUnique(['related_posting_id']);
+            $table->dropColumn(['related_posting_id', 'reason']);
             $table->unsignedBigInteger('net')->change();
         });
     }
