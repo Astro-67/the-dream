@@ -43,6 +43,7 @@ test('a refund above the currency threshold waits for a different approver', fun
     $approvalId = null;
     $this->get(route('approvals.index'))->assertOk()->assertInertia(function (Assert $page) use (&$approvalId) {
         $page->has('approvals.data', 1)->where('approvals.data.0.status', 'pending')
+            ->where('approvals.data.0.requester', 'Alpha Owner')
             ->where('approvals.data.0.id', function ($id) use (&$approvalId) {
                 $approvalId = $id;
 
@@ -245,4 +246,21 @@ test('an approval rechecks the unpaid balance before posting a write-off', funct
     $this->post(route('folios.payments.store', $folio), ['_property' => $t->a->property->id, 'amount' => 500, 'method' => 'bank_transfer', 'idempotency_key' => 'paid'])->assertSessionHasNoErrors();
     $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->postJson(route('approvals.resolve', $approval), ['_property' => $t->a->property->id, 'decision' => 'approve'])->assertUnprocessable()->assertJsonValidationErrors('approval');
     expect(inTenant($t->a->property, fn () => [Folio::query()->sole()->balance()->amount, PostingApproval::query()->sole()->status]))->toBe([0, 'pending']);
+});
+
+test('a rejected reversal can be resubmitted without posting the rejected request', function () {
+    $t = twoTenants();
+    $charge = inTenant($t->a->property, function () use ($t) {
+        app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+
+        return app(PostExtraCharge::class)->handle($t->a->owner, Folio::query()->sole(), ['category' => 'other', 'quantity' => 1, 'unit_price' => 500]);
+    });
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->put(route('approval-thresholds.update'), ['_property' => $t->a->property->id, 'currency' => 'USD', 'amount' => 0])->assertSessionHasNoErrors();
+    $this->actingAs($t->a->member(OrganizationRole::Finance))->post(route('postings.reverse', $charge), ['_property' => $t->a->property->id, 'reason' => 'Wrong room'])->assertSessionHasNoErrors();
+    $first = inTenant($t->a->property, fn () => PostingApproval::query()->sole());
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->post(route('approvals.resolve', $first), ['_property' => $t->a->property->id, 'decision' => 'reject', 'reason' => 'Need a clearer reason'])->assertSessionHasNoErrors();
+    $this->actingAs($t->a->member(OrganizationRole::Finance))->post(route('postings.reverse', $charge), ['_property' => $t->a->property->id, 'reason' => 'Wrong room, reservation corrected'])->assertSessionHasNoErrors();
+    $second = inTenant($t->a->property, fn () => PostingApproval::query()->where('status', 'pending')->sole());
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->post(route('approvals.resolve', $second), ['_property' => $t->a->property->id, 'decision' => 'approve'])->assertSessionHasNoErrors();
+    expect(inTenant($t->a->property, fn () => [PostingApproval::query()->findOrFail($first->id)->posting_id, Posting::query()->count(), Folio::query()->sole()->balance()->amount]))->toBe([null, 2, 0]);
 });

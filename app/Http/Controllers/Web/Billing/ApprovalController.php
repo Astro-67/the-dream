@@ -23,12 +23,14 @@ class ApprovalController extends Controller
         Gate::authorize('viewAny', PostingApproval::class);
 
         return Inertia::render('approvals/index', [
-            'approvals' => PostingApproval::query()->where('status', 'pending')->orderBy('created_at')->orderBy('id')->paginate(50)->withQueryString()->through(fn (PostingApproval $approval) => [
-                'id' => $approval->id, 'status' => $approval->status, 'folio_id' => $approval->folio_id,
-                'type' => $approval->posting['type'], 'amount' => $approval->posting['amount'], 'currency' => $approval->posting['currency'],
-                'reason' => $approval->posting['reason'], 'requested_by' => $approval->requested_by,
-                'canResolve' => $approval->requested_by !== $request->user()?->id,
-            ]),
+            'approvals' => PostingApproval::query()->where('status', 'pending')->with(['requester:id,name', 'folio.reservation:id,reservation_number'])
+                ->orderBy('created_at')->orderBy('id')->paginate(50)->withQueryString()->through(fn (PostingApproval $approval) => [
+                    'id' => $approval->id, 'status' => $approval->status, 'folio_id' => $approval->folio_id,
+                    'type' => $approval->posting['type'], 'amount' => $approval->posting['amount'], 'currency' => $approval->posting['currency'],
+                    'reason' => $approval->posting['reason'], 'requested_by' => $approval->requested_by,
+                    'requester' => $approval->requester?->name, 'reservation_number' => $approval->folio->reservation->reservation_number,
+                    'canResolve' => $approval->requested_by !== $request->user()?->id,
+                ]),
             'thresholds' => ApprovalThreshold::query()->get(['currency', 'amount']),
             'currencies' => array_column(Currency::cases(), 'value'),
         ]);

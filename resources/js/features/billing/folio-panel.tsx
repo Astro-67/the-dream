@@ -105,7 +105,6 @@ export function FolioPanel({
             </dl>
             {folios.map((folio, index) => (
                 <div key={folio.id} className="space-y-3">
-                    <AdjustmentForms folio={folio} />
                     {folios.length > 1 && (
                         <h3 className="font-semibold">
                             Folio {index + 1} ({folio.currency})
@@ -225,6 +224,7 @@ export function FolioPanel({
                             channelCollected={channelCollected}
                         />
                     )}
+                    <AdjustmentForms folio={folio} />
                 </div>
             ))}
             <OpenFolioForm />

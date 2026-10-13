@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/table';
 import { formatMoney } from '@/lib/utils';
 import { resolve } from '@/routes/approvals';
+import { show as showReservation } from '@/routes/reservations';
 import { update } from '@/routes/approval-thresholds';
 import type { Paginated } from '@/types';
 
@@ -27,6 +28,8 @@ type Approval = {
     status: string;
     folio_id: string;
     requested_by: string;
+    requester: string | null;
+    reservation_number: string;
     type: string;
     amount: number;
     currency: string;
@@ -102,7 +105,7 @@ export default function Approvals({
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Folio</TableHead>
+                                <TableHead>Reservation</TableHead>
                                 <TableHead>Request</TableHead>
                                 <TableHead numeric>Amount</TableHead>
                                 <TableHead>Decision</TableHead>
@@ -112,7 +115,18 @@ export default function Approvals({
                             {approvals.data.map((approval) => (
                                 <TableRow key={approval.id}>
                                     <TableCell>
-                                        <Identifier value={approval.folio_id} />
+                                        <Link
+                                            href={showReservation(
+                                                approval.reservation_number,
+                                            )}
+                                            className="text-primary underline-offset-4 hover:underline"
+                                        >
+                                            <Identifier
+                                                value={
+                                                    approval.reservation_number
+                                                }
+                                            />
+                                        </Link>
                                     </TableCell>
                                     <TableCell>
                                         <p>{approval.type.replace('_', '-')}</p>
@@ -122,9 +136,8 @@ export default function Approvals({
                                         <p>{approval.reason}</p>
                                         <p className="text-sm text-muted-foreground">
                                             Requested by{' '}
-                                            <Identifier
-                                                value={approval.requested_by}
-                                            />
+                                            {approval.requester ??
+                                                'Former member'}
                                         </p>
                                     </TableCell>
                                     <TableCell numeric>

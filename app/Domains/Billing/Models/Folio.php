@@ -3,6 +3,7 @@
 namespace App\Domains\Billing\Models;
 
 use App\Domains\Billing\Policies\FolioPolicy;
+use App\Domains\Reservations\Models\Reservation;
 use App\Support\Money\Currency;
 use App\Support\Money\Money;
 use App\Support\Tenancy\BelongsToProperty;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -19,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $property_id
  * @property string $reservation_id
  * @property Currency $currency
+ * @property-read Reservation $reservation
  */
 #[Fillable(['reservation_id', 'currency'])]
 #[UsePolicy(FolioPolicy::class)]
@@ -45,5 +48,11 @@ class Folio extends Model
     public function postings(): HasMany
     {
         return $this->hasMany(Posting::class)->orderBy('posted_at')->orderBy('id');
+    }
+
+    /** @return BelongsTo<Reservation, $this> */
+    public function reservation(): BelongsTo
+    {
+        return $this->belongsTo(Reservation::class);
     }
 }

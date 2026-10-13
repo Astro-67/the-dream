@@ -28,10 +28,11 @@ class ReversePosting
             $folio = Folio::query()->whereKey($original->folio_id)->lockForUpdate()->firstOrFail();
             $original = Posting::query()->findOrFail($original->id);
             self::ensureCancellable($original);
+            $rejected = PostingApproval::query()->where('original_posting_id', $original->id)->where('status', 'rejected')->count();
 
             return app(SubmitControlledPosting::class)->handle($actor, $folio, self::negative($original, [
                 'folio_id' => $original->folio_id, 'type' => 'reversal', 'reason' => $reason,
-                'idempotency_key' => 'reversal:'.$original->id, 'actor_id' => $actor?->id,
+                'idempotency_key' => 'reversal:'.$original->id.($rejected > 0 ? ':'.$rejected : ''), 'actor_id' => $actor?->id,
             ]));
         }));
     }
