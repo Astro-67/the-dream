@@ -10,6 +10,7 @@ use App\Domains\Billing\Models\Receipt;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CancelReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
@@ -112,6 +113,24 @@ return [
 
         return $responses;
     }),
+    'open-balances.index' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $number = inTenant($t->b->property, function () use ($t) {
+            $reservation = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            app(PostExtraCharge::class)->handle($t->b->owner, Folio::query()->sole(), ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 700]);
+            $reservation->update(['status' => ReservationStatus::CheckedOut]);
+
+            return $reservation->reservation_number;
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $response = $this->actingAs($member)->get(route('open-balances.index'));
+            expect($response->getContent())->not->toContain($number);
+            $responses[] = $response;
+        }
+
+        return $responses;
+    }),
+
     'receipts.show' => RouteCoverage::attempt(function (TwoTenants $t) {
         $receipt = inTenant($t->b->property, function () use ($t) {
             app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));

@@ -11,6 +11,12 @@ use App\Support\Tenancy\Tenancy;
 
 class FolioPolicy
 {
+    /** Finance's list of open balances after departure. */
+    public function viewOpenBalances(User $user): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::FinanceView, Tenancy::property());
+    }
+
     public function postCharge(User $user, Folio $folio): bool
     {
         return Tenancy::property() !== null && Access::allows($user, P::ChargesPost, $folio);

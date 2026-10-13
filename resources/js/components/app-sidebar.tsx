@@ -6,6 +6,7 @@ import {
     DoorOpen,
     Hotel,
     LayoutGrid,
+    Wallet,
     MailPlus,
     Percent,
     ShieldCheck,
@@ -29,6 +30,7 @@ import { index as invitations } from '@/routes/invitations';
 import { index as guests } from '@/routes/guests';
 import { index as bookers } from '@/routes/bookers';
 import { index as members } from '@/routes/members';
+import { index as openBalances } from '@/routes/open-balances';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
 import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
@@ -98,6 +100,15 @@ export function AppSidebar() {
                       icon: CalendarDays,
                   },
                   { title: 'Taxes', href: taxRules(), icon: Percent },
+              ]
+            : []),
+        ...(can('finance.view')
+            ? [
+                  {
+                      title: 'Open balances',
+                      href: openBalances(),
+                      icon: Wallet,
+                  },
               ]
             : []),
         ...(can('housekeeping.view')

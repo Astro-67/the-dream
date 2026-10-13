@@ -4,6 +4,7 @@ use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\FrontDesk\Actions\CheckIn;
+use App\Domains\FrontDesk\Actions\CheckOut;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
@@ -155,3 +156,36 @@ test('only an in-house reservation can be checked out', function () {
     $this->actingAs($t->a->owner)->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
         ->assertUnprocessable()->assertJsonValidationErrors('reservation');
 });
+
+test('finance sees open balances after departure until they are settled', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    $folio = chargeBeforeCheckOut($t->a, $reservation, 1500);
+    inTenant($t->a->property, fn () => app(CheckOut::class)->handle($t->a->owner, $reservation, 'Company pays by invoice'));
+    $this->actingAs($t->a->member(OrganizationRole::Finance));
+
+    $this->get(route('open-balances.index'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('billing/open-balances')
+        ->has('folios.data', 1)
+        ->where('folios.data.0.reservation_number', $reservation->reservation_number)
+        ->where('folios.data.0.currency', 'USD')
+        ->where('folios.data.0.balance', 1500));
+
+    inTenant($t->a->property, fn () => app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'bank_transfer', 'amount' => 1500, 'currency' => 'USD']));
+    $this->get(route('open-balances.index'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->has('folios.data', 0));
+});
+
+test('in-house balances are not open balances after departure', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    chargeBeforeCheckOut($t->a, $reservation, 1500);
+
+    $this->actingAs($t->a->owner)->get(route('open-balances.index'))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->has('folios.data', 0));
+});
+
+test('only roles that view finance see open balances', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $actor = $role === OrganizationRole::Owner ? $t->a->owner : $t->a->member($role);
+
+    $this->actingAs($actor)->get(route('open-balances.index'))->assertStatus($allowed ? 200 : 403);
+})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::Finance, OrganizationRole::Auditor], true)], OrganizationRole::cases()));
