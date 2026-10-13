@@ -2,6 +2,9 @@
 
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
+use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Enums\ReservationStatus;
+use Tests\Support\BookingForm;
 
 test('the scheduler closes each property whose local close time has passed, as automation', function () {
     $t = twoTenants();
@@ -25,4 +28,25 @@ test('the scheduler closes each property whose local close time has passed, as a
         ->and($closed($t->b->otherProperty))->toBe([])
         ->and(BusinessDate::of($t->a->otherProperty->fresh()))->toBe('2026-12-10')
         ->and(BusinessDate::of($t->b->otherProperty->fresh()))->toBe('2026-12-11');
+});
+
+test('a property that fails to close does not stop the others, and a closed date is not closed again', function () {
+    $t = twoTenants();
+    foreach ([$t->a->property, $t->b->property] as $property) {
+        $property->update(['timezone' => 'Africa/Dar_es_Salaam', 'close_time' => '02:00:00', 'business_date' => '2026-12-10']);
+    }
+    inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $reservation->update(['status' => ReservationStatus::CheckedIn]);
+        $reservation->priceLines()->delete();
+    });
+    $this->travelTo(new DateTimeImmutable('2026-12-11 00:00:00 UTC'));
+
+    $this->artisan('night-audit:close-due')->assertFailed();
+    $this->artisan('night-audit:close-due')->assertFailed();
+
+    expect(BusinessDate::of($t->a->property->fresh()))->toBe('2026-12-10')
+        ->and(inTenant($t->a->property, fn () => BusinessDateClose::query()->count()))->toBe(0)
+        ->and(BusinessDate::of($t->b->property->fresh()))->toBe('2026-12-11')
+        ->and(inTenant($t->b->property, fn () => BusinessDateClose::query()->count()))->toBe(1);
 });
