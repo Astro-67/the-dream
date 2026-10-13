@@ -196,3 +196,52 @@ test('none disables only the selected property and currency and equality posts i
     expect(inTenant($t->a->property, fn () => [Folio::query()->findOrFail($folio->id)->balance()->amount, Folio::query()->findOrFail($tzs->id)->balance()->amount]))->toBe([1100, 0]);
     expect(inTenant($t->a->otherProperty, fn () => ApprovalThreshold::query()->count()))->toBe(0);
 });
+
+test('a pending cash refund posts against its requesting shift, not the approvers', function () {
+    $t = twoTenants();
+    $finance = $t->a->member(OrganizationRole::Finance);
+    [$folio, $shift] = inTenant($t->a->property, function () use ($t, $finance) {
+        app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+
+        return [Folio::query()->sole(), app(OpenCashierShift::class)->handle($finance, ['USD' => 500])];
+    });
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->put(route('approval-thresholds.update'), ['_property' => $t->a->property->id, 'currency' => 'USD', 'amount' => 0])->assertSessionHasNoErrors();
+    $this->actingAs($finance)->post(route('folios.refunds.store', $folio), ['_property' => $t->a->property->id, 'amount' => 100, 'method' => 'cash', 'reason' => 'Deposit returned', 'idempotency_key' => 'pending-cash'])->assertSessionHasNoErrors();
+    $this->get(route('cashier-shifts.index'))->assertInertia(fn (Assert $page) => $page->where('openShift.currencies.0.expected', 500));
+    $approval = inTenant($t->a->property, fn () => PostingApproval::query()->sole());
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->post(route('approvals.resolve', $approval), ['_property' => $t->a->property->id, 'decision' => 'approve'])->assertSessionHasNoErrors();
+    $this->actingAs($finance)->get(route('cashier-shifts.index'))->assertInertia(fn (Assert $page) => $page->where('openShift.currencies.0.expected', 400));
+    expect(inTenant($t->a->property, fn () => Posting::query()->sole()->cashier_shift_id))->toBe($shift->id);
+});
+
+test('a closed requesting shift cannot receive an approved cash refund', function () {
+    $t = twoTenants();
+    $finance = $t->a->member(OrganizationRole::Finance);
+    [$folio, $shift] = inTenant($t->a->property, function () use ($t, $finance) {
+        app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+
+        return [Folio::query()->sole(), app(OpenCashierShift::class)->handle($finance, ['USD' => 500])];
+    });
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->put(route('approval-thresholds.update'), ['_property' => $t->a->property->id, 'currency' => 'USD', 'amount' => 0])->assertSessionHasNoErrors();
+    $this->actingAs($finance)->post(route('folios.refunds.store', $folio), ['_property' => $t->a->property->id, 'amount' => 100, 'method' => 'cash', 'reason' => 'Deposit returned', 'idempotency_key' => 'closed-cash'])->assertSessionHasNoErrors();
+    $approval = inTenant($t->a->property, fn () => PostingApproval::query()->sole());
+    $this->post(route('cashier-shifts.close', $shift), ['_property' => $t->a->property->id, 'counted' => ['USD' => 500]])->assertSessionHasNoErrors();
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->postJson(route('approvals.resolve', $approval), ['_property' => $t->a->property->id, 'decision' => 'approve'])->assertUnprocessable()->assertJsonValidationErrors('approval');
+    expect(inTenant($t->a->property, fn () => [Posting::query()->count(), PostingApproval::query()->sole()->status, CashierShift::query()->sole()->expectedCash()]))->toEqual([0, 'pending', ['USD' => 500]]);
+});
+
+test('an approval rechecks the unpaid balance before posting a write-off', function () {
+    $t = twoTenants();
+    [$folio, $charge] = inTenant($t->a->property, function () use ($t) {
+        app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $folio = Folio::query()->sole();
+
+        return [$folio, app(PostExtraCharge::class)->handle($t->a->owner, $folio, ['category' => 'other', 'quantity' => 1, 'unit_price' => 500])];
+    });
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->put(route('approval-thresholds.update'), ['_property' => $t->a->property->id, 'currency' => 'USD', 'amount' => 400])->assertSessionHasNoErrors();
+    $this->actingAs($t->a->member(OrganizationRole::Finance))->post(route('folios.write-offs.store', $folio), ['_property' => $t->a->property->id, 'amount' => 500, 'reason' => 'Uncollectable', 'idempotency_key' => 'pending-write-off'])->assertSessionHasNoErrors();
+    $approval = inTenant($t->a->property, fn () => PostingApproval::query()->sole());
+    $this->post(route('folios.payments.store', $folio), ['_property' => $t->a->property->id, 'amount' => 500, 'method' => 'bank_transfer', 'idempotency_key' => 'paid'])->assertSessionHasNoErrors();
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->postJson(route('approvals.resolve', $approval), ['_property' => $t->a->property->id, 'decision' => 'approve'])->assertUnprocessable()->assertJsonValidationErrors('approval');
+    expect(inTenant($t->a->property, fn () => [Folio::query()->sole()->balance()->amount, PostingApproval::query()->sole()->status]))->toBe([0, 'pending']);
+});
