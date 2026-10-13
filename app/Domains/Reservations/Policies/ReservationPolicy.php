@@ -50,6 +50,12 @@ class ReservationPolicy
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
     }
 
+    /** Extend a stay or record an early departure. */
+    public function changeStay(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+    }
+
     public function attachGuest(User $user, Reservation $reservation): bool
     {
         return $this->view($user, $reservation) && Access::allows($user, P::ReservationsManage, $reservation) && Access::allows($user, P::GuestsRegister, $reservation);

@@ -17,6 +17,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { TerminationActions } from '@/features/reservations/termination-actions';
+import { StayLengthActions } from '@/features/front-desk/stay-length-actions';
 import { formatDate } from '@/features/platform/format';
 import {
     AmendmentForm,
@@ -86,7 +87,12 @@ export default function Show({
     canAmend: boolean;
     amendmentOptions: AmendmentOptions | null;
     amendments: Paginated<Amendment>;
-    can: { cancel: boolean; void: boolean; moveRoom: boolean };
+    can: {
+        cancel: boolean;
+        void: boolean;
+        moveRoom: boolean;
+        changeStay: boolean;
+    };
     moveRooms: MoveRoom[];
     groupMembers: Pick<
         Reservation,
@@ -126,6 +132,12 @@ export default function Show({
                         <TerminationActions
                             number={reservation.reservation_number}
                             can={can}
+                        />
+                    )}
+                    {reservation.status === 'checked_in' && can.changeStay && (
+                        <StayLengthActions
+                            number={reservation.reservation_number}
+                            departure={reservation.departure}
                         />
                     )}
                 </header>
