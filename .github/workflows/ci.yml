@@ -120,3 +120,6 @@ jobs:
 
       - name: Lint and format
         run: bun run check
+
+      - name: Frontend folio regressions
+        run: bun run test:frontend

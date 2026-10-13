@@ -99,3 +99,25 @@ test('the folio view shows reversal and transfer links and the correction abilit
     $this->actingAs($t->a->member(OrganizationRole::Auditor))->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('canReverse', false)->where('canTransfer', false)->where('canOpenFolio', false));
 });
+
+test('transfer links identify the actual source and destination across folio pages', function () {
+    $t = twoTenants();
+    [$reservation, $source, $charge] = folioWithCharge($t);
+    $destination = inTenant($t->a->property, function () use ($t, $reservation, $charge) {
+        for ($index = 0; $index < 50; $index++) {
+            $folio = app(OpenFolio::class)->handle($t->a->owner, $reservation, 'USD');
+        }
+        app(TransferPosting::class)->handle($t->a->owner, $charge, $folio, 'Company pays');
+
+        return $folio;
+    });
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('folios.data.0.postings.data.0.cancelled_by.destination_folio_id', $destination->id)
+        ->where('folios.data.0.postings.data.1.cancelled_by.destination_folio_id', $destination->id)
+        ->where('folios.data.0.balance', 0));
+    $this->get(route('reservations.show', [$reservation, 'folios_page' => 2]))->assertInertia(fn (Assert $page) => $page
+        ->where('folios.data.0.id', $destination->id)
+        ->where('folios.data.0.postings.data.0.related.folio_id', $source->id)
+        ->where('folios.data.0.balance', 400));
+});

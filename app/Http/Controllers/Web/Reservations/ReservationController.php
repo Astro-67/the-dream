@@ -65,12 +65,19 @@ class ReservationController extends Controller
             'folios' => $folioPage->through(fn (Folio $folio, int $index) => [
                 'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => (int) $folio->getAttribute('balance_amount'),
                 'number' => ($folios->firstItem() ?? 1) + $index,
-                'postings' => $folio->postings()->with(['actor:id,name', 'receipt:id,posting_id,number', 'related:id,type,category,folio_id', 'cancelledBy:id,type,folio_id,related_posting_id'])
+                'postings' => $folio->postings()->with(['actor:id,name', 'receipt:id,posting_id,number', 'related:id,type,category,folio_id', 'cancelledBy:id,type,folio_id,related_posting_id', 'cancelledBy.cancelledBy:id,folio_id,related_posting_id'])
                     ->paginate(50, ['*'], 'postings_page_'.$folio->id)->withQueryString()->through(fn (Posting $posting) => [
                         ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),
                         'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
                         'related' => $posting->related?->only(['id', 'type', 'category', 'folio_id']),
-                        'cancelled_by' => $posting->cancelledBy?->only(['id', 'type', 'folio_id']),
+                        'cancelled_by' => $posting->cancelledBy === null ? null : [
+                            ...$posting->cancelledBy->only(['id', 'type', 'folio_id']),
+                            'destination_folio_id' => match ($posting->cancelledBy->type) {
+                                'transfer_out' => $posting->cancelledBy->cancelledBy?->folio_id,
+                                'transfer_in' => $posting->cancelledBy->folio_id,
+                                default => null,
+                            },
+                        ],
                         ...$posting->only(['method', 'reference', 'card_last_four', 'card_brand']), 'receipt' => $posting->receipt?->only(['id', 'number']),
                     ]),
             ]),

@@ -41,39 +41,48 @@ export function folioName(folios: Folio[], id: string) {
     const index = folios.findIndex((folio) => folio.id === id);
 
     return index === -1
-        ? 'another folio'
+        ? `folio ${id}`
         : `folio ${folios[index].number} (${folios[index].currency})`;
 }
 
 /** The reversal or transfer this posting belongs to, read from both ends. */
-export function PostingLink({
-    posting,
-    folios,
-}: {
-    posting: Posting;
-    folios: Folio[];
-}) {
-    const lines: string[] = [];
+export function PostingLink({ posting }: { posting: Posting }) {
+    const lines: React.ReactNode[] = [];
     if (posting.related) {
         lines.push(
-            posting.type === 'transfer_in'
-                ? `${linkLabels.transfer_in} ${folioName(folios, posting.related.folio_id)}`
-                : `${linkLabels[posting.type] ?? 'Linked to'} the ${posting.related.category} charge`,
+            posting.type === 'transfer_in' ? (
+                <>
+                    {linkLabels.transfer_in} folio{' '}
+                    <Identifier value={posting.related.folio_id} copyable />
+                </>
+            ) : (
+                `${linkLabels[posting.type] ?? 'Linked to'} the ${posting.related.category} charge`
+            ),
         );
     }
     if (posting.cancelled_by) {
         lines.push(
-            posting.cancelled_by.type === 'reversal'
-                ? 'Reversed'
-                : `Moved to ${folioName(folios, posting.cancelled_by.folio_id)}`,
+            posting.cancelled_by.type === 'reversal' ? (
+                'Reversed'
+            ) : posting.cancelled_by.destination_folio_id === null ? (
+                linkLabels.transfer_out
+            ) : (
+                <>
+                    Moved to folio{' '}
+                    <Identifier
+                        value={posting.cancelled_by.destination_folio_id}
+                        copyable
+                    />
+                </>
+            ),
         );
     }
     if (posting.reason) {
         lines.push(`Reason: ${posting.reason}`);
     }
 
-    return lines.map((line) => (
-        <div key={line} className="text-sm text-muted-foreground">
+    return lines.map((line, index) => (
+        <div key={index} className="text-sm text-muted-foreground">
             {line}
         </div>
     ));

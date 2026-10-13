@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,8 @@ export function StayLengthActions({
     number: string;
     departure: string;
 }) {
+    const [departOpen, setDepartOpen] = useState(false);
+
     return (
         <div className="flex flex-wrap gap-2">
             <Dialog>
@@ -84,7 +87,7 @@ export function StayLengthActions({
                     </Form>
                 </DialogContent>
             </Dialog>
-            <Dialog>
+            <Dialog open={departOpen} onOpenChange={setDepartOpen}>
                 <DialogTrigger asChild>
                     <Button variant="outline">Depart early</Button>
                 </DialogTrigger>
@@ -100,7 +103,11 @@ export function StayLengthActions({
                             removed.
                         </DialogDescription>
                     </DialogHeader>
-                    <Form {...departEarly.form(number)} className="space-y-4">
+                    <Form
+                        {...departEarly.form(number)}
+                        onSuccess={() => setDepartOpen(false)}
+                        className="space-y-4"
+                    >
                         {({ errors, processing }) => (
                             <>
                                 <PropertyIntent />

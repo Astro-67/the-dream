@@ -43,7 +43,12 @@ export type Posting = {
         category: string;
         folio_id: string;
     } | null;
-    cancelled_by: { id: string; type: string; folio_id: string } | null;
+    cancelled_by: {
+        id: string;
+        type: string;
+        folio_id: string;
+        destination_folio_id: string | null;
+    } | null;
     quantity: number;
     unit_price: number;
     net: number;
@@ -94,6 +99,9 @@ export function FolioPanel({
     const { tenant } = usePage().props;
     const timezone = tenant.property?.timezone ?? 'UTC';
     const folios = folioPage.data;
+    const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null);
+    const folio =
+        folios.find((item) => item.id === selectedFolioId) ?? folios[0];
 
     return (
         <section className="space-y-4">
@@ -113,8 +121,65 @@ export function FolioPanel({
                     </div>
                 ))}
             </dl>
-            {folios.map((folio) => (
-                <div key={folio.id} className="space-y-3">
+            {folioPage.total > 1 && (
+                <Table aria-label="Folios">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Folio</TableHead>
+                            <TableHead>Currency</TableHead>
+                            <TableHead numeric>Balance</TableHead>
+                            <TableHead>
+                                <span className="sr-only">Actions</span>
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {folios.map((item) => (
+                            <TableRow key={item.id}>
+                                <TableCell>
+                                    Folio {item.number}
+                                    <div>
+                                        <Identifier value={item.id} copyable />
+                                    </div>
+                                </TableCell>
+                                <TableCell>{item.currency}</TableCell>
+                                <TableCell numeric>
+                                    {formatMoney(item.balance, item.currency)}
+                                </TableCell>
+                                <TableCell numeric>
+                                    <Button
+                                        asChild
+                                        size="sm"
+                                        variant={
+                                            item.id === folio?.id
+                                                ? 'default'
+                                                : 'secondary'
+                                        }
+                                    >
+                                        <a
+                                            href="#folio-detail"
+                                            aria-label={`View folio ${item.number}`}
+                                            aria-current={
+                                                item.id === folio?.id
+                                                    ? 'true'
+                                                    : undefined
+                                            }
+                                            onClick={() =>
+                                                setSelectedFolioId(item.id)
+                                            }
+                                        >
+                                            View
+                                        </a>
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
+            <Pagination page={folioPage} />
+            {folio ? (
+                <div key={folio.id} id="folio-detail" className="space-y-3">
                     {folioPage.total > 1 && (
                         <h3 className="font-semibold">
                             Folio {folio.number} ({folio.currency}){' '}
@@ -194,10 +259,7 @@ export function FolioPanel({
                                                     {posting.description}
                                                 </div>
                                             )}
-                                            <PostingLink
-                                                posting={posting}
-                                                folios={folios}
-                                            />
+                                            <PostingLink posting={posting} />
                                         </TableCell>
                                         <TableCell numeric>
                                             {posting.quantity}
@@ -247,8 +309,9 @@ export function FolioPanel({
                     )}
                     <AdjustmentForms folio={folio} />
                 </div>
-            ))}
-            <Pagination page={folioPage} />
+            ) : (
+                <EmptyState message="No folios on this page. Choose another page or open a folio." />
+            )}
             <OpenFolioForm />
         </section>
     );
