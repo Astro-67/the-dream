@@ -8,6 +8,8 @@ use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Rates\Actions\CreateTaxRule;
+use App\Domains\Rates\Actions\SetRatePrices;
+use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Support\Money\Currency;
@@ -105,7 +107,7 @@ test('a fixture close charges only in-house reservations including departures an
     $property->update(['business_date' => '2026-12-12']);
     inTenant($property, function () use ($owner, $property) {
         $details = BookingForm::details($owner);
-        foreach (range(2, 5) as $number) {
+        foreach (range(2, 7) as $number) {
             app(CreateRoom::class)->handle($owner, [...InventoryForm::room($details['room_type_id']), 'number' => (string) $number]);
         }
         $reservations = [];
@@ -117,11 +119,20 @@ test('a fixture close charges only in-house reservations including departures an
         $reservations[0]->update(['departure' => '2026-12-11']);
         $reservations[0]->priceLines()->whereDate('date', '2026-12-11')->delete();
         $reservations[2]->update(['arrival' => '2026-12-12']);
+        app(SetRatePrices::class)->handle($owner, RatePlan::query()->findOrFail($details['rate_plan_id']), ['room_type_id' => $details['room_type_id'], 'from' => '2026-12-12', 'to' => '2026-12-13', 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'base_price' => 10000, 'extra_adult' => 2500, 'extra_child' => 1000]);
+        $midStay = app(CreateReservation::class)->handle($owner, [...$details, 'departure' => '2026-12-14']);
+        $midStay->update(['status' => ReservationStatus::CheckedIn]);
+        $arrivedToday = app(CreateReservation::class)->handle($owner, [...$details, 'arrival' => '2026-12-12', 'departure' => '2026-12-13']);
+        $arrivedToday->update(['status' => ReservationStatus::CheckedIn]);
 
         app(CloseBusinessDate::class)->handle(null, $property, '2026-12-12');
 
         expect(Posting::query()->orderBy('reservation_id')->pluck('reservation_id')->all())
-            ->toEqualCanonicalizing([$reservations[0]->id, $reservations[1]->id]);
+            ->toEqualCanonicalizing([$reservations[0]->id, $reservations[1]->id, $midStay->id, $arrivedToday->id]);
+        foreach ([$midStay, $arrivedToday] as $reservation) {
+            expect(Posting::query()->where('reservation_id', $reservation->id)->sole()->price_line_id)
+                ->toBe($reservation->priceLines()->whereDate('date', '2026-12-12')->sole()->getKey());
+        }
         foreach ([$reservations[0], $reservations[1]] as $reservation) {
             $posting = Posting::query()->where('reservation_id', $reservation->id)->sole();
             expect($posting->amount)->toBe(11000)
