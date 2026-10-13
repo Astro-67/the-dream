@@ -33,6 +33,7 @@ class CreateReservationRequest extends FormRequest
             'channel_reference' => ['exclude_unless:source,outside-integration', $this->isMethod('GET') ? 'nullable' : 'required', 'string', 'max:255'],
             'outside_integration_reason' => ['exclude_unless:source,outside-integration', $this->isMethod('GET') ? 'nullable' : 'required', 'string', 'max:2000'],
             'payment_collector' => ['sometimes', Rule::in(['property', 'channel'])],
+            'channel_collected_amount' => ['exclude_unless:payment_collector,channel', $this->isMethod('GET') ? 'nullable' : 'required', 'integer', 'min:0', 'max:1000000000000'],
         ];
     }
 }

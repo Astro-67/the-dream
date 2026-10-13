@@ -1,4 +1,4 @@
-import { Form, usePage } from '@inertiajs/react';
+import { Form, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -17,7 +17,9 @@ import {
 } from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
+import { PaymentForm, paymentMethods } from '@/features/billing/payment-form';
 import { store } from '@/routes/folios/charges';
+import { show as showReceipt } from '@/routes/receipts';
 
 export type Posting = {
     id: string;
@@ -31,6 +33,9 @@ export type Posting = {
     tax_lines: { name: string; amount: number }[];
     posted_at: string;
     actor: string | null;
+    method?: string | null;
+    reference?: string | null;
+    receipt?: { id: string; number: string } | null;
 };
 export type Folio = {
     id: string;
@@ -40,16 +45,26 @@ export type Folio = {
 };
 export type FolioTotal = { currency: string; charges: number; balance: number };
 
-const categories = { minibar: 'Minibar', laundry: 'Laundry', other: 'Other' };
+const categories = {
+    minibar: 'Minibar',
+    laundry: 'Laundry',
+    other: 'Other',
+    deposit: 'Deposit',
+    payment: 'Payment',
+};
 
 export function FolioPanel({
     folios,
     totals,
     canPostCharge,
+    canRecordPayment = false,
+    channelCollected = false,
 }: {
     folios: Folio[];
     totals: FolioTotal[];
     canPostCharge: boolean;
+    canRecordPayment?: boolean;
+    channelCollected?: boolean;
 }) {
     const { tenant } = usePage().props;
     const timezone = tenant.property?.timezone ?? 'UTC';
@@ -115,6 +130,26 @@ export function FolioPanel({
                                             {categories[
                                                 posting.category as keyof typeof categories
                                             ] ?? posting.category}
+                                            {posting.method && (
+                                                <div className="text-sm text-muted-foreground">
+                                                    {paymentMethods[
+                                                        posting.method as keyof typeof paymentMethods
+                                                    ] ?? posting.method}
+                                                    {posting.reference &&
+                                                        `, ${posting.reference}`}
+                                                </div>
+                                            )}
+                                            {posting.receipt && (
+                                                <Link
+                                                    href={showReceipt(
+                                                        posting.receipt.id,
+                                                    )}
+                                                    className="text-sm underline underline-offset-4"
+                                                >
+                                                    Receipt{' '}
+                                                    {posting.receipt.number}
+                                                </Link>
+                                            )}
                                             {posting.description && (
                                                 <div className="text-sm text-muted-foreground">
                                                     {posting.description}
@@ -153,6 +188,12 @@ export function FolioPanel({
                         </Table>
                     )}
                     {canPostCharge && <ExtraChargeForm folio={folio} />}
+                    {canRecordPayment && (
+                        <PaymentForm
+                            folio={folio}
+                            channelCollected={channelCollected}
+                        />
+                    )}
                 </div>
             ))}
         </section>

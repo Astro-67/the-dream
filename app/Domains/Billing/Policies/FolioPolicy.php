@@ -14,4 +14,9 @@ class FolioPolicy
     {
         return Tenancy::property() !== null && Access::allows($user, P::ChargesPost, $folio);
     }
+
+    public function recordPayment(User $user, Folio $folio): bool
+    {
+        return $this->postCharge($user, $folio);
+    }
 }

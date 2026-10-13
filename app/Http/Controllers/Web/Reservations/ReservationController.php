@@ -47,7 +47,7 @@ class ReservationController extends Controller
     {
         Gate::authorize('view', $reservation);
         // ponytail: a stay's postings are bounded by its nights and extras; paginate if long stays make this heavy.
-        $folios = Folio::query()->where('reservation_id', $reservation->id)->with('postings.actor:id,name')->orderBy('created_at')->get();
+        $folios = Folio::query()->where('reservation_id', $reservation->id)->with(['postings.actor:id,name', 'postings.receipt:id,posting_id,number'])->orderBy('created_at')->get();
 
         return Inertia::render('reservations/show', [
             'folios' => $folios->map(fn (Folio $folio) => [
@@ -55,6 +55,7 @@ class ReservationController extends Controller
                 'postings' => $folio->postings->map(fn (Posting $posting) => [
                     ...$posting->only(['id', 'type', 'category', 'description', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),
                     'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
+                    ...$posting->only(['method', 'reference', 'card_last_four', 'card_brand']), 'receipt' => $posting->receipt?->only(['id', 'number']),
                 ])->all(),
             ])->all(),
             'totals' => $folios->groupBy(fn (Folio $folio) => $folio->currency->value)->map(fn ($group, string $currency) => [
@@ -63,6 +64,7 @@ class ReservationController extends Controller
                 'balance' => (int) $group->sum(fn (Folio $folio) => $folio->balance()->amount),
             ])->values()->all(),
             'canPostCharge' => $folios->isNotEmpty() && Gate::allows('postCharge', $folios->first()),
+            'canRecordPayment' => $folios->isNotEmpty() && Gate::allows('recordPayment', $folios->first()),
             'reservation' => $reservation->load('priceLines'),
             'groupMembers' => $reservation->getAttribute('booking_group_id') === null ? [] : Reservation::query()
                 ->where('property_id', $reservation->property_id)

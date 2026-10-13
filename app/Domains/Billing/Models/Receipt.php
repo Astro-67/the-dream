@@ -2,9 +2,11 @@
 
 namespace App\Domains\Billing\Models;
 
+use App\Domains\Billing\Policies\ReceiptPolicy;
 use App\Support\Tenancy\BelongsToProperty;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable $issued_at
  */
 #[Fillable(['posting_id', 'sequence', 'number', 'vfms_receipt_number', 'issued_at'])]
+#[UsePolicy(ReceiptPolicy::class)]
 class Receipt extends Model
 {
     use BelongsToProperty, HasUlids;
