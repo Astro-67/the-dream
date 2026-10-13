@@ -64,6 +64,27 @@ class CashierShift extends Model
                 $expected[$posting->currency->value] = ($expected[$posting->currency->value] ?? 0) - $posting->amount;
             });
 
+        ksort($expected);
+
         return $expected;
+    }
+
+    /**
+     * Counted minus expected per currency, once closed: negative is cash short.
+     *
+     * @return array<string, int>|null
+     */
+    public function variance(): ?array
+    {
+        if ($this->counted === null || $this->expected === null) {
+            return null;
+        }
+
+        $variance = [];
+        foreach ($this->expected as $currency => $amount) {
+            $variance[$currency] = ($this->counted[$currency] ?? 0) - $amount;
+        }
+
+        return $variance;
     }
 }
