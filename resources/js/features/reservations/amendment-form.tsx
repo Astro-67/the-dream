@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { amend } from '@/routes/reservations';
+import { Spinner } from '@/components/ui/spinner';
 
 type Named = { id: string; name: string };
 export type AmendmentOptions = {
@@ -298,6 +299,9 @@ export function AmendmentForm({
                         <InputError message={previewError} />
                         <InputError message={errors.reservation} />
                         <Button disabled={processing || previewing}>
+                            <span className="size-4">
+                                {processing && <Spinner />}
+                            </span>
                             {previewing
                                 ? 'Reviewing restrictions…'
                                 : warnings === null

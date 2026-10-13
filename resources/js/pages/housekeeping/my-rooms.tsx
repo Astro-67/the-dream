@@ -10,6 +10,7 @@ import { StatusChip } from '@/components/ui/status-chip';
 import { formatDate } from '@/lib/utils';
 import { myRooms } from '@/routes/housekeeping';
 import { complete } from '@/routes/housekeeping/assignments';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function MyRooms({
     date,
@@ -98,6 +99,11 @@ export default function MyRooms({
                                                     }
                                                     aria-label={`Mark room ${assignment.room.number} done`}
                                                 >
+                                                    <span className="size-4">
+                                                        {processing && (
+                                                            <Spinner />
+                                                        )}
+                                                    </span>
                                                     {processing
                                                         ? 'Saving…'
                                                         : 'Mark done'}

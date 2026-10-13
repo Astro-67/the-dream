@@ -4,17 +4,14 @@ Commands live in `composer.json` and `package.json` scripts; this file records w
 
 ## Checks
 
-Run all of these before reporting work done:
+`composer check:fast` runs the fast checks in the order they need: build, then Pest on SQLite, Pint, Larastan, TypeScript, and lint. Pest needs the build first; without the Vite manifest every page test fails. Run it before reporting work done.
 
-| Check                          | Command                                        |
-| ------------------------------ | ---------------------------------------------- |
-| Pest (SQLite, in memory)       | `php artisan test --compact`                   |
-| Pest on MySQL 8, as CI runs it | `composer test:mysql`                          |
-| Pint                           | `vendor/bin/pint --test`                       |
-| Larastan                       | `vendor/bin/phpstan analyse --memory-limit=1G` |
-| Build                          | `bun run build`                                |
-| Types                          | `bun run types:check` (after the build)        |
-| Lint and format                | `bun run check`                                |
+| Check                          | Command               |
+| ------------------------------ | --------------------- |
+| All fast checks, in order      | `composer check:fast` |
+| Pest on MySQL 8, as CI runs it | `composer test:mysql` |
+
+`check:fast` leaves migrations to you: run `php artisan migrate` first against the database the build reads (see below).
 
 Local Pest runs on SQLite; CI runs it on MySQL. They differ, for example in JSON key order and column types. Run `composer test:mysql` before merging anything that touches migrations, JSON columns, or queries. It starts a throwaway container and never touches the dev database.
 
@@ -40,11 +37,10 @@ A fresh worktree has no `vendor/`, `node_modules/`, `.env` or build output.
 
 `.scratch/` is gitignored; keep shared agent notes there too, so they survive a session restart.
 
-Build before running the full Pest suite: without the Vite manifest every page test fails with `ViteManifestNotFoundException`.
-
 ## Gotchas
 
 - **New Inertia page**: rebuild before running its feature test; the test fails while the page is missing from the Vite manifest.
 - **Dispatching inside `Tenancy::within`**: use a block closure (`function () { Job::dispatch(); }`). An arrow function returns the `PendingDispatch`, which dispatches after the context has ended.
 - **Users across a team switch**: spatie caches roles on each user object. `within` clears them only for the signed-in user, so call `->fresh()` on any other user you carry across.
+- **Test helpers are global**: Pest loads every test file into one namespace, so two files declaring `function inHouse()` crash the whole suite. `CodingRulesTest` fails on a duplicate; name helpers after their file's subject.
 - **Commit as you go**: commit after each logical change, so an interrupted run leaves its work on the branch.

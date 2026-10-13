@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { roomMove } from '@/routes/reservations';
+import { Spinner } from '@/components/ui/spinner';
 
 export type MoveRoom = {
     id: string;
@@ -80,7 +81,12 @@ export function RoomMoveForm({
                             <InputError message={errors.pricing} />
                         </div>
                     </div>
-                    <Button disabled={processing}>Move guest</Button>
+                    <Button disabled={processing}>
+                        <span className="size-4">
+                            {processing && <Spinner />}
+                        </span>
+                        Move guest
+                    </Button>
                 </>
             )}
         </Form>

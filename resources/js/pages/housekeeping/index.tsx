@@ -27,6 +27,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { Spinner } from '@/components/ui/spinner';
 
 type RoomRow = {
     id: string;
@@ -102,6 +103,9 @@ function ChangeStatus({
                                     !navigator.onLine
                                 }
                             >
+                                <span className="size-4">
+                                    {processing && <Spinner />}
+                                </span>
                                 {processing ? 'Saving…' : label}
                             </Button>
                         </div>
@@ -162,6 +166,9 @@ function ReadyOverride({ room }: { room: RoomRow }) {
                                     !navigator.onLine
                                 }
                             >
+                                <span className="size-4">
+                                    {processing && <Spinner />}
+                                </span>
                                 {processing ? 'Saving…' : 'Override ready'}
                             </Button>
                         </div>

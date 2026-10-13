@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { create, destroy, index } from '@/routes/invitations';
 import { formatDate } from '@/features/platform/format';
+import { Spinner } from '@/components/ui/spinner';
 
 type PendingInvitation = {
     id: string;
@@ -70,6 +71,9 @@ function RevokeInvitation({ invitation }: { invitation: PendingInvitation }) {
                                 disabled={processing}
                                 type="submit"
                             >
+                                <span className="size-4">
+                                    {processing && <Spinner />}
+                                </span>
                                 Revoke invitation
                             </Button>
                         </DialogFooter>

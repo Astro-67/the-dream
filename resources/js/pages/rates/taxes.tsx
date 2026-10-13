@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ruleSize } from '@/lib/utils';
 import { change, end, preview, store } from '@/routes/tax-rules';
+import { Spinner } from '@/components/ui/spinner';
 
 type Rule = {
     id: string;
@@ -260,6 +261,9 @@ function AddRule({ currencies }: { currencies: string[] }) {
                                     <Button variant="secondary">Cancel</Button>
                                 </DialogClose>
                                 <Button type="submit" disabled={processing}>
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     Add tax rule
                                 </Button>
                             </DialogFooter>
@@ -310,6 +314,9 @@ function ChangeRule({
                                     <Button variant="secondary">Cancel</Button>
                                 </DialogClose>
                                 <Button type="submit" disabled={processing}>
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     Save change
                                 </Button>
                             </DialogFooter>
@@ -371,6 +378,9 @@ function EndRule({ rule }: { rule: Rule }) {
                                     type="submit"
                                     disabled={processing}
                                 >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     End rule
                                 </Button>
                             </DialogFooter>

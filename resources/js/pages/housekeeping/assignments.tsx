@@ -22,6 +22,7 @@ import {
     index as assignmentsIndex,
     store,
 } from '@/routes/housekeeping/assignments';
+import { Spinner } from '@/components/ui/spinner';
 
 export default function Assignments({
     date,
@@ -110,6 +111,9 @@ export default function Assignments({
                                 type="submit"
                                 disabled={processing || !navigator.onLine}
                             >
+                                <span className="size-4">
+                                    {processing && <Spinner />}
+                                </span>
                                 Assign room
                             </Button>
                             <InputError
@@ -174,6 +178,11 @@ export default function Assignments({
                                                         }
                                                         aria-label={`Unassign room ${assignment.room.number} from ${assignment.housekeeper.name}`}
                                                     >
+                                                        <span className="size-4">
+                                                            {processing && (
+                                                                <Spinner />
+                                                            )}
+                                                        </span>
                                                         Unassign
                                                     </Button>
                                                     <InputError

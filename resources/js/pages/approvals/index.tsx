@@ -22,6 +22,7 @@ import { resolve } from '@/routes/approvals';
 import { show as showReservation } from '@/routes/reservations';
 import { update } from '@/routes/approval-thresholds';
 import type { Paginated } from '@/types';
+import { Spinner } from '@/components/ui/spinner';
 
 type Approval = {
     id: string;
@@ -59,6 +60,9 @@ function Decision({ approval }: { approval: Approval }) {
                             value="approve"
                             disabled={processing || !approval.canResolve}
                         >
+                            <span className="size-4">
+                                {processing && <Spinner />}
+                            </span>
                             Approve
                         </Button>
                         <Button
@@ -68,6 +72,9 @@ function Decision({ approval }: { approval: Approval }) {
                             value="reject"
                             disabled={processing || !approval.canResolve}
                         >
+                            <span className="size-4">
+                                {processing && <Spinner />}
+                            </span>
                             Reject
                         </Button>
                     </div>
@@ -201,6 +208,9 @@ export default function Approvals({
                                             variant="outline"
                                             disabled={processing}
                                         >
+                                            <span className="size-4">
+                                                {processing && <Spinner />}
+                                            </span>
                                             Save {currency}
                                         </Button>
                                     </div>

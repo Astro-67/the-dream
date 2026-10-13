@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
 import { disable, enable } from '@/routes/two-factor';
+import { Spinner } from '@/components/ui/spinner';
 
 export type Props = {
     canManageTwoFactor?: boolean;
@@ -76,6 +77,9 @@ export default function ManageTwoFactor(props: Props) {
                                     type="submit"
                                     disabled={processing}
                                 >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     Disable 2FA
                                 </Button>
                             )}
@@ -110,6 +114,9 @@ export default function ManageTwoFactor(props: Props) {
                             >
                                 {({ processing }) => (
                                     <Button type="submit" disabled={processing}>
+                                        <span className="size-4">
+                                            {processing && <Spinner />}
+                                        </span>
                                         Enable 2FA
                                     </Button>
                                 )}
