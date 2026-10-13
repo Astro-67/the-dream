@@ -26,7 +26,7 @@ use Tests\Support\TenantFixture;
 beforeEach(fn () => $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam')));
 
 /** A guest checked in today for 10–12 December, with prices set through 14 December. */
-function inHouse(TenantFixture $tenant): Reservation
+function inHouseStay(TenantFixture $tenant): Reservation
 {
     return inTenant($tenant->property, function () use ($tenant) {
         $details = BookingForm::details($tenant->owner);
@@ -74,7 +74,7 @@ function assignedNights(Reservation $reservation): array
 
 test('front desk extends an in-house stay, taking inventory, the room and priced nights', function () {
     $t = twoTenants();
-    $reservation = inHouse($t->a);
+    $reservation = inHouseStay($t->a);
     $actor = $t->a->member(OrganizationRole::FrontDesk);
     $this->actingAs($actor)->post(route('reservations.extend', $reservation), ['_property' => $t->a->property->id, 'departure' => '2026-12-14'])
         ->assertRedirect(route('reservations.show', $reservation))->assertSessionHasNoErrors();
@@ -92,14 +92,14 @@ test('front desk extends an in-house stay, taking inventory, the room and priced
 
 test('an extension is refused when no inventory is left for a new night', function () {
     $t = twoTenants();
-    $reservation = inHouse($t->a);
+    $reservation = inHouseStay($t->a);
     competingBooking($t->a, $reservation, ['arrival' => '2026-12-13', 'departure' => '2026-12-14']);
     assertExtensionRefused($t->a, $reservation, '2026-12-14', 'departure');
 });
 
 test('an extension is refused when the assigned room is taken on a new night', function () {
     $t = twoTenants();
-    $reservation = inHouse($t->a);
+    $reservation = inHouseStay($t->a);
     inTenant($t->a->property, fn () => app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($reservation->room_type_id, ['number' => '102'])));
     competingBooking($t->a, $reservation, ['arrival' => '2026-12-13', 'departure' => '2026-12-14', 'room_id' => $reservation->room_id]);
     assertExtensionRefused($t->a, $reservation, '2026-12-14', 'departure');
@@ -107,7 +107,7 @@ test('an extension is refused when the assigned room is taken on a new night', f
 
 test('an extension is refused while the assigned room is out of service on a new night', function () {
     $t = twoTenants();
-    $reservation = inHouse($t->a);
+    $reservation = inHouseStay($t->a);
     inTenant($t->a->property, function () use ($t, $reservation) {
         app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($reservation->room_type_id, ['number' => '102']));
         app(TakeRoomOutOfService::class)->handle($t->a->owner, Room::query()->findOrFail($reservation->room_id), ['starts_on' => '2026-12-13', 'returns_on' => '2026-12-14', 'reason' => 'Leak']);
@@ -117,19 +117,19 @@ test('an extension is refused while the assigned room is out of service on a new
 
 test('an extension is refused without a price for every new night', function () {
     $t = twoTenants();
-    $reservation = inHouse($t->a);
+    $reservation = inHouseStay($t->a);
     assertExtensionRefused($t->a, $reservation, '2026-12-16', 'departure');
 });
 
 test('an extension must depart after the current departure', function (string $departure) {
     $t = twoTenants();
-    $reservation = inHouse($t->a);
+    $reservation = inHouseStay($t->a);
     assertExtensionRefused($t->a, $reservation, $departure, 'departure');
 })->with(['2026-12-12', '2026-12-11']);
 
 test('only an in-house reservation can be extended', function (ReservationStatus $status) {
     $t = twoTenants();
-    $reservation = inHouse($t->a);
+    $reservation = inHouseStay($t->a);
     inTenant($t->a->property, fn () => $reservation->update(['status' => $status]));
     assertExtensionRefused($t->a, $reservation, '2026-12-14', 'reservation');
 })->with(array_filter(ReservationStatus::cases(), fn ($status) => $status !== ReservationStatus::CheckedIn));
@@ -137,7 +137,7 @@ test('only an in-house reservation can be extended', function (ReservationStatus
 /** In house 10–14 December, now on the morning of the 12th. */
 function stayingFourNights(TenantFixture $tenant): Reservation
 {
-    $reservation = inHouse($tenant);
+    $reservation = inHouseStay($tenant);
     inTenant($tenant->property, fn () => app(ExtendStay::class)->handle($tenant->owner, $reservation, '2026-12-14'));
     test()->travelTo(CarbonImmutable::parse('2026-12-12 09:00:00', 'Africa/Dar_es_Salaam'));
 
