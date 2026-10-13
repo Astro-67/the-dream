@@ -26,3 +26,14 @@ test('a property may change to any jurisdiction profile while nothing depends on
     'Zanzibar to mainland' => [JurisdictionProfile::Zanzibar, JurisdictionProfile::MainlandTanzania],
     'mainland to Zanzibar' => [JurisdictionProfile::MainlandTanzania, JurisdictionProfile::Zanzibar],
 ]);
+
+test('a Zanzibar property requires document type, number and nationality whatever it configured', function () {
+    expect(JurisdictionRules::requiredRegistrationFields(new Property(['jurisdiction_profile' => JurisdictionProfile::Zanzibar, 'registration_fields' => ['expiry']])))
+        ->toBe(['type', 'number', 'nationality']);
+});
+
+test('a mainland property requires only the registration fields it configured', function () {
+    expect(JurisdictionRules::requiredRegistrationFields(propertyUnder(JurisdictionProfile::MainlandTanzania)))->toBe([])
+        ->and(JurisdictionRules::requiredRegistrationFields(new Property(['jurisdiction_profile' => JurisdictionProfile::MainlandTanzania, 'registration_fields' => ['number', 'type']])))
+        ->toBe(['number', 'type']);
+});

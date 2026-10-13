@@ -17,7 +17,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
-import { availability, index, show } from '@/routes/reservations';
+import { PropertyIntent } from '@/components/shared/property-intent';
+import { availability, checkIn, index, show } from '@/routes/reservations';
 import type { Paginated } from '@/types';
 
 type Reservation = {
@@ -28,6 +29,7 @@ type Reservation = {
     status: string;
     channel_reference: string | null;
     requires_reconciliation: boolean;
+    can_check_in: boolean;
 };
 type Filters = { date: string; list: string; search: string };
 
@@ -124,6 +126,9 @@ export default function Index({
                                     <TableHead>Departure</TableHead>
                                     <TableHead>Channel reference</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>
+                                        <span className="sr-only">Actions</span>
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -177,6 +182,43 @@ export default function Index({
                                                 <StatusChip tone="warning">
                                                     Requires reconciliation
                                                 </StatusChip>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {reservation.can_check_in && (
+                                                <Form
+                                                    {...checkIn.form(
+                                                        reservation.reservation_number,
+                                                    )}
+                                                    disableWhileProcessing
+                                                    errorBag={`check-in-${reservation.reservation_number}`}
+                                                    options={{
+                                                        preserveScroll: true,
+                                                    }}
+                                                    className="flex flex-col items-start gap-1"
+                                                >
+                                                    {({ errors }) => (
+                                                        <>
+                                                            <PropertyIntent />
+                                                            <Button
+                                                                type="submit"
+                                                                size="sm"
+                                                            >
+                                                                Check in
+                                                            </Button>
+                                                            {Object.values(
+                                                                errors,
+                                                            ).map((error) => (
+                                                                <InputError
+                                                                    key={error}
+                                                                    message={
+                                                                        error
+                                                                    }
+                                                                />
+                                                            ))}
+                                                        </>
+                                                    )}
+                                                </Form>
                                             )}
                                         </TableCell>
                                     </TableRow>

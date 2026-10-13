@@ -27,6 +27,26 @@ final class JurisdictionRules
     }
 
     /**
+     * Identity document fields (IdentityDocument::FIELDS) every guest must
+     * have before check-in.
+     *
+     * @return list<string>
+     */
+    public static function requiredRegistrationFields(Property $property): array
+    {
+        return self::of($property->jurisdiction_profile)->requiredRegistrationFields($property->registration_fields ?? []);
+    }
+
+    /**
+     * Whether a property under this profile chooses its own registration
+     * fields. Takes the profile so a property form can ask before saving.
+     */
+    public static function configuresRegistrationFields(JurisdictionProfile $profile): bool
+    {
+        return self::of($profile)->configuresRegistrationFields();
+    }
+
+    /**
      * Whether a property under this profile records a ZRA hotel code. Takes
      * the profile so a property form can ask before the property is saved.
      */
