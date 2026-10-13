@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\FrontDesk\Actions\CheckIn;
+use App\Domains\FrontDesk\Actions\ExtendStay;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
@@ -130,4 +131,63 @@ test('only an in-house reservation can be extended', function (ReservationStatus
     $reservation = inHouse($t->a);
     inTenant($t->a->property, fn () => $reservation->update(['status' => $status]));
     assertExtensionRefused($t->a, $reservation, '2026-12-14', 'reservation');
+})->with(array_filter(ReservationStatus::cases(), fn ($status) => $status !== ReservationStatus::CheckedIn));
+
+/** In house 10–14 December, now on the morning of the 12th. */
+function stayingFourNights(TenantFixture $tenant): Reservation
+{
+    $reservation = inHouse($tenant);
+    inTenant($tenant->property, fn () => app(ExtendStay::class)->handle($tenant->owner, $reservation, '2026-12-14'));
+    test()->travelTo(CarbonImmutable::parse('2026-12-12 09:00:00', 'Africa/Dar_es_Salaam'));
+
+    return $reservation;
+}
+
+test('front desk records an early departure, releasing the remaining nights from today', function () {
+    $t = twoTenants();
+    $reservation = stayingFourNights($t->a);
+    $actor = $t->a->member(OrganizationRole::FrontDesk);
+    $this->actingAs($actor)->post(route('reservations.depart-early', $reservation), ['_property' => $t->a->property->id])
+        ->assertRedirect(route('reservations.show', $reservation))->assertSessionHasNoErrors();
+    inTenant($t->a->property, function () use ($reservation, $actor) {
+        $reservation = $reservation->fresh();
+        expect($reservation->departure->toDateString())->toBe('2026-12-12')
+            ->and($reservation->status)->toBe(ReservationStatus::CheckedIn)
+            ->and(InventoryRecord::query()->whereBetween('date', ['2026-12-10', '2026-12-13'])->orderBy('date')->pluck('sold_count')->all())->toBe([1, 1, 0, 0])
+            ->and(assignedNights($reservation))->toBe(['2026-12-10', '2026-12-11'])
+            ->and($reservation->priceLines()->get()->map(fn ($line) => $line->date->toDateString())->all())->toBe(['2026-12-10', '2026-12-11'])
+            ->and(RoomAssignmentNight::query()->count())->toBe(2);
+        $event = $reservation->lifecycleEvents()->where('type', 'departed_early')->sole();
+        expect($event->actor_id)->toBe($actor->id)->and($event->snapshot['previous_departure'])->toBe('2026-12-14');
+    });
+});
+
+/** Posts an early departure and asserts it was refused with nothing changed. */
+function assertEarlyDepartureRefused(TenantFixture $tenant, Reservation $reservation): void
+{
+    $state = fn () => inTenant($tenant->property, fn () => [
+        $reservation->fresh()->departure->toDateString(),
+        InventoryRecord::query()->orderBy('date')->pluck('sold_count')->all(),
+        RoomAssignmentNight::query()->count(),
+        $reservation->priceLines()->count(),
+        $reservation->lifecycleEvents()->count(),
+    ]);
+    $before = $state();
+    test()->actingAs($tenant->owner)->postJson(route('reservations.depart-early', $reservation), ['_property' => $tenant->property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('reservation');
+    expect($state())->toBe($before);
+}
+
+test('an early departure is refused on the arrival day or once the stay ends today', function (string $now) {
+    $t = twoTenants();
+    $reservation = stayingFourNights($t->a);
+    $this->travelTo(CarbonImmutable::parse($now, 'Africa/Dar_es_Salaam'));
+    assertEarlyDepartureRefused($t->a, $reservation);
+})->with(['arrival day' => '2026-12-10 22:00:00', 'departure day' => '2026-12-14 09:00:00']);
+
+test('only an in-house reservation can depart early', function (ReservationStatus $status) {
+    $t = twoTenants();
+    $reservation = stayingFourNights($t->a);
+    inTenant($t->a->property, fn () => $reservation->update(['status' => $status]));
+    assertEarlyDepartureRefused($t->a, $reservation);
 })->with(array_filter(ReservationStatus::cases(), fn ($status) => $status !== ReservationStatus::CheckedIn));
