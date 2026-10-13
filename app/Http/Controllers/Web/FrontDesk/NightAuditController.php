@@ -2,12 +2,9 @@
 
 namespace App\Http\Controllers\Web\FrontDesk;
 
-use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
-use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
-use App\Domains\FrontDesk\Models\ExceptionListItem;
-use App\Domains\Reservations\Models\NoShowProposal;
+use App\Domains\FrontDesk\NightAuditReport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FrontDesk\CloseBusinessDateRequest;
 use App\Models\User;
@@ -19,16 +16,12 @@ use Inertia\Response;
 
 class NightAuditController extends Controller
 {
-    public function index(): Response
+    public function index(NightAuditReport $report): Response
     {
         Gate::authorize('viewAny', BusinessDateClose::class);
-        $closes = BusinessDateClose::query()->with('actor:id,name')->orderByDesc('business_date')
-            ->paginate(50)->withQueryString()->through(fn (BusinessDateClose $close) => $this->row($close));
 
         return Inertia::render('night-audit/index', [
-            'closes' => $closes, 'businessDate' => BusinessDate::current(),
-            'exceptions' => ExceptionListItem::query()->whereDate('business_date', BusinessDate::current())->orderBy('kind')->orderBy('reference')
-                ->get(['id', 'kind', 'reference']),
+            ...$report->index(),
             'canClose' => Gate::allows('create', BusinessDateClose::class), 'labels' => $this->labels(),
         ]);
     }
@@ -44,41 +37,11 @@ class NightAuditController extends Controller
         return to_route('night-audit.show', $result)->with('toast', ['type' => 'success', 'message' => __('Business date closed.')]);
     }
 
-    public function show(BusinessDateClose $businessDateClose): Response
+    public function show(BusinessDateClose $businessDateClose, NightAuditReport $report): Response
     {
         Gate::authorize('view', $businessDateClose);
-        $charges = Posting::query()->where('property_id', $businessDateClose->property_id)
-            ->whereDate('business_date', $businessDateClose->business_date->toDateString())
-            ->where('category', 'room')->where('type', 'charge')->with('reservation:id,reservation_number')
-            ->orderBy('id')->paginate(50)->withQueryString()->through(fn (Posting $posting) => [
-                'id' => $posting->id, 'reservation_number' => $posting->reservation?->reservation_number,
-                'price_line_id' => $posting->price_line_id, 'unit_price' => $posting->unit_price,
-                'net' => $posting->net, 'amount' => $posting->amount, 'currency' => $posting->currency->value,
-                'tax_lines' => $posting->tax_lines,
-            ]);
 
-        $noShows = NoShowProposal::query()->whereDate('business_date', $businessDateClose->business_date->toDateString())
-            ->with('reservation:id,reservation_number')->orderBy('id')->get();
-
-        return Inertia::render('night-audit/show', [
-            'close' => $this->row($businessDateClose), 'charges' => $charges, 'labels' => $this->labels(),
-            'noShowsProposed' => $noShows->count(),
-            'exceptionsCarried' => ExceptionListItem::query()->where('business_date_close_id', $businessDateClose->id)->count(),
-            'noShows' => $noShows->map(fn (NoShowProposal $proposal) => [
-                'id' => $proposal->id, 'reservation_number' => $proposal->reservation->reservation_number,
-                'status' => $proposal->status, 'can_resolve' => $proposal->status === 'proposed' && Gate::allows('resolve', $proposal),
-            ]),
-        ]);
-    }
-
-    /** @return array<string, mixed> */
-    private function row(BusinessDateClose $close): array
-    {
-        return [
-            'id' => $close->id, 'business_date' => $close->business_date->toDateString(),
-            'actor' => $close->actor->name ?? __('Automation'),
-            'completed_at' => $close->completed_at?->toIso8601String(),
-        ];
+        return Inertia::render('night-audit/show', [...$report->summary($businessDateClose), 'labels' => $this->labels()]);
     }
 
     /** @return array<string, string> */
