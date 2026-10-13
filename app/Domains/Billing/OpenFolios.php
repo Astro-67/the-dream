@@ -23,6 +23,7 @@ final class OpenFolios
         }
 
         return Tenancy::within(TenantContext::forOrganization($property->organization_id), fn () => Posting::query()
+            ->select('folio_id')
             ->where('property_id', $property->id)
             ->groupBy('folio_id')
             ->havingRaw('SUM(amount) <> 0')
