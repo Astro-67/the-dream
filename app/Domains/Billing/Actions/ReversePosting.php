@@ -2,6 +2,7 @@
 
 namespace App\Domains\Billing\Actions;
 
+use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\PostingApproval;
@@ -28,10 +29,17 @@ class ReversePosting
             $folio = Folio::query()->whereKey($original->folio_id)->lockForUpdate()->firstOrFail();
             $original = Posting::query()->findOrFail($original->id);
             self::ensureCancellable($original);
+            if ($original->cashier_shift_id !== null) {
+                $shift = CashierShift::query()->whereKey($original->cashier_shift_id)->lockForUpdate()->firstOrFail();
+                if ($shift->status !== 'open') {
+                    throw ValidationException::withMessages(['posting' => __('This cash posting belongs to a closed shift and cannot be reversed.')]);
+                }
+            }
             $rejected = PostingApproval::query()->where('original_posting_id', $original->id)->where('status', 'rejected')->count();
 
             return app(SubmitControlledPosting::class)->handle($actor, $folio, self::negative($original, [
                 'folio_id' => $original->folio_id, 'type' => 'reversal', 'reason' => $reason,
+                'method' => $original->method, 'cashier_shift_id' => $original->cashier_shift_id,
                 'idempotency_key' => 'reversal:'.$original->id.($rejected > 0 ? ':'.$rejected : ''), 'actor_id' => $actor?->id,
             ]));
         }));

@@ -3,9 +3,14 @@
 use App\Domains\Billing\Actions\CloseCashierShift;
 use App\Domains\Billing\Actions\OpenCashierShift;
 use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Actions\ResolvePostingApproval;
+use App\Domains\Billing\Actions\ReversePosting;
+use App\Domains\Billing\Actions\SetApprovalThreshold;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\Billing\Models\PostingApproval;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\BookingForm;
@@ -79,5 +84,53 @@ test('a shift whose count matches closes without a reason', function () {
         $closed = app(CloseCashierShift::class)->handle($owner, $shift, ['USD' => 10000], null);
 
         expect($closed->variance())->toBe(['USD' => 0])->and($closed->variance_reason)->toBeNull();
+    });
+});
+
+test('reversing a cash payment corrects its drawer before the shift closes', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $shift = app(OpenCashierShift::class)->handle($owner, ['USD' => 0]);
+        $folio = cashierShiftFolio($owner);
+        $payment = app(RecordPayment::class)->handle($owner, $folio, ['method' => 'cash', 'amount' => 1000, 'currency' => 'USD']);
+
+        $reversal = app(ReversePosting::class)->handle($owner, $payment, 'Entered twice');
+
+        expect($reversal->method)->toBe('cash')->and($reversal->cashier_shift_id)->toBe($shift->id)
+            ->and($folio->fresh()->balance()->amount)->toBe(0)
+            ->and($shift->fresh()->expectedCash())->toEqual(['USD' => 0]);
+        expect(app(CloseCashierShift::class)->handle($owner, $shift, ['USD' => 0], null)->variance())->toEqual(['USD' => 0]);
+    });
+});
+
+test('cash reversals cannot alter a closed drawer count', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $shift = app(OpenCashierShift::class)->handle($owner, ['USD' => 0]);
+        $payment = app(RecordPayment::class)->handle($owner, cashierShiftFolio($owner), ['method' => 'cash', 'amount' => 1000, 'currency' => 'USD']);
+        app(CloseCashierShift::class)->handle($owner, $shift, ['USD' => 1000], null);
+
+        expect(fn () => app(ReversePosting::class)->handle($owner, $payment, 'Wrong entry'))
+            ->toThrow(ValidationException::class);
+        expect($shift->fresh()->expectedCash())->toEqual(['USD' => 1000])->and(Posting::query()->count())->toBe(1);
+    });
+});
+
+test('approved cash corrections retain the original cashier drawer even when requested by finance', function () {
+    $t = twoTenants();
+    $finance = $t->a->member(OrganizationRole::Finance);
+    inTenant($t->a->property, function () use ($t, $finance) {
+        $shift = app(OpenCashierShift::class)->handle($t->a->owner, ['USD' => 0]);
+        $folio = cashierShiftFolio($t->a->owner);
+        $payment = app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'cash', 'amount' => 1000, 'currency' => 'USD']);
+        app(SetApprovalThreshold::class)->handle($t->a->owner, 'USD', 500);
+        $approval = app(ReversePosting::class)->handle($finance, $payment, 'Wrong entry');
+        expect($approval)->toBeInstanceOf(PostingApproval::class);
+        expect($shift->fresh()->expectedCash())->toEqual(['USD' => 1000]);
+
+        app(ResolvePostingApproval::class)->handle($t->a->owner, $approval, 'approve');
+
+        expect($shift->fresh()->expectedCash())->toEqual(['USD' => 0])
+            ->and($folio->fresh()->balance()->amount)->toBe(0);
     });
 });

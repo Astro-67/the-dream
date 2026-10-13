@@ -39,7 +39,7 @@ class ResolvePostingApproval
                 }
                 if (($attributes['cashier_shift_id'] ?? null) !== null) {
                     $shift = CashierShift::query()->whereKey($attributes['cashier_shift_id'])->lockForUpdate()->firstOrFail();
-                    if ($shift->status !== 'open' || $shift->open_user_id !== $approval->requested_by) {
+                    if ($shift->status !== 'open' || ($attributes['type'] !== 'reversal' && $shift->open_user_id !== $approval->requested_by)) {
                         throw ValidationException::withMessages(['approval' => __('The requesting cashier shift is closed. Reject this request and submit it in an open shift.')]);
                     }
                 }
