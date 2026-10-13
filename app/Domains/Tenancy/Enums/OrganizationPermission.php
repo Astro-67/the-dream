@@ -48,6 +48,7 @@ enum OrganizationPermission: string
     case GuestsMerge = 'guests.merge';
     case GuestIdentityView = 'guests.identity.view';
     case ChargesPost = 'charges.post';
+    case CheckoutOverrideBalance = 'checkout.override_balance';
 
     // Housekeeping
     case HousekeepingView = 'housekeeping.view';
@@ -58,6 +59,8 @@ enum OrganizationPermission: string
     // Finance and reports
     case FinanceView = 'finance.view';
     case FinanceCorrect = 'finance.correct';
+    case PaymentsRefund = 'payments.refund';
+    case FoliosWriteOff = 'folios.write_off';
     case FiscalExceptionsReview = 'fiscal.exceptions.review';
     case ReportsView = 'reports.view';
 

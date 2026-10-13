@@ -18,6 +18,7 @@ if [ -d public/build ]; then mv public/build public/build.old; fi
 mv public/build.new public/build
 
 php artisan migrate --force
+php artisan organizations:sync-roles
 php artisan optimize
 php artisan queue:restart
 

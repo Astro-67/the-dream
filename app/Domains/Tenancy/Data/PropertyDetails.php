@@ -31,6 +31,9 @@ final readonly class PropertyDetails
         public JurisdictionProfile $jurisdictionProfile,
         ?string $zraHotelCode = null,
         public ?bool $housekeepingInspectionRequired = null,
+        /** @var list<string>|null */
+        public ?array $registrationFields = null,
+        public ?string $receiptPrefix = null,
     ) {
         $this->zraHotelCode = JurisdictionRules::hasZraHotelCode($jurisdictionProfile) && filled($zraHotelCode)
             ? $zraHotelCode
@@ -56,6 +59,8 @@ final readonly class PropertyDetails
             jurisdictionProfile: JurisdictionProfile::from(self::string($input, 'jurisdiction_profile')),
             zraHotelCode: self::optionalString($input, 'zra_hotel_code'),
             housekeepingInspectionRequired: array_key_exists('housekeeping_inspection_required', $input) ? (bool) $input['housekeeping_inspection_required'] : null,
+            receiptPrefix: self::optionalString($input, 'receipt_prefix'),
+            registrationFields: is_array($input['registration_fields'] ?? null) ? array_values(array_map(strval(...), $input['registration_fields'])) : null,
         );
     }
 
@@ -78,6 +83,9 @@ final readonly class PropertyDetails
             'jurisdiction_profile' => $this->jurisdictionProfile,
             'zra_hotel_code' => $this->zraHotelCode,
             ...($this->housekeepingInspectionRequired !== null ? ['housekeeping_inspection_required' => $this->housekeepingInspectionRequired] : []),
+            ...($this->receiptPrefix !== null ? ['receipt_prefix' => $this->receiptPrefix] : []),
+            // Only a profile that lets the property choose stores a choice.
+            ...(! JurisdictionRules::configuresRegistrationFields($this->jurisdictionProfile) ? ['registration_fields' => null] : ($this->registrationFields !== null ? ['registration_fields' => $this->registrationFields] : [])),
         ];
     }
 

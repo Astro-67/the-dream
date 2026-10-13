@@ -40,6 +40,33 @@ class ReservationPolicy
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
     }
 
+    public function checkIn(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+    }
+
+    public function checkOut(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+    }
+
+    /** Check out leaving an open balance after departure. */
+    public function checkOutWithBalance(User $user, Reservation $reservation): bool
+    {
+        return $this->checkOut($user, $reservation) && Access::allows($user, P::CheckoutOverrideBalance, $reservation);
+    }
+
+    public function moveRoom(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+    }
+
+    /** Extend a stay or record an early departure. */
+    public function changeStay(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+    }
+
     public function attachGuest(User $user, Reservation $reservation): bool
     {
         return $this->view($user, $reservation) && Access::allows($user, P::ReservationsManage, $reservation) && Access::allows($user, P::GuestsRegister, $reservation);

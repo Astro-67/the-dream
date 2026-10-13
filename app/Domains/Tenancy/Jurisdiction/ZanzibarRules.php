@@ -16,4 +16,21 @@ final class ZanzibarRules implements ProfileRules
     {
         return true;
     }
+
+    public function configuresRegistrationFields(): bool
+    {
+        return false;
+    }
+
+    /** PRD §6: every guest, any document type. */
+    public function requiredRegistrationFields(array $configured): array
+    {
+        return ['type', 'number', 'nationality'];
+    }
+
+    /** VFMS has no path for cancellation or no-show fees (glossary: Fiscal exception). */
+    public function marksFeesAsFiscalExceptions(): bool
+    {
+        return true;
+    }
 }

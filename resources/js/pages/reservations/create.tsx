@@ -54,6 +54,7 @@ export default function Create({
     restrictionWarnings: string[];
 }) {
     const [source, setSource] = useState(stay.source ?? 'direct');
+    const [collector, setCollector] = useState('property');
     return (
         <>
             <Head title="Book rooms" />
@@ -311,9 +312,47 @@ export default function Create({
                                     </div>
                                 </fieldset>
                             )}
-                            <p className="text-sm text-muted-foreground">
-                                Payment collector: property.
-                            </p>
+                            <div className="max-w-[720px] space-y-2">
+                                <Label htmlFor="payment_collector">
+                                    Payment collector
+                                </Label>
+                                <NativeSelect
+                                    id="payment_collector"
+                                    name="payment_collector"
+                                    value={collector}
+                                    onChange={(event) =>
+                                        setCollector(event.target.value)
+                                    }
+                                >
+                                    <option value="property">Property</option>
+                                    <option value="channel">Channel</option>
+                                </NativeSelect>
+                                <InputError
+                                    message={errors.payment_collector}
+                                />
+                            </div>
+                            {collector === 'channel' && (
+                                <div className="max-w-[720px] space-y-2">
+                                    <Label htmlFor="channel_collected_amount">
+                                        Channel-collected amount in minor units
+                                    </Label>
+                                    <Input
+                                        id="channel_collected_amount"
+                                        name="channel_collected_amount"
+                                        type="number"
+                                        min={0}
+                                        required
+                                        aria-invalid={
+                                            !!errors.channel_collected_amount
+                                        }
+                                    />
+                                    <InputError
+                                        message={
+                                            errors.channel_collected_amount
+                                        }
+                                    />
+                                </div>
+                            )}
                             <Button
                                 type="submit"
                                 disabled={

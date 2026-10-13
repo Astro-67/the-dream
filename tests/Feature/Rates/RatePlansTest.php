@@ -179,3 +179,23 @@ test('derived plans keep base currency and room types when either plan is edited
     expect(inTenant($t->a->property, fn () => $derived->fresh()->roomTypes()->pluck('room_types.id')->all()))->toBe([$other->id])
         ->and(inTenant($t->a->property, fn () => $derived->fresh()->currency->value))->toBe('EUR');
 });
+
+test('a rates manager sets a cancellation policy and no-show fee on a plan with an audit', function () {
+    $t = twoTenants();
+    $plan = inTenant($t->a->property, function () {
+        $room = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+
+        return app(CreateRatePlan::class)->handle(null, ['name' => 'Breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id]]);
+    });
+    $policy = ['cancellation_free_days' => 7, 'cancellation_charge' => 'percent', 'cancellation_percent' => 50, 'no_show_charge' => 'first_night', 'no_show_percent' => null];
+    $form = ['_property' => $t->a->property->id, 'name' => 'Breakfast', 'code' => 'BB', 'room_type_ids' => inTenant($t->a->property, fn () => $plan->roomTypes()->pluck('room_types.id')->all()), ...$policy];
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->put(route('rate-plans.update', $plan), $form)->assertSessionHasNoErrors();
+
+    $this->get(route('rate-plans.edit', $plan))->assertInertia(fn (Assert $page) => $page->where('plan.cancellation_free_days', 7)->where('plan.cancellation_charge', 'percent')
+        ->where('plan.cancellation_percent', 50)->where('plan.no_show_charge', 'first_night')->where('plan.no_show_percent', null));
+    expect(Activity::query()->where('description', 'Rate plan updated')->sole()->getExtraProperty('attributes'))->toMatchArray($policy);
+
+    $this->put(route('rate-plans.update', $plan), [...$form, 'cancellation_charge' => 'all', 'no_show_charge' => 'percent', 'cancellation_free_days' => -1])
+        ->assertSessionHasErrors(['cancellation_charge', 'no_show_percent', 'cancellation_free_days']);
+    $this->put(route('rate-plans.update', $plan), [...$form, 'cancellation_percent' => 101])->assertSessionHasErrors(['cancellation_percent']);
+});

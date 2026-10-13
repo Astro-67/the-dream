@@ -1,3 +1,5 @@
+import { FeeProposals } from '@/features/billing/fee-proposals';
+import type { FeeProposal } from '@/features/billing/fee-proposals';
 import { NativeSelect } from '@/components/ui/select';
 import type { Paginated } from '@/types';
 import { Form, Head, Link } from '@inertiajs/react';
@@ -17,6 +19,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { TerminationActions } from '@/features/reservations/termination-actions';
+import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
+import { StayLengthActions } from '@/features/front-desk/stay-length-actions';
 import { formatDate } from '@/features/platform/format';
 import {
     AmendmentForm,
@@ -26,6 +30,15 @@ import {
 } from '@/features/reservations/amendment-form';
 import { show } from '@/routes/reservations';
 import { formatMoney } from '@/lib/utils';
+import {
+    RoomMoveForm,
+    type MoveRoom,
+} from '@/features/front-desk/room-move-form';
+import {
+    FolioPanel,
+    type Folio,
+    type FolioTotal,
+} from '@/features/billing/folio-panel';
 
 type Named = { id: string; name: string };
 type Reservation = {
@@ -43,6 +56,7 @@ type Reservation = {
     outside_integration_reason: string | null;
     requires_reconciliation: boolean;
     payment_collector: string;
+    channel_collected_amount: number | null;
     price_lines: {
         id: string;
         date: string;
@@ -62,7 +76,13 @@ export default function Show({
     amendmentOptions,
     amendments,
     can,
+    moveRooms,
     groupMembers,
+    folios,
+    totals,
+    canPostCharge,
+    feeProposals,
+    canRecordPayment,
 }: {
     reservation: Reservation;
     roomType: Named;
@@ -73,11 +93,24 @@ export default function Show({
     canAmend: boolean;
     amendmentOptions: AmendmentOptions | null;
     amendments: Paginated<Amendment>;
-    can: { cancel: boolean; void: boolean };
+    can: {
+        cancel: boolean;
+        void: boolean;
+        moveRoom: boolean;
+        changeStay: boolean;
+        checkOut: boolean;
+        overrideBalance: boolean;
+    };
+    moveRooms: MoveRoom[];
     groupMembers: Pick<
         Reservation,
         'reservation_number' | 'status' | 'arrival' | 'departure'
     >[];
+    folios: Paginated<Folio>;
+    totals: FolioTotal[];
+    canPostCharge: boolean;
+    feeProposals: FeeProposal[];
+    canRecordPayment: boolean;
 }) {
     return (
         <>
@@ -109,6 +142,19 @@ export default function Show({
                         <TerminationActions
                             number={reservation.reservation_number}
                             can={can}
+                        />
+                    )}
+                    {reservation.status === 'checked_in' && can.checkOut && (
+                        <CheckOutDialog
+                            number={reservation.reservation_number}
+                            balances={totals}
+                            canOverride={can.overrideBalance}
+                        />
+                    )}
+                    {reservation.status === 'checked_in' && can.changeStay && (
+                        <StayLengthActions
+                            number={reservation.reservation_number}
+                            departure={reservation.departure}
                         />
                     )}
                 </header>
@@ -143,6 +189,18 @@ export default function Show({
                               ]
                             : []),
                         ['Payment collector', reservation.payment_collector],
+                        ...(reservation.channel_collected_amount !== null
+                            ? [
+                                  [
+                                      'Channel-collected amount',
+                                      formatMoney(
+                                          reservation.channel_collected_amount,
+                                          reservation.price_lines[0]
+                                              ?.currency ?? '',
+                                      ),
+                                  ],
+                              ]
+                            : []),
                     ].map(([label, value]) => (
                         <div key={label}>
                             <dt className="text-sm text-muted-foreground">
@@ -187,6 +245,12 @@ export default function Show({
                         )}
                     </Form>
                 )}
+                {can.moveRoom && (
+                    <RoomMoveForm
+                        number={reservation.reservation_number}
+                        rooms={moveRooms}
+                    />
+                )}
                 {canAmend &&
                     amendmentOptions &&
                     reservation.status === 'confirmed' && (
@@ -195,6 +259,17 @@ export default function Show({
                             options={amendmentOptions}
                         />
                     )}
+                <FolioPanel
+                    folios={folios}
+                    totals={totals}
+                    canPostCharge={canPostCharge}
+                    canRecordPayment={canRecordPayment}
+                    channelCollected={
+                        reservation.payment_collector === 'channel' &&
+                        reservation.channel_collected_amount !== null
+                    }
+                />
+                <FeeProposals fees={feeProposals} />
                 <AmendmentHistory amendments={amendments} />
                 <Link
                     className="text-primary underline underline-offset-4"

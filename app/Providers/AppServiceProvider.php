@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Domains\Billing\PreventArchivingWithOpenBalances;
 use App\Domains\Reservations\PreventArchivingWithFutureReservations;
 use App\Domains\Tenancy\Contracts\PreArchiveCheck;
 use App\Support\Jobs\CallQueuedTenantHandler;
@@ -26,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TenancyManager::class);
         $this->app->singleton(Origin::class);
         $this->app->singleton(DeliveryAdapters::class);
-        $this->app->tag([PreventArchivingWithUnresolvedMessages::class, PreventArchivingWithFutureReservations::class], PreArchiveCheck::TAG);
+        $this->app->tag([PreventArchivingWithUnresolvedMessages::class, PreventArchivingWithFutureReservations::class, PreventArchivingWithOpenBalances::class], PreArchiveCheck::TAG);
     }
 
     /**

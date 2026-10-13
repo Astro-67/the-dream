@@ -4,6 +4,7 @@ namespace App\Domains\Rates\Models;
 
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Enums\AdjustmentKind;
+use App\Domains\Rates\Enums\FeeCharge;
 use App\Domains\Rates\Policies\RatePlanPolicy;
 use App\Support\Money\Currency;
 use App\Support\Tenancy\BelongsToProperty;
@@ -32,18 +33,27 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property AdjustmentKind|null $adjustment_kind
  * @property int|null $adjustment
  * @property CarbonImmutable|null $deactivated_at
+ * @property int|null $cancellation_free_days cancelling at least this many days before arrival is free; null: never free
+ * @property FeeCharge|null $cancellation_charge null: cancelling never costs anything
+ * @property int|null $cancellation_percent whole percent, for FeeCharge::Percent
+ * @property FeeCharge|null $no_show_charge
+ * @property int|null $no_show_percent
  * @property-read RatePlan|null $basePlan
  */
-#[Fillable(['name', 'code', 'currency', 'base_rate_plan_id', 'adjustment_kind', 'adjustment'])]
+#[Fillable(['name', 'code', 'currency', 'base_rate_plan_id', 'adjustment_kind', 'adjustment', ...self::POLICY])]
 #[UsePolicy(RatePlanPolicy::class)]
 class RatePlan extends Model
 {
     use BelongsToProperty, HasUlids;
 
+    /** The cancellation policy and no-show fee fields. */
+    public const array POLICY = ['cancellation_free_days', 'cancellation_charge', 'cancellation_percent', 'no_show_charge', 'no_show_percent'];
+
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['currency' => Currency::class, 'adjustment_kind' => AdjustmentKind::class, 'adjustment' => 'integer', 'deactivated_at' => 'immutable_datetime'];
+        return ['currency' => Currency::class, 'adjustment_kind' => AdjustmentKind::class, 'adjustment' => 'integer', 'deactivated_at' => 'immutable_datetime',
+            'cancellation_free_days' => 'integer', 'cancellation_charge' => FeeCharge::class, 'cancellation_percent' => 'integer', 'no_show_charge' => FeeCharge::class, 'no_show_percent' => 'integer'];
     }
 
     /**

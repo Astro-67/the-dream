@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tenancy\Jurisdiction;
 
+use App\Domains\Billing\OpenFolios;
 use App\Domains\Reservations\FutureReservations;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Models\Property;
@@ -27,6 +28,35 @@ final class JurisdictionRules
     }
 
     /**
+     * Identity document fields (IdentityDocument::FIELDS) every guest must
+     * have before check-in.
+     *
+     * @return list<string>
+     */
+    public static function requiredRegistrationFields(Property $property): array
+    {
+        return self::of($property->jurisdiction_profile)->requiredRegistrationFields($property->registration_fields ?? []);
+    }
+
+    /**
+     * Whether a property under this profile chooses its own registration
+     * fields. Takes the profile so a property form can ask before saving.
+     */
+    public static function configuresRegistrationFields(JurisdictionProfile $profile): bool
+    {
+        return self::of($profile)->configuresRegistrationFields();
+    }
+
+    /**
+     * Whether a posted cancellation or no-show fee is a fiscal exception
+     * candidate: a charge with no path into the fiscal system (M3).
+     */
+    public static function marksFeesAsFiscalExceptions(Property $property): bool
+    {
+        return self::of($property->jurisdiction_profile)->marksFeesAsFiscalExceptions();
+    }
+
+    /**
      * Whether a property under this profile records a ZRA hotel code. Takes
      * the profile so a property form can ask before the property is saved.
      */
@@ -39,14 +69,22 @@ final class JurisdictionRules
      * Refuses a jurisdiction profile change that would break what depends on
      * the current profile (PRD §6: not while the property has future
      * reservations or open folios). UpdateProperty calls it before saving.
-     *
-     * ponytail: open folios are not checked until Spec 6 adds that guard.
      */
     public static function ensureProfileCanChange(Property $property, JurisdictionProfile $to): void
     {
-        if ($to !== $property->jurisdiction_profile && FutureReservations::existFor($property)) {
+        if ($to === $property->jurisdiction_profile) {
+            return;
+        }
+
+        if (FutureReservations::existFor($property)) {
             throw ValidationException::withMessages([
                 'jurisdiction_profile' => __('This property has future confirmed reservations. Cancel or complete them before changing its jurisdiction profile.'),
+            ]);
+        }
+
+        if (OpenFolios::existFor($property)) {
+            throw ValidationException::withMessages([
+                'jurisdiction_profile' => __('This property has open folios. Settle them and check out in-house guests before changing its jurisdiction profile.'),
             ]);
         }
     }

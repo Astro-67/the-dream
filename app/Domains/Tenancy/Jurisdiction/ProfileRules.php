@@ -16,4 +16,14 @@ interface ProfileRules
     public function allowedCurrencies(): array;
 
     public function hasZraHotelCode(): bool;
+
+    public function configuresRegistrationFields(): bool;
+
+    /**
+     * @param  list<string>  $configured  the property's own registration fields
+     * @return list<string> identity document fields every guest needs at check-in
+     */
+    public function requiredRegistrationFields(array $configured): array;
+
+    public function marksFeesAsFiscalExceptions(): bool;
 }

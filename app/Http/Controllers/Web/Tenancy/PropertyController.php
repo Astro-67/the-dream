@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Tenancy;
 
+use App\Domains\Guests\Models\IdentityDocument;
 use App\Domains\Tenancy\Actions\CreateProperty;
 use App\Domains\Tenancy\Actions\UpdateProperty;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -107,9 +108,12 @@ class PropertyController extends Controller
                 'currency' => $property->currency->value,
                 'jurisdiction_profile' => $property->jurisdiction_profile->value,
                 'housekeeping_inspection_required' => $property->housekeeping_inspection_required,
+                'receipt_prefix' => $property->receipt_prefix,
                 // Zanzibar-only: never sent for a mainland property.
                 ...(JurisdictionRules::hasZraHotelCode($property->jurisdiction_profile) ? ['zra_hotel_code' => $property->zra_hotel_code] : []),
+                ...(JurisdictionRules::configuresRegistrationFields($property->jurisdiction_profile) ? ['registration_fields' => $property->registration_fields ?? []] : []),
             ],
+            'registrationFieldOptions' => IdentityDocument::FIELDS,
         ]);
     }
 

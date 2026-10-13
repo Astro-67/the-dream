@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { CancellationPolicyFields } from '@/features/rates/cancellation-policy-fields';
+import type { CancellationPolicy } from '@/features/rates/cancellation-policy-fields';
 import { index, update } from '@/routes/rate-plans';
 
 export default function EditRatePlan({
@@ -18,7 +20,7 @@ export default function EditRatePlan({
         currency: string;
         room_type_ids: string[];
         baseName: string | null;
-    };
+    } & CancellationPolicy;
     roomTypes: { id: string; name: string; code: string }[];
 }) {
     return (
@@ -96,6 +98,10 @@ export default function EditRatePlan({
                                     />
                                 </fieldset>
                             )}
+                            <CancellationPolicyFields
+                                plan={plan}
+                                errors={errors}
+                            />
                             <div className="flex flex-wrap justify-end gap-3">
                                 <Button variant="ghost" asChild>
                                     <Link href={index()}>Cancel</Link>
