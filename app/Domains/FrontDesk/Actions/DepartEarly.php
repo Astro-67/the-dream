@@ -31,8 +31,8 @@ class DepartEarly
             }
             $today = app(RoomReadiness::class)->businessDate(Property::query()->findOrFail($locked->property_id));
             $previous = $locked->departure->toDateString();
-            if ($today <= $locked->arrival->toDateString() || $today >= $previous) {
-                throw ValidationException::withMessages(['reservation' => __('An early departure needs a night stayed and a night left.')]);
+            if ($today < $locked->arrival->toDateString() || $today >= $previous) {
+                throw ValidationException::withMessages(['reservation' => __('An early departure must be during the stay with a night left.')]);
             }
             $released = DateRange::dates($today, $locked->departure->subDay()->toDateString());
             app(ReleaseInventory::class)->handle(RoomType::query()->findOrFail($locked->getAttribute('room_type_id')), $released);

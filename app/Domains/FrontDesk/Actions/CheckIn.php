@@ -35,7 +35,7 @@ class CheckIn
             if ($locked->arrival->toDateString() !== $readiness->businessDate($property)) {
                 throw ValidationException::withMessages(['reservation' => __('Only reservations arriving on the current business date can be checked in.')]);
             }
-            $room = $locked->room_id === null ? null : Room::query()->findOrFail($locked->room_id);
+            $room = $locked->room_id === null ? null : Room::query()->whereKey($locked->room_id)->lockForUpdate()->firstOrFail();
             if ($room === null) {
                 throw ValidationException::withMessages(['room' => __('Assign a room before checking in.')]);
             }

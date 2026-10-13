@@ -14,6 +14,8 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
@@ -128,6 +130,28 @@ test('check-in is refused while the room is not ready', function (HousekeepingSt
     inTenant($t->a->property, fn () => RoomStatus::query()->where('room_id', $reservation->room_id)->update(['status' => $status]));
     assertCheckInRefused($t->a, $reservation, 'room');
 })->with(array_filter(HousekeepingStatus::cases(), fn ($status) => $status !== HousekeepingStatus::Clean));
+
+test('check-in reads readiness after acquiring the housekeeping room lock', function () {
+    if (DB::getDriverName() !== 'mysql') {
+        $this->markTestSkipped('Room row locks require MySQL.');
+    }
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    $enabled = true;
+    DB::listen(function (QueryExecuted $query) use (&$enabled, $reservation, $t) {
+        if ($enabled && str_contains($query->sql, 'from `rooms`') && str_contains($query->sql, 'for update')) {
+            $enabled = false;
+            inTenant($t->a->property, fn () => RoomStatus::query()->where('room_id', $reservation->room_id)->update(['status' => HousekeepingStatus::Dirty]));
+        }
+    });
+    try {
+        $this->actingAs($t->a->owner)->postJson(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])
+            ->assertUnprocessable()->assertJsonValidationErrors('room');
+        inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed));
+    } finally {
+        $enabled = false;
+    }
+});
 
 test('at a Zanzibar property check-in is refused while any guest misses an identity field', function (array $documents) {
     $t = twoTenants();

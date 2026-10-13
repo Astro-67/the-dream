@@ -179,12 +179,28 @@ function assertEarlyDepartureRefused(TenantFixture $tenant, Reservation $reserva
     expect($state())->toBe($before);
 }
 
-test('an early departure is refused on the arrival day or once the stay ends today', function (string $now) {
+test('an early departure is refused before arrival or once the stay ends today', function (string $now) {
     $t = twoTenants();
     $reservation = stayingFourNights($t->a);
     $this->travelTo(CarbonImmutable::parse($now, 'Africa/Dar_es_Salaam'));
     assertEarlyDepartureRefused($t->a, $reservation);
-})->with(['arrival day' => '2026-12-10 22:00:00', 'departure day' => '2026-12-14 09:00:00']);
+})->with(['before arrival' => '2026-12-09 22:00:00', 'departure day' => '2026-12-14 09:00:00']);
+
+test('arrival-day early departure releases every night and allows check-out', function () {
+    $t = twoTenants();
+    $reservation = inHouseStay($t->a);
+    $this->actingAs($t->a->owner)->post(route('reservations.depart-early', $reservation), ['_property' => $t->a->property->id])
+        ->assertSessionHasNoErrors();
+    inTenant($t->a->property, function () use ($reservation) {
+        expect($reservation->fresh()->departure->toDateString())->toBe('2026-12-10')
+            ->and($reservation->priceLines()->count())->toBe(0)
+            ->and(assignedNights($reservation))->toBe([])
+            ->and(InventoryRecord::query()->sum('sold_count'))->toBe(0)
+            ->and($reservation->lifecycleEvents()->where('type', 'departed_early')->count())->toBe(1);
+    });
+    $this->post(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedOut));
+});
 
 test('only an in-house reservation can depart early', function (ReservationStatus $status) {
     $t = twoTenants();
