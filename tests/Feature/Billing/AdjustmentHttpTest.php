@@ -1,6 +1,8 @@
 <?php
 
+use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\PostingApproval;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -47,4 +49,25 @@ test('a refund above the currency threshold waits for a different approver', fun
         '_property' => $t->a->property->id, 'decision' => 'approve',
     ])->assertRedirect()->assertSessionHasNoErrors();
     $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.0.balance', 500)->has('folios.0.postings', 1));
+});
+
+test('a reversal above threshold posts only after approval and cannot be moved while pending', function () {
+    $t = twoTenants();
+    [$reservation, $folio, $charge] = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $folio = Folio::query()->sole();
+
+        return [$reservation, $folio, app(PostExtraCharge::class)->handle($t->a->owner, $folio, ['category' => 'other', 'quantity' => 1, 'unit_price' => 500])];
+    });
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->put(route('approval-thresholds.update'), ['_property' => $t->a->property->id, 'currency' => 'USD', 'amount' => 400])->assertSessionHasNoErrors();
+    $this->actingAs($t->a->member(OrganizationRole::Finance))->post(route('postings.reverse', $charge), [
+        '_property' => $t->a->property->id, 'reason' => 'Wrong folio',
+    ])->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.0.balance', 500)->has('folios.0.postings', 1));
+    $approval = inTenant($t->a->property, fn () => PostingApproval::query()->sole());
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->post(route('approvals.resolve', $approval), [
+        '_property' => $t->a->property->id, 'decision' => 'approve',
+    ])->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('folios.0.balance', 0)->has('folios.0.postings', 2)->where('folios.0.postings.1.related.id', $charge->id));
 });

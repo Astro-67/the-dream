@@ -18,23 +18,21 @@ use Illuminate\Validation\ValidationException;
  */
 class ReversePosting
 {
-    public function handle(?User $actor, Posting $original, string $reason): Posting
+    public function handle(?User $actor, Posting $original, string $reason): Posting|PostingApproval
     {
         return Audit::validationRefusal($actor, $original, 'Reversal refused', fn () => DB::transaction(function () use ($actor, $original, $reason) {
             $reason = trim($reason);
             if ($reason === '') {
                 throw ValidationException::withMessages(['reason' => __('A reversal needs a reason.')]);
             }
-            Folio::query()->whereKey($original->folio_id)->lockForUpdate()->firstOrFail();
+            $folio = Folio::query()->whereKey($original->folio_id)->lockForUpdate()->firstOrFail();
             $original = Posting::query()->findOrFail($original->id);
             self::ensureCancellable($original);
-            $reversal = Posting::query()->create(self::negative($original, [
+
+            return app(SubmitControlledPosting::class)->handle($actor, $folio, self::negative($original, [
                 'folio_id' => $original->folio_id, 'type' => 'reversal', 'reason' => $reason,
                 'idempotency_key' => 'reversal:'.$original->id, 'actor_id' => $actor?->id,
             ]));
-            Audit::record($actor, 'created', $reversal, 'Posting reversed', ['folio_id' => $original->folio_id, 'reverses' => $original->id, 'amount' => $reversal->amount, 'currency' => $reversal->currency->value, 'reason' => $reason]);
-
-            return $reversal;
         }));
     }
 
