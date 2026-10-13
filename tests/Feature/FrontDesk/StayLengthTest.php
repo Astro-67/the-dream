@@ -191,3 +191,20 @@ test('only an in-house reservation can depart early', function (ReservationStatu
     inTenant($t->a->property, fn () => $reservation->update(['status' => $status]));
     assertEarlyDepartureRefused($t->a, $reservation);
 })->with(array_filter(ReservationStatus::cases(), fn ($status) => $status !== ReservationStatus::CheckedIn));
+
+test('only reservation managers may extend or record an early departure', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $reservation = stayingFourNights($t->a);
+    $member = $t->a->member($role);
+    $this->actingAs($member)->post(route('reservations.extend', $reservation), ['_property' => $t->a->property->id, 'departure' => '2026-12-15'])->assertStatus($allowed ? 302 : 403);
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->departure->toDateString())->toBe($allowed ? '2026-12-15' : '2026-12-14'));
+    $this->actingAs($member)->post(route('reservations.depart-early', $reservation), ['_property' => $t->a->property->id])->assertStatus($allowed ? 302 : 403);
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->departure->toDateString())->toBe($allowed ? '2026-12-12' : '2026-12-14'));
+})->with(array_map(fn ($role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager, OrganizationRole::FrontDesk], true)], OrganizationRole::cases()));
+
+test('stay changes require the opening property intent', function (string $route) {
+    $t = twoTenants();
+    $reservation = stayingFourNights($t->a);
+    $this->actingAs($t->a->owner)->postJson(route($route, $reservation), ['departure' => '2026-12-15'])->assertUnprocessable()->assertJsonValidationErrors('_property');
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->departure->toDateString())->toBe('2026-12-14'));
+})->with(['reservations.extend', 'reservations.depart-early']);
