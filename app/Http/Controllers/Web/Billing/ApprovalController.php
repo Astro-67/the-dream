@@ -23,7 +23,7 @@ class ApprovalController extends Controller
         Gate::authorize('viewAny', PostingApproval::class);
 
         return Inertia::render('approvals/index', [
-            'approvals' => PostingApproval::query()->where('status', 'pending')->orderBy('created_at')->get()->map(fn (PostingApproval $approval) => [
+            'approvals' => PostingApproval::query()->where('status', 'pending')->orderBy('created_at')->orderBy('id')->paginate(50)->withQueryString()->through(fn (PostingApproval $approval) => [
                 'id' => $approval->id, 'status' => $approval->status, 'folio_id' => $approval->folio_id,
                 'type' => $approval->posting['type'], 'amount' => $approval->posting['amount'], 'currency' => $approval->posting['currency'],
                 'reason' => $approval->posting['reason'], 'requested_by' => $approval->requested_by,

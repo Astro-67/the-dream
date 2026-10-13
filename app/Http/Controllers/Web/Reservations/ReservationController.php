@@ -84,6 +84,8 @@ class ReservationController extends Controller
             'canOpenFolio' => Gate::allows('create', [Folio::class, $reservation]),
             'folioCurrencies' => array_map(fn (Currency $currency) => $currency->value, JurisdictionRules::allowedCurrencies(Property::query()->findOrFail($reservation->property_id))),
             'canRecordPayment' => $folios->isNotEmpty() && Gate::allows('recordPayment', $folios->first()),
+            'canRefund' => $folios->isNotEmpty() && Gate::allows('refund', $folios->first()),
+            'canWriteOff' => $folios->isNotEmpty() && Gate::allows('writeOff', $folios->first()),
             'reservation' => $reservation->load('priceLines'),
             'groupMembers' => $reservation->getAttribute('booking_group_id') === null ? [] : Reservation::query()
                 ->where('property_id', $reservation->property_id)

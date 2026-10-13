@@ -18,6 +18,7 @@ import {
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
 import { PaymentForm, paymentMethods } from '@/features/billing/payment-form';
+import { AdjustmentForms } from '@/features/billing/adjustment-form';
 import { store } from '@/routes/folios/charges';
 import {
     OpenFolioForm,
@@ -64,6 +65,8 @@ const categories = {
     other: 'Other',
     deposit: 'Deposit',
     payment: 'Payment',
+    refund: 'Refund',
+    write_off: 'Write-off',
 };
 
 export function FolioPanel({
@@ -102,6 +105,7 @@ export function FolioPanel({
             </dl>
             {folios.map((folio, index) => (
                 <div key={folio.id} className="space-y-3">
+                    <AdjustmentForms folio={folio} />
                     {folios.length > 1 && (
                         <h3 className="font-semibold">
                             Folio {index + 1} ({folio.currency})

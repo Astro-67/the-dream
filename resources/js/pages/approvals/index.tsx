@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Pagination } from '@/components/ui/pagination';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
     Table,
@@ -19,6 +20,7 @@ import {
 import { formatMoney } from '@/lib/utils';
 import { resolve } from '@/routes/approvals';
 import { update } from '@/routes/approval-thresholds';
+import type { Paginated } from '@/types';
 
 type Approval = {
     id: string;
@@ -82,7 +84,7 @@ export default function Approvals({
     thresholds,
     currencies,
 }: {
-    approvals: Approval[];
+    approvals: Paginated<Approval>;
     thresholds: { currency: string; amount: number | null }[];
     currencies: string[];
 }) {
@@ -94,7 +96,7 @@ export default function Approvals({
                     title="Approvals"
                     description="Refunds, reversals and write-offs awaiting a second user. Pending requests do not change folio balances."
                 />
-                {approvals.length === 0 ? (
+                {approvals.data.length === 0 ? (
                     <EmptyState message="No pending approvals. Requests above the property's currency threshold appear here." />
                 ) : (
                     <Table>
@@ -107,7 +109,7 @@ export default function Approvals({
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {approvals.map((approval) => (
+                            {approvals.data.map((approval) => (
                                 <TableRow key={approval.id}>
                                     <TableCell>
                                         <Identifier value={approval.folio_id} />
@@ -139,6 +141,7 @@ export default function Approvals({
                         </TableBody>
                     </Table>
                 )}
+                <Pagination page={approvals} />
                 <section className="max-w-[720px] space-y-4">
                     <h2 className="text-lg font-semibold">
                         Approval thresholds
