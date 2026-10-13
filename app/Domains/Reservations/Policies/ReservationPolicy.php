@@ -45,6 +45,11 @@ class ReservationPolicy
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
     }
 
+    public function checkOut(User $user, Reservation $reservation): bool
+    {
+        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+    }
+
     public function moveRoom(User $user, Reservation $reservation): bool
     {
         return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);

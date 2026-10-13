@@ -100,6 +100,29 @@ return [
         return $responses;
     }),
 
+    'reservations.check-out' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $this->travelTo('2026-12-10 09:00:00');
+        $reservation = inTenant($t->b->property, function () use ($t) {
+            $reservation = app(CreateReservation::class)->handle($t->b->owner, [...BookingForm::details($t->b->owner), 'room_id' => Room::query()->sole()->id]);
+            RoomStatus::query()->update(['status' => HousekeepingStatus::Occupied]);
+            $reservation->update(['status' => ReservationStatus::CheckedIn]);
+
+            return $reservation;
+        });
+        $this->travelTo('2026-12-12 09:00:00');
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id, 'override_reason' => 'Hijacked'])->assertNotFound();
+        }
+        inTenant($t->b->property, function () use ($reservation) {
+            expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn)
+                ->and($reservation->lifecycleEvents()->where('type', 'checked_out')->exists())->toBeFalse()
+                ->and(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Occupied);
+        });
+
+        return $responses;
+    }),
+
     'reservations.extend' => RouteCoverage::attempt($attackStayLength('reservations.extend')),
     'reservations.depart-early' => RouteCoverage::attempt($attackStayLength('reservations.depart-early')),
 ];
