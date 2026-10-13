@@ -80,9 +80,11 @@ export default function Show({
                                                 )}
                                                 className="text-primary underline-offset-4 hover:underline"
                                             >
-                                                <Identifier>
-                                                    {charge.reservation_number}
-                                                </Identifier>
+                                                <Identifier
+                                                    value={
+                                                        charge.reservation_number
+                                                    }
+                                                />
                                             </Link>
                                         </TableCell>
                                         <TableCell numeric>

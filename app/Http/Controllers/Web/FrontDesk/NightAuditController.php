@@ -61,7 +61,7 @@ class NightAuditController extends Controller
     {
         return [
             'id' => $close->id, 'business_date' => $close->business_date->toDateString(),
-            'actor' => $close->actor?->name ?? __('Automation'),
+            'actor' => $close->actor->name ?? __('Automation'),
             'completed_at' => $close->completed_at?->toIso8601String(),
         ];
     }
