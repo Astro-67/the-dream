@@ -63,6 +63,10 @@ const categories = {
     minibar: 'Minibar',
     laundry: 'Laundry',
     other: 'Other',
+};
+
+const postingCategories = {
+    ...categories,
     deposit: 'Deposit',
     payment: 'Payment',
     refund: 'Refund',
@@ -146,8 +150,8 @@ export function FolioPanel({
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            {categories[
-                                                posting.category as keyof typeof categories
+                                            {postingCategories[
+                                                posting.category as keyof typeof postingCategories
                                             ] ?? posting.category}
                                             {posting.method && (
                                                 <div className="text-sm text-muted-foreground">
