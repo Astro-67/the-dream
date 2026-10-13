@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Reservations;
 
+use App\Domains\Billing\Models\Folio;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\ReservationLists;
@@ -25,6 +26,12 @@ class ReservationListController extends Controller
             && $reservation->arrival->toDateString() === $today && Gate::allows('checkIn', $reservation))
             ->setAttribute('can_check_out', $reservation->status === ReservationStatus::CheckedIn
                 && $reservation->departure->toDateString() <= $today && Gate::allows('checkOut', $reservation)));
+        // The check-out dialog shows each currency's balance and whether it may be overridden.
+        $leaving = $reservations->getCollection()->filter(fn (Reservation $reservation) => $reservation->getAttribute('can_check_out'));
+        $folios = Folio::query()->whereIn('reservation_id', $leaving->modelKeys())->with('postings')->get()->groupBy('reservation_id');
+        $leaving->each(fn (Reservation $reservation) => $reservation->setAttribute('can_override_balance', Gate::allows('checkOutWithBalance', $reservation))
+            ->setAttribute('balances', $folios->get($reservation->id, collect())->groupBy(fn (Folio $folio) => $folio->currency->value)
+                ->map(fn ($group, string $currency) => ['currency' => $currency, 'balance' => (int) $group->sum(fn (Folio $folio) => $folio->balance()->amount)])->values()->all()));
 
         return Inertia::render('reservations/index', [
             'filters' => ['date' => $date, 'list' => $list, 'search' => $request->validated('search', '')],

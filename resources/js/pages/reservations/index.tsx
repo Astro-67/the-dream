@@ -16,6 +16,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
 import { formatDate } from '@/features/platform/format';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { availability, checkIn, index, show } from '@/routes/reservations';
@@ -30,6 +31,9 @@ type Reservation = {
     channel_reference: string | null;
     requires_reconciliation: boolean;
     can_check_in: boolean;
+    can_check_out: boolean;
+    can_override_balance?: boolean;
+    balances?: { currency: string; balance: number }[];
 };
 type Filters = { date: string; list: string; search: string };
 
@@ -219,6 +223,21 @@ export default function Index({
                                                         </>
                                                     )}
                                                 </Form>
+                                            )}
+                                            {reservation.can_check_out && (
+                                                <CheckOutDialog
+                                                    number={
+                                                        reservation.reservation_number
+                                                    }
+                                                    balances={
+                                                        reservation.balances ??
+                                                        []
+                                                    }
+                                                    canOverride={
+                                                        reservation.can_override_balance ??
+                                                        false
+                                                    }
+                                                />
                                             )}
                                         </TableCell>
                                     </TableRow>

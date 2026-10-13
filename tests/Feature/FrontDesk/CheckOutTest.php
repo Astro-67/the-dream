@@ -133,9 +133,21 @@ test('today\'s departures list offers check-out to those who may check out', fun
     $t = twoTenants();
     $reservation = departingGuestForCheckOut($t->a);
 
+    chargeBeforeCheckOut($t->a, $reservation, 1500);
+
     $this->actingAs($t->a->member($role))->get(route('reservations.index', ['list' => 'departures']))->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.reservation_number', $reservation->reservation_number)->where('reservations.data.0.can_check_out', $offered));
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.reservation_number', $reservation->reservation_number)->where('reservations.data.0.can_check_out', $offered)
+            ->when($offered, fn (AssertableInertia $page) => $page->where('reservations.data.0.balances', [['currency' => 'USD', 'balance' => 1500]])
+                ->where('reservations.data.0.can_override_balance', $role === OrganizationRole::PropertyManager)));
 })->with([[OrganizationRole::FrontDesk, true], [OrganizationRole::PropertyManager, true], [OrganizationRole::Finance, false], [OrganizationRole::Auditor, false]]);
+
+test('the reservation page offers check-out and, to managers, the balance override', function (OrganizationRole $role, bool $checkOut, bool $override) {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+
+    $this->actingAs($t->a->member($role))->get(route('reservations.show', $reservation))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('can.checkOut', $checkOut)->where('can.overrideBalance', $override));
+})->with([[OrganizationRole::FrontDesk, true, false], [OrganizationRole::PropertyManager, true, true], [OrganizationRole::Finance, false, false]]);
 
 test('check-out is not offered before the departure date or once checked out', function () {
     $t = twoTenants();
