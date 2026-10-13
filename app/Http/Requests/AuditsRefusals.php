@@ -26,7 +26,7 @@ trait AuditsRefusals
 
     private function auditRefusal(string $stage): void
     {
-        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment') ?? $this->route('folio');
+        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment') ?? $this->route('folio') ?? $this->route('posting');
         if (! $subject instanceof Model) {
             $subject = match (true) {
                 $this->routeIs('guests.*') => new Guest,

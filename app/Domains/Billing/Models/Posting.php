@@ -21,9 +21,11 @@ use LogicException;
  *
  * @property string $id
  * @property string $folio_id
+ * @property string|null $related_posting_id the posting this one reverses or transfers
  * @property string $type
  * @property string $category
  * @property string|null $description
+ * @property string|null $reason why a reversal or transfer was posted
  * @property int $quantity
  * @property int $unit_price
  * @property int $net
@@ -36,7 +38,7 @@ use LogicException;
  * @property CarbonImmutable $business_date
  * @property CarbonImmutable $posted_at
  */
-#[Fillable(['folio_id', 'type', 'category', 'description', 'quantity', 'unit_price', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at'])]
+#[Fillable(['folio_id', 'related_posting_id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at'])]
 #[UseEloquentBuilder(PostingBuilder::class)]
 class Posting extends Model
 {
