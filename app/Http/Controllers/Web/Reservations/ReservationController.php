@@ -12,8 +12,11 @@ use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\AssignableRooms;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
+use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\CreateReservationRequest;
+use App\Support\Money\Currency;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -48,13 +51,18 @@ class ReservationController extends Controller
         Gate::authorize('view', $reservation);
         // ponytail: a stay's postings are bounded by its nights and extras; paginate if long stays make this heavy.
         $folios = Folio::query()->where('reservation_id', $reservation->id)->with('postings.actor:id,name')->orderBy('created_at')->get();
+        // Reversals and transfers link to the posting they cancel; show the link from both ends.
+        $postings = $folios->flatMap(fn (Folio $folio) => $folio->postings)->keyBy('id');
+        $cancelledBy = $postings->whereNotNull('related_posting_id')->keyBy('related_posting_id');
 
         return Inertia::render('reservations/show', [
             'folios' => $folios->map(fn (Folio $folio) => [
                 'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => $folio->balance()->amount,
                 'postings' => $folio->postings->map(fn (Posting $posting) => [
-                    ...$posting->only(['id', 'type', 'category', 'description', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),
+                    ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),
                     'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
+                    'related' => ($related = $postings->get($posting->related_posting_id ?? '')) === null ? null : $related->only(['id', 'type', 'category', 'folio_id']),
+                    'cancelled_by' => $cancelledBy->get($posting->id)?->only(['id', 'type', 'folio_id']),
                 ])->all(),
             ])->all(),
             'totals' => $folios->groupBy(fn (Folio $folio) => $folio->currency->value)->map(fn ($group, string $currency) => [
@@ -63,6 +71,10 @@ class ReservationController extends Controller
                 'balance' => (int) $group->sum(fn (Folio $folio) => $folio->balance()->amount),
             ])->values()->all(),
             'canPostCharge' => $folios->isNotEmpty() && Gate::allows('postCharge', $folios->first()),
+            'canReverse' => $folios->isNotEmpty() && Gate::allows('reverse', $folios->first()),
+            'canTransfer' => $folios->count() > 1 && Gate::allows('transfer', $folios->first()),
+            'canOpenFolio' => Gate::allows('create', [Folio::class, $reservation]),
+            'folioCurrencies' => array_map(fn (Currency $currency) => $currency->value, JurisdictionRules::allowedCurrencies(Property::query()->findOrFail($reservation->property_id))),
             'reservation' => $reservation->load('priceLines'),
             'groupMembers' => $reservation->getAttribute('booking_group_id') === null ? [] : Reservation::query()
                 ->where('property_id', $reservation->property_id)
