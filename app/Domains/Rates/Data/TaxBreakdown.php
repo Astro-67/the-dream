@@ -12,11 +12,13 @@ final readonly class TaxBreakdown
 {
     /**
      * @param  list<array{name: string, kind: string, inclusive: bool, rate: int|null, per_person_night: int|null, amount: int}>  $lines
+     * @param  list<string>  $ruleIds  the tax rule versions that gave the lines, in line order
      */
     public function __construct(
         public Currency $currency,
         public int $net,
         public array $lines,
+        public array $ruleIds = [],
     ) {}
 
     public function tax(): int

@@ -2,6 +2,7 @@
 
 namespace App\Domains\Reservations\Actions;
 
+use App\Domains\Billing\Models\Folio;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Inventory\Actions\TakeInventory;
 use App\Domains\Inventory\Models\RoomType;
@@ -57,6 +58,7 @@ class CreateReservation
                     'payment_collector' => $details['payment_collector'] ?? 'property',
                     'status' => ReservationStatus::Confirmed,
                 ]);
+                Folio::query()->create(['reservation_id' => $reservation->id, 'currency' => $plan->currency]);
                 foreach ($quote->nights as $night) {
                     $reservation->priceLines()->create(['date' => $night['date'], 'amount' => $night['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
                 }
