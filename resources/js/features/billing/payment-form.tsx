@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { store } from '@/routes/folios/payments';
 
-// Cash arrives with cashier shifts.
+// Cash needs the cashier's open shift; the server refuses it otherwise.
 export const paymentMethods = {
+    cash: 'Cash',
     bank_transfer: 'Bank transfer',
     mobile_money: 'Mobile money',
     card: 'Card charged outside Thedream',

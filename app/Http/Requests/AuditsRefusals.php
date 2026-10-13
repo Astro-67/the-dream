@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Housekeeping\Models\Assignment;
@@ -26,12 +27,13 @@ trait AuditsRefusals
 
     private function auditRefusal(string $stage): void
     {
-        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment') ?? $this->route('folio') ?? $this->route('posting') ?? $this->route('feeProposal');
+        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment') ?? $this->route('folio') ?? $this->route('posting') ?? $this->route('feeProposal') ?? $this->route('cashierShift');
         if (! $subject instanceof Model) {
             $subject = match (true) {
                 $this->routeIs('guests.*') => new Guest,
                 $this->routeIs('bookers.*') => new Booker,
                 $this->routeIs('housekeeping.*') => new Assignment,
+                $this->routeIs('cashier-shifts.*') => new CashierShift,
                 default => new Reservation,
             };
         }
