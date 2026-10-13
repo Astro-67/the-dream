@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Billing\Models\Posting;
+use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
@@ -36,6 +38,32 @@ $attackStayLength = fn (string $route) => function (TwoTenants $t) use ($route) 
 };
 
 return [
+    'night-audit.index' => RouteCoverage::visit(),
+    'night-audit.show' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $close = inTenant($t->b->property, fn () => BusinessDateClose::query()->create([
+            'business_date' => '2026-12-10', 'actor_id' => $t->b->owner->id, 'completed_at' => now(),
+        ]));
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->get(route('night-audit.show', $close))->assertNotFound();
+        }
+
+        return $responses;
+    }),
+    'night-audit.store' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $date = $t->b->property->business_date->toDateString();
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('night-audit.store'), [
+                '_property' => $t->b->property->id, 'business_date' => $date,
+            ])->assertForbidden();
+        }
+        inTenant($t->b->property, fn () => expect(BusinessDateClose::query()->count())->toBe(0)
+            ->and(Posting::query()->count())->toBe(0)
+            ->and($t->b->property->fresh()->business_date->toDateString())->toBe($date));
+
+        return $responses;
+    }),
     'reservations.check-in' => RouteCoverage::attempt(function (TwoTenants $t) {
         $this->travelTo('2026-12-10 09:00:00');
         $reservation = inTenant($t->b->property, function () use ($t) {
