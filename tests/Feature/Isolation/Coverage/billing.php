@@ -1,8 +1,10 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenCashierShift;
 use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
@@ -10,6 +12,7 @@ use App\Domains\Billing\Models\Receipt;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CancelReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
+use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
@@ -122,6 +125,37 @@ return [
         foreach ($t->a->members() as $member) {
             $responses[] = $this->actingAs($member)->get(route('receipts.show', $receipt))->assertNotFound();
         }
+
+        return $responses;
+    }),
+    'cashier-shifts.index' => RouteCoverage::attempt(function (TwoTenants $t) {
+        inTenant($t->b->property, fn () => app(OpenCashierShift::class)->handle($t->b->owner, ['USD' => 4242]));
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $response = $this->actingAs($member)->get(route('cashier-shifts.index'));
+            if ($response->status() === 200) {
+                $response->assertInertia(fn (AssertableInertia $page) => $page->where('openShift', null)->where('shifts', fn ($shifts) => $shifts === null || count($shifts['data']) === 0)->etc());
+            } else {
+                $response->assertForbidden();
+            }
+            $responses[] = $response;
+        }
+
+        return $responses;
+    }),
+    'cashier-shifts.store' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $response = $this->actingAs($t->a->owner)->post(route('cashier-shifts.store'), ['_property' => $t->b->property->id, 'floats' => ['USD' => 100]])->assertForbidden();
+        expect(inTenant($t->b->property, fn () => CashierShift::query()->count()))->toBe(0);
+
+        return $response;
+    }),
+    'cashier-shifts.close' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $shift = inTenant($t->b->property, fn () => app(OpenCashierShift::class)->handle($t->b->owner, ['USD' => 100]));
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('cashier-shifts.close', $shift), ['_property' => $t->a->property->id, 'counted' => ['USD' => 0], 'variance_reason' => 'attack'])->assertNotFound();
+        }
+        expect(inTenant($t->b->property, fn () => $shift->fresh()->status))->toBe('open');
 
         return $responses;
     }),

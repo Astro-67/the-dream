@@ -1,6 +1,7 @@
 import { usePage } from '@inertiajs/react';
 import {
     BedDouble,
+    Banknote,
     CalendarDays,
     Building2,
     DoorOpen,
@@ -25,6 +26,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useCan } from '@/hooks/use-can';
 import { dashboard, rateCalendar } from '@/routes';
+import { index as cashierShifts } from '@/routes/cashier-shifts';
 import { index as invitations } from '@/routes/invitations';
 import { index as guests } from '@/routes/guests';
 import { index as bookers } from '@/routes/bookers';
@@ -98,6 +100,15 @@ export function AppSidebar() {
                       icon: CalendarDays,
                   },
                   { title: 'Taxes', href: taxRules(), icon: Percent },
+              ]
+            : []),
+        ...(can('charges.post', 'finance.view')
+            ? [
+                  {
+                      title: 'Cashier shifts',
+                      href: cashierShifts(),
+                      icon: Banknote,
+                  },
               ]
             : []),
         ...(can('housekeeping.view')
