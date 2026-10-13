@@ -10,10 +10,12 @@ use App\Domains\Reservations\Actions\CancelReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 
@@ -67,6 +69,48 @@ test('cancelling proposes the fee the policy gives for the property local date',
     'never free' => [['cancellation_charge' => 'first_night'], '2026-01-01', 11000],
     'no policy' => [[], '2026-12-09', null],
 ]);
+
+test('only roles with charges.post post or waive a proposed fee over HTTP', function (OrganizationRole $role, bool $allowed, string $decision) {
+    $t = twoTenants();
+    $this->travelTo(CarbonImmutable::parse('2026-12-09 10:00', $t->a->property->timezone));
+    [$reservation, $proposal] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        RatePlan::query()->whereKey($details['rate_plan_id'])->update(['cancellation_charge' => 'first_night']);
+        $reservation = app(CancelReservation::class)->handle($t->a->owner, app(CreateReservation::class)->handle($t->a->owner, $details), 'Guest changed plans');
+
+        return [$reservation, FeeProposal::query()->sole()];
+    });
+    $actor = $role === OrganizationRole::Owner ? $t->a->owner : $t->a->member($role);
+    if ($role !== OrganizationRole::Housekeeping) {
+        $this->actingAs($actor)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('feeProposals.0.id', $proposal->id)->where('feeProposals.0.kind', 'cancellation')->where('feeProposals.0.amount', 11000)
+            ->where('feeProposals.0.status', 'proposed')->where('feeProposals.0.can_resolve', $allowed));
+    }
+
+    $response = $this->actingAs($actor)->post(route('fee-proposals.resolve', $proposal), ['_property' => $t->a->property->id, 'decision' => $decision, 'reason' => 'Per policy']);
+
+    $allowed ? $response->assertSessionHasNoErrors()->assertRedirect(route('reservations.show', $reservation)) : $response->assertForbidden();
+    expect(inTenant($t->a->property, fn () => $proposal->fresh()->status))->toBe($allowed ? ($decision === 'post' ? 'posted' : 'waived') : 'proposed');
+})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()))
+    ->with(['post', 'waive']);
+
+test('the fee form requires a decision and a reason, and the refusal is audited', function () {
+    $t = twoTenants();
+    $this->travelTo(CarbonImmutable::parse('2026-12-09 10:00', $t->a->property->timezone));
+    $proposal = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        RatePlan::query()->whereKey($details['rate_plan_id'])->update(['cancellation_charge' => 'first_night']);
+        app(CancelReservation::class)->handle($t->a->owner, app(CreateReservation::class)->handle($t->a->owner, $details), 'Guest changed plans');
+
+        return FeeProposal::query()->sole();
+    });
+
+    $this->actingAs($t->a->owner)->post(route('fee-proposals.resolve', $proposal), ['_property' => $t->a->property->id, 'decision' => 'forgive', 'reason' => ' '])
+        ->assertSessionHasErrors(['decision', 'reason']);
+
+    expect(inTenant($t->a->property, fn () => $proposal->fresh()->status))->toBe('proposed')
+        ->and(Activity::query()->where('description', 'Sensitive form refused')->where('subject_id', $proposal->id)->exists())->toBeTrue();
+});
 
 test('posting a proposed fee charges the folio with the reason, audits it and marks it a fiscal exception candidate at Zanzibar', function () {
     [$owner, $reservation] = bookedWithPolicy(['cancellation_charge' => 'first_night']);

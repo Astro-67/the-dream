@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Reservations;
 
+use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Guests\Models\Booker;
@@ -62,6 +63,10 @@ class ReservationController extends Controller
                 'charges' => (int) $group->sum(fn (Folio $folio) => $folio->postings->where('type', 'charge')->sum('amount')),
                 'balance' => (int) $group->sum(fn (Folio $folio) => $folio->balance()->amount),
             ])->values()->all(),
+            'feeProposals' => FeeProposal::query()->where('reservation_id', $reservation->id)->orderBy('created_at')->get()->map(fn (FeeProposal $fee) => [
+                ...$fee->only(['id', 'kind', 'amount', 'status', 'reason', 'fiscal_exception_candidate']), 'currency' => $fee->currency->value,
+                'can_resolve' => $fee->status === 'proposed' && Gate::allows('resolve', $fee),
+            ])->all(),
             'canPostCharge' => $folios->isNotEmpty() && Gate::allows('postCharge', $folios->first()),
             'reservation' => $reservation->load('priceLines'),
             'groupMembers' => $reservation->getAttribute('booking_group_id') === null ? [] : Reservation::query()
