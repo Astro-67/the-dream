@@ -3,14 +3,20 @@
 namespace App\Domains\FrontDesk\Actions;
 
 use App\Domains\Billing\Actions\PostRoomCharge;
+use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
+use App\Domains\Housekeeping\Actions\MarkStayoverService;
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use App\Support\Tenancy\Tenancy;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -35,13 +41,39 @@ class CloseBusinessDate
                 ->where('status', ReservationStatus::CheckedIn)->whereDate('arrival', '<=', $date)
                 ->orderBy('id')->lockForUpdate()->get();
             foreach ($reservations as $reservation) {
-                app(PostRoomCharge::class)->handle($actor, $reservation, $date);
+                $charge = app(PostRoomCharge::class)->handle($actor, $reservation, $date);
+                $this->recordPriceChange($actor, $reservation, $charge, $date);
             }
+            $this->markStayovers($actor, $property, $property->business_date->addDay()->toDateString());
             $property->update(['business_date' => $property->business_date->addDay()->toDateString()]);
             $close->update(['completed_at' => now()]);
             Audit::record($actor, 'closed', $close, 'Business date closed', ['business_date' => $date]);
 
             return $close;
         }, attempts: 3));
+    }
+
+    /** Once per reservation and date: the close is one transaction and a completed date never reruns. */
+    private function recordPriceChange(?User $actor, Reservation $reservation, Posting $charge, string $date): void
+    {
+        $next = $reservation->priceLines()->whereDate('date', CarbonImmutable::parse($date)->addDay()->toDateString())->first();
+        $currency = $next?->getAttribute('currency');
+        if ($next === null || ($next->getAttribute('amount') === $charge->unit_price && $currency === $charge->currency->value)) {
+            return;
+        }
+        app(RecordLifecycleEvent::class)->handle($reservation, 'nightly_price_changed', $actor, [
+            'date' => $next->getAttribute('date')->toDateString(), 'previous_amount' => $charge->unit_price, 'amount' => $next->getAttribute('amount'), 'currency' => $currency,
+        ]);
+    }
+
+    private function markStayovers(?User $actor, Property $property, string $nextDate): void
+    {
+        if (! $property->stayover_service_on_close) {
+            return;
+        }
+        $statuses = RoomStatus::query()->with('room')->where('property_id', $property->id)->where('status', HousekeepingStatus::Occupied)->get();
+        foreach ($statuses as $status) {
+            app(MarkStayoverService::class)->handle($actor, $status->room, $nextDate);
+        }
     }
 }

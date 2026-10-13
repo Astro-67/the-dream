@@ -19,6 +19,7 @@ type Props = PropertyFormOptions & {
         registration_fields?: string[];
         receipt_prefix: string;
         close_time: string;
+        stayover_service_on_close: boolean;
     };
     registrationFieldOptions: string[];
 };
@@ -105,6 +106,34 @@ export default function EditProperty({
                                     message={
                                         errors.housekeeping_inspection_required
                                     }
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="stayover_service_on_close">
+                                    Stayover service at night audit
+                                </Label>
+                                <NativeSelect
+                                    id="stayover_service_on_close"
+                                    name="stayover_service_on_close"
+                                    defaultValue={
+                                        property.stayover_service_on_close
+                                            ? '1'
+                                            : '0'
+                                    }
+                                    aria-invalid={
+                                        !!errors.stayover_service_on_close
+                                    }
+                                >
+                                    <option value="0">
+                                        Mark stayover rooms by hand
+                                    </option>
+                                    <option value="1">
+                                        Mark every occupied room for service
+                                        when the day closes
+                                    </option>
+                                </NativeSelect>
+                                <InputError
+                                    message={errors.stayover_service_on_close}
                                 />
                             </div>
                             <div className="grid gap-2">
