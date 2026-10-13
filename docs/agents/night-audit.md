@@ -14,15 +14,16 @@ regardless of folio. Amounts and taxes are frozen; `price_line_id` records the
 source. Unchecked-out departures repeat their last night's price, taxed for
 the date being closed.
 
-- **#88 scheduler:** capture the date when dispatching a tenant-aware job. Enter
+- **#88 scheduler:** `BusinessDate::isDue($property)` owns the close-time rule. Capture the date when dispatching a tenant-aware job. Enter
   the property's context, then call the action with that date and a null actor.
 - **#89 no-shows:** `Reservations\Actions\ProposeNoShows` runs before the date
   advances and creates one `NoShowProposal` per confirmed reservation arriving
   on or before the closing date (unique per reservation; `business_date` is the
-  proposing close). Status `proposed` until a `night_audit.close` holder runs
-  `ConfirmNoShow` (terminates as `no_show`, proposes the fee, records
-  `no_show_confirmed`) or `RejectNoShow`. Open proposals:
-  `NoShowProposal::where('status', 'proposed')`.
+  proposing close). Status `NoShowProposalStatus::Proposed` until a
+  `night_audit.close` holder runs `ConfirmNoShow` (terminates as `no_show`,
+  proposes the fee, records `no_show_confirmed`) or `RejectNoShow`, through
+  `no-show-proposals.confirm` / `.reject`. Open proposals:
+  `NoShowProposal::where('status', NoShowProposalStatus::Proposed)`.
 - **#91 stayovers and price events:** extend the locked reservation loop before
   advancing the date. Record `nightly_price_changed` with `RecordLifecycleEvent`
   under the reservation lock; the business date is still the closing date.
@@ -31,7 +32,7 @@ the date being closed.
   next date; `nightly_price_changed` compares the posted night with the next
   price line and records `date`, `previous_amount`, `amount`, `currency`.
 
-The summary selects original room charges by property and closing date, so it
+`FrontDesk\NightAuditReport` builds the index and summary props. The summary selects original room charges by property and closing date, so it
 includes charges recovered from a partial attempt. History and charges are
 paginated. Extend summary props for proposal and service results rather than
 adding work to controllers. Deployments must run `organizations:sync-roles`
@@ -39,6 +40,6 @@ for the new `night_audit.view` and `night_audit.close` permissions.
 
 **#90 exceptions:** before advancing, the close snapshots open no-show
 proposals, checked-in departures due on or before the closing date, and open
-cashier shifts as `FrontDesk\Models\ExceptionListItem` rows dated the next
+cashier shifts as `FrontDesk\Models\ExceptionListItem` rows (`kind` is `ExceptionKind`) dated the next
 business date. The index shows the current date's list; the summary shows
 `exceptionsCarried`.
