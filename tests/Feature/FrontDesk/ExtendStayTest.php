@@ -5,16 +5,20 @@ use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Inventory\Actions\CreateRoom;
+use App\Domains\Inventory\Actions\TakeRoomOutOfService;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 use Tests\Support\TenantFixture;
 
 beforeEach(fn () => $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam')));
@@ -32,6 +36,32 @@ function inHouse(TenantFixture $tenant): Reservation
 
         return app(CheckIn::class)->handle($tenant->owner, $reservation);
     });
+}
+
+/**
+ * Books another stay of the in-house reservation's room type and plan.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function competingBooking(TenantFixture $tenant, Reservation $reservation, array $overrides): Reservation
+{
+    return inTenant($tenant->property, fn () => app(CreateReservation::class)->handle($tenant->owner, [...$reservation->only(['room_type_id', 'rate_plan_id', 'booker_id', 'adults', 'children', 'source']), ...$overrides]));
+}
+
+/** Posts an extension to $departure and asserts it was refused on $field with nothing changed. */
+function assertExtensionRefused(TenantFixture $tenant, Reservation $reservation, string $departure, string $field): void
+{
+    $state = fn () => inTenant($tenant->property, fn () => [
+        $reservation->fresh()->departure->toDateString(),
+        InventoryRecord::query()->orderBy('room_type_id')->orderBy('date')->pluck('sold_count')->all(),
+        RoomAssignmentNight::query()->count(),
+        $reservation->priceLines()->count(),
+        $reservation->lifecycleEvents()->count(),
+    ]);
+    $before = $state();
+    test()->actingAs($tenant->owner)->postJson(route('reservations.extend', $reservation), ['_property' => $tenant->property->id, 'departure' => $departure])
+        ->assertUnprocessable()->assertJsonValidationErrors($field);
+    expect($state())->toBe($before);
 }
 
 /** @return list<string> */
@@ -57,3 +87,47 @@ test('front desk extends an in-house stay, taking inventory, the room and priced
         expect($event->actor_id)->toBe($actor->id)->and($event->snapshot['previous_departure'])->toBe('2026-12-12');
     });
 });
+
+test('an extension is refused when no inventory is left for a new night', function () {
+    $t = twoTenants();
+    $reservation = inHouse($t->a);
+    competingBooking($t->a, $reservation, ['arrival' => '2026-12-13', 'departure' => '2026-12-14']);
+    assertExtensionRefused($t->a, $reservation, '2026-12-14', 'departure');
+});
+
+test('an extension is refused when the assigned room is taken on a new night', function () {
+    $t = twoTenants();
+    $reservation = inHouse($t->a);
+    inTenant($t->a->property, fn () => app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($reservation->room_type_id, ['number' => '102'])));
+    competingBooking($t->a, $reservation, ['arrival' => '2026-12-13', 'departure' => '2026-12-14', 'room_id' => $reservation->room_id]);
+    assertExtensionRefused($t->a, $reservation, '2026-12-14', 'departure');
+});
+
+test('an extension is refused while the assigned room is out of service on a new night', function () {
+    $t = twoTenants();
+    $reservation = inHouse($t->a);
+    inTenant($t->a->property, function () use ($t, $reservation) {
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($reservation->room_type_id, ['number' => '102']));
+        app(TakeRoomOutOfService::class)->handle($t->a->owner, Room::query()->findOrFail($reservation->room_id), ['starts_on' => '2026-12-13', 'returns_on' => '2026-12-14', 'reason' => 'Leak']);
+    });
+    assertExtensionRefused($t->a, $reservation, '2026-12-14', 'departure');
+});
+
+test('an extension is refused without a price for every new night', function () {
+    $t = twoTenants();
+    $reservation = inHouse($t->a);
+    assertExtensionRefused($t->a, $reservation, '2026-12-16', 'departure');
+});
+
+test('an extension must depart after the current departure', function (string $departure) {
+    $t = twoTenants();
+    $reservation = inHouse($t->a);
+    assertExtensionRefused($t->a, $reservation, $departure, 'departure');
+})->with(['2026-12-12', '2026-12-11']);
+
+test('only an in-house reservation can be extended', function (ReservationStatus $status) {
+    $t = twoTenants();
+    $reservation = inHouse($t->a);
+    inTenant($t->a->property, fn () => $reservation->update(['status' => $status]));
+    assertExtensionRefused($t->a, $reservation, '2026-12-14', 'reservation');
+})->with(array_filter(ReservationStatus::cases(), fn ($status) => $status !== ReservationStatus::CheckedIn));
