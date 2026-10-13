@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Web\FrontDesk\AddGuestController;
 use App\Http\Controllers\Web\FrontDesk\CheckInController;
 use App\Http\Controllers\Web\FrontDesk\RoomMoveController;
 use App\Http\Controllers\Web\Reservations\AmendReservationController;
@@ -23,5 +24,6 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::post('reservations/{reservation:reservation_number}/cancel', CancelReservationController::class)->middleware('property.intent')->name('reservations.cancel');
     Route::post('reservations/{reservation:reservation_number}/check-in', CheckInController::class)->middleware('property.intent')->name('reservations.check-in');
     Route::post('reservations/{reservation:reservation_number}/room-move', RoomMoveController::class)->middleware('property.intent')->name('reservations.room-move');
+    Route::post('reservations/{reservation:reservation_number}/add-guest', AddGuestController::class)->middleware('property.intent')->name('reservations.add-guest');
     Route::get('reservations/{reservation:reservation_number}', [ReservationController::class, 'show'])->name('reservations.show');
 });

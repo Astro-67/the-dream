@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web\Guests;
 use App\Domains\Guests\Actions\AttachReservationGuest;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Http\Controllers\Controller;
@@ -28,6 +29,7 @@ class ReservationGuestController extends Controller
             'reservationNumber' => $reservation->reservation_number,
             'guests' => Guest::query()->whereIn('id', ReservationGuest::query()->where('reservation_id', $reservation->id)->select('guest_id'))->orderBy('id')->paginate(50, ['id', ...Guest::FIELDS])->withQueryString(),
             'canAttach' => $request->user()?->can('attachGuest', $reservation),
+            'inHouse' => $reservation->status === ReservationStatus::CheckedIn,
             'canViewIdentity' => Access::allows($request->user(), OrganizationPermission::GuestIdentityView, Tenancy::property()),
         ]);
     }

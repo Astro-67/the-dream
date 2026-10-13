@@ -2,8 +2,8 @@
 
 namespace App\Domains\FrontDesk\Actions;
 
+use App\Domains\FrontDesk\Registration;
 use App\Domains\Guests\Models\Guest;
-use App\Domains\Guests\Models\IdentityDocument;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Actions\SetRoomOccupied;
 use App\Domains\Housekeeping\RoomReadiness;
@@ -11,7 +11,6 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
-use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -43,7 +42,7 @@ class CheckIn
             if (! $readiness->isReady($room)) {
                 throw ValidationException::withMessages(['room' => __('Room :number is not ready.', ['number' => $room->getAttribute('number')])]);
             }
-            $this->ensureRegistered($locked, JurisdictionRules::requiredRegistrationFields($property));
+            Registration::ensure($property, Guest::query()->whereIn('id', ReservationGuest::query()->select('guest_id')->where('reservation_id', $locked->id))->get());
 
             $locked->update(['status' => ReservationStatus::CheckedIn]);
             app(SetRoomOccupied::class)->handle($actor, $room, 'Check-in '.$locked->reservation_number);
@@ -52,20 +51,5 @@ class CheckIn
 
             return $locked;
         }, attempts: 3));
-    }
-
-    /** @param list<string> $fields */
-    private function ensureRegistered(Reservation $reservation, array $fields): void
-    {
-        if ($fields === []) {
-            return;
-        }
-        $guests = Guest::query()->whereIn('id', ReservationGuest::query()->select('guest_id')->where('reservation_id', $reservation->id))->with('documents')->get();
-        $missing = $guests->isEmpty() ? [__('Add a guest')] : $guests
-            ->reject(fn (Guest $guest) => $guest->documents->contains(fn (IdentityDocument $document) => collect($fields)->every(fn (string $field) => filled($document->getAttribute($field)))))
-            ->map->name->all();
-        if ($missing !== []) {
-            throw ValidationException::withMessages(['guests' => __('Registration incomplete (:fields required): :guests.', ['fields' => implode(', ', $fields), 'guests' => implode(', ', $missing)])]);
-        }
     }
 }
