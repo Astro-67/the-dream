@@ -97,7 +97,9 @@ test('the daily extension fills the horizon for every property and is safe to ru
         })];
     }
 
-    $this->travelTo(now()->addDays(3));
+    foreach ([$t->a->property, $t->b->property] as $property) {
+        $property->update(['business_date' => '2026-10-11']);
+    }
     $this->artisan('inventory:extend')->assertSuccessful();
     $this->artisan('inventory:extend')->assertSuccessful();
 

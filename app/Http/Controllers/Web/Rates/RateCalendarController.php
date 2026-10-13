@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Rates;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Inventory\RoomAvailability;
 use App\Domains\Rates\Actions\SetRatePrices;
@@ -17,7 +18,6 @@ use App\Http\Requests\Rates\BulkPriceRequest;
 use App\Http\Requests\Rates\BulkRestrictionRequest;
 use App\Http\Requests\Rates\RateCalendarRequest;
 use App\Models\User;
-use App\Support\Tenancy\Tenancy;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -29,7 +29,7 @@ class RateCalendarController extends Controller
 {
     public function index(RateCalendarRequest $request, RoomAvailability $availability, StayPricing $pricing, ReservationCalendar $calendar): Response
     {
-        $today = CarbonImmutable::now(Tenancy::property()?->timezone)->startOfDay();
+        $today = CarbonImmutable::parse(BusinessDate::current());
         $from = $request->string('from', $today->toDateString())->value();
         $to = $request->string('to', $today->addDays(13)->toDateString())->value();
         $dates = DateRange::dates($from, $to);

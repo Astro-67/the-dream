@@ -19,7 +19,7 @@ final class FutureReservations
         return Tenancy::within(TenantContext::forOrganization($property->organization_id), fn () => Reservation::query()
             ->where('property_id', $property->id)
             ->where('status', ReservationStatus::Confirmed)
-            ->whereDate('departure', '>', now($property->timezone)->toDateString())
+            ->whereDate('departure', '>', $property->business_date->toDateString())
             ->exists());
     }
 }

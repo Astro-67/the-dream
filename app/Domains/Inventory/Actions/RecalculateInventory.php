@@ -7,7 +7,6 @@ use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Inventory\RoomAvailability;
 use App\Domains\Tenancy\Models\Property;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -27,7 +26,7 @@ class RecalculateInventory
         DB::transaction(function () use ($roomType): void {
             $type = RoomType::query()->whereKey($roomType->id)->lockForUpdate()->firstOrFail();
             $property = Property::query()->findOrFail($type->property_id);
-            $today = CarbonImmutable::now($property->timezone)->startOfDay();
+            $today = $property->business_date;
             $end = $today->addYearsNoOverflow((int) config('inventory.horizon_years'));
             $last = InventoryRecord::query()->where('room_type_id', $type->id)->orderByDesc('date')->first();
             if ($last !== null && $last->date->gt($end)) {

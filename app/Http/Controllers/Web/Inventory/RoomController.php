@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Inventory;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\DeactivateRoom;
 use App\Domains\Inventory\Actions\MoveRoom;
@@ -12,8 +13,6 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\RoomRequest;
 use App\Models\User;
-use App\Support\Tenancy\Tenancy;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -73,7 +72,7 @@ class RoomController extends Controller
     {
         Gate::authorize('update', $room);
 
-        $today = CarbonImmutable::now(Tenancy::property()?->timezone)->toDateString();
+        $today = BusinessDate::current();
 
         return Inertia::render('inventory/rooms/edit', [
             'room' => $room->only(['id', 'number', 'floor', 'room_type_id']),

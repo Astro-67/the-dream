@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Inventory;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Actions\UpdateRoomType;
 use App\Domains\Inventory\Models\InventoryRecord;
@@ -9,8 +10,6 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\RoomTypeRequest;
 use App\Models\User;
-use App\Support\Tenancy\Tenancy;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -29,7 +28,7 @@ class RoomTypeController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $today = CarbonImmutable::now(Tenancy::property()?->timezone)->toDateString();
+        $today = BusinessDate::current();
 
         return Inertia::render('inventory/room-types/index', [
             'canManage' => $user->can('create', RoomType::class),

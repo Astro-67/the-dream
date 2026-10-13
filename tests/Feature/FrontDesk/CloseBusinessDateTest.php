@@ -104,7 +104,6 @@ test('a failed close rolls back all new charges and can resume beside a charge a
 
 test('a fixture close charges only in-house reservations including departures and overdue departures', function () {
     [$owner, , $property] = organizationWithOwner();
-    $property->update(['business_date' => '2026-12-12']);
     inTenant($property, function () use ($owner, $property) {
         $details = BookingForm::details($owner);
         foreach (range(2, 7) as $number) {
@@ -124,6 +123,7 @@ test('a fixture close charges only in-house reservations including departures an
         $midStay->update(['status' => ReservationStatus::CheckedIn]);
         $arrivedToday = app(CreateReservation::class)->handle($owner, [...$details, 'arrival' => '2026-12-12', 'departure' => '2026-12-13']);
         $arrivedToday->update(['status' => ReservationStatus::CheckedIn]);
+        $property->update(['business_date' => '2026-12-12']);
 
         app(CloseBusinessDate::class)->handle(null, $property, '2026-12-12');
 
