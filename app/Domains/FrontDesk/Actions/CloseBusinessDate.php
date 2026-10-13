@@ -49,9 +49,10 @@ class CloseBusinessDate
                 $this->recordPriceChange($actor, $reservation, $charge, $date);
             }
             app(ProposeNoShows::class)->handle($property, $date);
-            $this->carryExceptions($close, $property->business_date->addDay()->toDateString());
-            $this->markStayovers($actor, $property, $property->business_date->addDay()->toDateString());
-            $property->update(['business_date' => $property->business_date->addDay()->toDateString()]);
+            $nextDate = $property->business_date->addDay()->toDateString();
+            $this->carryExceptions($close, $property, $nextDate);
+            $this->markStayovers($actor, $property, $nextDate);
+            $property->update(['business_date' => $nextDate]);
             $close->update(['completed_at' => now()]);
             Audit::record($actor, 'closed', $close, 'Business date closed', ['business_date' => $date]);
 
@@ -73,14 +74,14 @@ class CloseBusinessDate
     }
 
     /** Unresolved items never stall the close; they go on the next date's list. */
-    private function carryExceptions(BusinessDateClose $close, string $nextDate): void
+    private function carryExceptions(BusinessDateClose $close, Property $property, string $nextDate): void
     {
         $items = [
-            ...NoShowProposal::query()->where('status', 'proposed')->with('reservation:id,reservation_number')->get()
+            ...NoShowProposal::query()->where('property_id', $property->id)->where('status', 'proposed')->with('reservation:id,reservation_number')->get()
                 ->map(fn (NoShowProposal $p) => ['no_show', $p->id, $p->reservation->reservation_number]),
-            ...Reservation::query()->where('status', ReservationStatus::CheckedIn)->whereDate('departure', '<', $nextDate)->get()
+            ...Reservation::query()->where('property_id', $property->id)->where('status', ReservationStatus::CheckedIn)->whereDate('departure', '<', $nextDate)->get()
                 ->map(fn (Reservation $r) => ['departure', $r->id, $r->reservation_number]),
-            ...CashierShift::query()->where('status', 'open')->with('user:id,name')->get()
+            ...CashierShift::query()->where('property_id', $property->id)->where('status', 'open')->with('user:id,name')->get()
                 ->map(fn (CashierShift $s) => ['cashier_shift', $s->id, $s->user->name]),
         ];
         foreach ($items as [$kind, $subject, $reference]) {
