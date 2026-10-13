@@ -19,7 +19,7 @@ import {
 import { formatDate } from '@/features/platform/format';
 import { formatMoney } from '@/lib/utils';
 import { index } from '@/routes/night-audit';
-import { resolve } from '@/routes/no-show-proposals';
+import { confirm, reject } from '@/routes/no-show-proposals';
 import { show as reservation } from '@/routes/reservations';
 import type { Paginated } from '@/types';
 
@@ -215,25 +215,27 @@ function ResolveNoShow({
     labels: Record<string, string>;
 }) {
     return (
-        <Form {...resolve.form(id)} options={{ preserveScroll: true }}>
-            {({ errors, processing }) => (
-                <>
-                    <PropertyIntent />
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            type="submit"
-                            name="decision"
-                            value="confirm"
-                            size="sm"
-                            disabled={processing}
-                        >
+        <div className="flex flex-wrap gap-2">
+            <Form {...confirm.form(id)} options={{ preserveScroll: true }}>
+                {({ errors, processing }) => (
+                    <>
+                        <PropertyIntent />
+                        <Button type="submit" size="sm" disabled={processing}>
                             {processing && <Spinner />}
                             {labels.confirm}
                         </Button>
+                        <InputError
+                            message={errors.no_show ?? errors.reservation}
+                        />
+                    </>
+                )}
+            </Form>
+            <Form {...reject.form(id)} options={{ preserveScroll: true }}>
+                {({ errors, processing }) => (
+                    <>
+                        <PropertyIntent />
                         <Button
                             type="submit"
-                            name="decision"
-                            value="reject"
                             size="sm"
                             variant="outline"
                             disabled={processing}
@@ -241,16 +243,10 @@ function ResolveNoShow({
                             {processing && <Spinner />}
                             {labels.reject}
                         </Button>
-                    </div>
-                    <InputError
-                        message={
-                            errors.no_show ??
-                            errors.reservation ??
-                            errors.decision
-                        }
-                    />
-                </>
-            )}
-        </Form>
+                        <InputError message={errors.no_show} />
+                    </>
+                )}
+            </Form>
+        </div>
     );
 }

@@ -16,6 +16,25 @@ use Tests\Support\InventoryForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
+// Alpha's members try to confirm or reject Bravo's no-show proposal.
+$attackNoShow = fn (string $route) => function (TwoTenants $t) use ($route) {
+    $t->b->property->update(['business_date' => '2026-12-10']);
+    $proposal = inTenant($t->b->property, function () use ($t) {
+        app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+        app(CloseBusinessDate::class)->handle(null, $t->b->property, '2026-12-10');
+
+        return NoShowProposal::query()->sole();
+    });
+    $responses = [];
+    foreach ($t->a->members() as $member) {
+        $responses[] = $this->actingAs($member)->post(route($route, $proposal), ['_property' => $t->a->property->id])->assertNotFound();
+    }
+    inTenant($t->b->property, fn () => expect($proposal->fresh()->status)->toBe('proposed')
+        ->and($proposal->reservation->status)->toBe(ReservationStatus::Confirmed));
+
+    return $responses;
+};
+
 // Alpha's members try to change the length of Bravo's in-house stay.
 $attackStayLength = fn (string $route) => function (TwoTenants $t) use ($route) {
     $this->travelTo('2026-12-10 09:00:00');
@@ -66,23 +85,8 @@ return [
 
         return $responses;
     }),
-    'no-show-proposals.resolve' => RouteCoverage::attempt(function (TwoTenants $t) {
-        $t->b->property->update(['business_date' => '2026-12-10']);
-        $proposal = inTenant($t->b->property, function () use ($t) {
-            app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
-            app(CloseBusinessDate::class)->handle(null, $t->b->property, '2026-12-10');
-
-            return NoShowProposal::query()->sole();
-        });
-        $responses = [];
-        foreach ($t->a->members() as $member) {
-            $responses[] = $this->actingAs($member)->post(route('no-show-proposals.resolve', $proposal), ['_property' => $t->a->property->id, 'decision' => 'confirm'])->assertNotFound();
-        }
-        inTenant($t->b->property, fn () => expect($proposal->fresh()->status)->toBe('proposed')
-            ->and($proposal->reservation->status)->toBe(ReservationStatus::Confirmed));
-
-        return $responses;
-    }),
+    'no-show-proposals.confirm' => RouteCoverage::attempt($attackNoShow('no-show-proposals.confirm')),
+    'no-show-proposals.reject' => RouteCoverage::attempt($attackNoShow('no-show-proposals.reject')),
     'reservations.check-in' => RouteCoverage::attempt(function (TwoTenants $t) {
         $this->travelTo('2026-12-10 09:00:00');
         $reservation = inTenant($t->b->property, function () use ($t) {

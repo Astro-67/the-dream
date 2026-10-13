@@ -17,6 +17,6 @@ class ResolveNoShowRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return ['decision' => ['required', 'in:confirm,reject']];
+        return [];
     }
 }

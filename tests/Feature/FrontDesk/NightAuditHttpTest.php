@@ -91,9 +91,9 @@ test('the close summary lists its no-show proposals and a manager confirms or re
         ->where('noShowsProposed', 2)->has('noShows', 2)
         ->where('noShows.0.reservation_number', $first->reservation_number)
         ->where('noShows.0.status', 'proposed')->where('noShows.0.can_resolve', true));
-    $this->post(route('no-show-proposals.resolve', $proposal), ['_property' => $property->id, 'decision' => 'confirm'])
+    $this->from(route('night-audit.show', $close))->post(route('no-show-proposals.confirm', $proposal), ['_property' => $property->id])
         ->assertRedirect(route('night-audit.show', $close));
-    $this->post(route('no-show-proposals.resolve', $other), ['_property' => $property->id, 'decision' => 'reject']);
+    $this->post(route('no-show-proposals.reject', $other), ['_property' => $property->id]);
 
     inTenant($property, fn () => expect($first->fresh()->status)->toBe(ReservationStatus::NoShow)
         ->and($second->fresh()->status)->toBe(ReservationStatus::Confirmed)
@@ -110,9 +110,10 @@ test('staff without the close permission cannot confirm or reject a no-show', fu
 
         return NoShowProposal::query()->sole();
     });
-    $this->actingAs($tenants->a->member($role))
-        ->post(route('no-show-proposals.resolve', $proposal), ['_property' => $property->id, 'decision' => 'confirm'])
-        ->assertForbidden();
+    $this->actingAs($tenants->a->member($role));
+    foreach (['confirm', 'reject'] as $decision) {
+        $this->post(route('no-show-proposals.'.$decision, $proposal), ['_property' => $property->id])->assertForbidden();
+    }
     inTenant($property, fn () => expect($proposal->fresh()->status)->toBe('proposed')
         ->and($proposal->reservation->status)->toBe(ReservationStatus::Confirmed));
 })->with([OrganizationRole::FrontDesk, OrganizationRole::Finance, OrganizationRole::Housekeeping, OrganizationRole::Auditor]);
