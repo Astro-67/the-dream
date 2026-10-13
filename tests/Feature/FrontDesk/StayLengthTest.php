@@ -18,6 +18,7 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
+use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 use Tests\Support\TenantFixture;
@@ -201,6 +202,14 @@ test('only reservation managers may extend or record an early departure', functi
     $this->actingAs($member)->post(route('reservations.depart-early', $reservation), ['_property' => $t->a->property->id])->assertStatus($allowed ? 302 : 403);
     inTenant($t->a->property, fn () => expect($reservation->fresh()->departure->toDateString())->toBe($allowed ? '2026-12-12' : '2026-12-14'));
 })->with(array_map(fn ($role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::PropertyManager, OrganizationRole::FrontDesk], true)], OrganizationRole::cases()));
+
+test('the reservation page offers stay changes to those who may make them', function (OrganizationRole $role, bool $offered) {
+    $t = twoTenants();
+    $reservation = stayingFourNights($t->a);
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->member($role))->get(route('reservations.show', $reservation))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('can.changeStay', $offered));
+})->with([[OrganizationRole::FrontDesk, true], [OrganizationRole::Finance, false]]);
 
 test('stay changes require the opening property intent', function (string $route) {
     $t = twoTenants();
