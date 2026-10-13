@@ -2,10 +2,12 @@
 
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
@@ -27,6 +29,31 @@ return [
             expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed)
                 ->and($reservation->lifecycleEvents()->count())->toBe(1)
                 ->and(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Clean);
+        });
+
+        return $responses;
+    }),
+
+    'reservations.room-move' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $this->travelTo('2026-12-10 09:00:00');
+        [$reservation, $other] = inTenant($t->b->property, function () use ($t) {
+            $details = BookingForm::details($t->b->owner);
+            $room = Room::query()->sole();
+            $other = app(CreateRoom::class)->handle($t->b->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+            RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+            $reservation = app(CreateReservation::class)->handle($t->b->owner, [...$details, 'room_id' => $room->id]);
+            $reservation->update(['status' => ReservationStatus::CheckedIn]);
+
+            return [$reservation, $other];
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('reservations.room-move', $reservation), ['_property' => $t->a->property->id, 'room_id' => $other->id])->assertNotFound();
+        }
+        inTenant($t->b->property, function () use ($reservation) {
+            expect($reservation->fresh()->room_id)->toBe($reservation->room_id)
+                ->and($reservation->lifecycleEvents()->where('type', 'room_moved')->exists())->toBeFalse()
+                ->and(RoomStatus::query()->pluck('status')->unique()->all())->toBe([HousekeepingStatus::Clean]);
         });
 
         return $responses;
