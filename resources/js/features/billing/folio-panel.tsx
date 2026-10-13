@@ -18,12 +18,25 @@ import {
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
 import { store } from '@/routes/folios/charges';
+import {
+    OpenFolioForm,
+    PostingActions,
+    PostingLink,
+} from './folio-corrections';
 
 export type Posting = {
     id: string;
     type: string;
     category: string;
     description: string | null;
+    reason: string | null;
+    related: {
+        id: string;
+        type: string;
+        category: string;
+        folio_id: string;
+    } | null;
+    cancelled_by: { id: string; type: string; folio_id: string } | null;
     quantity: number;
     unit_price: number;
     net: number;
@@ -72,11 +85,11 @@ export function FolioPanel({
                     </div>
                 ))}
             </dl>
-            {folios.map((folio) => (
+            {folios.map((folio, index) => (
                 <div key={folio.id} className="space-y-3">
                     {folios.length > 1 && (
                         <h3 className="font-semibold">
-                            {folio.currency} folio
+                            Folio {index + 1} ({folio.currency})
                         </h3>
                     )}
                     {folio.postings.length === 0 ? (
@@ -91,6 +104,9 @@ export function FolioPanel({
                                     <TableHead numeric>Unit price</TableHead>
                                     <TableHead numeric>Tax</TableHead>
                                     <TableHead numeric>Amount</TableHead>
+                                    <TableHead>
+                                        <span className="sr-only">Actions</span>
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -120,6 +136,10 @@ export function FolioPanel({
                                                     {posting.description}
                                                 </div>
                                             )}
+                                            <PostingLink
+                                                posting={posting}
+                                                folios={folios}
+                                            />
                                         </TableCell>
                                         <TableCell numeric>
                                             {posting.quantity}
@@ -147,6 +167,13 @@ export function FolioPanel({
                                                 folio.currency,
                                             )}
                                         </TableCell>
+                                        <TableCell>
+                                            <PostingActions
+                                                posting={posting}
+                                                folio={folio}
+                                                folios={folios}
+                                            />
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -155,6 +182,7 @@ export function FolioPanel({
                     {canPostCharge && <ExtraChargeForm folio={folio} />}
                 </div>
             ))}
+            <OpenFolioForm />
         </section>
     );
 }
