@@ -141,3 +141,15 @@ test('closing requires the named property context even within the same organizat
             ->and(BusinessDate::of($tenants->a->otherProperty->fresh()))->toBe('2026-12-10');
     });
 });
+
+test('room charging refuses a reservation that is not in house', function (ReservationStatus $status) {
+    [$owner, , $property] = organizationWithOwner();
+    $property->update(['business_date' => '2026-12-10']);
+    inTenant($property, function () use ($owner, $status) {
+        $reservation = app(CreateReservation::class)->handle($owner, BookingForm::details($owner));
+        $reservation->update(['status' => $status]);
+        expect(fn () => app(PostRoomCharge::class)->handle($owner, $reservation, '2026-12-10'))
+            ->toThrow(ValidationException::class);
+        expect(Posting::query()->count())->toBe(0);
+    });
+})->with([ReservationStatus::Confirmed, ReservationStatus::CheckedOut, ReservationStatus::Cancelled]);

@@ -6,6 +6,7 @@ use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Rates\Enums\ChargeKind;
 use App\Domains\Rates\TaxCalculator;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -23,6 +24,9 @@ class PostRoomCharge
             $existing = Posting::query()->where('reservation_id', $reservation->id)->whereDate('business_date', $date)->where('category', 'room')->first();
             if ($existing !== null) {
                 return $existing;
+            }
+            if ($reservation->status !== ReservationStatus::CheckedIn || $date < $reservation->arrival->toDateString()) {
+                throw ValidationException::withMessages(['reservation' => __('Room charges require an in-house reservation on the business date.')]);
             }
             $line = $reservation->priceLines()->whereDate('date', $date)->first();
             if ($line === null && $date >= $reservation->departure->toDateString()) {
