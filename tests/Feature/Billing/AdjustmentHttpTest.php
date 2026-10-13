@@ -6,6 +6,7 @@ use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordAdjustment;
 use App\Domains\Billing\Actions\SetApprovalThreshold;
 use App\Domains\Billing\Models\ApprovalThreshold;
+use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\PostingApproval;
