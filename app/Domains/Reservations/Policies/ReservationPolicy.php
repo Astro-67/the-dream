@@ -6,28 +6,27 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationPermission as P;
 use App\Models\User;
 use App\Support\Tenancy\Access;
-use App\Support\Tenancy\Tenancy;
 
 class ReservationPolicy
 {
     public function viewAny(User $user): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ReservationsView, Tenancy::property());
+        return Access::inProperty($user, P::ReservationsView);
     }
 
     public function create(User $user): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, Tenancy::property());
+        return Access::inProperty($user, P::ReservationsManage);
     }
 
     public function assignRoom(User $user, Reservation $reservation): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::RoomsAssign, $reservation);
+        return Access::inProperty($user, P::RoomsAssign, $reservation);
     }
 
     public function void(User $user, Reservation $reservation): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ReservationsVoid, $reservation);
+        return Access::inProperty($user, P::ReservationsVoid, $reservation);
     }
 
     public function amend(User $user, Reservation $reservation): bool
@@ -37,17 +36,17 @@ class ReservationPolicy
 
     public function cancel(User $user, Reservation $reservation): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+        return Access::inProperty($user, P::ReservationsManage, $reservation);
     }
 
     public function checkIn(User $user, Reservation $reservation): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+        return Access::inProperty($user, P::ReservationsManage, $reservation);
     }
 
     public function checkOut(User $user, Reservation $reservation): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+        return Access::inProperty($user, P::ReservationsManage, $reservation);
     }
 
     /** Check out leaving an open balance after departure. */
@@ -58,13 +57,13 @@ class ReservationPolicy
 
     public function moveRoom(User $user, Reservation $reservation): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+        return Access::inProperty($user, P::ReservationsManage, $reservation);
     }
 
     /** Extend a stay or record an early departure. */
     public function changeStay(User $user, Reservation $reservation): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ReservationsManage, $reservation);
+        return Access::inProperty($user, P::ReservationsManage, $reservation);
     }
 
     public function attachGuest(User $user, Reservation $reservation): bool
@@ -74,6 +73,6 @@ class ReservationPolicy
 
     public function view(User $user, Reservation $reservation): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ReservationsView, $reservation);
+        return Access::inProperty($user, P::ReservationsView, $reservation);
     }
 }
