@@ -5,6 +5,9 @@ use App\Domains\Housekeeping\Actions\SetRoomOccupied;
 use App\Domains\Housekeeping\Models\StayoverService;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
@@ -43,4 +46,29 @@ test('a property manager can toggle stayover service on close and housekeeping c
     $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('property.stayover_service_on_close', true));
     $this->put(route('properties.update', $t->a->property), PropertyForm::payload(['_property' => $t->a->property->id]))->assertSessionHasNoErrors();
     $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('property.stayover_service_on_close', true));
+});
+
+test('closing records a nightly price change only when the next night differs, once per reservation and date', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $property->update(['business_date' => '2026-12-10', 'stayover_service_on_close' => true]);
+    inTenant($property, function () use ($owner, $property) {
+        $details = BookingForm::details($owner);
+        app(CreateRoom::class)->handle($owner, [...InventoryForm::room($details['room_type_id']), 'number' => '2']);
+        [$changed, $steady] = [app(CreateReservation::class)->handle($owner, $details), app(CreateReservation::class)->handle($owner, $details)];
+        foreach ([$changed, $steady] as $reservation) {
+            $reservation->update(['status' => ReservationStatus::CheckedIn]);
+        }
+        $changed->priceLines()->whereDate('date', '2026-12-11')->update(['amount' => 9000]);
+        app(SetRoomOccupied::class)->handle($owner, Room::query()->firstOrFail(), 'Check-in');
+
+        app(CloseBusinessDate::class)->handle(null, $property, '2026-12-10');
+        app(CloseBusinessDate::class)->handle(null, $property, '2026-12-10');
+
+        $event = ReservationLifecycleEvent::query()->where('type', 'nightly_price_changed')->sole();
+        expect($event->reservation_id)->toBe($changed->id)
+            ->and($event->business_date->toDateString())->toBe('2026-12-10')
+            ->and($event->actor_id)->toBeNull()
+            ->and($event->snapshot)->toMatchArray(['date' => '2026-12-11', 'previous_amount' => 11000, 'amount' => 9000, 'currency' => 'USD'])
+            ->and(StayoverService::query()->count())->toBe(1);
+    });
 });
