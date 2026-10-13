@@ -8,6 +8,7 @@ use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
+use Tests\Support\PropertyForm;
 
 /** A reservation in $property whose stay has ended, its folio carrying one 500 charge. */
 function departedFolioWithCharge(User $owner, Property $property): Folio
@@ -19,6 +20,17 @@ function departedFolioWithCharge(User $owner, Property $property): Folio
         app(PostExtraCharge::class)->handle($owner, $folio, ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 500]);
 
         return $folio;
+    });
+}
+
+/** A checked-in reservation in $property with nothing posted yet. */
+function inHouseFolio(User $owner, Property $property): Folio
+{
+    return inTenant($property, function () use ($owner) {
+        $reservation = app(CreateReservation::class)->handle($owner, BookingForm::details($owner));
+        $reservation->update(['status' => 'checked_in']);
+
+        return Folio::query()->where('reservation_id', $reservation->id)->sole();
     });
 }
 
@@ -50,4 +62,33 @@ test('a folio with an open balance refuses archival with a clear audited reason,
 
     $this->post(route('properties.archive', $t->a->otherProperty), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
     expect(inTenant($t->a->organization, fn () => $t->a->otherProperty->fresh()->archived_at))->not->toBeNull();
+});
+
+test('open folios refuse a jurisdiction profile change with a clear audited reason', function (string $state) {
+    $this->travelTo(now()->setDate(2026, 12, 9));
+    $t = twoTenants();
+    $state === 'open balance' ? departedFolioWithCharge($t->a->owner, $t->a->property) : inHouseFolio($t->a->owner, $t->a->property);
+
+    $this->actingAs($t->a->owner)
+        ->from(route('properties.edit', $t->a->property))
+        ->put(route('properties.update', $t->a->property), PropertyForm::payload(['_property' => $t->a->property->id]))
+        ->assertRedirect(route('properties.edit', $t->a->property))
+        ->assertSessionHasErrors(['jurisdiction_profile' => 'This property has open folios. Settle them and check out in-house guests before changing its jurisdiction profile.']);
+
+    expect(inTenant($t->a->organization, fn () => $t->a->property->fresh()->jurisdiction_profile->value))->toBe('zanzibar');
+    $refusal = Activity::query()->where('subject_id', $t->a->property->id)->where('event', 'refused')->sole();
+    expect($refusal->getExtraProperty('result'))->toBe('refused');
+})->with(['open balance', 'guest in house']);
+
+test('settled folios and open folios elsewhere leave the profile free to change', function () {
+    $this->travelTo(now()->setDate(2026, 12, 9));
+    $t = twoTenants();
+    settleFolio($t->a->property, departedFolioWithCharge($t->a->owner, $t->a->property));
+    departedFolioWithCharge($t->a->owner, $t->a->otherProperty);
+    departedFolioWithCharge($t->b->owner, $t->b->property);
+
+    $this->actingAs($t->a->owner)
+        ->put(route('properties.update', $t->a->property), PropertyForm::payload(['_property' => $t->a->property->id]))
+        ->assertSessionHasNoErrors();
+    expect(inTenant($t->a->organization, fn () => $t->a->property->fresh()->jurisdiction_profile->value))->toBe('mainland_tanzania');
 });

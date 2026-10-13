@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tenancy\Jurisdiction;
 
+use App\Domains\Billing\OpenFolios;
 use App\Domains\Reservations\FutureReservations;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Models\Property;
@@ -59,14 +60,22 @@ final class JurisdictionRules
      * Refuses a jurisdiction profile change that would break what depends on
      * the current profile (PRD §6: not while the property has future
      * reservations or open folios). UpdateProperty calls it before saving.
-     *
-     * ponytail: open folios are not checked until Spec 6 adds that guard.
      */
     public static function ensureProfileCanChange(Property $property, JurisdictionProfile $to): void
     {
-        if ($to !== $property->jurisdiction_profile && FutureReservations::existFor($property)) {
+        if ($to === $property->jurisdiction_profile) {
+            return;
+        }
+
+        if (FutureReservations::existFor($property)) {
             throw ValidationException::withMessages([
                 'jurisdiction_profile' => __('This property has future confirmed reservations. Cancel or complete them before changing its jurisdiction profile.'),
+            ]);
+        }
+
+        if (OpenFolios::existFor($property)) {
+            throw ValidationException::withMessages([
+                'jurisdiction_profile' => __('This property has open folios. Settle them and check out in-house guests before changing its jurisdiction profile.'),
             ]);
         }
     }
