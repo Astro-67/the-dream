@@ -14,6 +14,7 @@ use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
+use Inertia\Testing\AssertableInertia;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
@@ -116,6 +117,34 @@ test('an override needs a reason', function () {
 
     $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id, 'override_reason' => '   '])
         ->assertUnprocessable()->assertJsonValidationErrors('balance');
+});
+
+test('a stay departing later needs an early departure before check-out', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    $this->travelTo(CarbonImmutable::parse('2026-12-11 09:00:00', 'Africa/Dar_es_Salaam'));
+
+    $this->actingAs($t->a->owner)->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('reservation');
+});
+
+test('today\'s departures list offers check-out to those who may check out', function (OrganizationRole $role, bool $offered) {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+
+    $this->actingAs($t->a->member($role))->get(route('reservations.index', ['list' => 'departures']))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.reservation_number', $reservation->reservation_number)->where('reservations.data.0.can_check_out', $offered));
+})->with([[OrganizationRole::FrontDesk, true], [OrganizationRole::PropertyManager, true], [OrganizationRole::Finance, false], [OrganizationRole::Auditor, false]]);
+
+test('check-out is not offered before the departure date or once checked out', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $this->travelTo(CarbonImmutable::parse('2026-12-11 09:00:00', 'Africa/Dar_es_Salaam'));
+    $this->get(route('reservations.index', ['list' => 'in-house']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.can_check_out', false));
+    $this->travelTo(CarbonImmutable::parse('2026-12-12 09:00:00', 'Africa/Dar_es_Salaam'));
+    $this->post(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
+    $this->get(route('reservations.index', ['list' => 'departures']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.status', 'checked_out')->where('reservations.data.0.can_check_out', false));
 });
 
 test('only an in-house reservation can be checked out', function () {

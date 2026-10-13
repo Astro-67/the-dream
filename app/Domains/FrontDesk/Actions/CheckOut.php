@@ -4,10 +4,12 @@ namespace App\Domains\FrontDesk\Actions;
 
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Housekeeping\Actions\ClearRoomOccupied;
+use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +29,10 @@ class CheckOut
             $locked = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();
             if ($locked->status !== ReservationStatus::CheckedIn) {
                 throw ValidationException::withMessages(['reservation' => __('Only in-house reservations can be checked out.')]);
+            }
+            // Leaving before the departure date must release the unused nights first.
+            if ($locked->departure->toDateString() > app(RoomReadiness::class)->businessDate(Property::query()->findOrFail($locked->property_id))) {
+                throw ValidationException::withMessages(['reservation' => __('This stay departs later. Record an early departure first.')]);
             }
             $open = Folio::query()->where('reservation_id', $locked->id)->orderBy('created_at')->lockForUpdate()->get()
                 ->map(fn (Folio $folio) => $folio->balance())->filter(fn ($balance) => $balance->amount !== 0)

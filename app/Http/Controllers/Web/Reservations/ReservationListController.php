@@ -22,7 +22,9 @@ class ReservationListController extends Controller
         $today = now(Tenancy::property()?->timezone)->toDateString();
         $reservations = $lists->query($list, $date, (string) $request->validated('search', ''))->paginate(50)->withQueryString();
         $reservations->getCollection()->each(fn (Reservation $reservation) => $reservation->setAttribute('can_check_in', $reservation->status === ReservationStatus::Confirmed
-            && $reservation->arrival->toDateString() === $today && Gate::allows('checkIn', $reservation)));
+            && $reservation->arrival->toDateString() === $today && Gate::allows('checkIn', $reservation))
+            ->setAttribute('can_check_out', $reservation->status === ReservationStatus::CheckedIn
+                && $reservation->departure->toDateString() <= $today && Gate::allows('checkOut', $reservation)));
 
         return Inertia::render('reservations/index', [
             'filters' => ['date' => $date, 'list' => $list, 'search' => $request->validated('search', '')],
