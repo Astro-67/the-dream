@@ -10,6 +10,7 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -18,6 +19,9 @@ class CloseBusinessDate
     public function handle(?User $actor, Property $property, string $date): BusinessDateClose
     {
         return Audit::validationRefusal($actor, $property, 'Night audit refused', fn () => DB::transaction(function () use ($actor, $property, $date) {
+            if (Tenancy::property()?->id !== $property->id) {
+                throw ValidationException::withMessages(['property' => __('Night audit requires the property in context.')]);
+            }
             $property = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
             $existing = BusinessDateClose::query()->where('property_id', $property->id)->whereDate('business_date', $date)->first();
             if ($existing?->completed_at !== null) {

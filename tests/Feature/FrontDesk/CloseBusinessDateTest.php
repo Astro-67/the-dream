@@ -130,3 +130,14 @@ test('a fixture close charges only in-house reservations including departures an
         }
     });
 });
+
+test('closing requires the named property context even within the same organization', function () {
+    $tenants = twoTenants();
+    $tenants->a->otherProperty->update(['business_date' => '2026-12-10']);
+    inTenant($tenants->a->property, function () use ($tenants) {
+        expect(fn () => app(CloseBusinessDate::class)->handle(null, $tenants->a->otherProperty, '2026-12-10'))
+            ->toThrow(ValidationException::class);
+        expect(BusinessDateClose::query()->count())->toBe(0)
+            ->and(BusinessDate::of($tenants->a->otherProperty->fresh()))->toBe('2026-12-10');
+    });
+});
