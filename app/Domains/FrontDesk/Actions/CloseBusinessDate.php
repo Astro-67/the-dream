@@ -5,6 +5,7 @@ namespace App\Domains\FrontDesk\Actions;
 use App\Domains\Billing\Actions\PostRoomCharge;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
+use App\Domains\Reservations\Actions\ProposeNoShows;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
@@ -37,6 +38,7 @@ class CloseBusinessDate
             foreach ($reservations as $reservation) {
                 app(PostRoomCharge::class)->handle($actor, $reservation, $date);
             }
+            app(ProposeNoShows::class)->handle($property, $date);
             $property->update(['business_date' => $property->business_date->addDay()->toDateString()]);
             $close->update(['completed_at' => now()]);
             Audit::record($actor, 'closed', $close, 'Business date closed', ['business_date' => $date]);
