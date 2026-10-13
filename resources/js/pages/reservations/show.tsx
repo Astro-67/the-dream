@@ -55,6 +55,7 @@ type Reservation = {
     outside_integration_reason: string | null;
     requires_reconciliation: boolean;
     payment_collector: string;
+    channel_collected_amount: number | null;
     price_lines: {
         id: string;
         date: string;
@@ -80,6 +81,7 @@ export default function Show({
     totals,
     canPostCharge,
     feeProposals,
+    canRecordPayment,
 }: {
     reservation: Reservation;
     roomType: Named;
@@ -105,6 +107,7 @@ export default function Show({
     totals: FolioTotal[];
     canPostCharge: boolean;
     feeProposals: FeeProposal[];
+    canRecordPayment: boolean;
 }) {
     return (
         <>
@@ -176,6 +179,18 @@ export default function Show({
                               ]
                             : []),
                         ['Payment collector', reservation.payment_collector],
+                        ...(reservation.channel_collected_amount !== null
+                            ? [
+                                  [
+                                      'Channel-collected amount',
+                                      formatMoney(
+                                          reservation.channel_collected_amount,
+                                          reservation.price_lines[0]
+                                              ?.currency ?? '',
+                                      ),
+                                  ],
+                              ]
+                            : []),
                     ].map(([label, value]) => (
                         <div key={label}>
                             <dt className="text-sm text-muted-foreground">
@@ -238,6 +253,11 @@ export default function Show({
                     folios={folios}
                     totals={totals}
                     canPostCharge={canPostCharge}
+                    canRecordPayment={canRecordPayment}
+                    channelCollected={
+                        reservation.payment_collector === 'channel' &&
+                        reservation.channel_collected_amount !== null
+                    }
                 />
                 <FeeProposals fees={feeProposals} />
                 <AmendmentHistory amendments={amendments} />

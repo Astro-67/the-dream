@@ -53,7 +53,7 @@ class ReservationController extends Controller
         Gate::authorize('view', $reservation);
         $canMove = $reservation->status === ReservationStatus::CheckedIn && Gate::allows('moveRoom', $reservation);
         // ponytail: a stay's postings are bounded by its nights and extras; paginate if long stays make this heavy.
-        $folios = Folio::query()->where('reservation_id', $reservation->id)->with('postings.actor:id,name')->orderBy('created_at')->get();
+        $folios = Folio::query()->where('reservation_id', $reservation->id)->with(['postings.actor:id,name', 'postings.receipt:id,posting_id,number'])->orderBy('created_at')->get();
         // Reversals and transfers link to the posting they cancel; show the link from both ends.
         $postings = $folios->flatMap(fn (Folio $folio) => $folio->postings)->keyBy('id');
         $cancelledBy = $postings->whereNotNull('related_posting_id')->keyBy('related_posting_id');
@@ -66,6 +66,7 @@ class ReservationController extends Controller
                     'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
                     'related' => ($related = $postings->get($posting->related_posting_id ?? '')) === null ? null : $related->only(['id', 'type', 'category', 'folio_id']),
                     'cancelled_by' => $cancelledBy->get($posting->id)?->only(['id', 'type', 'folio_id']),
+                    ...$posting->only(['method', 'reference', 'card_last_four', 'card_brand']), 'receipt' => $posting->receipt?->only(['id', 'number']),
                 ])->all(),
             ])->all(),
             'totals' => $folios->groupBy(fn (Folio $folio) => $folio->currency->value)->map(fn ($group, string $currency) => [
@@ -82,6 +83,7 @@ class ReservationController extends Controller
             'canTransfer' => $folios->count() > 1 && Gate::allows('transfer', $folios->first()),
             'canOpenFolio' => Gate::allows('create', [Folio::class, $reservation]),
             'folioCurrencies' => array_map(fn (Currency $currency) => $currency->value, JurisdictionRules::allowedCurrencies(Property::query()->findOrFail($reservation->property_id))),
+            'canRecordPayment' => $folios->isNotEmpty() && Gate::allows('recordPayment', $folios->first()),
             'reservation' => $reservation->load('priceLines'),
             'groupMembers' => $reservation->getAttribute('booking_group_id') === null ? [] : Reservation::query()
                 ->where('property_id', $reservation->property_id)
