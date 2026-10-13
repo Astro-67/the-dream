@@ -29,7 +29,7 @@ class DepartEarly
             if ($locked->status !== ReservationStatus::CheckedIn) {
                 throw ValidationException::withMessages(['reservation' => __('Only in-house reservations can depart early.')]);
             }
-            $today = BusinessDate::of($locked);
+            $today = BusinessDate::forPropertyId($locked->property_id);
             $previous = $locked->departure->toDateString();
             if ($today < $locked->arrival->toDateString() || $today >= $previous) {
                 throw ValidationException::withMessages(['reservation' => __('An early departure must be during the stay with a night left.')]);

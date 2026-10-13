@@ -28,7 +28,7 @@ class AssignableRooms
     public function forMove(Reservation $reservation): array
     {
         $readiness = app(RoomReadiness::class);
-        $from = max(BusinessDate::of($reservation), $reservation->arrival->toDateString());
+        $from = max(BusinessDate::forPropertyId($reservation->property_id), $reservation->arrival->toDateString());
         $to = $reservation->departure->toDateString();
 
         return Room::query()->active()->with('roomType:id,name')->whereKeyNot($reservation->room_id)

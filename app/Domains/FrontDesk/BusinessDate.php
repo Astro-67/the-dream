@@ -5,7 +5,6 @@ namespace App\Domains\FrontDesk;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Tenancy\Tenancy;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Model;
 use LogicException;
 
 /**
@@ -13,14 +12,15 @@ use LogicException;
  */
 class BusinessDate
 {
-    /**
-     * @param  Model  $subject  the property, or any record with a property_id
-     */
-    public static function of(Model $subject): string
+    public static function of(Property $property): string
     {
-        $property = $subject instanceof Property ? $subject : Property::query()->findOrFail($subject->getAttribute('property_id'));
-
         return $property->business_date->toDateString();
+    }
+
+    /** For a record's property_id, when only the record is at hand. */
+    public static function forPropertyId(string $propertyId): string
+    {
+        return self::of(Property::query()->findOrFail($propertyId));
     }
 
     /**

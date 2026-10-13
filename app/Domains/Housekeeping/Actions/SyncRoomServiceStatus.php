@@ -16,7 +16,7 @@ class SyncRoomServiceStatus
 {
     public function activePeriod(Room $room): ?OutOfServicePeriod
     {
-        $date = BusinessDate::of($room);
+        $date = BusinessDate::forPropertyId($room->property_id);
 
         return $room->outOfServicePeriods()->whereDate('starts_on', '<=', $date)->whereDate('returns_on', '>', $date)->first();
     }

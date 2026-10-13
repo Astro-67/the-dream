@@ -25,7 +25,7 @@ class RoomStatusController extends Controller
         Gate::authorize('view', RoomStatus::query()->where('room_id', $room->id)->sole());
 
         return Inertia::render('housekeeping/history', [
-            'businessDate' => BusinessDate::of($room),
+            'businessDate' => BusinessDate::forPropertyId($room->property_id),
             'room' => $room->only(['id', 'number']),
             'changes' => StatusChange::query()->where('room_id', $room->id)->with('actor')->orderByDesc('changed_at')->orderByDesc('id')->paginate(50)->withQueryString()
                 ->through(fn (StatusChange $change) => [

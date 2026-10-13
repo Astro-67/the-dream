@@ -73,7 +73,7 @@ class ReversePosting
             'related_posting_id' => $original->id, 'category' => $original->category, 'description' => $original->description,
             'quantity' => $original->quantity, 'unit_price' => $original->unit_price, 'net' => -$original->net, 'amount' => -$original->amount,
             'currency' => $original->currency, 'tax_lines' => array_map(fn (array $line) => [...$line, 'amount' => -$line['amount']], $original->tax_lines),
-            'tax_rule_ids' => $original->tax_rule_ids, 'business_date' => BusinessDate::of($original), 'posted_at' => now(), ...$attributes,
+            'tax_rule_ids' => $original->tax_rule_ids, 'business_date' => BusinessDate::forPropertyId($original->property_id), 'posted_at' => now(), ...$attributes,
         ];
     }
 }

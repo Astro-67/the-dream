@@ -22,7 +22,7 @@ class OverrideRoomReady
             if ($status->status === HousekeepingStatus::Unavailable || app(SyncRoomServiceStatus::class)->activePeriod($room) !== null) {
                 throw ValidationException::withMessages(['reason' => __('An out-of-service room cannot be made ready. Return it to service first.')]);
             }
-            $date = BusinessDate::of($room);
+            $date = BusinessDate::forPropertyId($room->property_id);
             $override = new StatusChange([
                 'room_id' => $room->id, 'actor_id' => $actor->id,
                 'from_status' => $status->status, 'to_status' => $status->status,

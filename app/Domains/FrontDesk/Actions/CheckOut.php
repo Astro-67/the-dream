@@ -30,7 +30,7 @@ class CheckOut
                 throw ValidationException::withMessages(['reservation' => __('Only in-house reservations can be checked out.')]);
             }
             // Leaving before the departure date must release the unused nights first.
-            if ($locked->departure->toDateString() > BusinessDate::of($locked)) {
+            if ($locked->departure->toDateString() > BusinessDate::forPropertyId($locked->property_id)) {
                 throw ValidationException::withMessages(['reservation' => __('This stay departs later. Record an early departure first.')]);
             }
             $open = Folio::query()->where('reservation_id', $locked->id)->orderBy('created_at')->lockForUpdate()->get()

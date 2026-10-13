@@ -120,7 +120,7 @@ test('out of service rooms refuse audited readiness overrides and ignore existin
         app(OverrideRoomReady::class)->handle($owner, $room, 'Approved before maintenance');
         if ($period) {
             app(TakeRoomOutOfService::class)->handle($owner, $room, [
-                'starts_on' => BusinessDate::of($room),
+                'starts_on' => BusinessDate::forPropertyId($room->property_id),
                 'returns_on' => now()->addDays(2)->toDateString(), 'reason' => 'Repairs',
             ]);
             RoomStatus::query()->sole()->update(['status' => HousekeepingStatus::Clean]);

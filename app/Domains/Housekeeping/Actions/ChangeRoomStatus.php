@@ -40,7 +40,7 @@ class ChangeRoomStatus
             $status->update(['status' => $to]);
             if ($from === HousekeepingStatus::InspectionRequired && $to === HousekeepingStatus::Dirty) {
                 Assignment::query()->where('room_id', $room->id)
-                    ->whereDate('business_date', BusinessDate::of($room))
+                    ->whereDate('business_date', BusinessDate::forPropertyId($room->property_id))
                     ->update(['completed_at' => null]);
             }
             $change = new StatusChange([

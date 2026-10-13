@@ -25,6 +25,6 @@ class RoomReadiness
     public function overrideFor(Room $room): ?StatusChange
     {
         return StatusChange::query()->where('room_id', $room->id)->where('kind', 'ready_override')
-            ->whereDate('business_date', BusinessDate::of($room))->latest('changed_at')->latest('id')->first();
+            ->whereDate('business_date', BusinessDate::forPropertyId($room->property_id))->latest('changed_at')->latest('id')->first();
     }
 }
