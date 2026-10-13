@@ -5,6 +5,9 @@ namespace App\Domains\FrontDesk\Actions;
 use App\Domains\Billing\Actions\PostRoomCharge;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
+use App\Domains\Housekeeping\Actions\MarkStayoverService;
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
@@ -37,11 +40,23 @@ class CloseBusinessDate
             foreach ($reservations as $reservation) {
                 app(PostRoomCharge::class)->handle($actor, $reservation, $date);
             }
+            $this->markStayovers($actor, $property, $property->business_date->addDay()->toDateString());
             $property->update(['business_date' => $property->business_date->addDay()->toDateString()]);
             $close->update(['completed_at' => now()]);
             Audit::record($actor, 'closed', $close, 'Business date closed', ['business_date' => $date]);
 
             return $close;
         }, attempts: 3));
+    }
+
+    private function markStayovers(?User $actor, Property $property, string $nextDate): void
+    {
+        if (! $property->stayover_service_on_close) {
+            return;
+        }
+        $statuses = RoomStatus::query()->with('room')->where('property_id', $property->id)->where('status', HousekeepingStatus::Occupied)->get();
+        foreach ($statuses as $status) {
+            app(MarkStayoverService::class)->handle($actor, $status->room, $nextDate);
+        }
     }
 }
