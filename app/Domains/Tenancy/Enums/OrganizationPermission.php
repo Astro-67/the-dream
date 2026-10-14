@@ -49,6 +49,8 @@ enum OrganizationPermission: string
     case GuestIdentityView = 'guests.identity.view';
     case ChargesPost = 'charges.post';
     case CheckoutOverrideBalance = 'checkout.override_balance';
+    case NightAuditView = 'night_audit.view';
+    case NightAuditClose = 'night_audit.close';
 
     // Housekeeping
     case HousekeepingView = 'housekeeping.view';

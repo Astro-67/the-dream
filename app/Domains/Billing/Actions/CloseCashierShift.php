@@ -2,6 +2,7 @@
 
 namespace App\Domains\Billing\Actions;
 
+use App\Domains\Billing\Enums\CashierShiftStatus;
 use App\Domains\Billing\Models\CashierShift;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -21,7 +22,7 @@ class CloseCashierShift
         return Audit::validationRefusal($actor, $shift, 'Cashier shift close refused', fn () => DB::transaction(function () use ($actor, $shift, $counted, $reason) {
             // Locked like RecordPayment locks it, so no cash lands between the count and the close.
             $shift = CashierShift::query()->whereKey($shift->id)->lockForUpdate()->firstOrFail();
-            if ($shift->status !== 'open') {
+            if ($shift->status !== CashierShiftStatus::Open) {
                 throw ValidationException::withMessages(['shift' => __('This shift is already closed.')]);
             }
             $expected = $shift->expectedCash();
@@ -42,7 +43,7 @@ class CloseCashierShift
             if ($counted !== $expected && $reason === null) {
                 throw ValidationException::withMessages(['variance_reason' => __('Give a reason for the difference.')]);
             }
-            $shift->update(['status' => 'closed', 'open_user_id' => null, 'expected' => $expected, 'counted' => $counted, 'variance_reason' => $reason, 'closed_at' => now()]);
+            $shift->update(['status' => CashierShiftStatus::Closed, 'open_user_id' => null, 'expected' => $expected, 'counted' => $counted, 'variance_reason' => $reason, 'closed_at' => now()]);
             Audit::record($actor, 'closed', $shift, 'Cashier shift closed', ['expected' => $expected, 'counted' => $counted, 'variance' => $shift->variance(), 'reason' => $reason]);
 
             return $shift;

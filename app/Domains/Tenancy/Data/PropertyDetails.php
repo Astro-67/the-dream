@@ -31,9 +31,12 @@ final readonly class PropertyDetails
         public JurisdictionProfile $jurisdictionProfile,
         ?string $zraHotelCode = null,
         public ?bool $housekeepingInspectionRequired = null,
+        public ?bool $stayoverServiceOnClose = null,
         /** @var list<string>|null */
         public ?array $registrationFields = null,
         public ?string $receiptPrefix = null,
+        /** Local wall-clock time night audit closes the business date, as H:i. */
+        public ?string $closeTime = null,
     ) {
         $this->zraHotelCode = JurisdictionRules::hasZraHotelCode($jurisdictionProfile) && filled($zraHotelCode)
             ? $zraHotelCode
@@ -59,7 +62,9 @@ final readonly class PropertyDetails
             jurisdictionProfile: JurisdictionProfile::from(self::string($input, 'jurisdiction_profile')),
             zraHotelCode: self::optionalString($input, 'zra_hotel_code'),
             housekeepingInspectionRequired: array_key_exists('housekeeping_inspection_required', $input) ? (bool) $input['housekeeping_inspection_required'] : null,
+            stayoverServiceOnClose: array_key_exists('stayover_service_on_close', $input) ? (bool) $input['stayover_service_on_close'] : null,
             receiptPrefix: self::optionalString($input, 'receipt_prefix'),
+            closeTime: self::optionalString($input, 'close_time'),
             registrationFields: is_array($input['registration_fields'] ?? null) ? array_values(array_map(strval(...), $input['registration_fields'])) : null,
         );
     }
@@ -83,7 +88,9 @@ final readonly class PropertyDetails
             'jurisdiction_profile' => $this->jurisdictionProfile,
             'zra_hotel_code' => $this->zraHotelCode,
             ...($this->housekeepingInspectionRequired !== null ? ['housekeeping_inspection_required' => $this->housekeepingInspectionRequired] : []),
+            ...($this->stayoverServiceOnClose !== null ? ['stayover_service_on_close' => $this->stayoverServiceOnClose] : []),
             ...($this->receiptPrefix !== null ? ['receipt_prefix' => $this->receiptPrefix] : []),
+            ...($this->closeTime !== null ? ['close_time' => $this->closeTime.':00'] : []),
             // Only a profile that lets the property choose stores a choice.
             ...(! JurisdictionRules::configuresRegistrationFields($this->jurisdictionProfile) ? ['registration_fields' => null] : ($this->registrationFields !== null ? ['registration_fields' => $this->registrationFields] : [])),
         ];

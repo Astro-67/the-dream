@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Domains\Billing\Models\ApprovalThreshold;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\PostingApproval;
+use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Housekeeping\Models\Assignment;
@@ -29,7 +30,7 @@ trait AuditsRefusals
 
     private function auditRefusal(string $stage): void
     {
-        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment') ?? $this->route('folio') ?? $this->route('posting') ?? $this->route('feeProposal') ?? $this->route('cashierShift') ?? $this->route('approval');
+        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment') ?? $this->route('folio') ?? $this->route('posting') ?? $this->route('feeProposal') ?? $this->route('cashierShift') ?? $this->route('approval') ?? $this->route('noShowProposal');
         if (! $subject instanceof Model) {
             $subject = match (true) {
                 $this->routeIs('guests.*') => new Guest,
@@ -38,6 +39,7 @@ trait AuditsRefusals
                 $this->routeIs('cashier-shifts.*') => new CashierShift,
                 $this->routeIs('approvals.*') => new PostingApproval,
                 $this->routeIs('approval-thresholds.*') => new ApprovalThreshold,
+                $this->routeIs('night-audit.*') => new BusinessDateClose,
                 default => new Reservation,
             };
         }

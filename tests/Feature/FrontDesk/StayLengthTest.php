@@ -139,7 +139,7 @@ function stayingFourNights(TenantFixture $tenant): Reservation
 {
     $reservation = inHouseStay($tenant);
     inTenant($tenant->property, fn () => app(ExtendStay::class)->handle($tenant->owner, $reservation, '2026-12-14'));
-    test()->travelTo(CarbonImmutable::parse('2026-12-12 09:00:00', 'Africa/Dar_es_Salaam'));
+    $tenant->property->update(['business_date' => '2026-12-12']);
 
     return $reservation;
 }
@@ -179,12 +179,12 @@ function assertEarlyDepartureRefused(TenantFixture $tenant, Reservation $reserva
     expect($state())->toBe($before);
 }
 
-test('an early departure is refused before arrival or once the stay ends today', function (string $now) {
+test('an early departure is refused before arrival or once the stay ends today', function (string $businessDate) {
     $t = twoTenants();
     $reservation = stayingFourNights($t->a);
-    $this->travelTo(CarbonImmutable::parse($now, 'Africa/Dar_es_Salaam'));
+    $t->a->property->update(['business_date' => $businessDate]);
     assertEarlyDepartureRefused($t->a, $reservation);
-})->with(['before arrival' => '2026-12-09 22:00:00', 'departure day' => '2026-12-14 09:00:00']);
+})->with(['before arrival' => '2026-12-09', 'departure day' => '2026-12-14']);
 
 test('arrival-day early departure releases every night and allows check-out', function () {
     $t = twoTenants();

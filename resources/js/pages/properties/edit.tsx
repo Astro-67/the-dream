@@ -18,6 +18,8 @@ type Props = PropertyFormOptions & {
     property: PropertyValues & {
         registration_fields?: string[];
         receipt_prefix: string;
+        close_time: string;
+        stayover_service_on_close: boolean;
     };
     registrationFieldOptions: string[];
 };
@@ -107,6 +109,34 @@ export default function EditProperty({
                                 />
                             </div>
                             <div className="grid gap-2">
+                                <Label htmlFor="stayover_service_on_close">
+                                    Stayover service at night audit
+                                </Label>
+                                <NativeSelect
+                                    id="stayover_service_on_close"
+                                    name="stayover_service_on_close"
+                                    defaultValue={
+                                        property.stayover_service_on_close
+                                            ? '1'
+                                            : '0'
+                                    }
+                                    aria-invalid={
+                                        !!errors.stayover_service_on_close
+                                    }
+                                >
+                                    <option value="0">
+                                        Mark stayover rooms by hand
+                                    </option>
+                                    <option value="1">
+                                        Mark every occupied room for service
+                                        when the day closes
+                                    </option>
+                                </NativeSelect>
+                                <InputError
+                                    message={errors.stayover_service_on_close}
+                                />
+                            </div>
+                            <div className="grid gap-2">
                                 <Label htmlFor="receipt_prefix">
                                     Receipt number prefix
                                 </Label>
@@ -119,6 +149,25 @@ export default function EditProperty({
                                     aria-invalid={!!errors.receipt_prefix}
                                 />
                                 <InputError message={errors.receipt_prefix} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="close_time">Close time</Label>
+                                <Input
+                                    id="close_time"
+                                    name="close_time"
+                                    type="time"
+                                    defaultValue={property.close_time}
+                                    aria-invalid={!!errors.close_time}
+                                    aria-describedby="close_time_hint"
+                                />
+                                <p
+                                    id="close_time_hint"
+                                    className="text-sm text-muted-foreground"
+                                >
+                                    Night audit closes the business date at this
+                                    local time.
+                                </p>
+                                <InputError message={errors.close_time} />
                             </div>
                             {configuresRegistration && (
                                 <fieldset className="grid gap-3">

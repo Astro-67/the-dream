@@ -14,16 +14,15 @@ use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
-use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
 
-/** A guest checked in on 10 December, departing 12 December; the clock is on the departure morning. */
+/** A guest checked in on 10 December, departing 12 December; the business date is the departure date. */
 function departingGuestForCheckOut(TenantFixture $tenant): Reservation
 {
-    test()->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
+    $tenant->property->update(['business_date' => '2026-12-10']);
     $reservation = inTenant($tenant->property, function () use ($tenant) {
         $reservation = app(CreateReservation::class)->handle($tenant->owner, [...BookingForm::details($tenant->owner), 'room_id' => Room::query()->sole()->id]);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
@@ -32,7 +31,7 @@ function departingGuestForCheckOut(TenantFixture $tenant): Reservation
 
         return app(CheckIn::class)->handle($tenant->owner, $reservation);
     });
-    test()->travelTo(CarbonImmutable::parse('2026-12-12 09:00:00', 'Africa/Dar_es_Salaam'));
+    $tenant->property->update(['business_date' => '2026-12-12']);
 
     return $reservation;
 }
@@ -123,7 +122,7 @@ test('an override needs a reason', function () {
 test('a stay departing later needs an early departure before check-out', function () {
     $t = twoTenants();
     $reservation = departingGuestForCheckOut($t->a);
-    $this->travelTo(CarbonImmutable::parse('2026-12-11 09:00:00', 'Africa/Dar_es_Salaam'));
+    $t->a->property->update(['business_date' => '2026-12-11']);
 
     $this->actingAs($t->a->owner)->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
         ->assertUnprocessable()->assertJsonValidationErrors('reservation');
@@ -153,9 +152,9 @@ test('check-out is not offered before the departure date or once checked out', f
     $t = twoTenants();
     $reservation = departingGuestForCheckOut($t->a);
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
-    $this->travelTo(CarbonImmutable::parse('2026-12-11 09:00:00', 'Africa/Dar_es_Salaam'));
+    $t->a->property->update(['business_date' => '2026-12-11']);
     $this->get(route('reservations.index', ['list' => 'in-house']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.can_check_out', false));
-    $this->travelTo(CarbonImmutable::parse('2026-12-12 09:00:00', 'Africa/Dar_es_Salaam'));
+    $t->a->property->update(['business_date' => '2026-12-12']);
     $this->post(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
     $this->get(route('reservations.index', ['list' => 'departures']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.status', 'checked_out')->where('reservations.data.0.can_check_out', false));
 });

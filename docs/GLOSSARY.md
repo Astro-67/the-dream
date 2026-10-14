@@ -37,6 +37,9 @@ _Avoid_: Today, system date
 Closing a property's business date: posting the night's room charges, proposing no-shows, and opening the next business date. Runs automatically at the property's close time; unresolved items carry forward rather than block.
 _Avoid_: End of day
 
+**Exception list**:
+The items a night audit close left unresolved (no-shows awaiting a decision, departures not checked out, open cashier shifts), listed on the next business date for the manager. Each close lists only what is still unresolved then.
+
 **Rate plan**:
 A named way of selling a room type, such as "Bed and breakfast" or "Non-refundable", with one currency and a price per room type per date. A derived rate plan takes its prices from one base plan with a fixed percentage or amount difference.
 _Avoid_: Tariff, price list

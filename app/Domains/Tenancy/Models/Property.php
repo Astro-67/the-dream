@@ -37,15 +37,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property JurisdictionProfile $jurisdiction_profile
  * @property string|null $zra_hotel_code
  * @property bool $housekeeping_inspection_required
+ * @property bool $stayover_service_on_close
  * @property list<string>|null $registration_fields
  * @property string $receipt_prefix
+ * @property CarbonImmutable $business_date
+ * @property string $close_time
  * @property CarbonImmutable|null $archived_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
  */
 #[Fillable([
     'organization_id', 'name', 'property_type', 'address_line', 'city', 'region', 'postal_code',
-    'phone', 'email', 'timezone', 'currency', 'jurisdiction_profile', 'zra_hotel_code', 'housekeeping_inspection_required', 'registration_fields', 'receipt_prefix',
+    'phone', 'email', 'timezone', 'currency', 'jurisdiction_profile', 'zra_hotel_code', 'housekeeping_inspection_required', 'stayover_service_on_close', 'registration_fields', 'receipt_prefix', 'business_date', 'close_time',
 ])]
 #[UseFactory(PropertyFactory::class)]
 #[UsePolicy(PropertyPolicy::class)]
@@ -66,7 +69,9 @@ class Property extends Model
             'currency' => Currency::class,
             'jurisdiction_profile' => JurisdictionProfile::class,
             'archived_at' => 'datetime',
+            'business_date' => 'immutable_date',
             'housekeeping_inspection_required' => 'boolean',
+            'stayover_service_on_close' => 'boolean',
             'registration_fields' => 'array',
         ];
     }

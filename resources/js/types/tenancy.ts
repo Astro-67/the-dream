@@ -14,6 +14,8 @@ export type TenantProperty = {
     currency: Currency;
     jurisdictionProfile: JurisdictionProfile;
     jurisdictionLabel: string;
+    /** The property's open business date (Y-m-d); only night audit moves it. */
+    businessDate: string;
     /** Present only for Zanzibar properties. */
     zraHotelCode?: string | null;
 };

@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Building2, ChevronsUpDown, MapPin } from 'lucide-react';
+import { Building2, CalendarDays, ChevronsUpDown, MapPin } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { OrganizationSwitcherItems } from '@/components/shared/organization-switcher';
 import { PropertySwitcherItems } from '@/components/shared/property-switcher';
@@ -11,6 +11,7 @@ import {
 import { SidebarMenuButton } from '@/components/ui/sidebar';
 import { Tag } from '@/components/ui/status-chip';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
 /**
@@ -86,6 +87,15 @@ export function CurrentProperty() {
             />
             <span className="truncate font-medium">{tenant.property.name}</span>
             <Tag className="shrink-0">{tenant.property.jurisdictionLabel}</Tag>
+            <span
+                className="flex shrink-0 items-center gap-1 text-muted-foreground"
+                data-test="business-date"
+                title="Business date"
+            >
+                <CalendarDays className="size-4" aria-hidden />
+                <span className="sr-only">Business date </span>
+                {formatDate(tenant.property.businessDate)}
+            </span>
         </div>
     );
 }

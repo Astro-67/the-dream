@@ -2,10 +2,12 @@
 
 namespace App\Domains\Billing\Actions;
 
+use App\Domains\Billing\Enums\CashierShiftStatus;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\PostingApproval;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -39,12 +41,12 @@ class ResolvePostingApproval
                 }
                 if (($attributes['cashier_shift_id'] ?? null) !== null) {
                     $shift = CashierShift::query()->whereKey($attributes['cashier_shift_id'])->lockForUpdate()->firstOrFail();
-                    if ($shift->status !== 'open' || ($attributes['type'] !== 'reversal' && $shift->open_user_id !== $approval->requested_by)) {
+                    if ($shift->status !== CashierShiftStatus::Open || ($attributes['type'] !== 'reversal' && $shift->open_user_id !== $approval->requested_by)) {
                         throw ValidationException::withMessages(['approval' => __('The requesting cashier shift is closed. Reject this request and submit it in an open shift.')]);
                     }
                 }
                 $property = Property::query()->findOrFail($folio->property_id);
-                $posting = Posting::query()->create([...$attributes, 'posted_at' => now(), 'business_date' => now($property->timezone)->toDateString()]);
+                $posting = Posting::query()->create([...$attributes, 'posted_at' => now(), 'business_date' => BusinessDate::of($property)]);
             }
             $approval->update([
                 'status' => $decision === 'approve' ? 'approved' : 'rejected', 'resolved_by' => $actor->id,

@@ -30,7 +30,7 @@ test('each new organization is seeded with the seven roles and their permission 
         ->and($roles['housekeeping'])->toBe(['housekeeping.manage', 'housekeeping.view'])
         ->and($roles['front_desk'])->toBe([
             'charges.post', 'guests.identity.view', 'guests.register', 'guests.view',
-            'housekeeping.view', 'reservations.manage', 'reservations.view', 'rooms.assign',
+            'housekeeping.view', 'night_audit.view', 'reservations.manage', 'reservations.view', 'rooms.assign',
         ]);
 
     foreach (OrganizationRole::cases() as $role) {

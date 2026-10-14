@@ -43,7 +43,7 @@ test('occupancy actions refuse empty reasons without changing history', function
     });
 });
 
-test('the occupied board shows service only for the property local operating day fallback', function () {
+test('the occupied board shows service only for the property business date', function () {
     $this->travelTo(CarbonImmutable::parse('2026-10-12 22:30:00 UTC'));
     $t = twoTenants();
     $t->a->property->update(['timezone' => 'Africa/Dar_es_Salaam']);
@@ -57,10 +57,10 @@ test('the occupied board shows service only for the property local operating day
     });
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
     $this->get(route('housekeeping.index', ['status' => 'occupied']))->assertInertia(fn (AssertableInertia $page) => $page->has('rooms', 1)->where('rooms.0.status', 'occupied')->where('rooms.0.stayoverService', true)->where('businessDate', '2026-10-13'));
-    $this->travelTo(CarbonImmutable::parse('2026-10-13 22:30:00 UTC'));
+    $t->a->property->update(['business_date' => '2026-10-14']);
     $this->get(route('housekeeping.index'))->assertInertia(fn (AssertableInertia $page) => $page->where('rooms.0.stayoverService', false));
     inTenant($t->a->property, fn () => app(ClearRoomOccupied::class)->handle($t->a->owner, $room, 'Check-out'));
-    $this->travelTo(CarbonImmutable::parse('2026-10-12 22:30:00 UTC'));
+    $t->a->property->update(['business_date' => '2026-10-13']);
     $this->get(route('housekeeping.index'))->assertInertia(fn (AssertableInertia $page) => $page->where('rooms.0.stayoverService', false));
 });
 

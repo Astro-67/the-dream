@@ -60,6 +60,17 @@ final class Access
     }
 
     /**
+     * allows() for property-scoped work: refuses outside a property context, and
+     * checks the record's property, or the property in context when none is given.
+     */
+    public static function inProperty(User $user, OrganizationPermission $permission, ?Model $record = null): bool
+    {
+        $property = Tenancy::property();
+
+        return $property !== null && self::allows($user, $permission, $record ?? $property);
+    }
+
+    /**
      * Whether the user is an owner of the current organization. Only for rules
      * about owners as people (they must use two-factor authentication); what a
      * member may do is always a permission, checked with allows().

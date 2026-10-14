@@ -266,3 +266,22 @@ function propertyNames(TwoTenants $t): array
 {
     return inTenant($t->a->organization, fn () => Property::query()->orderBy('name')->pluck('name')->all());
 }
+
+test('a property manager sets the close time; members who cannot edit the property cannot', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $this->actingAs($t->a->member($role))->put(route('properties.update', $t->a->property), PropertyForm::payload([
+        '_property' => $t->a->property->id,
+        'close_time' => '23:30',
+    ]))->assertStatus($allowed ? 302 : 403)->assertSessionHasNoErrors();
+
+    expect($t->a->property->fresh()->close_time)->toBe($allowed ? '23:30:00' : '02:00:00');
+    if ($allowed) {
+        $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('property.close_time', '23:30'));
+        $this->putJson(route('properties.update', $t->a->property), PropertyForm::payload(['_property' => $t->a->property->id, 'close_time' => '25:00']))
+            ->assertUnprocessable()->assertJsonValidationErrors('close_time');
+    }
+})->with([
+    'property manager' => [OrganizationRole::PropertyManager, true],
+    'front desk' => [OrganizationRole::FrontDesk, false],
+    'finance' => [OrganizationRole::Finance, false],
+]);

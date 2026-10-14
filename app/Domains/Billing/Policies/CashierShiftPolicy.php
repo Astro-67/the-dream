@@ -6,19 +6,18 @@ use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Tenancy\Enums\OrganizationPermission as P;
 use App\Models\User;
 use App\Support\Tenancy\Access;
-use App\Support\Tenancy\Tenancy;
 
 /** Whoever takes payments (charges.post) handles cash; finance reconciles the shifts. */
 class CashierShiftPolicy
 {
     public function viewAny(User $user): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::FinanceView, Tenancy::property());
+        return Access::inProperty($user, P::FinanceView);
     }
 
     public function create(User $user): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::ChargesPost, Tenancy::property());
+        return Access::inProperty($user, P::ChargesPost);
     }
 
     /** Only the cashier counts and closes their own shift. */

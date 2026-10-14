@@ -2,11 +2,12 @@
 
 namespace App\Domains\Billing\Actions;
 
+use App\Domains\Billing\Enums\CashierShiftStatus;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\PostingApproval;
-use App\Domains\Tenancy\Models\Property;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +32,7 @@ class ReversePosting
             self::ensureCancellable($original);
             if ($original->cashier_shift_id !== null) {
                 $shift = CashierShift::query()->whereKey($original->cashier_shift_id)->lockForUpdate()->firstOrFail();
-                if ($shift->status !== 'open') {
+                if ($shift->status !== CashierShiftStatus::Open) {
                     throw ValidationException::withMessages(['posting' => __('This cash posting belongs to a closed shift and cannot be reversed.')]);
                 }
             }
@@ -72,13 +73,7 @@ class ReversePosting
             'related_posting_id' => $original->id, 'category' => $original->category, 'description' => $original->description,
             'quantity' => $original->quantity, 'unit_price' => $original->unit_price, 'net' => -$original->net, 'amount' => -$original->amount,
             'currency' => $original->currency, 'tax_lines' => array_map(fn (array $line) => [...$line, 'amount' => -$line['amount']], $original->tax_lines),
-            'tax_rule_ids' => $original->tax_rule_ids, 'business_date' => self::businessDate($original), 'posted_at' => now(), ...$attributes,
+            'tax_rule_ids' => $original->tax_rule_ids, 'business_date' => BusinessDate::forPropertyId($original->property_id), 'posted_at' => now(), ...$attributes,
         ];
-    }
-
-    // ponytail: before Spec 7 owns the open business date, use the property's local date.
-    private static function businessDate(Posting $posting): string
-    {
-        return now(Property::query()->findOrFail($posting->getAttribute('property_id'))->timezone)->toDateString();
     }
 }

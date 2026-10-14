@@ -157,7 +157,9 @@ test('the daily extension reports a refused room type and still extends every ot
     // A change made outside the actions, which the extension would now apply.
     inTenant($t->a->property, fn () => $room->forceFill(['deactivated_at' => now()])->save());
 
-    $this->travelTo(now()->addDay());
+    foreach ([$t->a->property, $t->b->property] as $property) {
+        $property->update(['business_date' => '2026-10-09']);
+    }
     $this->artisan('inventory:extend')
         ->expectsOutputToContain('DLX would have fewer sellable rooms than are already sold on 2026-10-20.')
         ->assertFailed();
@@ -200,3 +202,20 @@ test('front desk and auditors cannot take rooms out of service or change periods
     expect(inTenant($t->a->property, fn () => OutOfServicePeriod::query()->sole()->details()))
         ->toBe(['room_id' => $room->id, 'starts_on' => '2026-10-10', 'returns_on' => '2026-10-12', 'reason' => 'Repainting']);
 })->with([OrganizationRole::FrontDesk, OrganizationRole::Auditor]);
+
+test('out-of-service dates follow the stored business date when night audit lags the clock', function () {
+    $t = twoTenants();
+    $t->a->property->update(['business_date' => '2026-10-07']);
+    [$type, $room] = twoRoomsIn($t->a->property);
+
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
+        ->post(route('out-of-service.store', $room), ['_property' => $t->a->property->id, 'starts_on' => '2026-10-07', 'returns_on' => '2026-10-08', 'reason' => 'Leaking shower'])
+        ->assertSessionHasNoErrors();
+
+    expect(sellableOn($t->a->property, $type, ['2026-10-07', '2026-10-08']))->toBe(['2026-10-07' => 1, '2026-10-08' => 2]);
+
+    $this->get(route('rooms.edit', $room))->assertInertia(fn (Assert $page) => $page
+        ->where('today', '2026-10-07')
+        ->has('outOfService', 1)
+        ->where('outOfService.0.started', true));
+});

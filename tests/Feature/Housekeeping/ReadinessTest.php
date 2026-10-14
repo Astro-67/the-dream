@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Housekeeping\Actions\OverrideRoomReady;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
@@ -18,7 +19,8 @@ use Tests\Support\InventoryForm;
 test('a clean room becomes unready when its service period starts without reconciliation', function () {
     [$owner, , $property] = organizationWithOwner();
     $this->travelTo(new DateTimeImmutable('2026-10-12 10:00:00 UTC'));
-    inTenant($property, function () use ($owner) {
+    $property->update(['business_date' => '2026-10-12']);
+    inTenant($property, function () use ($owner, $property) {
         $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
         $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id));
         RoomStatus::query()->sole()->update(['status' => HousekeepingStatus::Clean]);
@@ -26,7 +28,7 @@ test('a clean room becomes unready when its service period starts without reconc
             'starts_on' => '2026-10-13', 'returns_on' => '2026-10-15', 'reason' => 'Repairs',
         ]);
         expect(app(RoomReadiness::class)->isReady($room))->toBeTrue();
-        $this->travelTo(new DateTimeImmutable('2026-10-13 10:00:00 UTC'));
+        $property->update(['business_date' => '2026-10-13']);
         expect(app(RoomReadiness::class)->isReady($room))->toBeFalse();
     });
 });
@@ -77,7 +79,7 @@ test('room choices display current readiness without blocking assignment', funct
     $this->get(route('reservations.show', $reservation))->assertInertia(fn (AssertableInertia $page) => $page->where('rooms.0.isReady', false)->where('amendmentOptions.rooms.0.isReady', false));
 });
 
-test('overrides apply to one room and property local business date while history is retained', function () {
+test('overrides apply to one room and the property business date while history is retained', function () {
     $this->travelTo(now()->setTimezone('UTC')->setDate(2026, 10, 12)->setTime(20, 59));
     [$owner, , $property] = organizationWithOwner(['timezone' => 'Africa/Dar_es_Salaam']);
     [$room, $other] = inTenant($property, function () use ($owner) {
@@ -89,7 +91,7 @@ test('overrides apply to one room and property local business date while history
     inTenant($property, function () use ($room, $other) {
         expect(app(RoomReadiness::class)->isReady($room))->toBeTrue()->and(app(RoomReadiness::class)->isReady($other))->toBeFalse();
     });
-    $this->travel(2)->minutes();
+    $property->update(['business_date' => '2026-10-13']);
     inTenant($property, fn () => expect(app(RoomReadiness::class)->isReady($room))->toBeFalse());
     $this->get(route('housekeeping.index'))->assertInertia(fn (AssertableInertia $page) => $page->where('rooms.0.readyOverride', null)->where('rooms.0.isReady', false));
     $this->get(route('housekeeping.history', $room->id))->assertInertia(fn (AssertableInertia $page) => $page->where('changes.data.0.businessDate', '2026-10-12')->where('changes.data.0.reason', 'Emergency readiness'));
@@ -118,7 +120,7 @@ test('out of service rooms refuse audited readiness overrides and ignore existin
         app(OverrideRoomReady::class)->handle($owner, $room, 'Approved before maintenance');
         if ($period) {
             app(TakeRoomOutOfService::class)->handle($owner, $room, [
-                'starts_on' => app(RoomReadiness::class)->businessDate($room),
+                'starts_on' => BusinessDate::forPropertyId($room->property_id),
                 'returns_on' => now()->addDays(2)->toDateString(), 'reason' => 'Repairs',
             ]);
             RoomStatus::query()->sole()->update(['status' => HousekeepingStatus::Clean]);

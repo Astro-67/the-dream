@@ -46,7 +46,7 @@ test('reservation guards ignore cancelled void and elapsed reservations', functi
         $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
         $reservation->update(['status' => $status]);
     });
-    $this->travelTo(CarbonImmutable::parse($localDate.' 12:00', 'Africa/Dar_es_Salaam'));
+    $t->a->property->update(['business_date' => $localDate]);
 
     $this->actingAs($t->a->owner)
         ->put(route('properties.update', $t->a->property), PropertyForm::payload(['_property' => $t->a->property->id]))

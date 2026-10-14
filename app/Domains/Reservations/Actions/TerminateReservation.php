@@ -16,13 +16,16 @@ class TerminateReservation
 {
     public function handle(?User $actor, Reservation $reservation, string $reason, ReservationStatus $status): Reservation
     {
-        $event = $status === ReservationStatus::Cancelled ? 'cancelled' : 'voided';
-        $refusal = $status === ReservationStatus::Cancelled ? 'Reservation cancellation refused' : 'Reservation void refused';
+        [$event, $refusal, $message] = match ($status) {
+            ReservationStatus::Cancelled => ['cancelled', 'Reservation cancellation refused', __('Only confirmed reservations can be cancelled.')],
+            ReservationStatus::NoShow => ['no_show_confirmed', 'No-show confirmation refused', __('Only confirmed reservations can become no-shows.')],
+            default => ['voided', 'Reservation void refused', __('Only confirmed reservations can be voided.')],
+        };
 
-        return Audit::validationRefusal($actor, $reservation, $refusal, fn () => DB::transaction(function () use ($actor, $reservation, $reason, $status, $event) {
+        return Audit::validationRefusal($actor, $reservation, $refusal, fn () => DB::transaction(function () use ($actor, $reservation, $reason, $status, $event, $message) {
             $locked = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();
             if ($locked->status !== ReservationStatus::Confirmed) {
-                throw ValidationException::withMessages(['reservation' => $status === ReservationStatus::Cancelled ? __('Only confirmed reservations can be cancelled.') : __('Only confirmed reservations can be voided.')]);
+                throw ValidationException::withMessages(['reservation' => $message]);
             }
             $type = RoomType::query()->findOrFail($locked->getAttribute('room_type_id'));
             $dates = iterator_to_array($locked->arrival->daysUntil($locked->departure)->excludeEndDate()->map(fn ($date) => $date->toDateString()));

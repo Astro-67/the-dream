@@ -56,10 +56,10 @@ test('changing and shortening periods reconciles status without duplicate histor
     });
 });
 
-test('automatic rollover follows each property local date and is idempotent', function () {
+test('automatic rollover follows each property business date and is idempotent', function () {
     $t = twoTenants();
-    $this->travelTo(new DateTimeImmutable('2026-10-12 20:59:00 UTC'));
-    $t->a->otherProperty->update(['timezone' => 'America/New_York']);
+    $dates = fn (string $a, string $other, string $b) => [$t->a->property->update(['business_date' => $a]), $t->a->otherProperty->update(['business_date' => $other]), $t->b->property->update(['business_date' => $b])];
+    $dates('2026-10-12', '2026-10-11', '2026-10-12');
     foreach ([$t->a->property, $t->a->otherProperty, $t->b->property] as $property) {
         inTenant($property, function () {
             $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
@@ -68,7 +68,7 @@ test('automatic rollover follows each property local date and is idempotent', fu
             expect(RoomStatus::query()->sole()->status)->toBe(HousekeepingStatus::Dirty);
         });
     }
-    $this->travelTo(new DateTimeImmutable('2026-10-12 21:00:00 UTC'));
+    $dates('2026-10-13', '2026-10-12', '2026-10-13');
     $this->artisan('housekeeping:sync-service')->assertSuccessful();
     $this->artisan('housekeeping:sync-service')->assertSuccessful();
     foreach ([$t->a->property, $t->b->property] as $property) {
@@ -78,7 +78,7 @@ test('automatic rollover follows each property local date and is idempotent', fu
         });
     }
     expect(inTenant($t->a->otherProperty, fn () => RoomStatus::query()->sole()->status))->toBe(HousekeepingStatus::Dirty);
-    $this->travelTo(new DateTimeImmutable('2026-10-13 21:00:00 UTC'));
+    $dates('2026-10-14', '2026-10-13', '2026-10-14');
     $this->artisan('housekeeping:sync-service')->assertSuccessful();
     $this->artisan('housekeeping:sync-service')->assertSuccessful();
     inTenant($t->a->property, function () {

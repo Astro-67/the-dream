@@ -2,6 +2,7 @@
 
 namespace App\Domains\Billing\Models;
 
+use App\Domains\Billing\Enums\CashierShiftStatus;
 use App\Domains\Billing\Policies\CashierShiftPolicy;
 use App\Models\User;
 use App\Support\Tenancy\BelongsToProperty;
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $property_id
  * @property string $user_id
  * @property string|null $open_user_id the user while open, null once closed
- * @property string $status 'open' or 'closed'
+ * @property CashierShiftStatus $status
  * @property array<string, int> $floats
  * @property array<string, int>|null $expected
  * @property array<string, int>|null $counted
@@ -38,7 +39,7 @@ class CashierShift extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['floats' => 'array', 'expected' => 'array', 'counted' => 'array', 'opened_at' => 'immutable_datetime', 'closed_at' => 'immutable_datetime'];
+        return ['status' => CashierShiftStatus::class, 'floats' => 'array', 'expected' => 'array', 'counted' => 'array', 'opened_at' => 'immutable_datetime', 'closed_at' => 'immutable_datetime'];
     }
 
     /** @return BelongsTo<User, $this> */

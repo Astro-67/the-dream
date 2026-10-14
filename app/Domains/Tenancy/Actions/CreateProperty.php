@@ -16,7 +16,7 @@ class CreateProperty
     public function handle(?User $actor, PropertyDetails $details): Property
     {
         return DB::transaction(function () use ($actor, $details) {
-            $property = Property::query()->create($details->toAttributes());
+            $property = Property::query()->create([...$details->toAttributes(), 'business_date' => now($details->timezone)->toDateString()]);
 
             Audit::record($actor, 'created', $property, 'Property created', [
                 'result' => 'success',

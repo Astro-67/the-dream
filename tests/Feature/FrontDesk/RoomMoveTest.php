@@ -129,7 +129,7 @@ test('a move to the current room is refused', function () {
 test('re-pricing replaces only the remaining nights from the rate plan', function () {
     $t = twoTenants();
     $reservation = inHouse($t->a);
-    $this->travelTo(CarbonImmutable::parse('2026-12-11 09:00:00', 'Africa/Dar_es_Salaam'));
+    $t->a->property->update(['business_date' => '2026-12-11']);
     inTenant($t->a->property, function () use ($t, $reservation) {
         $plan = RatePlan::query()->findOrFail($reservation->rate_plan_id);
         app(SetRatePrices::class)->handle($t->a->owner, $plan, ['room_type_id' => $reservation->room_type_id, 'from' => '2026-12-10', 'to' => '2026-12-11', 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'base_price' => 15000, 'extra_adult' => 2500, 'extra_child' => 1000]);

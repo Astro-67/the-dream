@@ -6,7 +6,6 @@ use App\Domains\Guests\Models\Guest;
 use App\Domains\Tenancy\Enums\OrganizationPermission as P;
 use App\Models\User;
 use App\Support\Tenancy\Access;
-use App\Support\Tenancy\Tenancy;
 use Illuminate\Database\Eloquent\Model;
 
 class GuestPolicy
@@ -18,7 +17,7 @@ class GuestPolicy
 
     public function viewAny(User $user): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::GuestsView, Tenancy::property());
+        return Access::inProperty($user, P::GuestsView);
     }
 
     public function view(User $user, Model $record): bool
@@ -28,7 +27,7 @@ class GuestPolicy
 
     public function create(User $user): bool
     {
-        return Tenancy::property() !== null && Access::allows($user, P::GuestsRegister, Tenancy::property());
+        return Access::inProperty($user, P::GuestsRegister);
     }
 
     public function merge(User $user, Guest $record): bool

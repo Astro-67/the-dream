@@ -35,6 +35,7 @@ class PropertyFactory extends Factory
             'timezone' => 'Africa/Dar_es_Salaam',
             'currency' => Currency::TZS,
             'jurisdiction_profile' => JurisdictionProfile::Zanzibar,
+            'business_date' => fn (array $attributes) => now($attributes['timezone'])->toDateString(),
         ];
     }
 

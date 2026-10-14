@@ -46,6 +46,18 @@ class Reservation extends Model
         return $this->hasMany(ReservationPriceLine::class)->orderBy('date');
     }
 
+    /**
+     * The price line for a night of the stay. Price lines end before departure; a night at
+     * or after departure (a departure not yet checked out) repeats the last night's price.
+     */
+    public function nightPrice(string $date): ?ReservationPriceLine
+    {
+        return $this->priceLines()->whereDate('date', $date)->first()
+            ?? ($date >= $this->departure->toDateString()
+                ? $this->priceLines()->whereDate('date', '<', $this->departure->toDateString())->reorder()->latest('date')->first()
+                : null);
+    }
+
     /** @return HasMany<ReservationLifecycleEvent, $this> */
     public function lifecycleEvents(): HasMany
     {

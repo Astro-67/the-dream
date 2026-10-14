@@ -2,10 +2,9 @@
 
 namespace App\Http\Requests\Inventory;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Models\OutOfServicePeriod;
 use App\Domains\Inventory\Models\Room;
-use App\Support\Tenancy\Tenancy;
-use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -30,7 +29,7 @@ class OutOfServiceRequest extends FormRequest
      */
     public function rules(): array
     {
-        $today = CarbonImmutable::now(Tenancy::property()?->timezone)->toDateString();
+        $today = BusinessDate::current();
         $period = $this->period();
         $started = $period !== null && $period->starts_on->toDateString() <= $today;
 

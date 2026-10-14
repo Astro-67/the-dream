@@ -2,11 +2,11 @@
 
 namespace App\Domains\Reservations;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Housekeeping\RoomReadiness;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
-use App\Domains\Tenancy\Models\Property;
 use Illuminate\Database\Eloquent\Collection;
 
 class AssignableRooms
@@ -28,7 +28,7 @@ class AssignableRooms
     public function forMove(Reservation $reservation): array
     {
         $readiness = app(RoomReadiness::class);
-        $from = max($readiness->businessDate(Property::query()->findOrFail($reservation->property_id)), $reservation->arrival->toDateString());
+        $from = max(BusinessDate::forPropertyId($reservation->property_id), $reservation->arrival->toDateString());
         $to = $reservation->departure->toDateString();
 
         return Room::query()->active()->with('roomType:id,name')->whereKeyNot($reservation->room_id)

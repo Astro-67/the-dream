@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Reservations;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Requests\AuditsRefusals;
-use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,8 +22,7 @@ class CreateReservationRequest extends FormRequest
     public function rules(): array
     {
         $rules = $this->stayRules();
-        // ponytail: Spec 7 will provide the open business date.
-        $rules['arrival'][] = 'after_or_equal:'.now(Tenancy::property()?->timezone)->toDateString();
+        $rules['arrival'][] = 'after_or_equal:'.BusinessDate::current();
 
         return [
             ...$rules,

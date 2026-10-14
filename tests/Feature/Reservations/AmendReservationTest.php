@@ -16,7 +16,6 @@ use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
 use App\Domains\Tenancy\Enums\OrganizationRole;
-use Carbon\CarbonImmutable;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
@@ -85,10 +84,10 @@ test('keeping prices ignores missing rates for retained nights and prices only a
 test('re-pricing preserves past lines and replaces only future prices in property local time', function () {
     [$owner, , $property] = organizationWithOwner();
     $property->update(['timezone' => 'Africa/Dar_es_Salaam']);
-    inTenant($property, function () use ($owner) {
+    inTenant($property, function () use ($owner, $property) {
         $details = BookingForm::details($owner);
         $reservation = app(CreateReservation::class)->handle($owner, $details);
-        $this->travelTo(CarbonImmutable::parse('2026-12-10 22:00:00 UTC'));
+        $property->update(['business_date' => '2026-12-11']);
         RatePrice::query()->update(['base_price' => 30000]);
         $amended = app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'room_id' => null, 'pricing' => 'reprice']);
         expect($amended->priceLines->pluck('amount')->all())->toBe([11000, 31000]);
@@ -288,10 +287,10 @@ test('amendment preview lists every broken restriction even with a reason alread
 
 test('amendment never creates or requotes a missing past price line', function (string $pricing) {
     [$owner, , $property] = organizationWithOwner();
-    inTenant($property, function () use ($owner, $pricing) {
+    inTenant($property, function () use ($owner, $pricing, $property) {
         $details = BookingForm::details($owner);
         $reservation = app(CreateReservation::class)->handle($owner, $details);
-        $this->travelTo(CarbonImmutable::parse('2026-12-10 22:00:00 UTC'));
+        $property->update(['business_date' => '2026-12-11']);
         $reservation->priceLines()->whereDate('date', '2026-12-10')->delete();
         RatePrice::query()->whereDate('date', '2026-12-10')->delete();
         $amended = app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'room_id' => null, 'pricing' => $pricing]);
@@ -307,7 +306,7 @@ test('moving arrival into the property local past is refused without changing th
 
         return [$reservation, $details];
     });
-    $this->travelTo(CarbonImmutable::parse('2026-12-10 22:00:00 UTC'));
+    $t->a->property->update(['business_date' => '2026-12-11']);
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->patchJson(route('reservations.amend', $reservation), [...$details, 'room_id' => null, 'pricing' => 'reprice', '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors('arrival');
     inTenant($t->a->property, function () use ($reservation) {
         expect($reservation->fresh()->arrival->toDateString())->toBe('2026-12-11')->and($reservation->priceLines()->count())->toBe(1)->and($reservation->lifecycleEvents()->count())->toBe(1);

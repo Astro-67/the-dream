@@ -2,6 +2,7 @@
 
 namespace App\Domains\FrontDesk\Actions;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Housekeeping\Actions\ClearRoomOccupied;
 use App\Domains\Housekeeping\Actions\SetRoomOccupied;
 use App\Domains\Housekeeping\RoomReadiness;
@@ -36,7 +37,7 @@ class MoveRoom
             }
             $room = Room::query()->whereKey($roomId)->lockForUpdate()->firstOrFail();
             $readiness = app(RoomReadiness::class);
-            $today = $readiness->businessDate($room);
+            $today = BusinessDate::forPropertyId($room->property_id);
             $last = $locked->departure->subDay()->toDateString();
             if ($last < $today) {
                 throw ValidationException::withMessages(['reservation' => __('No nights remain on this stay.')]);

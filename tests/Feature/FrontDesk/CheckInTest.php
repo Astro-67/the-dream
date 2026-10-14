@@ -67,9 +67,9 @@ test('check-in is not offered for another date or a checked-in arrival', functio
     $t = twoTenants();
     $reservation = arrivingToday($t->a);
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
-    $this->travelTo(CarbonImmutable::parse('2026-12-11 09:00:00', 'Africa/Dar_es_Salaam'));
+    $t->a->property->update(['business_date' => '2026-12-11']);
     $this->get(route('reservations.index', ['list' => 'all']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.can_check_in', false));
-    $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
+    $t->a->property->update(['business_date' => '2026-12-10']);
     $this->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id]);
     $this->get(route('reservations.index', ['list' => 'arrivals']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.status', 'checked_in')->where('reservations.data.0.can_check_in', false));
 });
@@ -107,14 +107,15 @@ test('check-in is refused for a reservation that is not confirmed', function (Re
     inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe($status));
 })->with(array_filter(ReservationStatus::cases(), fn ($status) => $status !== ReservationStatus::Confirmed));
 
-test('check-in is refused unless the reservation arrives on the property current date', function (string $now) {
+test('check-in is refused unless the reservation arrives on the stored business date, whatever the local date', function (string $businessDate) {
     $t = twoTenants();
     $reservation = arrivingToday($t->a);
-    $this->travelTo(CarbonImmutable::parse($now, 'UTC'));
+    // The local date stays 10 December; only the stored business date differs.
+    $t->a->property->update(['business_date' => $businessDate]);
     assertCheckInRefused($t->a, $reservation, 'reservation');
 })->with([
-    'the evening before, local time' => '2026-12-09 20:59:00',
-    'the next local day' => '2026-12-10 21:00:00',
+    'business date lagging the local date' => '2026-12-09',
+    'business date ahead of the local date' => '2026-12-11',
 ]);
 
 test('check-in is refused without an assigned room', function () {

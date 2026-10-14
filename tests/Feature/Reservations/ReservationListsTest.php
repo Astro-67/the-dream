@@ -31,7 +31,7 @@ test('front desk lists arrivals departures and in-house reservations on the prop
 
         return $result;
     });
-    $this->travelTo(now('UTC')->setDate(2026, 12, 10)->setTime(22, 30));
+    $t->a->property->update(['business_date' => '2026-12-11']);
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
     foreach (['arrivals' => 0, 'departures' => 1, 'in-house' => 2] as $list => $index) {
         $this->get(route('reservations.index', ['list' => $list]))->assertOk()->assertInertia(fn (Assert $page) => $page

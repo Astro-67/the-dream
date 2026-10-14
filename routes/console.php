@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\FrontDesk\Jobs\CloseDueBusinessDate;
 use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
 use App\Domains\Inventory\Actions\RecalculateInventory;
 use App\Domains\Inventory\Exceptions\InventoryRefused;
@@ -251,3 +253,28 @@ Artisan::command('housekeeping:sync-service', function (SyncRoomServiceStatus $s
 })->purpose('Reconcile housekeeping with property-local service periods');
 
 Schedule::command('housekeeping:sync-service')->everyMinute()->withoutOverlapping();
+
+Artisan::command('night-audit:close-due', function (): int {
+    $properties = Tenancy::within(TenantContext::platform('night audit trigger'), fn () => Property::query()->active()->get());
+    $failed = 0;
+    foreach ($properties as $property) {
+        if (! BusinessDate::isDue($property)) {
+            continue;
+        }
+        $date = BusinessDate::of($property);
+        try {
+            Tenancy::within(TenantContext::forProperty($property), function () use ($date): void {
+                CloseDueBusinessDate::dispatch($date);
+            });
+        } catch (Throwable $exception) {
+            // One property's failure must not stop the others closing.
+            report($exception);
+            $failed++;
+            $this->error("{$property->name}: {$exception->getMessage()}");
+        }
+    }
+
+    return $failed === 0 ? self::SUCCESS : self::FAILURE;
+})->purpose('Dispatch night audit for properties past their local close time');
+
+Schedule::command('night-audit:close-due')->everyMinute()->withoutOverlapping();
