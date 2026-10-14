@@ -27,3 +27,17 @@ test('property KPIs allocate booked value to the selected nights and read invent
         ]);
     });
 });
+
+test('empty periods retain the property currency and mark zero denominators not applicable', function () {
+    [, , $property] = organizationWithOwner(['currency' => 'TZS']);
+
+    expect(inTenant($property, fn () => app(PropertyKpis::class)->forProperty($property, '2026-12-10', '2026-12-11')))
+        ->toEqual([
+            'soldRoomNights' => 0,
+            'sellableRoomNights' => 0,
+            'occupancy' => null,
+            'currencies' => [
+                ['currency' => 'TZS', 'bookedRoomValue' => 0, 'bookedAdr' => null, 'bookedRevpar' => null],
+            ],
+        ]);
+});

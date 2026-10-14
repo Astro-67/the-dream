@@ -37,7 +37,12 @@ final class PropertyKpis
             'soldRoomNights' => $sold,
             'sellableRoomNights' => $sellable,
             'occupancy' => $sellable === 0 ? null : $sold / $sellable,
-            'currencies' => $currencies,
+            'currencies' => $currencies ?: [[
+                'currency' => $property->currency->value,
+                'bookedRoomValue' => 0,
+                'bookedAdr' => $sold === 0 ? null : 0,
+                'bookedRevpar' => $sellable === 0 ? null : 0,
+            ]],
         ];
     }
 }
