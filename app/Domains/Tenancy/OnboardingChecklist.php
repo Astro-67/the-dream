@@ -39,7 +39,7 @@ final class OnboardingChecklist
                 ['key' => 'verify_email', 'label' => __('Verify email'), 'completed' => $actor->hasVerifiedEmail(), 'href' => route('profile.edit')],
                 ['key' => 'property_profile', 'label' => __('Complete the property profile'), 'completed' => $profileComplete, 'href' => route('properties.edit', $property)],
                 ['key' => 'rooms', 'label' => __('Configure rooms'), 'completed' => $passed['room_type']->passed && $passed['room']->passed, 'href' => route('rooms.index')],
-                ['key' => 'rates', 'label' => __('Configure rates'), 'completed' => $passed['rate_plan']->passed && RatePrice::query()->where('property_id', $property->id)->exists(), 'href' => route('rate-calendar')],
+                ['key' => 'rates', 'label' => __('Configure rates'), 'completed' => $passed['rate_plan']->passed && RatePrice::query()->where('property_id', $property->id)->exists(), 'href' => route($passed['rate_plan']->passed ? 'rate-calendar' : 'rate-plans.index')],
                 ['key' => 'taxes_reviewed', 'label' => __('Review taxes'), 'completed' => $property->taxes_reviewed_at !== null, 'href' => route('tax-rules.index')],
                 ['key' => 'invite_staff', 'label' => __('Invite staff'), 'completed' => $staffInvited, 'href' => route('invitations.create')],
                 ['key' => 'import_reservations', 'label' => __('Import future reservations'), 'completed' => $this->hasImportedReservations($property), 'href' => Route::has('imports.index') ? route('imports.index') : null],

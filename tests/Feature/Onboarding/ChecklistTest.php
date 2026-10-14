@@ -51,6 +51,7 @@ test('setup progress survives leaving and returning and offers go-live only afte
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('onboarding.items.2.completed', true)
         ->where('onboarding.items.3.completed', true)
+        ->where('onboarding.items.3.href', route('rate-calendar'))
         ->where('onboarding.items.4.completed', false)
         ->where('onboarding.canGoLive', false));
 
@@ -97,7 +98,7 @@ test('checklist links lead to the existing setup screens', function () {
         ->where('onboarding.items.0.href', route('profile.edit'))
         ->where('onboarding.items.1.href', route('properties.edit', $property))
         ->where('onboarding.items.2.href', route('rooms.index'))
-        ->where('onboarding.items.3.href', route('rate-calendar'))
+        ->where('onboarding.items.3.href', route('rate-plans.index'))
         ->where('onboarding.items.4.href', route('tax-rules.index'))
         ->where('onboarding.items.5.href', route('invitations.create'))
         ->where('onboarding.items.7.href', route('reservations.create')));
