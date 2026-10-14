@@ -57,11 +57,12 @@ return [
 
     'platform.plans.update' => RouteCoverage::attempt(function (TwoTenants $t) use ($planPayload) {
         $plan = Plan::default();
+        $plan->forceFill(['modules' => ['reservations' => true, 'billing' => false]])->save();
         $before = $plan->toArray();
 
         $response = $this->actingAs($t->a->owner)->put(route('platform.plans.update', $plan), $planPayload())->assertForbidden();
 
-        expect($plan->fresh()?->toArray())->toBe($before);
+        expect($plan->fresh()?->toArray())->toEqual($before);
 
         return $response;
     }),
