@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\Subscriptions\PlanController;
+use App\Http\Controllers\Web\Subscriptions\SaasInvoiceController;
 use App\Http\Controllers\Web\Subscriptions\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,4 +17,7 @@ Route::middleware(['auth', 'verified', 'platform:platform_administrator', 'two-f
         Route::get('plans', [PlanController::class, 'index'])->name('plans.index');
         Route::post('plans', [PlanController::class, 'store'])->name('plans.store');
         Route::put('plans/{plan}', [PlanController::class, 'update'])->name('plans.update');
+        Route::get('invoices', [SaasInvoiceController::class, 'index'])->name('invoices.index');
+        Route::post('invoices', [SaasInvoiceController::class, 'store'])->name('invoices.store');
+        Route::post('invoices/{invoice}/payments', [SaasInvoiceController::class, 'recordPayment'])->name('invoices.payments.store');
     });

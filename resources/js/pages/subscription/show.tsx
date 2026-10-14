@@ -1,5 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Identifier } from '@/components/ui/identifier';
+import { Pagination } from '@/components/ui/pagination';
 import { StatusChip } from '@/components/ui/status-chip';
 import type { StatusTone } from '@/components/ui/status-chip';
 import {
@@ -11,8 +13,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
+import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
+import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
 import { show } from '@/routes/subscription';
+import type { Paginated } from '@/types';
 
 const tones: Record<string, StatusTone> = {
     trial: 'info',
@@ -38,6 +43,7 @@ type Props = {
         billingPeriod: string;
     };
     usage: { properties: number; rooms: number };
+    invoices: Paginated<SaasInvoice>;
     history: {
         id: string;
         from: string | null;
@@ -77,6 +83,7 @@ export default function SubscriptionShow({
     subscription,
     plan,
     usage,
+    invoices,
     history,
 }: Props) {
     return (
@@ -143,6 +150,77 @@ export default function SubscriptionShow({
                     </div>
                     <p className="text-sm text-muted-foreground">
                         Demo and archived properties don't count.
+                    </p>
+                </section>
+
+                <section aria-labelledby="invoices" className="space-y-3">
+                    <h2 id="invoices" className="text-lg font-semibold">
+                        Invoices
+                    </h2>
+                    {invoices.data.length === 0 ? (
+                        <EmptyState message="No invoices yet. Your first one is issued for the period after your trial." />
+                    ) : (
+                        <div>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Invoice</TableHead>
+                                        <TableHead>Period</TableHead>
+                                        <TableHead>Due</TableHead>
+                                        <TableHead numeric>Amount</TableHead>
+                                        <TableHead numeric>Balance</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {invoices.data.map((invoice) => (
+                                        <TableRow key={invoice.id}>
+                                            <TableCell>
+                                                <Identifier
+                                                    value={invoice.number}
+                                                    copyable
+                                                />
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap tabular-nums">
+                                                {formatDate(
+                                                    invoice.periodStartsAt,
+                                                )}{' '}
+                                                –{' '}
+                                                {formatDate(
+                                                    invoice.periodEndsAt,
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap tabular-nums">
+                                                {formatDate(invoice.dueAt)}
+                                            </TableCell>
+                                            <TableCell numeric>
+                                                {formatMoney(
+                                                    invoice.amount,
+                                                    invoice.currency,
+                                                )}
+                                            </TableCell>
+                                            <TableCell numeric>
+                                                {formatMoney(
+                                                    invoice.balance,
+                                                    invoice.currency,
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <SaasInvoiceStatus
+                                                    invoice={invoice}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            <Pagination page={invoices} />
+                        </div>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                        Pay by bank transfer or mobile money and quote the
+                        invoice number. Thedream records the payment once it
+                        arrives.
                     </p>
                 </section>
 
