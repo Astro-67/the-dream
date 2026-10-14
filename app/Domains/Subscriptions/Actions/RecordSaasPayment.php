@@ -8,6 +8,8 @@ use App\Domains\Subscriptions\Models\SaasPayment;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Models\User;
 use App\Support\Audit\Audit;
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -20,6 +22,17 @@ use Illuminate\Validation\ValidationException;
  */
 class RecordSaasPayment
 {
+    /** @param array{amount: int, method: string, reference: string, received_on: string} $details */
+    public function forPlatform(User $actor, string $invoiceId, array $details): SaasInvoice
+    {
+        $invoice = Tenancy::within(TenantContext::platform('Platform administrator recorded a SaaS payment'),
+            fn () => SaasInvoice::query()->findOrFail($invoiceId));
+        Tenancy::within(TenantContext::forOrganization($invoice->organization_id),
+            fn () => $this->handle($actor, $invoice, $details));
+
+        return $invoice;
+    }
+
     /** @param array{amount: int, method: string, reference: string, received_on: string} $details */
     public function handle(User $actor, SaasInvoice $invoice, array $details): SaasPayment
     {

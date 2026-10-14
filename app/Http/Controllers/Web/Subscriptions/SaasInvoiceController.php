@@ -53,13 +53,11 @@ class SaasInvoiceController extends Controller
 
     public function recordPayment(SaasPaymentRequest $request, string $invoice, RecordSaasPayment $record): RedirectResponse
     {
-        $found = Tenancy::within(TenantContext::platform('Platform administrator recorded a SaaS payment'), fn () => SaasInvoice::query()->findOrFail($invoice));
-
         /** @var User $actor */
         $actor = $request->user();
         /** @var array{amount: int, method: string, reference: string, received_on: string} $details */
         $details = $request->validated();
-        Tenancy::within(TenantContext::forOrganization($found->organization_id), fn () => $record->handle($actor, $found, $details));
+        $found = $record->forPlatform($actor, $invoice, $details);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Payment recorded against :number.', ['number' => $found->number])]);
 
         return to_route('platform.invoices.index');
