@@ -45,3 +45,33 @@ test('property reports require a current property rather than an organization-on
     $this->actingAs($owner)->withSession(['tenancy.organization_id' => $organization->id, 'tenancy.property_id' => null])
         ->getJson(route('reports.index'))->assertForbidden();
 });
+
+test('reports validate dates at the request boundary', function (array $range, array $errors) {
+    [$owner, $organization, $property] = organizationWithOwner();
+
+    $this->actingAs($owner)->withSession(['tenancy.organization_id' => $organization->id, 'tenancy.property_id' => $property->id])
+        ->getJson(route('reports.index', $range))->assertUnprocessable()->assertJsonValidationErrors($errors);
+})->with([
+    'reversed' => [['from' => '2026-12-11', 'to' => '2026-12-10'], ['to']],
+    'impossible date' => [['from' => '2026-02-30', 'to' => '2026-03-01'], ['from']],
+    'malformed' => [['from' => 'tomorrow', 'to' => '2026-12-10'], ['from']],
+    'array' => [['from' => ['2026-12-10'], 'to' => '2026-12-11'], ['from']],
+    'empty' => [['from' => '', 'to' => ''], ['from', 'to']],
+]);
+
+test('report permission is enforced for property staff', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $response = $this->actingAs($t->a->member($role))
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('reports.index', ['from' => '2026-12-10', 'to' => '2026-12-11']));
+
+    $allowed ? $response->assertOk() : $response->assertForbidden();
+})->with([
+    [OrganizationRole::Owner, true],
+    [OrganizationRole::GroupOperationsManager, true],
+    [OrganizationRole::PropertyManager, true],
+    [OrganizationRole::Finance, true],
+    [OrganizationRole::Auditor, true],
+    [OrganizationRole::FrontDesk, false],
+    [OrganizationRole::Housekeeping, false],
+]);
