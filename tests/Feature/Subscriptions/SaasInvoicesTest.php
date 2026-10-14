@@ -100,6 +100,21 @@ test('a past-due subscription returns to active once paid; a part payment change
         ->and(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Active);
 });
 
+test('settling a due invoice activates the subscription even when a future invoice remains open', function (SubscriptionStatus $status) {
+    $this->freezeTime();
+    [, $organization] = organizationWithOwner();
+    inTenant($organization, fn () => Subscription::current()->forceFill(['status' => $status, 'trial_ends_at' => now()])->save());
+    $due = saasInvoiceFor($organization);
+    $future = saasInvoiceFor($organization);
+
+    $this->actingAs(platformStaff())->post(route('platform.invoices.payments.store', $due->id),
+        saasPaymentPayload(['amount' => $due->amount]))->assertSessionHasNoErrors();
+
+    expect($due->fresh()->status)->toBe(SaasInvoiceStatus::Paid)
+        ->and($future->fresh()->status)->toBe(SaasInvoiceStatus::Open)
+        ->and(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Active);
+})->with([SubscriptionStatus::Trial, SubscriptionStatus::PastDue, SubscriptionStatus::Suspended]);
+
 test('payments are validated: a reference is required and no more than the balance is taken', function () {
     [, $organization] = organizationWithOwner();
     $invoice = saasInvoiceFor($organization);
@@ -117,7 +132,9 @@ test('payments are validated: a reference is required and no more than the balan
 });
 
 test('paying invoices out of order activates through the latest paid period', function () {
+    $this->freezeTime();
     [, $organization] = organizationWithOwner();
+    inTenant($organization, fn () => Subscription::current()->update(['trial_ends_at' => now()]));
     $first = saasInvoiceFor($organization);
     $second = saasInvoiceFor($organization);
     $this->actingAs(platformStaff());

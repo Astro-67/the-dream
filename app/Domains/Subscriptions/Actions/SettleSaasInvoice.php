@@ -26,7 +26,7 @@ class SettleSaasInvoice
 
             $invoice->forceFill(['status' => SaasInvoiceStatus::Paid, 'paid_at' => now()])->save();
             $invoices = SaasInvoice::query()->where('subscription_id', $subscription->id);
-            if ((clone $invoices)->where('status', SaasInvoiceStatus::Open)->lockForUpdate()->first() !== null
+            if ((clone $invoices)->where('status', SaasInvoiceStatus::Open)->where('due_at', '<=', now())->lockForUpdate()->first() !== null
                 || $subscription->status === SubscriptionStatus::Cancelled) {
                 return $invoice;
             }
