@@ -12,6 +12,7 @@ use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationNumberSequence;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -65,7 +66,9 @@ class CreateReservation
                 if ($room === 0 && ! empty($details['room_id'])) {
                     $reservation = app(AssignRoom::class)->handle($actor, $reservation, $details['room_id'], recordEvent: false);
                 }
-                app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
+                if (! $reservation->imported || ! JurisdictionRules::defersImportedReservationCreated($property)) {
+                    app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
+                }
                 Audit::record($actor, 'created', $reservation, 'Reservation created', ['reservation_number' => $number, 'restriction_override_reason' => $details['restriction_override_reason'], 'restriction_warnings' => $warnings]);
             } while (++$room < $rooms);
 

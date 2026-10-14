@@ -43,7 +43,7 @@ class ReservationImportCsv
                 if (count($rows) >= 1000) {
                     throw ValidationException::withMessages(['file' => __('Upload at most 1,000 reservations at a time.')]);
                 }
-                $row = $this->row($values, $number);
+                $row = $this->validateRow($values, $number);
                 $reference = $row['source_reference'];
                 if ($reference !== null && (isset($references[$reference]) || Reservation::query()->where('source_reference', $reference)->exists())) {
                     $row['status'] = 'duplicate';
@@ -68,7 +68,7 @@ class ReservationImportCsv
     /** @param list<string|null> $values
      * @return array<string, mixed>
      */
-    private function row(array $values, int $number): array
+    public function validateRow(array $values, int $number): array
     {
         if (! mb_check_encoding($values, 'UTF-8')) {
             throw ValidationException::withMessages(['file' => __('Save the CSV as UTF-8 and upload it again.')]);

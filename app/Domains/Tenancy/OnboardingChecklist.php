@@ -11,7 +11,6 @@ use App\Domains\Tenancy\Models\Invitation;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Schema;
 
 final class OnboardingChecklist
 {
@@ -54,8 +53,6 @@ final class OnboardingChecklist
 
     private function hasImportedReservations(Property $property): bool
     {
-        // ponytail: #98 owns the imported flag; remove this guard once its migration ships.
-        return Schema::hasColumn('reservations', 'imported')
-            && Reservation::query()->where('property_id', $property->id)->where('imported', true)->exists();
+        return Reservation::query()->where('property_id', $property->id)->where('imported', true)->exists();
     }
 }

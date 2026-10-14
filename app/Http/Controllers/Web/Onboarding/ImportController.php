@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Web\Onboarding;
 
+use App\Domains\Onboarding\Actions\CommitImport;
 use App\Domains\Onboarding\Actions\DryRunImport;
 use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Onboarding\ReservationImportCsv;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Onboarding\CommitImportRequest;
 use App\Http\Requests\Onboarding\ImportRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response as DownloadResponse;
@@ -47,13 +49,21 @@ class ImportController extends Controller
             'rows as valid_rows_count' => fn ($query) => $query->where('status', 'valid'),
             'rows as invalid_rows_count' => fn ($query) => $query->where('status', 'invalid'),
             'rows as duplicate_rows_count' => fn ($query) => $query->where('status', 'duplicate'),
+            'rows as completed_rows_count' => fn ($query) => $query->whereNotNull('commit_result'),
         ]);
 
         return Inertia::render('onboarding/import', [
-            'importJob' => $importJob->only(['id', 'original_name', 'status', 'rows_count', 'valid_rows_count', 'invalid_rows_count', 'duplicate_rows_count']),
-            'rows' => $importJob->rows()->paginate(50, ['id', 'row_number', 'source_reference', 'status', 'errors'])->withQueryString(),
+            'importJob' => $importJob->only(['id', 'original_name', 'status', 'commit_results', 'rows_count', 'valid_rows_count', 'invalid_rows_count', 'duplicate_rows_count', 'completed_rows_count']),
+            'rows' => $importJob->rows()->paginate(50, ['id', 'row_number', 'source_reference', 'status', 'errors', 'commit_result'])->withQueryString(),
             'copy' => $this->copy(),
         ]);
+    }
+
+    public function commit(CommitImportRequest $request, ImportJob $importJob, CommitImport $commit): RedirectResponse
+    {
+        $commit->handle($request->user(), $importJob);
+
+        return to_route('imports.show', $importJob);
     }
 
     /** @return array<string, string> */
@@ -68,6 +78,16 @@ class ImportController extends Controller
             'limits' => __('CSV only. Maximum 2 MB and 1,000 reservations.'),
             'run' => __('Run dry run'),
             'results' => __('Dry-run results'),
+            'commitResults' => __('Import results'),
+            'commit' => __('Commit import'),
+            'resume' => __('Resume import'),
+            'partialNotice' => __('Some rows already have stored outcomes. Resume the import to process the remaining rows; completed rows will not change.'),
+            'commitNotice' => __('Commit creates reservations and takes inventory at current rates. Existing source references are skipped. Refused rows create nothing.'),
+            'committedNotice' => __('Import complete. These stored results will not change if you submit this import again. To retry refused rows, correct the CSV and run a new dry run.'),
+            'invalidNotice' => __('Correct the invalid rows and run a new dry run before committing.'),
+            'created' => __('Created'),
+            'refused' => __('Refused'),
+            'reservationNumber' => __('Reservation number'),
             'noChanges' => __('No reservations have been created. Correct the errors in your CSV and upload it again.'),
             'row' => __('CSV row'),
             'reference' => __('Source reference'),

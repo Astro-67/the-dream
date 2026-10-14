@@ -44,11 +44,32 @@ vendor-specific mapping or a way to override nightly prices from the CSV.
   repeated references within the upload; another property's reference is not
   a duplicate.
 
-The commit step must re-enter the job's property context, recheck dates,
+The commit step re-enters the job's property context and rechecks dates,
 eligibility, rates, restrictions, availability and duplicates, create/link the
 booker and guest, and call `CreateReservation` with the replay fields and resolved
-booker ID. Only valid rows are eligible. Store per-row commit outcomes, use the
-database uniqueness constraint for concurrent repeat safety, and add the
-`imported` flag and go-live lifecycle behavior specified by Spec 8. Those writes
-are intentionally deferred to #98. Update the results screen's no-write notice
-when adding a committed state.
+booker ID. A dry run with invalid rows must be corrected before committing.
+Duplicate rows are skipped; only valid rows are eligible.
+
+## Commit outcomes and retries
+
+Commit saves each row's `commit_result` atomically with its reservation, booker,
+guest attachment, folio and inventory. It contains `status` (`created`,
+`duplicate` or `refused`), a `reservation_number` when available, and field-keyed
+`errors` for refusals. Each row uses current rates and restrictions, not the
+preview quote. Refused rows roll back without creating people or taking inventory.
+Guests are created for each new reservation, never matched automatically.
+
+The database unique constraint on `(property_id, source_reference)` is the
+idempotency key across uploads, including concurrent commits. The import job
+lock serializes replay of the same job. Completed rows survive an interrupted
+commit; resubmission processes only rows without an outcome. Once all rows have
+outcomes, the job becomes `committed` and its `commit_results` stores counts of
+`created`, `duplicate` and `refused`. Resubmission preserves those results.
+To retry refused rows, correct the CSV and run a new dry run.
+
+Created reservations carry `imported = true` and `source_reference`. At Zanzibar
+properties in setup, their `created` lifecycle event is deferred until go-live,
+with the go-live actor, time and business date and `test = false`. Go-live emits
+it once, using the reservation's current snapshot. Mainland imports and imports
+at already-live properties retain the ordinary lifecycle behavior. Reporting
+translation remains M3 work.

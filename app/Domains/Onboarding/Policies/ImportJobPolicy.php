@@ -18,4 +18,9 @@ class ImportJobPolicy
     {
         return Access::inProperty($user, OrganizationPermission::PropertiesUpdate, $job);
     }
+
+    public function commit(User $user, ImportJob $job): bool
+    {
+        return Access::inProperty($user, OrganizationPermission::PropertiesUpdate, $job);
+    }
 }
