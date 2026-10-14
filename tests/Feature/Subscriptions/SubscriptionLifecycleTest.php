@@ -133,19 +133,22 @@ test('the hourly command advances each organization and notifies only its own ow
     Notification::assertNotSentTo($ownerB, SaasInvoiceReminder::class);
 });
 
-test('a missed billing window sends only an overdue reminder and does not stack unpaid periods', function () {
+test('missed billing windows issue every unpaid period once and send only overdue reminders', function () {
     [$owner, $organization] = organizationWithOwner();
     inTenant($organization, function () {
         Subscription::current()->forceFill(['trial_ends_at' => now()->subMonths(3)])->save();
         app(AdvanceSubscription::class)->handle();
-        expect(SaasInvoice::query()->count())->toBe(1)
+        expect(SaasInvoice::query()->count())->toBe(4)
             ->and(Subscription::current()->status)->toBe(SubscriptionStatus::Suspended);
     });
     $this->travel(1)->hours();
     inTenant($organization, function () {
         app(AdvanceSubscription::class)->handle();
-        expect(SaasInvoice::query()->count())->toBe(1);
+        app(AdvanceSubscription::class)->handle();
+        expect(SaasInvoice::query()->count())->toBe(4)
+            ->and(SaasInvoice::query()->orderBy('period_starts_at')->get()->map(fn (SaasInvoice $invoice) => $invoice->period_starts_at->toDateString())->all())
+            ->toBe(['2026-07-14', '2026-08-14', '2026-09-14', '2026-10-14']);
     });
-    Notification::assertSentToTimes($owner, SaasInvoiceReminder::class, 1);
+    Notification::assertSentToTimes($owner, SaasInvoiceReminder::class, 4);
     Notification::assertSentTo($owner, SaasInvoiceReminder::class, fn ($notification) => $notification->overdue);
 });

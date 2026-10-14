@@ -30,9 +30,7 @@ class AdvanceSubscription
             }
 
             if (! $subscription->cancel_at_period_end) {
-                $last = SaasInvoice::query()->where('subscription_id', $subscription->id)->orderByDesc('period_ends_at')->first();
-                $nextStarts = $last->period_ends_at ?? $periodEnds ?? now()->toImmutable();
-                if (($last === null || $last->status === SaasInvoiceStatus::Paid) && $nextStarts->lessThanOrEqualTo(now()->addDays(3))) {
+                while ($subscription->nextPeriodStartsAt()->lessThanOrEqualTo(now()->addDays(3))) {
                     app(IssueSaasInvoice::class)->handle($subscription);
                 }
             }

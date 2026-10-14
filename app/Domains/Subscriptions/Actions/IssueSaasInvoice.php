@@ -33,10 +33,7 @@ class IssueSaasInvoice
 
                 return $next;
             });
-            $last = SaasInvoice::query()->where('subscription_id', $subscription->id)
-                ->orderByDesc('period_ends_at')->lockForUpdate()->first();
-            $starts = $last->period_ends_at
-                ?? $subscription->current_period_ends_at ?? $subscription->trial_ends_at ?? now()->toImmutable();
+            $starts = $subscription->nextPeriodStartsAt();
 
             $invoice = SaasInvoice::query()->create([
                 'subscription_id' => $subscription->id,
