@@ -5,6 +5,7 @@ import {
     DropdownMenuItem,
     DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import { StatusChip } from '@/components/ui/status-chip';
 import { update } from '@/routes/current-property';
 
 /**
@@ -50,6 +51,9 @@ export function PropertySwitcherItems() {
                         <span className="min-w-0 flex-1 break-words">
                             {property.name}
                         </span>
+                        {property.demo && (
+                            <StatusChip tone="info">Demo</StatusChip>
+                        )}
                         {isCurrent && (
                             <Check className="size-4 shrink-0" aria-hidden />
                         )}
