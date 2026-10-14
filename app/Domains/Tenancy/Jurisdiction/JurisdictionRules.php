@@ -105,7 +105,7 @@ final class JurisdictionRules
 
         return [
             new GoLiveGate('room_type', __('At least one room type'), RoomType::query()->where('property_id', $id)->exists()),
-            new GoLiveGate('room', __('At least one room'), Room::query()->where('property_id', $id)->whereNull('deactivated_at')->exists()),
+            new GoLiveGate('room', __('At least one room'), Room::query()->where('property_id', $id)->active()->exists()),
             new GoLiveGate('rate_plan', __('At least one rate plan'), RatePlan::query()->where('property_id', $id)->whereNull('deactivated_at')->exists()),
             new GoLiveGate('taxes_reviewed', __('Taxes reviewed'), $property->taxes_reviewed_at !== null),
         ];
