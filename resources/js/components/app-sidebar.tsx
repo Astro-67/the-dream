@@ -9,6 +9,7 @@ import {
     Hotel,
     LayoutGrid,
     Layers,
+    ReceiptText,
     Wallet,
     MailPlus,
     Percent,
@@ -37,6 +38,7 @@ import { index as bookers } from '@/routes/bookers';
 import { index as members } from '@/routes/members';
 import { index as nightAudit } from '@/routes/night-audit';
 import { index as openBalances } from '@/routes/open-balances';
+import { index as platformInvoices } from '@/routes/platform/invoices';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
 import { index as platformPlans } from '@/routes/platform/plans';
 import { index as platformStaff } from '@/routes/platform/staff';
@@ -75,6 +77,11 @@ const platformNavItems: NavItem[] = [
         title: 'Plans',
         href: platformPlans(),
         icon: Layers,
+    },
+    {
+        title: 'SaaS invoices',
+        href: platformInvoices(),
+        icon: ReceiptText,
     },
     {
         title: 'Platform staff',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Subscriptions;
 
+use App\Domains\Subscriptions\Models\SaasInvoice;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Subscriptions\Models\SubscriptionStateChange;
 use App\Domains\Subscriptions\PlanUsage;
@@ -33,6 +34,8 @@ class SubscriptionController extends Controller
                 'price' => $plan->price, 'currency' => $plan->currency->value, 'billingPeriod' => $plan->billing_period->label(),
             ],
             'usage' => PlanUsage::current(),
+            'invoices' => SaasInvoice::query()->withSum('payments', 'amount')->orderByDesc('sequence')->paginate(50)->withQueryString()
+                ->through(fn (SaasInvoice $invoice) => ['id' => $invoice->id, ...$invoice->summary()]),
             'history' => $subscription->stateChanges()->with('actor')->limit(50)->get()->map(fn (SubscriptionStateChange $change) => [
                 'id' => $change->id, 'from' => $change->from?->label(), 'to' => $change->to->label(),
                 'reason' => $change->reason, 'actor' => $change->actor?->name, 'at' => $change->created_at?->toIso8601String(),
