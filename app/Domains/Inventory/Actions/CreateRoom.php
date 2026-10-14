@@ -23,9 +23,8 @@ class CreateRoom
     public function handle(?User $actor, array $details): Room
     {
         return Audit::validationRefusal($actor, new Room, 'Room creation refused', fn () => DB::transaction(function () use ($actor, $details) {
-            $entitlements = app(Entitlements::class);
             $property = Tenancy::property() ?? throw MissingTenantContext::forProperty(Room::class);
-            $entitlements->assertCapacity($entitlements->lockForNewSales($property->demo), rooms: 1);
+            app(Entitlements::class)->assertCanAdd($property->demo, rooms: 1);
             $type = RoomType::query()->whereKey($details['room_type_id'])->lockForUpdate()->firstOrFail();
             $room = Room::query()->create($details);
             app(InitializeRoomStatus::class)->handle($room);

@@ -18,8 +18,7 @@ class CreateProperty
     public function handle(?User $actor, PropertyDetails $details, bool $demo = false): Property
     {
         return Audit::validationRefusal($actor, new Property, 'Property creation refused', fn () => DB::transaction(function () use ($actor, $details, $demo) {
-            $entitlements = app(Entitlements::class);
-            $entitlements->assertCapacity($entitlements->lockForNewSales($demo), properties: 1);
+            app(Entitlements::class)->assertCanAdd($demo, properties: 1);
             $property = (new Property([...$details->toAttributes(), 'business_date' => now($details->timezone)->toDateString()]))->forceFill(['demo' => $demo]);
             $property->save();
 

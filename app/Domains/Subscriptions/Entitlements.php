@@ -7,6 +7,11 @@ use Illuminate\Validation\ValidationException;
 
 final class Entitlements
 {
+    public function assertCanAdd(bool $demo = false, int $properties = 0, int $rooms = 0): void
+    {
+        $this->assertCapacity($this->lockForNewSales($demo), $properties, $rooms);
+    }
+
     public function lockForNewSales(bool $demo = false): ?Subscription
     {
         $subscription = Subscription::query()->lockForUpdate()->sole();
