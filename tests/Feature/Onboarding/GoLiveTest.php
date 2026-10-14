@@ -61,6 +61,27 @@ test('a property manager reviews taxes and takes the property live once gates pa
     expect($audit->causer_id)->toBe($manager->id)->and($audit->subject_id)->toBe($property->id);
 });
 
+test('go-live gates do not borrow rooms rates or tax review from another property in the organization', function () {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->forceFill(['status' => PropertyStatus::Setup])->save();
+    inTenant($t->a->otherProperty, fn () => BookingForm::details($t->a->owner));
+    $this->actingAs($t->a->owner)->post(route('properties.taxes-reviewed', $t->a->otherProperty), [
+        '_property' => $t->a->otherProperty->id,
+    ])->assertSessionHasNoErrors();
+
+    $this->post(route('properties.go-live', $property), ['_property' => $property->id])
+        ->assertSessionHasErrors(['go_live' => 'Not ready to go live. Still to do: At least one room type, At least one room, At least one rate plan, Taxes reviewed.']);
+    expect($property->fresh()->status)->toBe(PropertyStatus::Setup);
+
+    inTenant($property, fn () => BookingForm::details($t->a->owner));
+    $this->post(route('properties.taxes-reviewed', $property), ['_property' => $property->id])
+        ->assertSessionHasNoErrors();
+    $this->post(route('properties.go-live', $property), ['_property' => $property->id])
+        ->assertSessionHasNoErrors();
+    expect($property->fresh()->status)->toBe(PropertyStatus::Live);
+});
+
 test('staff without property update permission cannot take a property live', function (OrganizationRole $role) {
     $t = twoTenants();
     $t->a->property->forceFill(['status' => PropertyStatus::Setup])->save();
