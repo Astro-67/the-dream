@@ -36,6 +36,10 @@ export default function CreateProperty({ defaults, ...options }: Props) {
                         <>
                             <PropertyIntent />
                             <InputError message={errors._property} />
+                            <InputError
+                                message={errors.subscription ?? errors.property}
+                                role="alert"
+                            />
                             <PropertyFields
                                 options={options}
                                 values={{

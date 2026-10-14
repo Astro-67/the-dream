@@ -64,6 +64,7 @@ The application is one Laravel app divided into domains under `app/Domains/<Doma
 | **FrontDesk**        | Check-in, check-out, room moves, night audit                                                                                                       | §7.4 (PMS-04–06) |
 | **Billing**          | Folios, charges, payments, adjustments, receipts, channel-collected amounts, fiscal exceptions                                                     | §7.6             |
 | **Housekeeping**     | Room status and tasks                                                                                                                              | §7.7             |
+| **Subscriptions**    | Plans, organization subscriptions, state history, usage and entitlements                                                                           | §7.3, §13        |
 | **Distribution**     | Channel connections, mappings, inbound and outbound channel messages, reconciliation. Interface: `ChannelConnector`                                | §7.8             |
 | **ZanReporting**     | Booking reports and hotel-info sync. Interface: `ZanReporter`                                                                                      | §7.9             |
 | **FiscalReceipting** | VFMS transactions. Interface: `FiscalReceipter`                                                                                                    | §7.10            |
@@ -71,7 +72,6 @@ The application is one Laravel app divided into domains under `app/Domains/<Doma
 
 Not yet a domain folder, and added when their first ticket needs them:
 
-- **Subscriptions:** plans, SaaS invoices, entitlements (§7.3, §13).
 - **Compliance incidents and latency monitoring:** a Compliance domain if they outgrow Reports and the outbox (§7.9, §7.11).
 - **Platform administration** beyond roles and the organization list: support sessions and platform secrets (§5, §10), in the Platform domain.
 
@@ -180,6 +180,10 @@ New routes are checked automatically: the suite enumerates registered routes, so
 An owner archives a property with `ArchiveProperty` (and brings it back with `RestoreProperty`); both are audited. An archived property (`archived_at` set) is left out of `Tenancy::allows`, `defaultContextFor` and `propertiesFor`, so it drops out of the switcher and nobody can work in it, while its records and audit history stay and it is still listed on the properties page. Archiving the organization's last active property is refused.
 
 A **demo property** (`demo` flag, set only by `CreateDemoProperty` at creation) is the one property that is deleted rather than archived: `DeleteDemoProperty` removes every row with its `property_id` (`App\Support\Tenancy\PropertyPurge`, which reads the tables from the schema). `GoLive` refuses it. Anything that counts or reports properties (plan limits, reports, integration translators) selects them with `Property::real()`.
+
+**Plan entitlements:** `Subscriptions\Entitlements` is called inside the transactions that create properties, rooms and reservations or restore properties, not from request middleware. It locks the organization's subscription before checking status or capacity, serializing concurrent additions across all its properties with subscription transitions. `PlanUsage` always reads in organization context; capacity checks use locking reads of active real properties and their active rooms. Restoring a property needs a property slot and capacity for all its active rooms. There is no room-reactivation action; editing or moving a room does not reactivate it.
+
+Suspended and cancelled subscriptions refuse new real sales and additions, with audited validation errors. Demo creation and its sample rooms and reservations remain available and consume no capacity. Lower limits delete or deactivate nothing: only further additions are refused. Existing reservation operations, folio payments, data reads/exports and compliance work do not consult this guard.
 
 Before archiving, `ArchiveProperty` runs every **pre-archive check**: a class implementing `App\Domains\Tenancy\Contracts\PreArchiveCheck`, whose `blockingReason(Property)` returns null to allow archiving or a sentence telling the owner what stops it. Checks run inside the property's tenant context, and the owner sees every failing reason. The M1 outbox foundation registers a check blocking archival while the property has unresolved messages (including unknown, rejected, exhausted or blocked work), so recovery remains possible. Other domains add checks by tagging them in their service provider:
 

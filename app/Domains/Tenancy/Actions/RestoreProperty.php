@@ -2,9 +2,13 @@
 
 namespace App\Domains\Tenancy\Actions;
 
+use App\Domains\Inventory\Models\Room;
+use App\Domains\Subscriptions\Entitlements;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -19,7 +23,16 @@ class RestoreProperty
             return $property;
         }
 
-        return DB::transaction(function () use ($actor, $property) {
+        return Tenancy::within(TenantContext::forOrganization($property->organization_id), fn () => Audit::validationRefusal($actor, $property, 'Property restoration refused', fn () => DB::transaction(function () use ($actor, $property) {
+            $entitlements = app(Entitlements::class);
+            $subscription = $entitlements->lockForNewSales($property->demo);
+            $property = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
+            if ($property->archived_at === null) {
+                return $property;
+            }
+
+            $rooms = count(Room::query()->where('property_id', $property->id)->active()->lockForUpdate()->pluck('id')->all());
+            $entitlements->assertCapacity($subscription, properties: 1, rooms: $rooms);
             $before = ['archived_at' => $property->archived_at->toIso8601String()];
             $property->archived_at = null;
             $property->save();
@@ -31,6 +44,6 @@ class RestoreProperty
             ]);
 
             return $property;
-        });
+        }, attempts: 3)));
     }
 }
