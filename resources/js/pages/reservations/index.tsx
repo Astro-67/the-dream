@@ -20,6 +20,7 @@ import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
 import { formatDate } from '@/features/platform/format';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { availability, checkIn, index, show } from '@/routes/reservations';
+import { index as importsIndex } from '@/routes/imports';
 import type { Paginated } from '@/types';
 
 type Reservation = {
@@ -40,9 +41,13 @@ type Filters = { date: string; list: string; search: string };
 export default function Index({
     reservations,
     filters,
+    canImport,
+    importLabel,
 }: {
     reservations: Paginated<Reservation>;
     filters: Filters;
+    canImport: boolean;
+    importLabel: string;
 }) {
     return (
         <>
@@ -55,9 +60,16 @@ export default function Index({
                             Business date: {formatDate(filters.date, 'UTC')}
                         </p>
                     </div>
-                    <Button asChild variant="outline">
-                        <Link href={availability()}>Find availability</Link>
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        {canImport && (
+                            <Button asChild variant="outline">
+                                <Link href={importsIndex()}>{importLabel}</Link>
+                            </Button>
+                        )}
+                        <Button asChild variant="outline">
+                            <Link href={availability()}>Find availability</Link>
+                        </Button>
+                    </div>
                 </header>
                 <Form
                     {...index.form()}

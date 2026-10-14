@@ -16,6 +16,8 @@ export type TenantProperty = {
     jurisdictionLabel: string;
     /** The property's open business date (Y-m-d); only night audit moves it. */
     businessDate: string;
+    /** A demo property: sample data only, never live. */
+    demo: boolean;
     /** Present only for Zanzibar properties. */
     zraHotelCode?: string | null;
 };
@@ -23,6 +25,7 @@ export type TenantProperty = {
 export type TenantPropertyOption = {
     id: string;
     name: string;
+    demo: boolean;
 };
 
 /** The current tenant context, shared with every page. */

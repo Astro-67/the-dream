@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Tenancy\Actions\ArchiveProperty;
+use App\Domains\Tenancy\Actions\CreateDemoProperty;
 use App\Domains\Tenancy\Actions\SendInvitation;
 use App\Domains\Tenancy\Data\InvitationDetails;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -62,6 +63,28 @@ return [
 
         return $responses;
     }),
+    'properties.demo.store' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoProperties) {
+        $before = $bravoProperties($t);
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('properties.demo.store'), ['_property' => $t->b->property->id])->assertForbidden(),
+            $this->actingAs($t->a->owner)->post(route('properties.demo.store'), ['_property' => $t->a->property->id])->assertRedirect(route('properties.index')),
+            $this->actingAs($t->a->owner)->get(route('properties.index')),
+        ];
+        expect($bravoProperties($t))->toBe($before);
+
+        return $responses;
+    }),
+    'properties.destroy' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoProperties) {
+        $demo = inTenant($t->b->property, fn () => app(CreateDemoProperty::class)->handle($t->b->owner));
+        $before = $bravoProperties($t);
+        $responses = [
+            $this->actingAs($t->a->owner)->delete(route('properties.destroy', $demo->id), ['_property' => $t->a->property->id])->assertNotFound(),
+            $this->actingAs($t->a->owner)->delete(route('properties.destroy', $demo->id), ['_property' => $demo->id])->assertForbidden(),
+        ];
+        expect($bravoProperties($t))->toBe($before)->toHaveKey($demo->id);
+
+        return $responses;
+    }),
     'properties.edit' => RouteCoverage::attempt(fn (TwoTenants $t) => $this->actingAs($t->a->owner)->get(route('properties.edit', $t->b->property->id))->assertNotFound()),
     'properties.update' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoProperties) {
         $before = $bravoProperties($t);
@@ -92,6 +115,25 @@ return [
             $this->actingAs($t->a->owner)->delete(route('properties.restore', $t->b->otherProperty->id), ['_property' => $t->b->property->id])->assertForbidden(),
         ];
         expect($bravoProperties($t))->toBe($before)->and($before[$t->b->otherProperty->id]['archived_at'])->not->toBeNull();
+
+        return $responses;
+    }),
+    'properties.go-live' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $t->b->otherProperty->forceFill(['status' => 'setup'])->save();
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('properties.go-live', $t->b->otherProperty->id), ['_property' => $t->a->property->id])->assertNotFound(),
+            $this->actingAs($t->a->owner)->post(route('properties.go-live', $t->b->otherProperty->id), ['_property' => $t->b->property->id])->assertForbidden(),
+        ];
+        expect($t->b->otherProperty->fresh()?->isLive())->toBeFalse();
+
+        return $responses;
+    }),
+    'properties.taxes-reviewed' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('properties.taxes-reviewed', $t->b->property->id), ['_property' => $t->a->property->id])->assertNotFound(),
+            $this->actingAs($t->a->owner)->post(route('properties.taxes-reviewed', $t->b->property->id), ['_property' => $t->b->property->id])->assertForbidden(),
+        ];
+        expect($t->b->property->fresh()?->taxes_reviewed_at)->toBeNull();
 
         return $responses;
     }),

@@ -107,6 +107,12 @@ _Avoid_: Activation, launch
 A record that something happened to a reservation that authorities may need to know about: created, modified, cancelled, no-show confirmed, checked in, room moved, guest added, nightly price changed, checked out.
 _Avoid_: Booking report (that is ZAN Gateway's message, derived from the event)
 
+## Subscriptions
+
+**SaaS invoice**:
+A request for payment from Thedream to an organization for one subscription billing period. Separate from guest folios, non-fiscal receipts and fiscal receipts.
+_Avoid_: Folio, guest invoice, fiscal receipt
+
 ## Jurisdiction and compliance
 
 **Jurisdiction profile**:

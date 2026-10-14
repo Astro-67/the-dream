@@ -12,9 +12,12 @@ use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationNumberSequence;
+use App\Domains\Subscriptions\Entitlements;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
+use App\Support\Tenancy\Exceptions\MissingTenantContext;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -26,6 +29,8 @@ class CreateReservation
     public function handle(?User $actor, array $details): Reservation
     {
         return Audit::validationRefusal($actor, new Reservation, 'Reservation booking refused', fn () => DB::transaction(function () use ($actor, $details) {
+            $property = Tenancy::property() ?? throw MissingTenantContext::forProperty(Reservation::class);
+            app(Entitlements::class)->lockForNewSales($property->demo);
             $type = RoomType::query()->findOrFail($details['room_type_id']);
             $plan = RatePlan::query()->whereNull('deactivated_at')->whereHas('roomTypes', fn ($query) => $query->whereKey($type->id))->findOrFail($details['rate_plan_id']);
             Booker::query()->findOrFail($details['booker_id']);
@@ -43,7 +48,7 @@ class CreateReservation
             app(TakeInventory::class)->handle($type, array_column($quote->nights, 'date'), $rooms);
             $groupId = $rooms > 1 ? (string) Str::ulid() : null;
             // The property lock serializes initial sequence creation as well as allocation.
-            $property = Property::query()->whereKey(Tenancy::property()?->id)->lockForUpdate()->firstOrFail();
+            $property = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
             $sequence = ReservationNumberSequence::query()->where('property_id', $property->id)->lockForUpdate()->first();
             $sequence ??= ReservationNumberSequence::query()->create(['last_number' => 0]);
             $room = 0;
@@ -65,7 +70,9 @@ class CreateReservation
                 if ($room === 0 && ! empty($details['room_id'])) {
                     $reservation = app(AssignRoom::class)->handle($actor, $reservation, $details['room_id'], recordEvent: false);
                 }
-                app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
+                if (! $reservation->imported || ! JurisdictionRules::defersImportedReservationCreated($property)) {
+                    app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);
+                }
                 Audit::record($actor, 'created', $reservation, 'Reservation created', ['reservation_number' => $number, 'restriction_override_reason' => $details['restriction_override_reason'], 'restriction_warnings' => $warnings]);
             } while (++$room < $rooms);
 

@@ -9,7 +9,7 @@ import {
     TableCell,
 } from '@/components/ui/table';
 import { Form, Head, Link, usePage } from '@inertiajs/react';
-import { AlertCircle, Plus } from 'lucide-react';
+import { AlertCircle, FlaskConical, Plus } from 'lucide-react';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,10 +21,19 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { archive, create, edit, index, restore } from '@/routes/properties';
+import {
+    archive,
+    create,
+    destroy,
+    edit,
+    index,
+    restore,
+} from '@/routes/properties';
+import { store as storeDemo } from '@/routes/properties/demo';
 import { formatDate } from '@/features/platform/format';
 import type { Currency, JurisdictionProfile } from '@/types';
 import { Spinner } from '@/components/ui/spinner';
+import InputError from '@/components/input-error';
 
 type PropertyRow = {
     id: string;
@@ -34,7 +43,8 @@ type PropertyRow = {
     currency: Currency;
     jurisdictionProfile: JurisdictionProfile;
     jurisdictionLabel: string;
-    can: { update: boolean; archive: boolean };
+    demo: boolean;
+    can: { update: boolean; archive: boolean; delete: boolean };
 };
 
 type ArchivedPropertyRow = {
@@ -45,6 +55,7 @@ type ArchivedPropertyRow = {
     jurisdictionProfile: JurisdictionProfile;
     jurisdictionLabel: string;
     archivedAt: string;
+    demo: boolean;
     can: { restore: boolean };
 };
 
@@ -105,10 +116,100 @@ function ArchiveProperty({ property }: { property: PropertyRow }) {
     );
 }
 
+function DeleteDemoProperty({ property }: { property: PropertyRow }) {
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="sm">
+                    Delete
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogTitle>Delete {property.name}?</DialogTitle>
+                <DialogDescription>
+                    The demo property and all its sample rooms, rates and
+                    reservations are removed for good. Your other properties are
+                    not touched.
+                </DialogDescription>
+                <Form
+                    {...destroy.form(property.id)}
+                    options={{ preserveScroll: true }}
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <PropertyIntent propertyId={property.id} />
+                            {(errors.delete || errors._property) && (
+                                <p
+                                    role="alert"
+                                    className="mb-4 flex gap-2 text-[13px] text-status-error"
+                                >
+                                    <AlertCircle
+                                        aria-hidden
+                                        className="mt-0.5 size-4 shrink-0"
+                                    />
+                                    {errors.delete ?? errors._property}
+                                </p>
+                            )}
+                            <DialogFooter className="gap-2">
+                                <DialogClose asChild>
+                                    <Button variant="secondary">Keep it</Button>
+                                </DialogClose>
+                                <Button
+                                    variant="destructive"
+                                    disabled={processing}
+                                    type="submit"
+                                >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
+                                    Delete demo property
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function CreateDemoProperty() {
+    return (
+        <Form {...storeDemo.form()}>
+            {({ processing }) => (
+                <>
+                    <PropertyIntent />
+                    <Button
+                        variant="secondary"
+                        disabled={processing}
+                        type="submit"
+                        data-test="create-demo-property"
+                    >
+                        {processing ? (
+                            <Spinner />
+                        ) : (
+                            <FlaskConical aria-hidden />
+                        )}
+                        Try a demo property
+                    </Button>
+                </>
+            )}
+        </Form>
+    );
+}
+
+function DemoChip() {
+    return (
+        <StatusChip tone="info" className="ml-2">
+            Demo
+        </StatusChip>
+    );
+}
+
 function RestoreProperty({ property }: { property: ArchivedPropertyRow }) {
     return (
         <Form {...restore.form(property.id)} options={{ preserveScroll: true }}>
-            {({ processing }) => (
+            {({ processing, errors }) => (
                 <>
                     <PropertyIntent />
                     <Button
@@ -123,6 +224,15 @@ function RestoreProperty({ property }: { property: ArchivedPropertyRow }) {
                         </span>
                         Restore
                     </Button>
+                    <InputError
+                        message={
+                            errors.subscription ??
+                            errors.property ??
+                            errors.room ??
+                            errors._property
+                        }
+                        role="alert"
+                    />
                 </>
             )}
         </Form>
@@ -163,12 +273,15 @@ export default function PropertiesIndex({
                         </p>
                     </div>
                     {canCreate && (
-                        <Button asChild>
-                            <Link href={create()} data-test="add-property">
-                                <Plus aria-hidden />
-                                Add property
-                            </Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <CreateDemoProperty />
+                            <Button asChild>
+                                <Link href={create()} data-test="add-property">
+                                    <Plus aria-hidden />
+                                    Add property
+                                </Link>
+                            </Button>
+                        </div>
                     )}
                 </header>
 
@@ -203,6 +316,7 @@ export default function PropertiesIndex({
                                 <TableRow key={property.id}>
                                     <TableCell className="font-medium">
                                         {property.name}
+                                        {property.demo && <DemoChip />}
                                         {property.id ===
                                             tenant.property?.id && (
                                             <Tag
@@ -241,6 +355,11 @@ export default function PropertiesIndex({
                                             )}
                                             {property.can.archive && (
                                                 <ArchiveProperty
+                                                    property={property}
+                                                />
+                                            )}
+                                            {property.can.delete && (
+                                                <DeleteDemoProperty
                                                     property={property}
                                                 />
                                             )}
@@ -287,6 +406,7 @@ export default function PropertiesIndex({
                                     <TableRow key={property.id}>
                                         <TableCell className="font-medium">
                                             {property.name}
+                                            {property.demo && <DemoChip />}
                                             <ArchivedChip />
                                         </TableCell>
                                         <TableCell>{property.city}</TableCell>

@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
+use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Enums\PropertyType;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Money\Currency;
@@ -35,8 +36,15 @@ class PropertyFactory extends Factory
             'timezone' => 'Africa/Dar_es_Salaam',
             'currency' => Currency::TZS,
             'jurisdiction_profile' => JurisdictionProfile::Zanzibar,
+            // Most tests work in an operating property; setup() gives one being set up.
+            'status' => PropertyStatus::Live,
             'business_date' => fn (array $attributes) => now($attributes['timezone'])->toDateString(),
         ];
+    }
+
+    public function setup(): static
+    {
+        return $this->state(fn () => ['status' => PropertyStatus::Setup]);
     }
 
     public function mainland(): static

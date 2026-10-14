@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Models\User;
+use App\Support\Audit\Audit;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -23,7 +24,12 @@ class EnsurePlatformRole
         $user = $request->user();
         $allowed = $roles === [] ? PlatformRole::cases() : array_map(PlatformRole::from(...), $roles);
 
-        abort_unless($user instanceof User && $this->holdsAny($user, $allowed), 403);
+        if (! $user instanceof User || ! $this->holdsAny($user, $allowed)) {
+            Audit::record($user, 'refused', $user ?? new User, 'Platform access refused', [
+                'result' => 'refused', 'stage' => 'authorization', 'action' => $request->route()?->getName(),
+            ]);
+            abort(403);
+        }
 
         return $next($request);
     }

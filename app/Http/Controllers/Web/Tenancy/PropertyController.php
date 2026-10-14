@@ -40,9 +40,12 @@ class PropertyController extends Controller
                 'currency' => $property->currency->value,
                 'jurisdictionProfile' => $property->jurisdiction_profile->value,
                 'jurisdictionLabel' => $property->jurisdiction_profile->label(),
+                'demo' => $property->isDemo(),
                 'can' => [
                     'update' => $user->can('update', $property),
-                    'archive' => $user->can('archive', $property),
+                    // A demo property is deleted, never archived.
+                    'archive' => ! $property->isDemo() && $user->can('archive', $property),
+                    'delete' => $property->isDemo() && $user->can('delete', $property),
                 ],
             ])->values(),
             // Archived properties stay readable here; they are left out of the switcher and operational lists.
@@ -58,6 +61,7 @@ class PropertyController extends Controller
                     'jurisdictionLabel' => $property->jurisdiction_profile->label(),
                     'timezone' => $property->timezone,
                     'archivedAt' => $property->archived_at?->toIso8601String(),
+                    'demo' => $property->isDemo(),
                     'can' => ['restore' => $user->can('restore', $property)],
                 ])->values(),
         ]);

@@ -3,6 +3,7 @@
 namespace App\Domains\Tenancy\Models;
 
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
+use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Enums\PropertyType;
 use App\Domains\Tenancy\Policies\PropertyPolicy;
 use App\Support\Money\Currency;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use LogicException;
 
 /**
  * One property operated by an organization.
@@ -42,6 +44,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $receipt_prefix
  * @property CarbonImmutable $business_date
  * @property string $close_time
+ * @property PropertyStatus $status
+ * @property CarbonImmutable|null $went_live_at
+ * @property string|null $went_live_by
+ * @property CarbonImmutable|null $taxes_reviewed_at
+ * @property string|null $taxes_reviewed_by
+ * @property bool $demo
  * @property CarbonImmutable|null $archived_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
@@ -59,6 +67,19 @@ class Property extends Model
 
     public const DEFAULT_TIMEZONE = 'Africa/Dar_es_Salaam';
 
+    /** New properties start in setup; only GoLive moves them to live. */
+    protected $attributes = ['status' => 'setup', 'demo' => false];
+
+    protected static function booted(): void
+    {
+        // A demo property is one from creation to deletion (GLOSSARY: demo property).
+        static::updating(function (self $property): void {
+            if ($property->isDirty('demo')) {
+                throw new LogicException('A property is a demo property only from creation.');
+            }
+        });
+    }
+
     /**
      * @return array<string, string>
      */
@@ -68,11 +89,15 @@ class Property extends Model
             'property_type' => PropertyType::class,
             'currency' => Currency::class,
             'jurisdiction_profile' => JurisdictionProfile::class,
+            'status' => PropertyStatus::class,
+            'went_live_at' => 'immutable_datetime',
+            'taxes_reviewed_at' => 'immutable_datetime',
             'archived_at' => 'datetime',
             'business_date' => 'immutable_date',
             'housekeeping_inspection_required' => 'boolean',
             'stayover_service_on_close' => 'boolean',
             'registration_fields' => 'array',
+            'demo' => 'boolean',
         ];
     }
 
@@ -83,6 +108,32 @@ class Property extends Model
     protected function active(Builder $query): void
     {
         $query->whereNull($this->qualifyColumn('archived_at'));
+    }
+
+    /**
+     * Real properties only: plan limits, reports and integration translators leave demo properties out.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function real(Builder $query): void
+    {
+        $query->where($this->qualifyColumn('demo'), false);
+    }
+
+    public function isDemo(): bool
+    {
+        return $this->demo;
+    }
+
+    public function displayName(): string
+    {
+        return $this->isDemo() ? __(':name (Demo)', ['name' => $this->name]) : $this->name;
+    }
+
+    public function isLive(): bool
+    {
+        return $this->status === PropertyStatus::Live;
     }
 
     /**

@@ -3,10 +3,13 @@ import {
     BedDouble,
     Banknote,
     CalendarDays,
+    CreditCard,
     Building2,
     DoorOpen,
     Hotel,
     LayoutGrid,
+    Layers,
+    ReceiptText,
     Wallet,
     MailPlus,
     Percent,
@@ -35,12 +38,15 @@ import { index as bookers } from '@/routes/bookers';
 import { index as members } from '@/routes/members';
 import { index as nightAudit } from '@/routes/night-audit';
 import { index as openBalances } from '@/routes/open-balances';
+import { index as platformInvoices } from '@/routes/platform/invoices';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
+import { index as platformPlans } from '@/routes/platform/plans';
 import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
 import { index as ratePlans } from '@/routes/rate-plans';
 import { availability, index as reservations } from '@/routes/reservations';
 import { index as roomTypes } from '@/routes/room-types';
+import { show as subscription } from '@/routes/subscription';
 import { index as taxRules } from '@/routes/tax-rules';
 import { index as rooms } from '@/routes/rooms';
 import { index as housekeeping, myRooms } from '@/routes/housekeeping';
@@ -66,6 +72,16 @@ const platformNavItems: NavItem[] = [
         title: 'Organizations',
         href: platformOrganizations(),
         icon: Building2,
+    },
+    {
+        title: 'Plans',
+        href: platformPlans(),
+        icon: Layers,
+    },
+    {
+        title: 'SaaS invoices',
+        href: platformInvoices(),
+        icon: ReceiptText,
     },
     {
         title: 'Platform staff',
@@ -156,6 +172,15 @@ export function AppSidebar() {
             : []),
         ...(can('members.manage', 'members.invite')
             ? [invitationsNavItem]
+            : []),
+        ...(can('organization.manage')
+            ? [
+                  {
+                      title: 'Subscription',
+                      href: subscription(),
+                      icon: CreditCard,
+                  },
+              ]
             : []),
     ];
     const isPlatformAdministrator = platformRoles.includes(

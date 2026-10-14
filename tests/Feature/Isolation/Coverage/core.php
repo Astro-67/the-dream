@@ -1,6 +1,8 @@
 <?php
 
+use App\Domains\Tenancy\Enums\PropertyStatus;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
@@ -10,7 +12,20 @@ use Tests\Support\TwoTenants;
 return [
     'home' => RouteCoverage::visit(),
 
-    'dashboard' => RouteCoverage::visit(),
+    'dashboard' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $t->a->property->forceFill(['status' => PropertyStatus::Setup])->save();
+        $t->b->property->forceFill(['status' => PropertyStatus::Setup])->save();
+        $this->actingAs($t->a->owner)
+            ->put(route('current-property.update'), ['property_id' => $t->a->property->id])
+            ->assertRedirect(route('dashboard'));
+
+        return [
+            $this->put(route('current-property.update'), ['property_id' => $t->b->property->id])->assertForbidden(),
+            $this->get(route('dashboard'))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page->where('onboarding.propertyId', $t->a->property->id)),
+        ];
+    }),
 
     'up' => RouteCoverage::exempt('Health check; returns no data.'),
 

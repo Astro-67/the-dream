@@ -48,6 +48,10 @@ export default function CreateRoom({
                             <>
                                 <PropertyIntent />
                                 <InputError message={errors._property} />
+                                <InputError
+                                    message={errors.subscription ?? errors.room}
+                                    role="alert"
+                                />
                                 <div className="grid gap-6 sm:grid-cols-2">
                                     <RoomFields errors={errors} />
                                     <RoomTypeSelect

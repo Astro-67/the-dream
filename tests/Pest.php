@@ -4,6 +4,7 @@ use App\Domains\Platform\Actions\AssignPlatformRole;
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Tenancy\Actions\CreateOrganization;
 use App\Domains\Tenancy\Data\OrganizationSetup;
+use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Organization;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -94,6 +95,8 @@ function organizationWithOwner(array $overrides = [], ?User $owner = null): arra
     $owner ??= User::factory()->withTwoFactor()->create();
     $organization = app(CreateOrganization::class)->handle($owner, OrganizationSetup::fromArray(organizationSetupPayload($overrides)));
     $property = inTenant($organization, fn () => Property::query()->sole());
+    // An operating hotel: tests of setup and go-live start from setupProperty().
+    $property->forceFill(['status' => PropertyStatus::Live])->save();
 
     return [$owner, $organization, $property];
 }
