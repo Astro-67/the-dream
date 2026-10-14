@@ -2,8 +2,10 @@
 
 namespace App\Domains\Onboarding\Models;
 
+use App\Domains\Onboarding\Policies\ImportJobPolicy;
 use App\Support\Tenancy\BelongsToProperty;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $status
  */
 #[Fillable(['uploaded_by', 'file_path', 'original_name', 'status', 'commit_results'])]
+#[UsePolicy(ImportJobPolicy::class)]
 class ImportJob extends Model
 {
     use BelongsToProperty, HasUlids;

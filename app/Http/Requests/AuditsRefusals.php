@@ -9,6 +9,7 @@ use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Housekeeping\Models\Assignment;
+use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Reservations\Models\Reservation;
 use App\Support\Audit\Audit;
 use Illuminate\Contracts\Validation\Validator;
@@ -40,6 +41,7 @@ trait AuditsRefusals
                 $this->routeIs('approvals.*') => new PostingApproval,
                 $this->routeIs('approval-thresholds.*') => new ApprovalThreshold,
                 $this->routeIs('night-audit.*') => new BusinessDateClose,
+                $this->routeIs('imports.*') => new ImportJob,
                 default => new Reservation,
             };
         }

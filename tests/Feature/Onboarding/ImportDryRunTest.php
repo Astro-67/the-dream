@@ -4,38 +4,15 @@ use App\Domains\Guests\Models\Booker;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Onboarding\Actions\DryRunImport;
+use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
-use Illuminate\Http\UploadedFile;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
-
-function importDryRunCsv(array $rows): UploadedFile
-{
-    $stream = fopen('php://temp', 'w+');
-    fputcsv($stream, ['source_reference', 'room_type_code', 'rate_plan_code', 'arrival', 'departure', 'adults', 'children', 'booker_name', 'booker_email', 'guest_name', 'guest_email', 'status', 'restriction_override_reason'], escape: '');
-    foreach ($rows as $row) {
-        fputcsv($stream, array_values($row), escape: '');
-    }
-    rewind($stream);
-    $csv = stream_get_contents($stream);
-    fclose($stream);
-
-    return UploadedFile::fake()->createWithContent('future-reservations.csv', $csv);
-}
-
-function importDryRunRow(array $overrides = []): array
-{
-    return [
-        'source_reference' => 'OLD-001', 'room_type_code' => 'DLX', 'rate_plan_code' => 'BB',
-        'arrival' => '2026-12-10', 'departure' => '2026-12-12', 'adults' => '2', 'children' => '1',
-        'booker_name' => 'Travel Booker', 'booker_email' => 'booker@example.test',
-        'guest_name' => 'Amina Guest', 'guest_email' => 'amina@example.test',
-        'status' => 'confirmed', 'restriction_override_reason' => '',
-        ...$overrides,
-    ];
-}
+use Tests\Support\ImportForm;
 
 test('dry run retains the upload and replayable row without creating reservations or guests or taking inventory', function () {
     Storage::fake('local');
@@ -43,7 +20,7 @@ test('dry run retains the upload and replayable row without creating reservation
 
     inTenant($property, function () use ($owner) {
         $details = BookingForm::details($owner);
-        $job = app(DryRunImport::class)->handle($owner, importDryRunCsv([importDryRunRow()]));
+        $job = app(DryRunImport::class)->handle($owner, ImportForm::csv([ImportForm::row()]));
         $row = $job->rows()->firstOrFail();
 
         Storage::disk('local')->assertExists($job->file_path);
@@ -74,9 +51,9 @@ test('dry run rejects past stays using the property business date while retainin
 
     inTenant($property, function () use ($owner) {
         BookingForm::details($owner);
-        $job = app(DryRunImport::class)->handle($owner, importDryRunCsv([
-            importDryRunRow(['arrival' => '2026-11-30', 'departure' => '2026-12-12']),
-            importDryRunRow(['source_reference' => 'OLD-002']),
+        $job = app(DryRunImport::class)->handle($owner, ImportForm::csv([
+            ImportForm::row(['arrival' => '2026-11-30', 'departure' => '2026-12-12']),
+            ImportForm::row(['source_reference' => 'OLD-002']),
         ]));
         $rows = $job->rows()->get();
         expect($rows[0]->status)->toBe('invalid')
@@ -93,10 +70,10 @@ test('dry run flags source references already imported at this property and repe
     inTenant($property, function () use ($owner) {
         $details = BookingForm::details($owner);
         app(CreateReservation::class)->handle($owner, [...$details, 'source_reference' => 'OLD-001']);
-        $job = app(DryRunImport::class)->handle($owner, importDryRunCsv([
-            importDryRunRow(),
-            importDryRunRow(['source_reference' => 'OLD-002']),
-            importDryRunRow(['source_reference' => 'OLD-002']),
+        $job = app(DryRunImport::class)->handle($owner, ImportForm::csv([
+            ImportForm::row(),
+            ImportForm::row(['source_reference' => 'OLD-002']),
+            ImportForm::row(['source_reference' => 'OLD-002']),
         ]));
         $rows = $job->rows()->get();
         expect($rows->pluck('status')->all())->toBe(['duplicate', 'valid', 'duplicate'])
@@ -112,7 +89,7 @@ test('dry run names row errors for stays guests and rates', function (array $cha
     [$owner, $organization, $property] = organizationWithOwner();
     inTenant($property, function () use ($owner, $changes, $field) {
         BookingForm::details($owner);
-        $job = app(DryRunImport::class)->handle($owner, importDryRunCsv([importDryRunRow($changes)]));
+        $job = app(DryRunImport::class)->handle($owner, ImportForm::csv([ImportForm::row($changes)]));
         $row = $job->rows()->firstOrFail();
         expect($row->status)->toBe('invalid')
             ->and($row->errors)->toHaveKey($field)
@@ -136,3 +113,28 @@ test('dry run names row errors for stays guests and rates', function (array $cha
     'unknown rate plan' => [['rate_plan_code' => 'UNKNOWN'], 'rate_plan_code'],
     'unpriced night' => [['departure' => '2026-12-13'], 'rate_plan_code'],
 ]);
+
+test('a manager downloads the template uploads a CSV and sees persisted row results', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    $manager = $t->a->member(OrganizationRole::PropertyManager);
+    $this->actingAs($manager)->get(route('imports.index'))->assertOk();
+    $template = $this->get(route('imports.template'))->assertOk()->assertDownload('future-reservations.csv');
+    expect(str_getcsv(trim($template->getContent()), escape: ''))->toBe(array_keys(ImportForm::row()));
+    $response = $this->post(route('imports.store'), [
+        '_property' => $t->a->property->id,
+        'file' => ImportForm::csv([ImportForm::row(), ImportForm::row(['source_reference' => 'OLD-002', 'guest_name' => ''])]),
+    ]);
+    $job = inTenant($t->a->property, fn () => ImportJob::query()->sole());
+    $response->assertRedirect(route('imports.show', $job));
+    $this->get(route('imports.show', $job))->assertInertia(fn (Assert $page) => $page
+        ->component('onboarding/import')
+        ->where('importJob.id', $job->id)
+        ->where('importJob.valid_rows_count', 1)
+        ->where('importJob.invalid_rows_count', 1)
+        ->has('rows.data', 2)
+        ->where('rows.data.0.status', 'valid')
+        ->has('rows.data.1.errors.guest_name'));
+    expect(inTenant($t->a->property, fn () => Reservation::query()->count()))->toBe(0);
+});

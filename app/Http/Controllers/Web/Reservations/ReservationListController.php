@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Web\Reservations;
 
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Reservations\Actions\ListReservations;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\ListReservationsRequest;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,6 +22,8 @@ class ReservationListController extends Controller
         return Inertia::render('reservations/index', [
             'filters' => ['date' => $date, 'list' => $list, 'search' => $request->validated('search', '')],
             'reservations' => $reservations,
+            'canImport' => Gate::allows('create', ImportJob::class),
+            'importLabel' => __('Import future reservations'),
         ]);
     }
 }
