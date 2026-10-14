@@ -53,7 +53,7 @@ class Subscription extends Model
     public function nextPeriodStartsAt(): CarbonImmutable
     {
         return SaasInvoice::query()->where('subscription_id', $this->id)
-            ->orderByDesc('period_ends_at')->lockForUpdate()->first()?->period_ends_at
+            ->orderByDesc('period_ends_at')->lockForUpdate()->first()->period_ends_at
             ?? $this->current_period_ends_at ?? $this->trial_ends_at ?? now()->toImmutable();
     }
 
