@@ -7,6 +7,7 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
 use App\Domains\Reservations\Models\Reservation;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -92,6 +93,9 @@ class ReservationImportCsv
                 'status' => ['required', 'in:confirmed'],
                 'restriction_override_reason' => ['nullable', 'string', 'max:2000'],
             ])->validate();
+            if ($data['departure'] > CarbonImmutable::parse($data['arrival'])->addDays(365)->toDateString()) {
+                throw ValidationException::withMessages(['departure' => __('A reservation cannot exceed 365 nights.')]);
+            }
             $type = RoomType::query()->where('code', $data['room_type_code'])->first();
             $plan = RatePlan::query()->where('code', $data['rate_plan_code'])->whereNull('deactivated_at')
                 ->whereHas('roomTypes', fn ($query) => $query->whereKey($type?->id))->first();

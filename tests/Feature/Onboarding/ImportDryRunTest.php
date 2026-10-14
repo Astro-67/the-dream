@@ -106,3 +106,33 @@ test('dry run flags source references already imported at this property and repe
             ->and(Reservation::query()->count())->toBe(1);
     });
 });
+
+test('dry run names row errors for stays guests and rates', function (array $changes, string $field) {
+    Storage::fake('local');
+    [$owner, $organization, $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $changes, $field) {
+        BookingForm::details($owner);
+        $job = app(DryRunImport::class)->handle($owner, importDryRunCsv([importDryRunRow($changes)]));
+        $row = $job->rows()->firstOrFail();
+        expect($row->status)->toBe('invalid')
+            ->and($row->errors)->toHaveKey($field)
+            ->and($row->validated_data)->toBeNull()
+            ->and(Reservation::query()->count())->toBe(0);
+    });
+})->with([
+    'in-house' => [['status' => 'in_house'], 'status'],
+    'checked in' => [['status' => 'checked_in'], 'status'],
+    'missing reference' => [['source_reference' => ''], 'source_reference'],
+    'invalid date' => [['arrival' => '2026-02-30'], 'arrival'],
+    'departure before arrival' => [['departure' => '2026-12-09'], 'departure'],
+    'stay over a year' => [['departure' => '2027-12-12'], 'departure'],
+    'no adult' => [['adults' => '0'], 'adults'],
+    'negative children' => [['children' => '-1'], 'children'],
+    'too many guests' => [['adults' => '3'], 'rate_plan_code'],
+    'missing guest' => [['guest_name' => ''], 'guest_name'],
+    'invalid guest email' => [['guest_email' => 'not-an-email'], 'guest_email'],
+    'missing booker' => [['booker_name' => ''], 'booker_name'],
+    'unknown room type' => [['room_type_code' => 'UNKNOWN'], 'room_type_code'],
+    'unknown rate plan' => [['rate_plan_code' => 'UNKNOWN'], 'rate_plan_code'],
+    'unpriced night' => [['departure' => '2026-12-13'], 'rate_plan_code'],
+]);
