@@ -34,7 +34,7 @@ test('an owner archives a property, which leaves the switcher and the list of ac
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('properties/index')
-            ->where('tenant.properties', [['id' => $t->a->property->id, 'name' => 'Alpha Stone Town Inn']])
+            ->where('tenant.properties', [['id' => $t->a->property->id, 'name' => 'Alpha Stone Town Inn', 'demo' => false]])
             ->has('properties', 1)
             ->where('properties.0.id', $t->a->property->id)
             ->has('archivedProperties', 1)

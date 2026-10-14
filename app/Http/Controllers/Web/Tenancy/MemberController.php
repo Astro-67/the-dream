@@ -30,7 +30,8 @@ class MemberController extends Controller
 
         /** @var User $user */
         $user = $request->user();
-        $propertyNames = Property::query()->orderBy('name')->pluck('name', 'id');
+        $propertyNames = Property::query()->orderBy('name')->get()
+            ->mapWithKeys(fn (Property $property) => [$property->id => $property->displayName()]);
 
         $members = OrganizationMembership::query()
             ->with('user')
@@ -93,7 +94,7 @@ class MemberController extends Controller
             // What the previous owner may keep after a transfer, staying an owner included.
             'transferRoles' => array_map($roleOption, OrganizationRole::cases()),
             'properties' => Property::query()->active()->orderBy('name')->get()
-                ->map(fn (Property $property) => ['value' => $property->id, 'label' => $property->name])->values(),
+                ->map(fn (Property $property) => ['value' => $property->id, 'label' => $property->displayName()])->values(),
         ]);
     }
 

@@ -32,7 +32,8 @@ class InvitationController extends Controller
 
         /** @var User $user */
         $user = $request->user();
-        $propertyNames = Property::query()->pluck('name', 'id');
+        $propertyNames = Property::query()->get()
+            ->mapWithKeys(fn (Property $property) => [$property->id => $property->displayName()]);
 
         $invitations = Invitation::query()
             ->pending()
@@ -81,7 +82,7 @@ class InvitationController extends Controller
                 'label' => $role->label(),
                 'mayHaveAllProperties' => $managesMembers && $role->mayHaveAllProperties(),
             ], $roles),
-            'properties' => $properties->map(fn (Property $p) => ['value' => $p->id, 'label' => $p->name])->values(),
+            'properties' => $properties->map(fn (Property $p) => ['value' => $p->id, 'label' => $p->displayName()])->values(),
             'defaultExpiryDays' => InvitationDetails::DEFAULT_EXPIRY_DAYS,
         ]);
     }

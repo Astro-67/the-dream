@@ -179,6 +179,8 @@ New routes are checked automatically: the suite enumerates registered routes, so
 
 An owner archives a property with `ArchiveProperty` (and brings it back with `RestoreProperty`); both are audited. An archived property (`archived_at` set) is left out of `Tenancy::allows`, `defaultContextFor` and `propertiesFor`, so it drops out of the switcher and nobody can work in it, while its records and audit history stay and it is still listed on the properties page. Archiving the organization's last active property is refused.
 
+A **demo property** (`demo` flag, set only by `CreateDemoProperty` at creation) is the one property that is deleted rather than archived: `DeleteDemoProperty` removes every row with its `property_id` (`App\Support\Tenancy\PropertyPurge`, which reads the tables from the schema). `GoLive` refuses it. Anything that counts or reports properties (plan limits, reports, integration translators) selects them with `Property::real()`.
+
 Before archiving, `ArchiveProperty` runs every **pre-archive check**: a class implementing `App\Domains\Tenancy\Contracts\PreArchiveCheck`, whose `blockingReason(Property)` returns null to allow archiving or a sentence telling the owner what stops it. Checks run inside the property's tenant context, and the owner sees every failing reason. The M1 outbox foundation registers a check blocking archival while the property has unresolved messages (including unknown, rejected, exhausted or blocked work), so recovery remains possible. Other domains add checks by tagging them in their service provider:
 
 ```php

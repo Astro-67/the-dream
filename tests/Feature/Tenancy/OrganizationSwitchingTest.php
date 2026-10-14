@@ -70,7 +70,7 @@ test('switching organization makes it and one of its permitted properties curren
         ->assertInertia(fn (Assert $page) => $page
             ->where('tenant.organization', ['id' => $t->b->organization->id, 'name' => $t->b->organization->name])
             ->where('tenant.property.id', $t->b->property->id)
-            ->where('tenant.properties', [['id' => $t->b->property->id, 'name' => $t->b->property->name]])
+            ->where('tenant.properties', [['id' => $t->b->property->id, 'name' => $t->b->property->name, 'demo' => false]])
             // The Bravo role's permissions (property manager), not the Alpha one's.
             ->where('auth.permissions', fn ($permissions) => collect($permissions)->contains('members.invite')
                 && ! collect($permissions)->contains('properties.manage')));

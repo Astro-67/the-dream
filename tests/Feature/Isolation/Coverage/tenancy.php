@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Tenancy\Actions\ArchiveProperty;
+use App\Domains\Tenancy\Actions\CreateDemoProperty;
 use App\Domains\Tenancy\Actions\SendInvitation;
 use App\Domains\Tenancy\Data\InvitationDetails;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -59,6 +60,28 @@ return [
             $this->actingAs($t->a->owner)->post(route('properties.store'), PropertyForm::payload(['_property' => $t->a->property->id]))->assertRedirect(route('properties.index')),
         ];
         expect($bravoProperties($t))->toBe($before);
+
+        return $responses;
+    }),
+    'properties.demo.store' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoProperties) {
+        $before = $bravoProperties($t);
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('properties.demo.store'), ['_property' => $t->b->property->id])->assertForbidden(),
+            $this->actingAs($t->a->owner)->post(route('properties.demo.store'), ['_property' => $t->a->property->id])->assertRedirect(route('properties.index')),
+            $this->actingAs($t->a->owner)->get(route('properties.index')),
+        ];
+        expect($bravoProperties($t))->toBe($before);
+
+        return $responses;
+    }),
+    'properties.destroy' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoProperties) {
+        $demo = inTenant($t->b->property, fn () => app(CreateDemoProperty::class)->handle($t->b->owner, $t->b->property));
+        $before = $bravoProperties($t);
+        $responses = [
+            $this->actingAs($t->a->owner)->delete(route('properties.destroy', $demo->id), ['_property' => $t->a->property->id])->assertNotFound(),
+            $this->actingAs($t->a->owner)->delete(route('properties.destroy', $demo->id), ['_property' => $demo->id])->assertForbidden(),
+        ];
+        expect($bravoProperties($t))->toBe($before)->toHaveKey($demo->id);
 
         return $responses;
     }),

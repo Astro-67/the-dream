@@ -79,7 +79,7 @@ class HandleInertiaRequests extends Middleware
             'organizations' => Tenancy::organizationsFor($user)
                 ->map(fn (Organization $o) => ['id' => $o->id, 'name' => $o->name])->values(),
             'properties' => Tenancy::propertiesFor($user)
-                ->map(fn (Property $p) => ['id' => $p->id, 'name' => $p->name])->values(),
+                ->map(fn (Property $p) => ['id' => $p->id, 'name' => $p->name, 'demo' => $p->isDemo()])->values(),
         ];
     }
 
@@ -96,6 +96,7 @@ class HandleInertiaRequests extends Middleware
             'jurisdictionProfile' => $property->jurisdiction_profile->value,
             'jurisdictionLabel' => $property->jurisdiction_profile->label(),
             'businessDate' => $property->business_date->toDateString(),
+            'demo' => $property->isDemo(),
         ];
 
         // Zanzibar-only fields never reach a mainland property's pages.

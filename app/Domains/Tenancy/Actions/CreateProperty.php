@@ -10,20 +10,22 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Adds a property to the organization in the current tenant context.
+ * A demo property is flagged here, at creation, and never after (GLOSSARY: demo property).
  */
 class CreateProperty
 {
-    public function handle(?User $actor, PropertyDetails $details): Property
+    public function handle(?User $actor, PropertyDetails $details, bool $demo = false): Property
     {
-        return DB::transaction(function () use ($actor, $details) {
-            $property = Property::query()->create([...$details->toAttributes(), 'business_date' => now($details->timezone)->toDateString()]);
+        return DB::transaction(function () use ($actor, $details, $demo) {
+            $property = (new Property([...$details->toAttributes(), 'business_date' => now($details->timezone)->toDateString()]))->forceFill(['demo' => $demo]);
+            $property->save();
 
             Audit::record($actor, 'created', $property, 'Property created', [
                 'result' => 'success',
                 'property_id' => $property->getKey(),
                 'attributes' => $property->only([
                     'name', 'property_type', 'address_line', 'city', 'region', 'postal_code',
-                    'phone', 'email', 'timezone', 'currency', 'jurisdiction_profile', 'zra_hotel_code',
+                    'phone', 'email', 'timezone', 'currency', 'jurisdiction_profile', 'zra_hotel_code', 'demo',
                 ]),
             ]);
 

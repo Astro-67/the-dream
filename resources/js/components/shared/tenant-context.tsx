@@ -9,7 +9,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenuButton } from '@/components/ui/sidebar';
-import { Tag } from '@/components/ui/status-chip';
+import { StatusChip, Tag } from '@/components/ui/status-chip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -87,6 +87,11 @@ export function CurrentProperty() {
             />
             <span className="truncate font-medium">{tenant.property.name}</span>
             <Tag className="shrink-0">{tenant.property.jurisdictionLabel}</Tag>
+            {tenant.property.demo && (
+                <StatusChip tone="info" className="shrink-0">
+                    Demo
+                </StatusChip>
+            )}
             <span
                 className="flex shrink-0 items-center gap-1 text-muted-foreground"
                 data-test="business-date"
