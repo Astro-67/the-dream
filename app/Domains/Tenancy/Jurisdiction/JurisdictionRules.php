@@ -118,6 +118,11 @@ final class JurisdictionRules
             : null;
     }
 
+    public static function defersImportedReservationCreated(Property $property): bool
+    {
+        return $property->jurisdiction_profile === JurisdictionProfile::Zanzibar && ! $property->isLive();
+    }
+
     private static function of(JurisdictionProfile $profile): ProfileRules
     {
         return match ($profile) {

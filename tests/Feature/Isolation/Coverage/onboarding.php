@@ -9,6 +9,17 @@ use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
 return [
+    'imports.commit' => RouteCoverage::attempt(function (TwoTenants $t) {
+        Storage::fake('local');
+        $job = inTenant($t->b->property, fn () => app(DryRunImport::class)->handle($t->b->owner, ImportForm::csv([ImportForm::row()])));
+        $response = $this->actingAs($t->a->owner)->post(route('imports.commit', $job), [
+            '_property' => $t->a->property->id,
+        ])->assertNotFound();
+        expect(inTenant($t->b->property, fn () => $job->fresh()->status))->toBe('dry_run')
+            ->and(inTenant($t->b->property, fn () => Reservation::query()->count()))->toBe(0);
+
+        return $response;
+    }),
     'imports.index' => RouteCoverage::visit(),
     'imports.template' => RouteCoverage::attempt(function (TwoTenants $t) {
         $response = $this->actingAs($t->a->owner)->get(route('imports.template', ['property' => $t->b->property->id]))->assertOk();

@@ -9,14 +9,14 @@ use Symfony\Component\Process\Process;
 final class ParallelBookings
 {
     /** @return list<array<string, mixed>> */
-    public static function run(string $input): array
+    public static function run(string $input, string $workerFile = 'booking-worker.php'): array
     {
         $directory = sys_get_temp_dir().'/booking-'.bin2hex(random_bytes(8));
         mkdir($directory);
         $workers = [];
         try {
             for ($i = 0; $i < 2; $i++) {
-                $worker = new Process([PHP_BINARY, '-d', 'memory_limit=1G', base_path('tests/Support/booking-worker.php'), $input, "$directory/ready-$i", "$directory/start"], base_path(), timeout: 30);
+                $worker = new Process([PHP_BINARY, '-d', 'memory_limit=1G', base_path('tests/Support/'.$workerFile), $input, "$directory/ready-$i", "$directory/start", (string) $i], base_path(), timeout: 30);
                 $worker->start();
                 $workers[] = $worker;
             }

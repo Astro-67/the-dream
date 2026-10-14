@@ -17,7 +17,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { store, template } from '@/routes/imports';
+import { commit, store, template } from '@/routes/imports';
 import type { Paginated } from '@/types';
 
 type ImportRow = {
@@ -26,6 +26,11 @@ type ImportRow = {
     source_reference: string | null;
     status: 'valid' | 'invalid' | 'duplicate';
     errors: Record<string, string[]>;
+    commit_result: {
+        status: 'created' | 'duplicate' | 'refused';
+        reservation_number?: string | null;
+        errors?: Record<string, string[]>;
+    } | null;
 };
 
 export default function Import({
@@ -36,9 +41,16 @@ export default function Import({
     importJob: {
         id: string;
         original_name: string;
+        status: 'dry_run' | 'committed';
+        commit_results: {
+            created: number;
+            duplicate: number;
+            refused: number;
+        } | null;
         valid_rows_count: number;
         invalid_rows_count: number;
         duplicate_rows_count: number;
+        completed_rows_count: number;
     } | null;
     rows: Paginated<ImportRow> | null;
     copy: Record<string, string>;
@@ -110,34 +122,93 @@ export default function Import({
                                 id="import-results"
                                 className="text-xl font-semibold"
                             >
-                                {copy.results}
+                                {importJob.status === 'committed'
+                                    ? copy.commitResults
+                                    : copy.results}
                             </h2>
                             <p className="text-sm break-all">
                                 {importJob.original_name}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                                {copy.noChanges}
+                                {importJob.status === 'committed'
+                                    ? copy.committedNotice
+                                    : importJob.completed_rows_count > 0
+                                      ? copy.partialNotice
+                                      : copy.noChanges}
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 <StatusChip tone="success">
-                                    {copy.valid}: {importJob.valid_rows_count}
+                                    {importJob.commit_results
+                                        ? copy.created
+                                        : copy.valid}
+                                    :{' '}
+                                    {importJob.commit_results?.created ??
+                                        importJob.valid_rows_count}
                                 </StatusChip>
                                 <StatusChip tone="error">
-                                    {copy.invalid}:{' '}
-                                    {importJob.invalid_rows_count}
+                                    {importJob.commit_results
+                                        ? copy.refused
+                                        : copy.invalid}
+                                    :{' '}
+                                    {importJob.commit_results?.refused ??
+                                        importJob.invalid_rows_count}
                                 </StatusChip>
                                 <StatusChip tone="warning">
                                     {copy.duplicate}:{' '}
-                                    {importJob.duplicate_rows_count}
+                                    {importJob.commit_results?.duplicate ??
+                                        importJob.duplicate_rows_count}
                                 </StatusChip>
                             </div>
                         </div>
+                        {importJob.status === 'dry_run' && (
+                            <Form
+                                {...commit.form(importJob.id)}
+                                className="max-w-2xl space-y-3"
+                            >
+                                {({ processing, errors }) => (
+                                    <>
+                                        <PropertyIntent />
+                                        <p
+                                            id="commit-notice"
+                                            className="text-sm text-muted-foreground"
+                                        >
+                                            {importJob.invalid_rows_count > 0
+                                                ? copy.invalidNotice
+                                                : copy.commitNotice}
+                                        </p>
+                                        <InputError message={errors.import} />
+                                        <InputError
+                                            message={errors._property}
+                                        />
+                                        <Button
+                                            disabled={
+                                                processing ||
+                                                importJob.invalid_rows_count > 0
+                                            }
+                                            aria-describedby="commit-notice"
+                                        >
+                                            <span className="inline-flex size-4 items-center justify-center">
+                                                {processing && <Spinner />}
+                                            </span>
+                                            {importJob.completed_rows_count > 0
+                                                ? copy.resume
+                                                : copy.commit}
+                                        </Button>
+                                    </>
+                                )}
+                            </Form>
+                        )}
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead numeric>{copy.row}</TableHead>
                                     <TableHead>{copy.reference}</TableHead>
                                     <TableHead>{copy.status}</TableHead>
+                                    {importJob.status === 'committed' && (
+                                        <TableHead>
+                                            {copy.reservationNumber}
+                                        </TableHead>
+                                    )}
                                     <TableHead>{copy.errors}</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -157,25 +228,60 @@ export default function Import({
                                         <TableCell>
                                             <StatusChip
                                                 tone={
-                                                    row.status === 'valid'
+                                                    (row.commit_result
+                                                        ?.status ??
+                                                        row.status) ===
+                                                        'valid' ||
+                                                    row.commit_result
+                                                        ?.status === 'created'
                                                         ? 'success'
-                                                        : row.status ===
+                                                        : (row.commit_result
+                                                                ?.status ??
+                                                                row.status) ===
                                                             'duplicate'
                                                           ? 'warning'
                                                           : 'error'
                                                 }
                                             >
-                                                {copy[row.status]}
+                                                {
+                                                    copy[
+                                                        row.commit_result
+                                                            ?.status ??
+                                                            row.status
+                                                    ]
+                                                }
                                             </StatusChip>
                                         </TableCell>
+                                        {importJob.status === 'committed' && (
+                                            <TableCell>
+                                                {row.commit_result
+                                                    ?.reservation_number && (
+                                                    <Identifier
+                                                        value={
+                                                            row.commit_result
+                                                                .reservation_number
+                                                        }
+                                                    />
+                                                )}
+                                            </TableCell>
+                                        )}
                                         <TableCell className="min-w-64 whitespace-normal">
-                                            {Object.keys(row.errors).length ===
-                                            0 ? (
-                                                copy.ready
+                                            {Object.keys(
+                                                row.commit_result
+                                                    ? (row.commit_result
+                                                          .errors ?? {})
+                                                    : row.errors,
+                                            ).length === 0 ? (
+                                                row.commit_result ? null : (
+                                                    copy.ready
+                                                )
                                             ) : (
                                                 <ul className="list-disc space-y-1 pl-4">
                                                     {Object.entries(
-                                                        row.errors,
+                                                        row.commit_result
+                                                            ? (row.commit_result
+                                                                  .errors ?? {})
+                                                            : row.errors,
                                                     ).flatMap(
                                                         ([field, messages]) =>
                                                             messages.map(
