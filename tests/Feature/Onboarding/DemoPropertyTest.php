@@ -4,6 +4,7 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Subscriptions\PlanUsage;
 use App\Domains\Tenancy\Actions\GoLive;
 use App\Domains\Tenancy\Actions\MarkTaxesReviewed;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -149,4 +150,13 @@ test('the real scope leaves out demo properties', function () {
     expect($ids)->toHaveCount(2)
         ->toContain($t->a->property->id, $t->a->otherProperty->id)
         ->not->toContain($demo->id);
+});
+
+test('plan usage leaves out demo properties and their rooms', function () {
+    $t = twoTenants();
+    $before = inTenant($t->a->organization, fn () => PlanUsage::current());
+
+    demoPropertyFor($t->a);
+
+    expect(inTenant($t->a->organization, fn () => PlanUsage::current()))->toBe($before);
 });

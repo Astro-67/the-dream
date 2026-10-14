@@ -6,7 +6,7 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Tenancy\Models\Property;
 
 /**
- * What the organization in context uses against its plan limits: active
+ * What the organization in context uses against its plan limits: active real
  * properties and their active rooms.
  */
 final class PlanUsage
@@ -14,7 +14,7 @@ final class PlanUsage
     /** @return array{properties: int, rooms: int} */
     public static function current(): array
     {
-        $properties = Property::query()->active()->pluck('id');
+        $properties = Property::query()->active()->real()->pluck('id');
 
         return [
             'properties' => $properties->count(),
