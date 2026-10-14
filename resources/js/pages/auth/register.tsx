@@ -11,12 +11,13 @@ import { store } from '@/routes/register';
 
 type Props = {
     passwordRules: string;
+    passwordHint: string;
 };
 
-export default function Register({ passwordRules }: Props) {
+export default function Register({ passwordRules, passwordHint }: Props) {
     return (
         <>
-            <Head title="Register" />
+            <Head title="Create account" />
             <Form
                 {...store.form()}
                 resetOnSuccess={['password', 'password_confirmation']}
@@ -27,7 +28,7 @@ export default function Register({ passwordRules }: Props) {
                     <>
                         <div className="grid gap-6">
                             <div className="grid gap-2">
-                                <Label htmlFor="name">Name</Label>
+                                <Label htmlFor="name">Full name</Label>
                                 <Input
                                     id="name"
                                     type="text"
@@ -36,7 +37,7 @@ export default function Register({ passwordRules }: Props) {
                                     tabIndex={1}
                                     autoComplete="name"
                                     name="name"
-                                    placeholder="Full name"
+                                    placeholder="Amina Hassan"
                                 />
                                 <InputError
                                     message={errors.name}
@@ -53,7 +54,7 @@ export default function Register({ passwordRules }: Props) {
                                     tabIndex={2}
                                     autoComplete="email"
                                     name="email"
-                                    placeholder="email@example.com"
+                                    placeholder="you@yourhotel.com"
                                 />
                                 <InputError message={errors.email} />
                             </div>
@@ -68,7 +69,14 @@ export default function Register({ passwordRules }: Props) {
                                     name="password"
                                     placeholder="Password"
                                     passwordrules={passwordRules}
+                                    aria-describedby="password-hint"
                                 />
+                                <p
+                                    id="password-hint"
+                                    className="text-sm text-muted-foreground"
+                                >
+                                    {passwordHint}
+                                </p>
                                 <InputError message={errors.password} />
                             </div>
 
@@ -90,9 +98,14 @@ export default function Register({ passwordRules }: Props) {
                                 />
                             </div>
 
+                            <p className="text-sm text-muted-foreground">
+                                Next, you'll confirm your email and add your
+                                business and first property.
+                            </p>
+
                             <Button
                                 type="submit"
-                                className="mt-2 w-full"
+                                className="w-full"
                                 tabIndex={5}
                                 data-test="register-user-button"
                             >
@@ -115,6 +128,6 @@ export default function Register({ passwordRules }: Props) {
 }
 
 Register.layout = {
-    title: 'Create an account',
-    description: 'Enter your details below to create your account',
+    title: 'Create your account',
+    description: 'Start setting up your hotel in a few minutes',
 };

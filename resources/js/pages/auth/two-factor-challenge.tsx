@@ -1,4 +1,6 @@
 import { Form, Head, setLayoutProps } from '@inertiajs/react';
+import TextLink from '@/components/text-link';
+import { login } from '@/routes';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
@@ -69,6 +71,8 @@ export default function TwoFactorChallenge() {
                                         name="recovery_code"
                                         type="text"
                                         placeholder="Enter recovery code"
+                                        aria-label="Recovery code"
+                                        autoComplete="one-time-code"
                                         autoFocus={showRecoveryInput}
                                         required
                                     />
@@ -86,6 +90,7 @@ export default function TwoFactorChallenge() {
                                             onChange={(value) => setCode(value)}
                                             disabled={processing}
                                             pattern={REGEXP_ONLY_DIGITS}
+                                            aria-label="Authentication code"
                                             autoFocus
                                         >
                                             <InputOTPGroup>
@@ -120,13 +125,19 @@ export default function TwoFactorChallenge() {
                                 <span>or you can </span>
                                 <button
                                     type="button"
-                                    className="cursor-pointer text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                    className="cursor-pointer text-foreground underline decoration-border underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current!"
                                     onClick={() =>
                                         toggleRecoveryMode(clearErrors)
                                     }
                                 >
                                     {authConfigContent.toggleText}
                                 </button>
+                            </div>
+
+                            <div className="text-center text-sm">
+                                <TextLink href={login()}>
+                                    Back to log in
+                                </TextLink>
                             </div>
                         </>
                     )}
