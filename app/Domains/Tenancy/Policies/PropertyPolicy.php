@@ -14,7 +14,7 @@ use App\Support\Tenancy\Access;
  * - properties.manage (owner, group operations manager): add properties to the
  *   organization, and see its archived properties.
  * - properties.update (also property managers): edit a property they may act in.
- * - properties.archive (owners only): archive a property, and restore one.
+ * - properties.archive (owners only): archive a property, and restore one; delete a demo property.
  * - properties.update also takes a property live; tax.manage marks its taxes reviewed.
  */
 class PropertyPolicy
@@ -53,6 +53,11 @@ class PropertyPolicy
     public function restore(User $user, Property $property): bool
     {
         return Access::allows($user, OrganizationPermission::PropertiesArchive);
+    }
+
+    public function delete(User $user, Property $property): bool
+    {
+        return Access::allows($user, OrganizationPermission::PropertiesArchive, $property);
     }
 
     public function goLive(User $user, Property $property): bool

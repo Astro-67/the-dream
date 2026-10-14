@@ -3,6 +3,7 @@
 use App\Http\Controllers\Web\Tenancy\ArchivedPropertyController;
 use App\Http\Controllers\Web\Tenancy\CurrentOrganizationController;
 use App\Http\Controllers\Web\Tenancy\CurrentPropertyController;
+use App\Http\Controllers\Web\Tenancy\DemoPropertyController;
 use App\Http\Controllers\Web\Tenancy\GoLiveController;
 use App\Http\Controllers\Web\Tenancy\InvitationAcceptanceController;
 use App\Http\Controllers\Web\Tenancy\InvitationController;
@@ -25,6 +26,8 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
         Route::get('properties', [PropertyController::class, 'index'])->name('properties.index');
         Route::get('properties/create', [PropertyController::class, 'create'])->name('properties.create');
         Route::post('properties', [PropertyController::class, 'store'])->name('properties.store');
+        Route::post('properties/demo', [DemoPropertyController::class, 'store'])->name('properties.demo.store');
+        Route::delete('properties/{property}', [DemoPropertyController::class, 'destroy'])->name('properties.destroy');
         Route::get('properties/{property}/edit', [PropertyController::class, 'edit'])->name('properties.edit');
         Route::put('properties/{property}', [PropertyController::class, 'update'])->name('properties.update');
         Route::post('properties/{property}/archive', [ArchivedPropertyController::class, 'store'])->name('properties.archive');

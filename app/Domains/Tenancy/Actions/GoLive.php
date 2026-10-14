@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Moves a property from setup to live once every go-live gate passes (GLOSSARY: go-live).
- * Refused with the failing gates named. Going live again changes nothing.
+ * Refused with the failing gates named, and always for a demo property. Going live again changes nothing.
  */
 class GoLive
 {
@@ -23,6 +23,9 @@ class GoLive
             $locked = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
             if ($locked->isLive()) {
                 return $locked;
+            }
+            if ($locked->isDemo()) {
+                throw ValidationException::withMessages(['go_live' => __('A demo property can never go live.')]);
             }
 
             $failing = array_filter(JurisdictionRules::goLiveGates($locked), fn (GoLiveGate $gate) => ! $gate->passed);
