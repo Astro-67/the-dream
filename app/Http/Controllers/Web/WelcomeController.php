@@ -23,6 +23,8 @@ class WelcomeController extends Controller
                 'trialDays' => $plan->trial_days,
             ])->all(),
             'contactEmail' => config('mail.from.address'),
+            // Product screenshots are taken from showcase data; the page hides their slots until they exist.
+            'hasScreens' => file_exists(public_path('images/marketing/screens/dashboard-light.webp')),
         ]);
     }
 }

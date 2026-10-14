@@ -223,9 +223,11 @@ function ContactPlanCard({
 export default function Welcome({
     plans,
     contactEmail,
+    hasScreens,
 }: {
     plans: Plan[];
     contactEmail: string;
+    hasScreens: boolean;
 }) {
     const { auth, name } = usePage().props;
     const [screen, setScreen] = useState(screens[0].key);
@@ -337,17 +339,24 @@ export default function Welcome({
                                 ))}
                             </ul>
                         </div>
-                        <div className="relative pb-10 lg:pb-16">
+                        <div
+                            className={cn(
+                                'relative',
+                                hasScreens && 'pb-10 lg:pb-16',
+                            )}
+                        >
                             <Photo
                                 slot="hero"
                                 className="aspect-[4/3] rounded-2xl lg:aspect-[16/11]"
                             />
-                            <div className="absolute right-4 -bottom-0 left-8 rounded-xl border bg-background p-1.5 lg:-left-12">
-                                <Screenshot
-                                    name="dashboard"
-                                    label="Dashboard"
-                                />
-                            </div>
+                            {hasScreens && (
+                                <div className="absolute right-4 bottom-0 left-8 rounded-xl border bg-background p-1.5 lg:-left-12">
+                                    <Screenshot
+                                        name="dashboard"
+                                        label="Dashboard"
+                                    />
+                                </div>
+                            )}
                         </div>
                     </section>
 
@@ -408,52 +417,56 @@ export default function Welcome({
                         </div>
                     </section>
 
-                    <section
-                        aria-labelledby="showcase-title"
-                        className="mx-auto max-w-6xl space-y-8 px-4 py-20 md:px-6"
-                    >
-                        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-                            <div className="max-w-2xl space-y-4">
-                                <h2
-                                    id="showcase-title"
-                                    className="text-3xl font-semibold tracking-tight md:text-4xl"
-                                >
-                                    See it before you sign up
-                                </h2>
-                                <p className="text-lg text-muted-foreground">
-                                    Real screens from the product. Switch the
-                                    theme at the top to see them in light or
-                                    dark.
-                                </p>
-                            </div>
-                            <div
-                                role="group"
-                                aria-label="Screen"
-                                className="inline-flex gap-1 self-start rounded-lg bg-muted p-1"
-                            >
-                                {screens.map((item) => (
-                                    <button
-                                        key={item.key}
-                                        type="button"
-                                        aria-pressed={screen === item.key}
-                                        onClick={() => setScreen(item.key)}
-                                        className={cn(
-                                            'rounded-md px-3.5 py-1.5 text-sm transition-colors',
-                                            screen === item.key
-                                                ? 'bg-card text-foreground'
-                                                : 'text-muted-foreground hover:text-foreground',
-                                        )}
+                    {hasScreens && (
+                        <section
+                            aria-labelledby="showcase-title"
+                            className="mx-auto max-w-6xl space-y-8 px-4 py-20 md:px-6"
+                        >
+                            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+                                <div className="max-w-2xl space-y-4">
+                                    <h2
+                                        id="showcase-title"
+                                        className="text-3xl font-semibold tracking-tight md:text-4xl"
                                     >
-                                        {item.label}
-                                    </button>
-                                ))}
+                                        See it before you sign up
+                                    </h2>
+                                    <p className="text-lg text-muted-foreground">
+                                        Real screens from the product. Switch
+                                        the theme at the top to see them in
+                                        light or dark.
+                                    </p>
+                                </div>
+                                <div
+                                    role="group"
+                                    aria-label="Screen"
+                                    className="inline-flex gap-1 self-start rounded-lg bg-muted p-1"
+                                >
+                                    {screens.map((item) => (
+                                        <button
+                                            key={item.key}
+                                            type="button"
+                                            aria-pressed={screen === item.key}
+                                            onClick={() => setScreen(item.key)}
+                                            className={cn(
+                                                'rounded-md px-3.5 py-1.5 text-sm transition-colors',
+                                                screen === item.key
+                                                    ? 'bg-card text-foreground'
+                                                    : 'text-muted-foreground hover:text-foreground',
+                                            )}
+                                        >
+                                            {item.label}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                        <Screenshot
-                            name={screen}
-                            label={screens.find((s) => s.key === screen)!.label}
-                        />
-                    </section>
+                            <Screenshot
+                                name={screen}
+                                label={
+                                    screens.find((s) => s.key === screen)!.label
+                                }
+                            />
+                        </section>
+                    )}
 
                     <section
                         aria-labelledby="compliance-title"
