@@ -9,12 +9,12 @@ use App\Domains\Subscriptions\Models\SaasInvoice;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Models\Organization;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Subscriptions\SaasInvoiceRequest;
 use App\Http\Requests\Subscriptions\SaasPaymentRequest;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -39,10 +39,9 @@ class SaasInvoiceController extends Controller
         ]));
     }
 
-    public function store(Request $request, IssueSaasInvoice $issue): RedirectResponse
+    public function store(SaasInvoiceRequest $request, IssueSaasInvoice $issue): RedirectResponse
     {
-        Gate::authorize('manage', SaasInvoice::class);
-        $organizationId = $request->validate(['organization_id' => ['required', 'ulid', 'exists:organizations,id']])['organization_id'];
+        $organizationId = $request->validated('organization_id');
 
         /** @var User $actor */
         $actor = $request->user();

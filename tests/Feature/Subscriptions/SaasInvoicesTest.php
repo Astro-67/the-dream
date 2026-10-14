@@ -1,7 +1,10 @@
 <?php
 
+use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\Receipt;
+use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Subscriptions\Actions\IssueSaasInvoice;
 use App\Domains\Subscriptions\Actions\TransitionSubscription;
 use App\Domains\Subscriptions\Enums\SaasInvoiceStatus;
@@ -14,6 +17,7 @@ use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\BookingForm;
 
 function saasInvoiceFor(Organization $organization): SaasInvoice
 {
@@ -107,7 +111,67 @@ test('payments are validated: a reference is required and no more than the balan
         ->post(route('platform.invoices.payments.store', $invoice->id), saasPaymentPayload(['amount' => $invoice->amount + 1]))
         ->assertSessionHasErrors('amount');
 
-    expect(inTenant($organization, fn () => SaasPayment::query()->count()))->toBe(0);
+    expect(inTenant($organization, fn () => SaasPayment::query()->count()))->toBe(0)
+        ->and(Activity::query()->where('event', 'refused')->where('subject_id', $invoice->id)
+            ->where('properties->result', 'refused')->exists())->toBeTrue();
+});
+
+test('paying invoices out of order activates through the latest paid period', function () {
+    [, $organization] = organizationWithOwner();
+    $first = saasInvoiceFor($organization);
+    $second = saasInvoiceFor($organization);
+    $this->actingAs(platformStaff());
+
+    $this->post(route('platform.invoices.payments.store', $second->id), saasPaymentPayload(['amount' => $second->amount]))
+        ->assertSessionHasNoErrors();
+    expect(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Trial);
+
+    $this->post(route('platform.invoices.payments.store', $first->id), saasPaymentPayload(['amount' => $first->amount]))
+        ->assertSessionHasNoErrors();
+    $subscription = inTenant($organization, fn () => Subscription::current());
+    expect($subscription->status)->toBe(SubscriptionStatus::Active)
+        ->and($subscription->current_period_ends_at->toIso8601String())->toBe($second->period_ends_at->toIso8601String());
+});
+
+test('zero-priced invoices settle without inventing a payment and activate the subscription', function () {
+    [, $organization] = organizationWithOwner();
+    inTenant($organization, fn () => Subscription::current()->plan->update(['price' => 0]));
+
+    $invoice = saasInvoiceFor($organization);
+    $subscription = inTenant($organization, fn () => Subscription::current());
+    expect($invoice->status)->toBe(SaasInvoiceStatus::Paid)
+        ->and($invoice->paid_at)->not->toBeNull()
+        ->and($invoice->amount)->toBe(0)
+        ->and($subscription->status)->toBe(SubscriptionStatus::Active)
+        ->and($subscription->current_period_ends_at->toIso8601String())->toBe($invoice->period_ends_at->toIso8601String())
+        ->and(inTenant($organization, fn () => SaasPayment::query()->count()))->toBe(0)
+        ->and(inTenant($organization, fn () => $subscription->stateChanges()->first()->reason))->toContain($invoice->number);
+});
+
+test('a settled invoice refuses another payment and keeps the refusal audit', function () {
+    [, $organization] = organizationWithOwner();
+    $invoice = saasInvoiceFor($organization);
+    $this->actingAs(platformStaff());
+    $this->post(route('platform.invoices.payments.store', $invoice->id), saasPaymentPayload(['amount' => $invoice->amount]))
+        ->assertSessionHasNoErrors();
+    $this->post(route('platform.invoices.payments.store', $invoice->id), saasPaymentPayload(['amount' => 1]))
+        ->assertSessionHasErrors('amount');
+
+    expect(inTenant($organization, fn () => SaasPayment::query()->count()))->toBe(1)
+        ->and(Activity::query()->where('event', 'refused')->where('subject_id', $invoice->id)->exists())->toBeTrue();
+});
+
+test('settling a cancelled subscription invoice does not reactivate it', function () {
+    [, $organization] = organizationWithOwner();
+    $invoice = saasInvoiceFor($organization);
+    inTenant($organization, fn () => app(TransitionSubscription::class)
+        ->handle(Subscription::current(), SubscriptionStatus::Cancelled, 'Cancelled by owner'));
+
+    $this->actingAs(platformStaff())->post(route('platform.invoices.payments.store', $invoice->id), saasPaymentPayload(['amount' => $invoice->amount]))
+        ->assertSessionHasNoErrors();
+
+    expect($invoice->fresh()->status)->toBe(SaasInvoiceStatus::Paid)
+        ->and(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Cancelled);
 });
 
 test('organization users, owners included, cannot see invoices across organizations or record payments', function () {
@@ -156,4 +220,23 @@ test('SaaS invoices and payments never touch folios, and folio payments never to
     });
     expect((new SaasInvoice)->getTable())->not->toBe((new Posting)->getTable())
         ->and($invoice->number)->toStartWith('SAAS-');
+});
+
+test('a folio payment leaves the SaaS invoice outstanding and its subscription in trial', function () {
+    [$owner, $organization, $property] = organizationWithOwner();
+    $invoice = saasInvoiceFor($organization);
+
+    inTenant($property, function () use ($owner, $invoice) {
+        $reservation = app(CreateReservation::class)->handle($owner, BookingForm::details($owner));
+        $folio = Folio::query()->where('reservation_id', $reservation->id)->sole();
+        $posting = app(RecordPayment::class)->handle($owner, $folio, [
+            'method' => 'bank_transfer', 'amount' => $invoice->amount, 'currency' => $folio->currency->value, 'reference' => 'GUEST-TRANSFER',
+        ]);
+
+        expect($posting->receipt?->number)->toBe('RCT-000001')
+            ->and($invoice->fresh()->status)->toBe(SaasInvoiceStatus::Open)
+            ->and($invoice->balance())->toBe($invoice->amount)
+            ->and(SaasPayment::query()->count())->toBe(0)
+            ->and(Subscription::current()->status)->toBe(SubscriptionStatus::Trial);
+    });
 });
