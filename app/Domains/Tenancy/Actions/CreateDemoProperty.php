@@ -24,8 +24,10 @@ class CreateDemoProperty
 {
     public function __construct(private readonly CreateProperty $createProperty) {}
 
-    public function handle(User $actor, Property $template): Property
+    public function handle(User $actor): Property
     {
+        $template = Tenancy::property() ?? abort(403);
+
         return DB::transaction(function () use ($actor, $template) {
             $property = $this->createProperty->handle($actor, new PropertyDetails(
                 name: __('Demo: :name', ['name' => $template->name]),

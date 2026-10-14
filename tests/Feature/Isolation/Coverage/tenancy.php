@@ -75,7 +75,7 @@ return [
         return $responses;
     }),
     'properties.destroy' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoProperties) {
-        $demo = inTenant($t->b->property, fn () => app(CreateDemoProperty::class)->handle($t->b->owner, $t->b->property));
+        $demo = inTenant($t->b->property, fn () => app(CreateDemoProperty::class)->handle($t->b->owner));
         $before = $bravoProperties($t);
         $responses = [
             $this->actingAs($t->a->owner)->delete(route('properties.destroy', $demo->id), ['_property' => $t->a->property->id])->assertNotFound(),

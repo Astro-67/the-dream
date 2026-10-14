@@ -8,7 +8,6 @@ use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Tenancy\DemoPropertyRequest;
 use App\Models\User;
-use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
@@ -21,9 +20,7 @@ class DemoPropertyController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $template = Tenancy::property() ?? abort(403);
-
-        $property = $createDemoProperty->handle($user, $template);
+        $property = $createDemoProperty->handle($user);
         Inertia::flash('toast', ['type' => 'success', 'message' => __(':name added with sample data.', ['name' => $property->name])]);
 
         return redirect()->route('properties.index');
