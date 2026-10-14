@@ -78,7 +78,7 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
             $owner,
             new InvitationDetails('pending@example.test', MembershipGrant::properties(OrganizationRole::FrontDesk, [$property->id]), CarbonImmutable::now()->addWeek()),
         ))), $intent],
-        'members.index' => ['GET', route($routeName)],
+        'members.index', 'subscription.show' => ['GET', route($routeName)],
         'members.edit' => ['GET', route($routeName, ownMembership($owner, $property))],
         'members.update' => ['PUT', route($routeName, ownMembership($owner, $property)), [...$intent, 'role' => 'group_operations_manager', 'all_properties' => true]],
         'members.destroy' => ['DELETE', route($routeName, ownMembership($owner, $property)), $intent],
