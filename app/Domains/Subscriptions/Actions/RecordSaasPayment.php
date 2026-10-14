@@ -16,6 +16,7 @@ use Illuminate\Validation\ValidationException;
  * invoices. Runs in the invoice's organization. A payment that settles the last
  * open invoice moves a trial, past-due or suspended subscription to active
  * through the paid period, recorded with a reason (SUB-01). Never touches folios.
+ * Locks the subscription before its invoice, matching the hourly lifecycle.
  */
 class RecordSaasPayment
 {
@@ -25,12 +26,13 @@ class RecordSaasPayment
         return Audit::validationRefusal($actor, $invoice, 'SaaS payment refused', fn () => DB::transaction(function () use ($actor, $invoice, $details) {
             Subscription::query()->whereKey($invoice->subscription_id)->lockForUpdate()->firstOrFail();
             $invoice = SaasInvoice::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            $balance = $invoice->amount - (int) $invoice->payments()->lockForUpdate()->get()->sum('amount');
 
             if ($invoice->status === SaasInvoiceStatus::Paid) {
                 throw ValidationException::withMessages(['amount' => __('This invoice is already paid.')]);
             }
-            if ($details['amount'] > $invoice->balance()) {
-                throw ValidationException::withMessages(['amount' => __('The payment is more than the :amount still owed.', ['amount' => $invoice->balance()])]);
+            if ($details['amount'] > $balance) {
+                throw ValidationException::withMessages(['amount' => __('The payment is more than the :amount still owed.', ['amount' => $balance])]);
             }
 
             $payment = $invoice->payments()->create([...$details, 'recorded_by' => $actor->id]);
@@ -38,7 +40,7 @@ class RecordSaasPayment
                 'invoice' => $invoice->number, 'amount' => $payment->amount, 'method' => $payment->method->value, 'reference' => $payment->reference,
             ]]);
 
-            if ($invoice->balance() === 0) {
+            if ((int) $details['amount'] === $balance) {
                 app(SettleSaasInvoice::class)->handle($invoice, $actor);
             }
 

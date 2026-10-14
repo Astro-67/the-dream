@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\DB;
  * last one invoiced (or after the trial), at the plan's current price. Billed in
  * advance: due when its period starts. Runs in the subscription's organization.
  * Each call issues the next period, serialized by the subscription lock.
+ * Locks subscription, platform sequence, then invoices. Billing-period reads
+ * use locking reads even inside an existing caller transaction.
  */
 class IssueSaasInvoice
 {
@@ -24,9 +26,6 @@ class IssueSaasInvoice
         return DB::transaction(function () use ($subscription, $actor) {
             $subscription = Subscription::query()->with('plan')->whereKey($subscription->id)->lockForUpdate()->firstOrFail();
             $plan = $subscription->plan;
-            $starts = SaasInvoice::query()->where('subscription_id', $subscription->id)->max('period_ends_at');
-            $starts = $starts !== null ? now()->parse($starts)->toImmutable()
-                : ($subscription->current_period_ends_at ?? $subscription->trial_ends_at ?? now()->toImmutable());
             $sequence = Tenancy::within(TenantContext::platform('Allocate a platform-wide SaaS invoice number'), function () {
                 $counter = DB::table('saas_invoice_sequences')->where('id', 1)->lockForUpdate()->sole();
                 $next = (int) $counter->last_number + 1;
@@ -34,6 +33,10 @@ class IssueSaasInvoice
 
                 return $next;
             });
+            $last = SaasInvoice::query()->where('subscription_id', $subscription->id)
+                ->orderByDesc('period_ends_at')->lockForUpdate()->first();
+            $starts = $last?->period_ends_at
+                ?? $subscription->current_period_ends_at ?? $subscription->trial_ends_at ?? now()->toImmutable();
 
             $invoice = SaasInvoice::query()->create([
                 'subscription_id' => $subscription->id,
