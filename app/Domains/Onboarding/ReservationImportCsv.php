@@ -70,6 +70,9 @@ class ReservationImportCsv
      */
     private function row(array $values, int $number): array
     {
+        if (! mb_check_encoding($values, 'UTF-8')) {
+            throw ValidationException::withMessages(['file' => __('Save the CSV as UTF-8 and upload it again.')]);
+        }
         $raw = count($values) === count(self::COLUMNS)
             ? array_combine(self::COLUMNS, array_map(fn ($value) => trim($value ?? ''), $values))
             : $values;

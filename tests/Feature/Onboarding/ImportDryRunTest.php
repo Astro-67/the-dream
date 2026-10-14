@@ -9,7 +9,9 @@ use App\Domains\Rates\Models\RateRestriction;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
@@ -160,3 +162,19 @@ test('a dry run requires a restriction override rather than storing an unbookabl
             ->and($rows[1]->validated_data['reservation']['restriction_override_reason'])->toBe('Honour the previous system reservation');
     });
 });
+
+test('CSV structural failures refuse the upload without saving an import job or file', function (string $csv) {
+    Storage::fake('local');
+    [$owner, $organization, $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner, $csv) {
+        expect(fn () => app(DryRunImport::class)->handle($owner, UploadedFile::fake()->createWithContent('reservations.csv', $csv)))
+            ->toThrow(ValidationException::class);
+        expect(ImportJob::query()->count())->toBe(0)
+            ->and(Storage::disk('local')->allFiles())->toBe([]);
+    });
+})->with([
+    'empty file' => [''],
+    'wrong headers' => ["reference,arrival\nOLD-001,2026-12-10\n"],
+    'no reservations' => [implode(',', array_keys(ImportForm::row()))."\n"],
+    'non UTF-8 CSV' => [implode(',', array_keys(ImportForm::row()))."\n".implode(',', ImportForm::row(['guest_name' => "\xFF"]))."\n"],
+]);
