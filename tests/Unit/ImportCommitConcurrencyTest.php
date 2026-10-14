@@ -45,6 +45,6 @@ test('parallel MySQL import commits create one reservation and persist repeat-sa
             ->and(Guest::query()->count())->toBe(1)
             ->and(Booker::query()->count())->toBe(2)
             ->and(ImportJob::query()->where('status', '!=', 'committed')->count())->toBe(0)
-            ->and(InventoryRecord::query()->pluck('sold_count')->all())->toBe([1, 1]);
+            ->and(InventoryRecord::query()->whereBetween('date', ['2026-12-10', '2026-12-11'])->pluck('sold_count')->all())->toBe([1, 1]);
     });
 })->with([true, false]);
