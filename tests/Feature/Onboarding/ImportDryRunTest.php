@@ -3,8 +3,10 @@
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Inventory\Models\InventoryRecord;
+use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Onboarding\Actions\DryRunImport;
 use App\Domains\Onboarding\Models\ImportJob;
+use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\RateRestriction;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
@@ -176,5 +178,71 @@ test('CSV structural failures refuse the upload without saving an import job or 
     'empty file' => [''],
     'wrong headers' => ["reference,arrival\nOLD-001,2026-12-10\n"],
     'no reservations' => [implode(',', array_keys(ImportForm::row()))."\n"],
+    'too many rows' => [implode(',', array_keys(ImportForm::row()))."\n".str_repeat("short,row\n", 1001)],
     'non UTF-8 CSV' => [implode(',', array_keys(ImportForm::row()))."\n".implode(',', ImportForm::row(['guest_name' => "\xFF"]))."\n"],
 ]);
+
+test('import references and room and rate codes are scoped to the selected property even within one organization', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    inTenant($t->a->otherProperty, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(CreateReservation::class)->handle($t->a->owner, [...$details, 'source_reference' => 'OLD-001']);
+        RoomType::query()->findOrFail($details['room_type_id'])->update(['code' => 'OTHER']);
+        RatePlan::query()->findOrFail($details['rate_plan_id'])->update(['code' => 'OTHER']);
+    });
+    inTenant($t->a->property, function () use ($t) {
+        BookingForm::details($t->a->owner);
+        $job = app(DryRunImport::class)->handle($t->a->owner, ImportForm::csv([
+            ImportForm::row(),
+            ImportForm::row(['source_reference' => 'OLD-002', 'room_type_code' => 'OTHER', 'rate_plan_code' => 'OTHER']),
+        ]));
+        $rows = $job->rows()->get();
+        expect($rows[0]->status)->toBe('valid')
+            ->and($rows[1]->status)->toBe('invalid')
+            ->and($rows[1]->errors)->toHaveKeys(['room_type_code', 'rate_plan_code']);
+    });
+    expect(inTenant($t->a->otherProperty, fn () => Reservation::query()->count()))->toBe(1);
+});
+
+test('non-managers cannot download templates upload CSVs or inspect dry runs', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    $job = inTenant($t->a->property, fn () => app(DryRunImport::class)->handle($t->a->owner, ImportForm::csv([ImportForm::row()])));
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
+    $this->get(route('imports.index'))->assertForbidden();
+    $this->get(route('imports.template'))->assertForbidden();
+    $this->get(route('imports.show', $job))->assertForbidden();
+    $this->post(route('imports.store'), ['_property' => $t->a->property->id, 'file' => ImportForm::csv([ImportForm::row()])])->assertForbidden();
+    expect(inTenant($t->a->property, fn () => ImportJob::query()->count()))->toBe(1);
+});
+
+test('upload validates the file and property intent before storing anything', function (string $case) {
+    Storage::fake('local');
+    [$owner, $organization, $property] = organizationWithOwner();
+    $file = match ($case) {
+        'missing file' => null,
+        'wrong extension' => UploadedFile::fake()->createWithContent('reservations.txt', "not a CSV\n"),
+        'too large' => UploadedFile::fake()->create('reservations.csv', 2049, 'text/csv'),
+        default => ImportForm::csv([ImportForm::row()]),
+    };
+    $data = ['file' => $file, ...($case === 'missing intent' ? [] : ['_property' => $property->id])];
+    $this->actingAs($owner)->post(route('imports.store'), $data)
+        ->assertSessionHasErrors($case === 'missing intent' ? '_property' : 'file');
+    expect(inTenant($property, fn () => ImportJob::query()->count()))->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
+})->with(['missing file', 'wrong extension', 'too large', 'missing intent']);
+
+test('malformed rows have their own errors and blank lines keep CSV row numbers', function () {
+    Storage::fake('local');
+    [$owner, $organization, $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        BookingForm::details($owner);
+        $content = "\xEF\xBB\xBF".implode(',', array_keys(ImportForm::row()))."\n\nshort,row\n".implode(',', ImportForm::row())."\n";
+        $job = app(DryRunImport::class)->handle($owner, UploadedFile::fake()->createWithContent('reservations.csv', $content));
+        $rows = $job->rows()->get();
+        expect($rows->pluck('row_number')->all())->toBe([3, 4])
+            ->and($rows[0]->errors)->toHaveKey('row')
+            ->and($rows[1]->status)->toBe('valid');
+    });
+});
