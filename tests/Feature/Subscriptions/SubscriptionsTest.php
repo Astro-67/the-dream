@@ -107,10 +107,14 @@ test('creating an organization starts a trial on the default plan for its trial 
 
 test('existing organizations receive a trial subscription by migration', function () {
     [, $organization] = organizationWithOwner();
-    $migration = require database_path('migrations/2026_10_30_000095_subscriptions_create_plans_and_subscriptions.php');
-    $migration->down();
+    $migrations = array_map(fn (string $path) => require $path, glob(database_path('migrations/*_subscriptions_*.php')));
+    foreach (array_reverse($migrations) as $migration) {
+        $migration->down();
+    }
 
-    $migration->up();
+    foreach ($migrations as $migration) {
+        $migration->up();
+    }
 
     $subscription = inTenant($organization, fn () => Subscription::current());
     expect($subscription->status)->toBe(SubscriptionStatus::Trial)
