@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Actions\MarkTaxesReviewed;
 use App\Domains\Tenancy\Actions\SendInvitation;
 use App\Domains\Tenancy\Data\InvitationDetails;
@@ -100,4 +101,66 @@ test('checklist links lead to the existing setup screens', function () {
         ->where('onboarding.items.4.href', route('tax-rules.index'))
         ->where('onboarding.items.5.href', route('invitations.create'))
         ->where('onboarding.items.7.href', route('reservations.create')));
+});
+
+test('an empty profile and another property data cannot complete the selected property checklist', function () {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->forceFill(['status' => PropertyStatus::Setup, 'phone' => ''])->save();
+    $this->actingAs($t->a->owner)
+        ->put(route('current-property.update'), ['property_id' => $property->id])
+        ->assertRedirect(route('dashboard'));
+
+    foreach ([$t->a->otherProperty, $t->b->property] as $other) {
+        $other->forceFill(['status' => PropertyStatus::Setup])->save();
+        inTenant($other, function () use ($other, $t) {
+            $details = BookingForm::details($t->a->owner);
+            app(CreateReservation::class)->handle($t->a->owner, $details);
+            app(MarkTaxesReviewed::class)->handle($t->a->owner, $other);
+            app(SendInvitation::class)->handle($t->a->owner, new InvitationDetails(
+                'staff@example.test',
+                MembershipGrant::properties(OrganizationRole::FrontDesk, [$other->id]),
+                CarbonImmutable::now()->addWeek(),
+            ));
+        });
+    }
+
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('onboarding.propertyId', $property->id)
+        ->where('onboarding.items.1.completed', false)
+        ->where('onboarding.items.2.completed', false)
+        ->where('onboarding.items.3.completed', false)
+        ->where('onboarding.items.4.completed', false)
+        ->where('onboarding.items.5.completed', false)
+        ->where('onboarding.items.7.completed', false)
+        ->where('onboarding.canGoLive', false));
+});
+
+test('an unauthorized member sees progress but is not offered setup mutations', function () {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->forceFill(['status' => PropertyStatus::Setup])->save();
+    inTenant($property, function () use ($property, $t) {
+        BookingForm::details($t->a->owner);
+        app(MarkTaxesReviewed::class)->handle($t->a->owner, $property);
+    });
+
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('onboarding.gates.3.passed', true)
+            ->where('onboarding.canGoLive', false)
+            ->where('onboarding.canReviewTaxes', false));
+});
+
+test('only a test created event counts as making a sample reservation', function () {
+    [$owner, , $property] = organizationWithOwner();
+    inTenant($property, fn () => app(CreateReservation::class)->handle($owner, BookingForm::details($owner)));
+    $property->forceFill(['status' => PropertyStatus::Setup])->save();
+
+    $this->actingAs($owner)->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('onboarding.items.7.completed', false));
+
+    inTenant($property, fn () => ReservationLifecycleEvent::query()->update(['test' => true]));
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('onboarding.items.7.completed', true));
 });

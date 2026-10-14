@@ -1,8 +1,25 @@
 import { Head } from '@inertiajs/react';
 import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
+import {
+    OnboardingChecklist,
+    type Checklist,
+} from '@/features/tenancy/onboarding-checklist';
 import { dashboard } from '@/routes';
 
-export default function Dashboard() {
+export default function Dashboard({
+    onboarding,
+}: {
+    onboarding: Checklist | null;
+}) {
+    if (onboarding) {
+        return (
+            <>
+                <Head title={`Set up ${onboarding.propertyName}`} />
+                <OnboardingChecklist checklist={onboarding} />
+            </>
+        );
+    }
+
     return (
         <>
             <Head title="Dashboard" />

@@ -25,8 +25,8 @@ final class OnboardingChecklist
         $staffInvited = Invitation::query()
             ->whereNull('revoked_at')
             ->where(fn ($query) => $query->whereNotNull('accepted_at')->orWhere('expires_at', '>', now()))
-            ->get()
-            ->contains(fn (Invitation $invitation) => $invitation->all_properties || in_array($property->id, $invitation->property_ids, true));
+            ->where(fn ($query) => $query->where('all_properties', true)->orWhereJsonContains('property_ids', $property->id))
+            ->exists();
         $profileComplete = collect(['name', 'address_line', 'city', 'region', 'phone', 'email', 'timezone', 'currency'])
             ->every(fn (string $field) => filled($property->getAttribute($field)));
 
