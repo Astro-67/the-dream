@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Domains\Billing\PreventArchivingWithOpenBalances;
+use App\Domains\Reports\Policies\ReportPolicy;
+use App\Domains\Reports\PropertyKpis;
 use App\Domains\Reservations\PreventArchivingWithFutureReservations;
 use App\Domains\Tenancy\Contracts\PreArchiveCheck;
 use App\Support\Jobs\CallQueuedTenantHandler;
@@ -13,6 +15,7 @@ use App\Support\Tenancy\TenancyManager;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -36,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        Gate::policy(PropertyKpis::class, ReportPolicy::class);
 
         // Queued work runs in the tenant context it was dispatched from.
         Queue::createPayloadUsing(CallQueuedTenantHandler::capture(...));
