@@ -43,6 +43,7 @@ export default function ReportLayout({
                 <Form
                     action={action}
                     method="get"
+                    options={{ preserveState: true }}
                     className="flex flex-wrap items-end gap-4"
                 >
                     {({ errors, processing }) => (
