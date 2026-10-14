@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['reservation_id', 'type', 'sequence', 'occurred_at', 'business_date', 'actor_id', 'snapshot'])]
+#[Fillable(['reservation_id', 'type', 'sequence', 'occurred_at', 'business_date', 'actor_id', 'snapshot', 'test'])]
 class ReservationLifecycleEvent extends Model
 {
     use BelongsToProperty, HasUlids;
@@ -23,6 +23,6 @@ class ReservationLifecycleEvent extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['sequence' => 'integer', 'occurred_at' => 'immutable_datetime', 'business_date' => 'immutable_date', 'snapshot' => 'array'];
+        return ['sequence' => 'integer', 'occurred_at' => 'immutable_datetime', 'business_date' => 'immutable_date', 'snapshot' => 'array', 'test' => 'boolean'];
     }
 }

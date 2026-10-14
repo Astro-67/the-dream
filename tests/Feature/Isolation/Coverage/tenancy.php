@@ -95,6 +95,25 @@ return [
 
         return $responses;
     }),
+    'properties.go-live' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $t->b->otherProperty->forceFill(['status' => 'setup'])->save();
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('properties.go-live', $t->b->otherProperty->id), ['_property' => $t->a->property->id])->assertNotFound(),
+            $this->actingAs($t->a->owner)->post(route('properties.go-live', $t->b->otherProperty->id), ['_property' => $t->b->property->id])->assertForbidden(),
+        ];
+        expect($t->b->otherProperty->fresh()?->isLive())->toBeFalse();
+
+        return $responses;
+    }),
+    'properties.taxes-reviewed' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('properties.taxes-reviewed', $t->b->property->id), ['_property' => $t->a->property->id])->assertNotFound(),
+            $this->actingAs($t->a->owner)->post(route('properties.taxes-reviewed', $t->b->property->id), ['_property' => $t->b->property->id])->assertForbidden(),
+        ];
+        expect($t->b->property->fresh()?->taxes_reviewed_at)->toBeNull();
+
+        return $responses;
+    }),
     'members.index' => RouteCoverage::visit(),
     'members.edit' => RouteCoverage::attempt(fn (TwoTenants $t) => $this->actingAs($t->a->owner)->get(route('members.edit', $bravoMembership($t)->id))->assertNotFound()),
     'members.update' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoMembership, $bravoAccess) {

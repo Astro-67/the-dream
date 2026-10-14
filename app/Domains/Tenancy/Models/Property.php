@@ -3,6 +3,7 @@
 namespace App\Domains\Tenancy\Models;
 
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
+use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Enums\PropertyType;
 use App\Domains\Tenancy\Policies\PropertyPolicy;
 use App\Support\Money\Currency;
@@ -42,6 +43,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $receipt_prefix
  * @property CarbonImmutable $business_date
  * @property string $close_time
+ * @property PropertyStatus $status
+ * @property CarbonImmutable|null $went_live_at
+ * @property string|null $went_live_by
+ * @property CarbonImmutable|null $taxes_reviewed_at
+ * @property string|null $taxes_reviewed_by
  * @property CarbonImmutable|null $archived_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
@@ -59,6 +65,9 @@ class Property extends Model
 
     public const DEFAULT_TIMEZONE = 'Africa/Dar_es_Salaam';
 
+    /** New properties start in setup; only GoLive moves them to live. */
+    protected $attributes = ['status' => 'setup'];
+
     /**
      * @return array<string, string>
      */
@@ -68,6 +77,9 @@ class Property extends Model
             'property_type' => PropertyType::class,
             'currency' => Currency::class,
             'jurisdiction_profile' => JurisdictionProfile::class,
+            'status' => PropertyStatus::class,
+            'went_live_at' => 'immutable_datetime',
+            'taxes_reviewed_at' => 'immutable_datetime',
             'archived_at' => 'datetime',
             'business_date' => 'immutable_date',
             'housekeeping_inspection_required' => 'boolean',
@@ -83,6 +95,11 @@ class Property extends Model
     protected function active(Builder $query): void
     {
         $query->whereNull($this->qualifyColumn('archived_at'));
+    }
+
+    public function isLive(): bool
+    {
+        return $this->status === PropertyStatus::Live;
     }
 
     /**

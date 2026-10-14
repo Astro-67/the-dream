@@ -3,6 +3,7 @@
 use App\Http\Controllers\Web\Tenancy\ArchivedPropertyController;
 use App\Http\Controllers\Web\Tenancy\CurrentOrganizationController;
 use App\Http\Controllers\Web\Tenancy\CurrentPropertyController;
+use App\Http\Controllers\Web\Tenancy\GoLiveController;
 use App\Http\Controllers\Web\Tenancy\InvitationAcceptanceController;
 use App\Http\Controllers\Web\Tenancy\InvitationController;
 use App\Http\Controllers\Web\Tenancy\MemberController;
@@ -28,6 +29,8 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
         Route::put('properties/{property}', [PropertyController::class, 'update'])->name('properties.update');
         Route::post('properties/{property}/archive', [ArchivedPropertyController::class, 'store'])->name('properties.archive');
         Route::delete('properties/{property}/archive', [ArchivedPropertyController::class, 'destroy'])->name('properties.restore');
+        Route::post('properties/{property}/go-live', [GoLiveController::class, 'store'])->name('properties.go-live');
+        Route::post('properties/{property}/taxes-reviewed', [GoLiveController::class, 'reviewTaxes'])->name('properties.taxes-reviewed');
     });
 
     Route::middleware(['two-factor:owner', 'property.intent'])->group(function () {

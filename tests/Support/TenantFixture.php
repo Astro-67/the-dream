@@ -7,6 +7,7 @@ use App\Domains\Tenancy\Actions\CreateProperty;
 use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Data\PropertyDetails;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Organization;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -64,6 +65,8 @@ final class TenantFixture
             ]),
             'property_name',
         )));
+
+        $second->forceFill(['status' => PropertyStatus::Live])->save();
 
         $members = [OrganizationRole::Owner->value => $owner];
 

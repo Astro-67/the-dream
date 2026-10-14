@@ -70,6 +70,7 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
         'properties.update' => ['PUT', route($routeName, $property), PropertyForm::payload($intent)],
         'properties.archive' => ['POST', route($routeName, $property), $intent],
         'properties.restore' => ['DELETE', route($routeName, $property), $intent],
+        'properties.go-live', 'properties.taxes-reviewed' => ['POST', route($routeName, $property), $intent],
         'invitations.store' => ['POST', route($routeName), [...$intent, 'email' => 'new@example.test', 'role' => 'front_desk', 'all_properties' => false, 'property_ids' => [$property->id], 'expires_in_days' => 7]],
         'invitations.destroy' => ['DELETE', route($routeName, inTenant($property, fn () => app(SendInvitation::class)->handle(
             $owner,

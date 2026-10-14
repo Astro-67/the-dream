@@ -3,7 +3,11 @@
 namespace App\Domains\Tenancy\Jurisdiction;
 
 use App\Domains\Billing\OpenFolios;
+use App\Domains\Inventory\Models\Room;
+use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\FutureReservations;
+use App\Domains\Tenancy\Data\GoLiveGate;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Money\Currency;
@@ -87,6 +91,24 @@ final class JurisdictionRules
                 'jurisdiction_profile' => __('This property has open folios. Settle them and check out in-house guests before changing its jurisdiction profile.'),
             ]);
         }
+    }
+
+    /**
+     * What must be true before the property may go live. M2's gates hold for
+     * every profile; Zanzibar's compliance gates (REG-05) join here in M3.
+     *
+     * @return list<GoLiveGate>
+     */
+    public static function goLiveGates(Property $property): array
+    {
+        $id = $property->id;
+
+        return [
+            new GoLiveGate('room_type', __('At least one room type'), RoomType::query()->where('property_id', $id)->exists()),
+            new GoLiveGate('room', __('At least one room'), Room::query()->where('property_id', $id)->whereNull('deactivated_at')->exists()),
+            new GoLiveGate('rate_plan', __('At least one rate plan'), RatePlan::query()->where('property_id', $id)->whereNull('deactivated_at')->exists()),
+            new GoLiveGate('taxes_reviewed', __('Taxes reviewed'), $property->taxes_reviewed_at !== null),
+        ];
     }
 
     private static function of(JurisdictionProfile $profile): ProfileRules

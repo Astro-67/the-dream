@@ -27,6 +27,8 @@ class RecordLifecycleEvent
             'occurred_at' => now(),
             'business_date' => BusinessDate::of($property),
             'actor_id' => $actor?->id,
+            // Recorded before go-live: integration translators ignore test events.
+            'test' => ! $property->isLive(),
             'snapshot' => [...$details, ...$locked->only(['reservation_number', 'room_id', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'channel_reference', 'outside_integration_reason', 'requires_reconciliation', 'payment_collector', 'status']), 'price_lines' => $locked->priceLines->map->only(['date', 'amount', 'currency', 'rate_plan_id'])->all()],
         ]);
     }
