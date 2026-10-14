@@ -6,10 +6,9 @@ use App\Domains\Tenancy\Actions\GoLive;
 use App\Domains\Tenancy\Actions\MarkTaxesReviewed;
 use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Tenancy\GoLiveRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 /**
@@ -17,9 +16,8 @@ use Inertia\Inertia;
  */
 class GoLiveController extends Controller
 {
-    public function store(Request $request, Property $property, GoLive $goLive): RedirectResponse
+    public function store(GoLiveRequest $request, Property $property, GoLive $goLive): RedirectResponse
     {
-        Gate::authorize('goLive', $property);
         /** @var User $user */
         $user = $request->user();
         $goLive->handle($user, $property);
@@ -28,9 +26,8 @@ class GoLiveController extends Controller
         return back();
     }
 
-    public function reviewTaxes(Request $request, Property $property, MarkTaxesReviewed $markTaxesReviewed): RedirectResponse
+    public function reviewTaxes(GoLiveRequest $request, Property $property, MarkTaxesReviewed $markTaxesReviewed): RedirectResponse
     {
-        Gate::authorize('reviewTaxes', $property);
         /** @var User $user */
         $user = $request->user();
         $markTaxesReviewed->handle($user, $property);

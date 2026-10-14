@@ -69,6 +69,8 @@ test('staff without property update permission cannot take a property live', fun
         ->post(route('properties.go-live', $t->a->property), ['_property' => $t->a->property->id])
         ->assertForbidden();
     expect($t->a->property->fresh()->status)->toBe(PropertyStatus::Setup);
+    expect(Activity::query()->where('event', 'refused')->where('subject_id', $t->a->property->id)
+        ->where('properties->action', 'properties.go-live')->exists())->toBeTrue();
 })->with([OrganizationRole::FrontDesk, OrganizationRole::Finance, OrganizationRole::Housekeeping, OrganizationRole::Auditor]);
 
 test('a property in setup takes test reservations but refuses check-in', function () {

@@ -4,12 +4,15 @@ namespace App\Http\Requests\Subscriptions;
 
 use App\Domains\Subscriptions\Enums\BillingPeriod;
 use App\Domains\Subscriptions\Models\Plan;
+use App\Http\Requests\AuditsRefusals;
 use App\Support\Money\Currency;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class PlanRequest extends FormRequest
 {
+    use AuditsRefusals;
+
     public function authorize(): bool
     {
         return $this->user()?->can('manage', Plan::class) ?? false;

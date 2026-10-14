@@ -59,6 +59,7 @@ test('staff who cannot add properties cannot create a demo property', function (
         ->assertForbidden();
 
     expect(inTenant($t->a->organization, fn () => Property::query()->where('demo', true)->exists()))->toBeFalse();
+    expect(Activity::query()->where('event', 'refused')->where('properties->action', 'properties.demo.store')->exists())->toBeTrue();
 })->with([OrganizationRole::PropertyManager, OrganizationRole::FrontDesk, OrganizationRole::Auditor]);
 
 test('the demo flag cannot be set or cleared after creation', function () {
@@ -202,6 +203,8 @@ test('only owners delete a demo property', function () {
         ->assertForbidden();
 
     expect($demo->fresh())->not->toBeNull();
+    expect(Activity::query()->where('event', 'refused')->where('subject_id', $demo->id)
+        ->where('properties->action', 'properties.destroy')->exists())->toBeTrue();
 });
 
 test('the real scope leaves out demo properties', function () {

@@ -4,6 +4,7 @@ namespace App\Domains\Subscriptions\Actions;
 
 use App\Domains\Subscriptions\Models\Plan;
 use App\Models\User;
+use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -17,8 +18,9 @@ class SavePlan
     /** @param array<string, mixed> $details validated Plan::FIELDS */
     public function handle(User $actor, array $details, ?Plan $plan = null): Plan
     {
-        return DB::transaction(function () use ($actor, $details, $plan) {
-            $plan ??= new Plan(['modules' => []]);
+        $plan ??= new Plan(['modules' => []]);
+
+        return Audit::validationRefusal($actor, $plan, 'Plan change refused', fn () => DB::transaction(function () use ($actor, $details, $plan) {
             $old = $plan->exists ? $plan->only(array_keys($details)) : [];
             if ($plan->is_default && array_key_exists('is_default', $details) && ! $details['is_default']) {
                 // New organizations need a plan to start their trial on (StartTrial).
@@ -34,6 +36,6 @@ class SavePlan
                 ->log($old === [] ? 'Plan created' : 'Plan updated');
 
             return $plan;
-        });
+        }));
     }
 }

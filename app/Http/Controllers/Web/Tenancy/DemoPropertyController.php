@@ -6,11 +6,10 @@ use App\Domains\Tenancy\Actions\CreateDemoProperty;
 use App\Domains\Tenancy\Actions\DeleteDemoProperty;
 use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Tenancy\DemoPropertyRequest;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 /**
@@ -18,9 +17,8 @@ use Inertia\Inertia;
  */
 class DemoPropertyController extends Controller
 {
-    public function store(Request $request, CreateDemoProperty $createDemoProperty): RedirectResponse
+    public function store(DemoPropertyRequest $request, CreateDemoProperty $createDemoProperty): RedirectResponse
     {
-        Gate::authorize('create', Property::class);
         /** @var User $user */
         $user = $request->user();
         $template = Tenancy::property() ?? abort(403);
@@ -31,9 +29,8 @@ class DemoPropertyController extends Controller
         return redirect()->route('properties.index');
     }
 
-    public function destroy(Request $request, Property $property, DeleteDemoProperty $deleteDemoProperty): RedirectResponse
+    public function destroy(DemoPropertyRequest $request, Property $property, DeleteDemoProperty $deleteDemoProperty): RedirectResponse
     {
-        Gate::authorize('delete', $property);
         /** @var User $user */
         $user = $request->user();
 

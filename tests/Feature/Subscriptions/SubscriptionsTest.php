@@ -63,6 +63,8 @@ test('the default plan stays default until another plan takes over', function ()
         ->assertSessionHasErrors('is_default');
 
     expect($plan->fresh()->is_default)->toBeTrue();
+    expect(Activity::query()->where('event', 'refused')->where('subject_id', $plan->id)
+        ->where('properties->errors->is_default', '!=', null)->exists())->toBeTrue();
 });
 
 test('plan details are validated', function () {
@@ -76,6 +78,9 @@ test('organization members, owners included, are refused the plan pages', functi
 
     $this->actingAs($owner)->get(route('platform.plans.index'))->assertForbidden();
     $this->actingAs($owner)->post(route('platform.plans.store'), planFormPayload())->assertForbidden();
+    $this->put(route('platform.plans.update', Plan::default()), planFormPayload())->assertForbidden();
+    expect(Activity::query()->where('event', 'refused')
+        ->where('properties->action', 'platform.plans.update')->where('causer_id', $owner->id)->exists())->toBeTrue();
     $this->actingAs(platformStaff(PlatformRole::ComplianceOperator))
         ->get(route('platform.plans.index'))->assertForbidden();
 
