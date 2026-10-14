@@ -5,6 +5,7 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import { formatTime } from '@/lib/utils';
 
 export type ReportFilters = { from: string; to: string };
@@ -49,6 +50,7 @@ export default function ReportLayout({
                             <div className="grid gap-2">
                                 <Label htmlFor="from">From business date</Label>
                                 <Input
+                                    className="min-h-11 md:min-h-9"
                                     id="from"
                                     name="from"
                                     type="date"
@@ -67,6 +69,7 @@ export default function ReportLayout({
                             <div className="grid gap-2">
                                 <Label htmlFor="to">To business date</Label>
                                 <Input
+                                    className="min-h-11 md:min-h-9"
                                     id="to"
                                     name="to"
                                     type="date"
@@ -82,9 +85,13 @@ export default function ReportLayout({
                             <Button
                                 type="submit"
                                 variant="secondary"
+                                className="min-h-11 md:min-h-9"
                                 disabled={processing}
                             >
-                                {processing ? 'Refreshing...' : 'View report'}
+                                <span className="size-4">
+                                    {processing && <Spinner />}
+                                </span>
+                                View report
                             </Button>
                         </>
                     )}
