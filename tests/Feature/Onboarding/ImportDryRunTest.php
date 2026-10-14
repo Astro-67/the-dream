@@ -4,6 +4,7 @@ use App\Domains\Guests\Models\Booker;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Onboarding\Actions\DryRunImport;
+use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -83,5 +84,25 @@ test('dry run rejects past stays using the property business date while retainin
             ->and($rows[0]->validated_data)->toBeNull()
             ->and($rows[1]->status)->toBe('valid')
             ->and(Reservation::query()->count())->toBe(0);
+    });
+});
+
+test('dry run flags source references already imported at this property and repeated within the CSV', function () {
+    Storage::fake('local');
+    [$owner, $organization, $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        app(CreateReservation::class)->handle($owner, [...$details, 'source_reference' => 'OLD-001']);
+        $job = app(DryRunImport::class)->handle($owner, importDryRunCsv([
+            importDryRunRow(),
+            importDryRunRow(['source_reference' => 'OLD-002']),
+            importDryRunRow(['source_reference' => 'OLD-002']),
+        ]));
+        $rows = $job->rows()->get();
+        expect($rows->pluck('status')->all())->toBe(['duplicate', 'valid', 'duplicate'])
+            ->and($rows[0]->errors)->toHaveKey('source_reference')
+            ->and($rows[2]->errors)->toHaveKey('source_reference')
+            ->and($rows[0]->source_reference)->toBe('OLD-001')
+            ->and(Reservation::query()->count())->toBe(1);
     });
 });

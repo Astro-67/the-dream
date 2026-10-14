@@ -6,6 +6,7 @@ use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
+use App\Domains\Reservations\Models\Reservation;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -30,14 +31,27 @@ class ReservationImportCsv
                 throw ValidationException::withMessages(['file' => __('Use the downloaded template with its columns in the same order.')]);
             }
             $rows = [];
+            $references = [];
+            $number = 1;
             while (($values = fgetcsv($stream, escape: '')) !== false) {
+                $number++;
                 if ($values === [null]) {
                     continue;
                 }
                 if (count($rows) >= 1000) {
                     throw ValidationException::withMessages(['file' => __('Upload at most 1,000 reservations at a time.')]);
                 }
-                $rows[] = $this->row($values, count($rows) + 2);
+                $row = $this->row($values, $number);
+                $reference = $row['source_reference'];
+                if ($reference !== null && (isset($references[$reference]) || Reservation::query()->where('source_reference', $reference)->exists())) {
+                    $row['status'] = 'duplicate';
+                    $row['validated_data'] = null;
+                    $row['errors']['source_reference'] = [__('This source reference already exists at this property or appears earlier in the CSV.')];
+                }
+                if ($reference !== null) {
+                    $references[$reference] = true;
+                }
+                $rows[] = $row;
             }
             if ($rows === []) {
                 throw ValidationException::withMessages(['file' => __('Add at least one reservation to the CSV.')]);
@@ -57,7 +71,8 @@ class ReservationImportCsv
         $raw = count($values) === count(self::COLUMNS)
             ? array_combine(self::COLUMNS, array_map(fn ($value) => trim($value ?? ''), $values))
             : $values;
-        $result = ['row_number' => $number, 'source_reference' => null, 'status' => 'invalid', 'raw_data' => $raw, 'validated_data' => null, 'errors' => []];
+        $reference = $raw['source_reference'] ?? '';
+        $result = ['row_number' => $number, 'source_reference' => $reference !== '' && mb_strlen($reference) <= 255 ? $reference : null, 'status' => 'invalid', 'raw_data' => $raw, 'validated_data' => null, 'errors' => []];
         if (count($values) !== count(self::COLUMNS)) {
             return [...$result, 'errors' => ['row' => [__('The row must have the same number of columns as the template.')]]];
         }

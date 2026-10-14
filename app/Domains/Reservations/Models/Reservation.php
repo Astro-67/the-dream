@@ -23,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $payment_collector
  * @property int|null $channel_collected_amount minor units, when the channel collects
  */
-#[Fillable(['booking_group_id', 'reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'payment_collector', 'status', 'room_id', 'restriction_override_reason', 'channel_reference', 'outside_integration_reason', 'requires_reconciliation', 'channel_collected_amount'])]
+#[Fillable(['booking_group_id', 'reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'source_reference', 'payment_collector', 'status', 'room_id', 'restriction_override_reason', 'channel_reference', 'outside_integration_reason', 'requires_reconciliation', 'channel_collected_amount'])]
 #[UsePolicy(ReservationPolicy::class)]
 class Reservation extends Model
 {
