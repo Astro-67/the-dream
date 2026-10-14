@@ -7,6 +7,8 @@ use App\Domains\Inventory\Actions\RecalculateInventory;
 use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Subscriptions\Actions\AdvanceSubscription;
+use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -278,3 +280,21 @@ Artisan::command('night-audit:close-due', function (): int {
 })->purpose('Dispatch night audit for properties past their local close time');
 
 Schedule::command('night-audit:close-due')->everyMinute()->withoutOverlapping();
+
+Artisan::command('subscriptions:advance', function (AdvanceSubscription $advance): int {
+    $organizations = Tenancy::within(TenantContext::platform('hourly subscription lifecycle'), fn () => Subscription::query()->pluck('organization_id'));
+    $failed = 0;
+    foreach ($organizations as $organizationId) {
+        try {
+            Tenancy::within(TenantContext::forOrganization($organizationId), fn () => $advance->handle());
+        } catch (Throwable $exception) {
+            report($exception);
+            $failed++;
+            $this->error("{$organizationId}: {$exception->getMessage()}");
+        }
+    }
+
+    return $failed === 0 ? self::SUCCESS : self::FAILURE;
+})->purpose('Issue subscription invoices, send reminders and advance unpaid subscriptions');
+
+Schedule::command('subscriptions:advance')->hourly()->withoutOverlapping();

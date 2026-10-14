@@ -40,6 +40,7 @@ class Subscription extends Model
             'trial_ends_at' => 'immutable_datetime',
             'current_period_ends_at' => 'immutable_datetime',
             'cancel_at_period_end' => 'boolean',
+            'last_advanced_at' => 'immutable_datetime',
         ];
     }
 
