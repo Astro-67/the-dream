@@ -2,15 +2,21 @@
 
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Rates\Actions\CreateRatePlan;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Subscriptions\PlanUsage;
+use App\Domains\Tenancy\Actions\ChangeMembership;
 use App\Domains\Tenancy\Actions\GoLive;
 use App\Domains\Tenancy\Actions\MarkTaxesReviewed;
+use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Enums\PropertyStatus;
+use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Domains\Tenancy\Models\Property;
-use App\Domains\Tenancy\Models\PropertyMembership;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
@@ -99,13 +105,54 @@ test('go-live is refused for a demo property, even once its gates pass', functio
         ->and(fn () => inTenant($demo, fn () => app(GoLive::class)->handle($t->a->owner, $demo)))->toThrow(ValidationException::class);
 });
 
+test('renamed demo properties stay marked in membership and invitation lists and selectors', function () {
+    Notification::fake();
+    $t = twoTenants();
+    $demo = demoPropertyFor($t->a);
+    $membership = inTenant($t->a->organization, function () use ($t, $demo) {
+        $demo->update(['name' => 'Practice property']);
+        $membership = OrganizationMembership::query()->where('user_id', $t->a->member(OrganizationRole::FrontDesk)->id)->sole();
+        app(ChangeMembership::class)->handle($t->a->owner, $membership, MembershipGrant::properties(OrganizationRole::FrontDesk, [$demo->id]));
+
+        return $membership;
+    });
+    $label = 'Practice property (Demo)';
+
+    $this->actingAs($t->a->owner)->get(route('members.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('members', fn ($members) => collect($members)->firstWhere('id', $membership->id)['properties'] === [$label]));
+    foreach (['members.edit', 'invitations.create'] as $route) {
+        $this->get(route($route, $route === 'members.edit' ? $membership : []))
+            ->assertInertia(fn (Assert $page) => $page->where('properties', fn ($properties) => collect($properties)->firstWhere('value', $demo->id)['label'] === $label));
+    }
+    $this->post(route('invitations.store'), [
+        '_property' => $t->a->property->id,
+        'email' => 'demo-staff@example.test',
+        'role' => 'front_desk',
+        'all_properties' => false,
+        'property_ids' => [$demo->id],
+        'expires_in_days' => 7,
+    ])->assertSessionHasNoErrors();
+    $this->get(route('invitations.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('invitations.0.properties', [$label]));
+});
+
 test('deleting a demo property removes its data and nothing else', function () {
     $t = twoTenants();
     inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
     $demo = demoPropertyFor($t->a);
-    $everythingElse = fn () => collect([RoomType::class, Room::class, RatePlan::class, Reservation::class, PropertyMembership::class, Property::class])
-        ->mapWithKeys(fn (string $model) => [$model => $model::query()->withoutGlobalScopes()
-            ->where($model === Property::class ? 'id' : 'property_id', '!=', $demo->id)->orderBy('id')->pluck('id')->all()]);
+    foreach ([$t->a->property, $demo] as $property) {
+        inTenant($property, fn () => app(CreateRatePlan::class)->handle($t->a->owner, [
+            'name' => 'Derived sample rate',
+            'code' => 'DER',
+            'base_rate_plan_id' => RatePlan::query()->sole()->id,
+            'adjustment_kind' => 'percent',
+            'adjustment' => -10,
+        ]));
+    }
+    $tables = collect(Schema::getTableListing(Schema::getCurrentSchemaName(), false))
+        ->filter(fn (string $table) => $table === 'properties' || Schema::hasColumn($table, 'property_id'));
+    $everythingElse = fn () => $tables->mapWithKeys(fn (string $table) => [$table => DB::table($table)
+        ->where($table === 'properties' ? 'id' : 'property_id', '!=', $demo->id)->get()->all()]);
     $before = $everythingElse();
 
     $this->actingAs($t->a->owner)
@@ -113,11 +160,27 @@ test('deleting a demo property removes its data and nothing else', function () {
         ->assertRedirect(route('properties.index'));
 
     expect(Property::query()->withoutGlobalScopes()->find($demo->id))->toBeNull();
-    foreach ([RoomType::class, Room::class, RatePlan::class, Reservation::class, PropertyMembership::class] as $model) {
-        expect($model::query()->withoutGlobalScopes()->where('property_id', $demo->id)->exists())->toBeFalse($model);
+    foreach ($tables as $table) {
+        expect(DB::table($table)->where($table === 'properties' ? 'id' : 'property_id', $demo->id)->exists())->toBeFalse($table);
     }
-    expect($everythingElse())->toEqual($before);
+    $after = $everythingElse();
+    foreach ($before as $table => $rows) {
+        expect($after[$table])->toEqualCanonicalizing($rows);
+    }
     expect(Activity::query()->where('event', 'deleted')->where('subject_id', $demo->id)->exists())->toBeTrue();
+});
+
+test('deleting the last active demo property is refused without removing its sample data', function () {
+    $t = twoTenants();
+    $demo = demoPropertyFor($t->a);
+    inTenant($t->a->organization, fn () => Property::query()->real()->update(['archived_at' => now()]));
+    $rooms = inTenant($demo, fn () => Room::query()->count());
+
+    $this->actingAs($t->a->owner)->delete(route('properties.destroy', $demo), ['_property' => $demo->id])
+        ->assertSessionHasErrors(['delete' => 'The organization needs another active property before the demo property can be deleted.']);
+
+    expect($demo->fresh())->not->toBeNull()
+        ->and(inTenant($demo, fn () => Room::query()->count()))->toBe($rooms);
 });
 
 test('a real property cannot be deleted', function () {

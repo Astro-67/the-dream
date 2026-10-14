@@ -126,6 +126,11 @@ class Property extends Model
         return $this->demo;
     }
 
+    public function displayName(): string
+    {
+        return $this->isDemo() ? __(':name (Demo)', ['name' => $this->name]) : $this->name;
+    }
+
     public function isLive(): bool
     {
         return $this->status === PropertyStatus::Live;
