@@ -33,6 +33,7 @@ import { store as storeDemo } from '@/routes/properties/demo';
 import { formatDate } from '@/features/platform/format';
 import type { Currency, JurisdictionProfile } from '@/types';
 import { Spinner } from '@/components/ui/spinner';
+import InputError from '@/components/input-error';
 
 type PropertyRow = {
     id: string;
@@ -208,7 +209,7 @@ function DemoChip() {
 function RestoreProperty({ property }: { property: ArchivedPropertyRow }) {
     return (
         <Form {...restore.form(property.id)} options={{ preserveScroll: true }}>
-            {({ processing }) => (
+            {({ processing, errors }) => (
                 <>
                     <PropertyIntent />
                     <Button
@@ -223,6 +224,15 @@ function RestoreProperty({ property }: { property: ArchivedPropertyRow }) {
                         </span>
                         Restore
                     </Button>
+                    <InputError
+                        message={
+                            errors.subscription ??
+                            errors.property ??
+                            errors.room ??
+                            errors._property
+                        }
+                        role="alert"
+                    />
                 </>
             )}
         </Form>
