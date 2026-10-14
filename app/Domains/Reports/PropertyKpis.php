@@ -13,6 +13,7 @@ final class PropertyKpis
     /** @return array<string, mixed> */
     public function forProperty(Property $property, string $from, string $to): array
     {
+        $property = Property::query()->real()->findOrFail($property->id);
         $inventory = InventoryRecord::query()->where('property_id', $property->id)->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
         $sold = (int) (clone $inventory)->sum('sold_count');
         $sellable = (int) $inventory->sum('sellable_count');
