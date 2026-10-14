@@ -3,6 +3,7 @@
 namespace App\Domains\Tenancy;
 
 use App\Domains\Rates\Models\RatePrice;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Data\GoLiveGate;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -10,6 +11,7 @@ use App\Domains\Tenancy\Models\Invitation;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 final class OnboardingChecklist
 {
@@ -40,7 +42,7 @@ final class OnboardingChecklist
                 ['key' => 'rates', 'label' => __('Configure rates'), 'completed' => $passed['rate_plan']->passed && RatePrice::query()->where('property_id', $property->id)->exists(), 'href' => route('rate-calendar')],
                 ['key' => 'taxes_reviewed', 'label' => __('Review taxes'), 'completed' => $property->taxes_reviewed_at !== null, 'href' => route('tax-rules.index')],
                 ['key' => 'invite_staff', 'label' => __('Invite staff'), 'completed' => $staffInvited, 'href' => route('invitations.create')],
-                ['key' => 'import_reservations', 'label' => __('Import future reservations'), 'completed' => false, 'href' => Route::has('reservation-imports.create') ? route('reservation-imports.create') : null],
+                ['key' => 'import_reservations', 'label' => __('Import future reservations'), 'completed' => $this->hasImportedReservations($property), 'href' => Route::has('imports.index') ? route('imports.index') : null],
                 ['key' => 'sample_reservation', 'label' => __('Make a sample reservation'), 'completed' => ReservationLifecycleEvent::query()->where('property_id', $property->id)->where('test', true)->where('type', 'created')->exists(), 'href' => route('reservations.create')],
             ],
             'gates' => $gates,
@@ -48,5 +50,12 @@ final class OnboardingChecklist
             'canReviewTaxes' => $actor->can('reviewTaxes', $property),
             'receiptNotice' => JurisdictionRules::onboardingReceiptNotice($property),
         ];
+    }
+
+    private function hasImportedReservations(Property $property): bool
+    {
+        // ponytail: #98 owns the imported flag; remove this guard once its migration ships.
+        return Schema::hasColumn('reservations', 'imported')
+            && Reservation::query()->where('property_id', $property->id)->where('imported', true)->exists();
     }
 }
