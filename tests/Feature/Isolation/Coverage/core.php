@@ -15,11 +15,16 @@ return [
     'dashboard' => RouteCoverage::attempt(function (TwoTenants $t) {
         $t->a->property->forceFill(['status' => PropertyStatus::Setup])->save();
         $t->b->property->forceFill(['status' => PropertyStatus::Setup])->save();
+        $this->actingAs($t->a->owner)
+            ->put(route('current-property.update'), ['property_id' => $t->a->property->id])
+            ->assertRedirect(route('dashboard'));
 
-        return $this->actingAs($t->a->owner)
-            ->get(route('dashboard', ['property_id' => $t->b->property->id]))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('onboarding.propertyId', $t->a->property->id));
+        return [
+            $this->put(route('current-property.update'), ['property_id' => $t->b->property->id])->assertForbidden(),
+            $this->get(route('dashboard'))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page->where('onboarding.propertyId', $t->a->property->id)),
+        ];
     }),
 
     'up' => RouteCoverage::exempt('Health check; returns no data.'),
