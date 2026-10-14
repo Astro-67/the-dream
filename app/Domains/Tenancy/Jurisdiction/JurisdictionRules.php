@@ -111,6 +111,13 @@ final class JurisdictionRules
         ];
     }
 
+    public static function onboardingReceiptNotice(Property $property): ?string
+    {
+        return $property->jurisdiction_profile === JurisdictionProfile::MainlandTanzania
+            ? __('Thedream issues non-fiscal receipts for mainland properties.')
+            : null;
+    }
+
     private static function of(JurisdictionProfile $profile): ProfileRules
     {
         return match ($profile) {
