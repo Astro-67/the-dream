@@ -6,6 +6,7 @@ use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
+use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reservations\Models\Reservation;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
@@ -109,12 +110,17 @@ class ReservationImportCsv
             if ($quote->unquotable !== null) {
                 throw ValidationException::withMessages(['rate_plan_code' => $quote->unquotable]);
             }
+            $restrictions = app(StayRestrictions::class);
+            $reason = $restrictions->overrideReason(
+                $restrictions->warnings($plan, $type, $data['arrival'], $data['departure']),
+                $data['restriction_override_reason'] ?: null,
+            );
 
             return [...$result, 'source_reference' => $data['source_reference'], 'status' => 'valid', 'validated_data' => [
                 'reservation' => [
                     'source_reference' => $data['source_reference'], 'room_type_id' => $type->id, 'rate_plan_id' => $plan->id,
                     'arrival' => $data['arrival'], 'departure' => $data['departure'], 'adults' => (int) $data['adults'], 'children' => (int) $data['children'],
-                    'source' => 'import', 'payment_collector' => 'property', 'restriction_override_reason' => $data['restriction_override_reason'] ?: null,
+                    'source' => 'import', 'payment_collector' => 'property', 'restriction_override_reason' => $reason,
                 ],
                 'booker' => ['name' => $data['booker_name'], 'email' => $data['booker_email'] ?: null],
                 'guest' => ['name' => $data['guest_name'], 'email' => $data['guest_email'] ?: null],

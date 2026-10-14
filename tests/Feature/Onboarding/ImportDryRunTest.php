@@ -5,6 +5,7 @@ use App\Domains\Guests\Models\Guest;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Onboarding\Actions\DryRunImport;
 use App\Domains\Onboarding\Models\ImportJob;
+use App\Domains\Rates\Models\RateRestriction;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -137,4 +138,25 @@ test('a manager downloads the template uploads a CSV and sees persisted row resu
         ->where('rows.data.0.status', 'valid')
         ->has('rows.data.1.errors.guest_name'));
     expect(inTenant($t->a->property, fn () => Reservation::query()->count()))->toBe(0);
+});
+
+test('a dry run requires a restriction override rather than storing an unbookable replay payload', function () {
+    Storage::fake('local');
+    [$owner, $organization, $property] = organizationWithOwner();
+    inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        RateRestriction::query()->create([
+            'rate_plan_id' => $details['rate_plan_id'], 'room_type_id' => $details['room_type_id'],
+            'date' => '2026-12-10', 'min_stay' => 3, 'closed_to_arrival' => false, 'stop_sell' => false,
+        ]);
+        $job = app(DryRunImport::class)->handle($owner, ImportForm::csv([
+            ImportForm::row(),
+            ImportForm::row(['source_reference' => 'OLD-002', 'restriction_override_reason' => 'Honour the previous system reservation']),
+        ]));
+        $rows = $job->rows()->get();
+        expect($rows[0]->status)->toBe('invalid')
+            ->and($rows[0]->errors)->toHaveKey('restriction_override_reason')
+            ->and($rows[1]->status)->toBe('valid')
+            ->and($rows[1]->validated_data['reservation']['restriction_override_reason'])->toBe('Honour the previous system reservation');
+    });
 });
