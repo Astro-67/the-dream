@@ -2,6 +2,7 @@
 
 namespace App\Domains\Onboarding;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
@@ -65,7 +66,7 @@ class ReservationImportCsv
                 'source_reference' => ['required', 'string', 'max:255'],
                 'room_type_code' => ['required', 'string', 'max:30'],
                 'rate_plan_code' => ['required', 'string', 'max:30'],
-                'arrival' => ['required', 'date_format:Y-m-d'],
+                'arrival' => ['required', 'date_format:Y-m-d', 'after_or_equal:'.BusinessDate::current()],
                 'departure' => ['required', 'date_format:Y-m-d', 'after:arrival'],
                 'adults' => ['required', 'integer', 'between:1,20'],
                 'children' => ['required', 'integer', 'between:0,20'],

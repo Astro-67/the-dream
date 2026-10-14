@@ -65,3 +65,23 @@ test('dry run retains the upload and replayable row without creating reservation
             ->and(Activity::query()->where('subject_id', $job->id)->where('event', 'dry_run')->exists())->toBeTrue();
     });
 });
+
+test('dry run rejects past stays using the property business date while retaining other rows', function () {
+    Storage::fake('local');
+    [$owner, $organization, $property] = organizationWithOwner();
+    $property->forceFill(['business_date' => '2026-12-01'])->save();
+
+    inTenant($property, function () use ($owner) {
+        BookingForm::details($owner);
+        $job = app(DryRunImport::class)->handle($owner, importDryRunCsv([
+            importDryRunRow(['arrival' => '2026-11-30', 'departure' => '2026-12-12']),
+            importDryRunRow(['source_reference' => 'OLD-002']),
+        ]));
+        $rows = $job->rows()->get();
+        expect($rows[0]->status)->toBe('invalid')
+            ->and($rows[0]->errors)->toHaveKey('arrival')
+            ->and($rows[0]->validated_data)->toBeNull()
+            ->and($rows[1]->status)->toBe('valid')
+            ->and(Reservation::query()->count())->toBe(0);
+    });
+});
