@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tenancy\Actions;
 
+use App\Domains\Subscriptions\Entitlements;
 use App\Domains\Tenancy\Data\PropertyDetails;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -16,7 +17,9 @@ class CreateProperty
 {
     public function handle(?User $actor, PropertyDetails $details, bool $demo = false): Property
     {
-        return DB::transaction(function () use ($actor, $details, $demo) {
+        return Audit::validationRefusal($actor, new Property, 'Property creation refused', fn () => DB::transaction(function () use ($actor, $details, $demo) {
+            $entitlements = app(Entitlements::class);
+            $entitlements->assertCapacity($entitlements->lockForNewSales($demo), properties: 1);
             $property = (new Property([...$details->toAttributes(), 'business_date' => now($details->timezone)->toDateString()]))->forceFill(['demo' => $demo]);
             $property->save();
 
@@ -30,6 +33,6 @@ class CreateProperty
             ]);
 
             return $property;
-        });
+        }, attempts: 3));
     }
 }
