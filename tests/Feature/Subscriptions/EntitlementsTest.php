@@ -66,16 +66,32 @@ test('room capacity and displayed usage cover every real property even in proper
     expect(inTenant($property, fn () => PlanUsage::current()))->toBe(['properties' => 2, 'rooms' => 2]);
 });
 
-test('demo creation and sample sales remain usable without consuming suspended or cancelled plan capacity', function (SubscriptionStatus $status) {
+test('demo properties consume no capacity but suspension blocks demo creation rooms and reservations', function (SubscriptionStatus $status) {
     [$owner, $organization, $property] = organizationWithOwner();
     Plan::default()->update(['property_limit' => 1, 'room_limit' => 1]);
-    inTenant($organization, fn () => Subscription::current()->update(['status' => $status]));
-
     $this->actingAs($owner)->post(route('properties.demo.store'), ['_property' => $property->id])->assertSessionHasNoErrors();
     $demo = inTenant($organization, fn () => Property::query()->where('demo', true)->sole());
     expect(inTenant($demo, fn () => Room::query()->count()))->toBe(5)
         ->and(inTenant($demo, fn () => Reservation::query()->count()))->toBeGreaterThan(0)
         ->and(inTenant($demo, fn () => PlanUsage::current()))->toBe(['properties' => 1, 'rooms' => 0]);
+
+    $details = inTenant($demo, fn () => Reservation::query()->firstOrFail()->only([
+        'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source',
+    ]));
+    $details['arrival'] = $details['arrival']->toDateString();
+    $details['departure'] = $details['departure']->toDateString();
+    $roomsBefore = inTenant($demo, fn () => Room::query()->count());
+    $reservationsBefore = inTenant($demo, fn () => Reservation::query()->count());
+    inTenant($organization, fn () => Subscription::current()->update(['status' => $status]));
+    $this->postJson(route('properties.demo.store'), ['_property' => $property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('subscription');
+    $this->postJson(route('rooms.store'), InventoryForm::room($details['room_type_id'], ['number' => 'BLOCKED', '_property' => $demo->id]))
+        ->assertUnprocessable()->assertJsonValidationErrors('subscription');
+    $this->postJson(route('reservations.store'), [...$details, '_property' => $demo->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('subscription');
+    expect(inTenant($demo, fn () => Room::query()->count()))->toBe($roomsBefore)
+        ->and(inTenant($demo, fn () => Reservation::query()->count()))->toBe($reservationsBefore)
+        ->and(inTenant($organization, fn () => Property::query()->where('demo', true)->count()))->toBe(1);
 
     inTenant($organization, fn () => Subscription::current()->update(['status' => SubscriptionStatus::Active]));
     $type = inTenant($property, fn () => app(CreateRoomType::class)->handle($owner, InventoryForm::roomType()));

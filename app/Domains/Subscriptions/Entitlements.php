@@ -9,10 +9,6 @@ final class Entitlements
 {
     public function lockForNewSales(bool $demo = false): ?Subscription
     {
-        if ($demo) {
-            return null;
-        }
-
         $subscription = Subscription::query()->lockForUpdate()->sole();
         if ($subscription->status->blocksNewSales()) {
             throw ValidationException::withMessages([
@@ -22,7 +18,7 @@ final class Entitlements
             ]);
         }
 
-        return $subscription;
+        return $demo ? null : $subscription;
     }
 
     public function assertCapacity(?Subscription $subscription, int $properties = 0, int $rooms = 0): void
