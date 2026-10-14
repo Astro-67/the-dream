@@ -66,13 +66,15 @@ class OrganizationSetupController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $createOrganization->handle($user, $request->setup());
+        $organization = $createOrganization->handle($user, $request->setup());
 
         $context = Tenancy::defaultContextFor($user);
 
         if ($context !== null) {
             Tenancy::remember($request->session(), $context);
         }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __(':name is set up. Next, work through the checklist below.', ['name' => $organization->name])]);
 
         return redirect()->route('dashboard');
     }

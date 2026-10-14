@@ -1,6 +1,5 @@
 // Components
 import { Form, Head } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -16,7 +15,10 @@ export default function ForgotPassword({ status }: { status?: string }) {
             <Head title="Forgot password" />
 
             {status && (
-                <div className="mb-4 text-center text-sm font-medium text-status-success">
+                <div
+                    role="status"
+                    className="mb-4 text-center text-sm font-medium text-status-success"
+                >
                     {status}
                 </div>
             )}
@@ -31,7 +33,8 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                     id="email"
                                     type="email"
                                     name="email"
-                                    autoComplete="off"
+                                    autoComplete="email"
+                                    required
                                     autoFocus
                                     placeholder="email@example.com"
                                 />
@@ -45,12 +48,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                     disabled={processing}
                                     data-test="email-password-reset-link-button"
                                 >
-                                    <span className="size-4">
-                                        {processing && <Spinner />}
-                                    </span>
-                                    {processing && (
-                                        <LoaderCircle className="h-4 w-4 animate-spin" />
-                                    )}
+                                    {processing && <Spinner />}
                                     Email password reset link
                                 </Button>
                             </div>

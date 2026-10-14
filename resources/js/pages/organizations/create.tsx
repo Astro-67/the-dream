@@ -102,6 +102,9 @@ export default function CreateOrganization({
                     <header className="flex flex-col gap-4">
                         <AppLogoIcon className="size-9 fill-current text-foreground" />
                         <div className="space-y-2">
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Last step before your setup checklist
+                            </p>
                             <h1 className="text-3xl font-semibold tracking-tight">
                                 Set up your organization
                             </h1>

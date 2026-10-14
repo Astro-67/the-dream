@@ -11,9 +11,15 @@ type Props = {
     token: string;
     email: string;
     passwordRules: string;
+    passwordHint: string;
 };
 
-export default function ResetPassword({ token, email, passwordRules }: Props) {
+export default function ResetPassword({
+    token,
+    email,
+    passwordRules,
+    passwordHint,
+}: Props) {
     return (
         <>
             <Head title="Reset password" />
@@ -52,7 +58,14 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                                 autoFocus
                                 placeholder="Password"
                                 passwordrules={passwordRules}
+                                aria-describedby="password-hint"
                             />
+                            <p
+                                id="password-hint"
+                                className="text-sm text-muted-foreground"
+                            >
+                                {passwordHint}
+                            </p>
                             <InputError message={errors.password} />
                         </div>
 
