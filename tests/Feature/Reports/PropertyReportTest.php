@@ -38,3 +38,10 @@ test('demo properties cannot contribute to property reports', function () {
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $demo->id])
         ->get(route('reports.index'))->assertNotFound();
 });
+
+test('property reports require a current property rather than an organization-only context', function () {
+    [$owner, $organization] = organizationWithOwner();
+
+    $this->actingAs($owner)->withSession(['tenancy.organization_id' => $organization->id, 'tenancy.property_id' => null])
+        ->getJson(route('reports.index'))->assertForbidden();
+});

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Reports;
 
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Reports\PropertyKpis;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReportRequest extends FormRequest
@@ -15,7 +16,9 @@ class ReportRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $this->mergeIfMissing(['from' => BusinessDate::current(), 'to' => BusinessDate::current()]);
+        if (Tenancy::property() !== null) {
+            $this->mergeIfMissing(['from' => BusinessDate::current(), 'to' => BusinessDate::current()]);
+        }
     }
 
     /** @return array<string, mixed> */
