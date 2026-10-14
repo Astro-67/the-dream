@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Onboarding\Actions\DryRunImport;
+use App\Domains\Onboarding\Enums\ImportJobStatus;
 use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Reservations\Models\Reservation;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +16,7 @@ return [
         $response = $this->actingAs($t->a->owner)->post(route('imports.commit', $job), [
             '_property' => $t->a->property->id,
         ])->assertNotFound();
-        expect(inTenant($t->b->property, fn () => $job->fresh()->status))->toBe('dry_run')
+        expect(inTenant($t->b->property, fn () => $job->fresh()->status))->toBe(ImportJobStatus::DryRun)
             ->and(inTenant($t->b->property, fn () => Reservation::query()->count()))->toBe(0);
 
         return $response;

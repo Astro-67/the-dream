@@ -4,6 +4,9 @@ namespace App\Domains\Onboarding\Actions;
 
 use App\Domains\Guests\Actions\AttachReservationGuest;
 use App\Domains\Guests\Actions\CreateBooker;
+use App\Domains\Onboarding\Enums\ImportCommitStatus;
+use App\Domains\Onboarding\Enums\ImportJobStatus;
+use App\Domains\Onboarding\Enums\ImportRowStatus;
 use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Onboarding\Models\ImportRow;
 use App\Domains\Onboarding\ReservationImportCsv;
@@ -24,10 +27,10 @@ class CommitImport
         return Tenancy::within(TenantContext::fromIds($job->organization_id, $job->property_id), function () use ($actor, $job) {
             return Audit::validationRefusal($actor, $job, 'Reservation import commit refused', function () use ($actor, $job) {
                 $job = ImportJob::query()->findOrFail($job->id);
-                if ($job->status === 'committed') {
+                if ($job->status === ImportJobStatus::Committed) {
                     return $job;
                 }
-                if ($job->rows()->where('status', 'invalid')->exists()) {
+                if ($job->rows()->where('status', ImportRowStatus::Invalid)->exists()) {
                     throw ValidationException::withMessages(['import' => __('Correct the invalid rows and run a new dry run before committing.')]);
                 }
                 foreach ($job->rows()->pluck('id') as $rowId) {
@@ -39,7 +42,7 @@ class CommitImport
                         }
                         $result = $this->commitRow($actor, $row);
                         $row->update(['commit_result' => $result]);
-                        Audit::record($actor, $result['status'] === 'refused' ? 'refused' : 'row_committed', $job, 'Reservation import row completed', [
+                        Audit::record($actor, $result['status'] === ImportCommitStatus::Refused->value ? 'refused' : 'row_committed', $job, 'Reservation import row completed', [
                             'row_number' => $row->row_number, 'result' => $result['status'], 'errors' => $result['errors'] ?? [],
                         ]);
                     }, attempts: 3);
@@ -47,14 +50,14 @@ class CommitImport
 
                 return DB::transaction(function () use ($actor, $job) {
                     $locked = ImportJob::query()->whereKey($job->id)->lockForUpdate()->firstOrFail();
-                    if ($locked->status === 'committed') {
+                    if ($locked->status === ImportJobStatus::Committed) {
                         return $locked;
                     }
-                    $counts = ['created' => 0, 'duplicate' => 0, 'refused' => 0];
+                    $counts = array_fill_keys(array_column(ImportCommitStatus::cases(), 'value'), 0);
                     foreach ($locked->rows()->get() as $row) {
                         $counts[$row->commit_result['status']]++;
                     }
-                    $locked->update(['status' => 'committed', 'commit_results' => $counts]);
+                    $locked->update(['status' => ImportJobStatus::Committed, 'commit_results' => $counts]);
                     Audit::record($actor, 'committed', $locked, 'Reservation import committed', $counts);
 
                     return $locked;
@@ -67,8 +70,8 @@ class CommitImport
     private function commitRow(User $actor, ImportRow $row): array
     {
         $existing = Reservation::query()->where('source_reference', $row->source_reference)->lockForUpdate()->first();
-        if ($existing !== null || $row->status === 'duplicate') {
-            return ['status' => 'duplicate', 'reservation_number' => $existing?->reservation_number];
+        if ($existing !== null || $row->status === ImportRowStatus::Duplicate) {
+            return ['status' => ImportCommitStatus::Duplicate->value, 'reservation_number' => $existing?->reservation_number];
         }
 
         try {
@@ -77,7 +80,7 @@ class CommitImport
                     array_map(fn (string $column) => $row->raw_data[$column] ?? '', ReservationImportCsv::COLUMNS),
                     $row->row_number,
                 );
-                if ($checked['status'] !== 'valid') {
+                if ($checked['status'] !== ImportRowStatus::Valid->value) {
                     throw ValidationException::withMessages($checked['errors']);
                 }
                 $data = $checked['validated_data'];
@@ -87,18 +90,18 @@ class CommitImport
                 ]);
                 app(AttachReservationGuest::class)->handle($actor, $reservation, $data['guest']);
 
-                return ['status' => 'created', 'reservation_number' => $reservation->reservation_number];
+                return ['status' => ImportCommitStatus::Created->value, 'reservation_number' => $reservation->reservation_number];
             });
         } catch (ValidationException|UniqueConstraintViolationException $error) {
             $existing = Reservation::query()->where('source_reference', $row->source_reference)->lockForUpdate()->first();
             if ($existing !== null) {
-                return ['status' => 'duplicate', 'reservation_number' => $existing->reservation_number];
+                return ['status' => ImportCommitStatus::Duplicate->value, 'reservation_number' => $existing->reservation_number];
             }
             if ($error instanceof UniqueConstraintViolationException) {
                 throw $error;
             }
 
-            return ['status' => 'refused', 'errors' => $error->errors()];
+            return ['status' => ImportCommitStatus::Refused->value, 'errors' => $error->errors()];
         }
     }
 }

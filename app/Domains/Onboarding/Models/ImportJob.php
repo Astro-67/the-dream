@@ -2,6 +2,7 @@
 
 namespace App\Domains\Onboarding\Models;
 
+use App\Domains\Onboarding\Enums\ImportJobStatus;
 use App\Domains\Onboarding\Policies\ImportJobPolicy;
 use App\Support\Tenancy\BelongsToProperty;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * @property string $id
  * @property string $file_path
- * @property string $status
+ * @property ImportJobStatus $status
  */
 #[Fillable(['uploaded_by', 'file_path', 'original_name', 'status', 'commit_results'])]
 #[UsePolicy(ImportJobPolicy::class)]
@@ -23,7 +24,7 @@ class ImportJob extends Model
 
     protected function casts(): array
     {
-        return ['commit_results' => 'array'];
+        return ['status' => ImportJobStatus::class, 'commit_results' => 'array'];
     }
 
     /** @return HasMany<ImportRow, $this> */

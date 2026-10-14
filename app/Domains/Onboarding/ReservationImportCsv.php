@@ -4,6 +4,7 @@ namespace App\Domains\Onboarding;
 
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Onboarding\Enums\ImportRowStatus;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
 use App\Domains\Rates\StayRestrictions;
@@ -46,7 +47,7 @@ class ReservationImportCsv
                 $row = $this->validateRow($values, $number);
                 $reference = $row['source_reference'];
                 if ($reference !== null && (isset($references[$reference]) || Reservation::query()->where('source_reference', $reference)->exists())) {
-                    $row['status'] = 'duplicate';
+                    $row['status'] = ImportRowStatus::Duplicate->value;
                     $row['validated_data'] = null;
                     $row['errors']['source_reference'] = [__('This source reference already exists at this property or appears earlier in the CSV.')];
                 }
@@ -77,7 +78,7 @@ class ReservationImportCsv
             ? array_combine(self::COLUMNS, array_map(fn ($value) => trim($value ?? ''), $values))
             : $values;
         $reference = $raw['source_reference'] ?? '';
-        $result = ['row_number' => $number, 'source_reference' => $reference !== '' && mb_strlen($reference) <= 255 ? $reference : null, 'status' => 'invalid', 'raw_data' => $raw, 'validated_data' => null, 'errors' => []];
+        $result = ['row_number' => $number, 'source_reference' => $reference !== '' && mb_strlen($reference) <= 255 ? $reference : null, 'status' => ImportRowStatus::Invalid->value, 'raw_data' => $raw, 'validated_data' => null, 'errors' => []];
         if (count($values) !== count(self::COLUMNS)) {
             return [...$result, 'errors' => ['row' => [__('The row must have the same number of columns as the template.')]]];
         }
@@ -119,7 +120,7 @@ class ReservationImportCsv
                 $data['restriction_override_reason'] ?: null,
             );
 
-            return [...$result, 'source_reference' => $data['source_reference'], 'status' => 'valid', 'validated_data' => [
+            return [...$result, 'source_reference' => $data['source_reference'], 'status' => ImportRowStatus::Valid->value, 'validated_data' => [
                 'reservation' => [
                     'source_reference' => $data['source_reference'], 'room_type_id' => $type->id, 'rate_plan_id' => $plan->id,
                     'arrival' => $data['arrival'], 'departure' => $data['departure'], 'adults' => (int) $data['adults'], 'children' => (int) $data['children'],

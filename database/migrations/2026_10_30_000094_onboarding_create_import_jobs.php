@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Onboarding\Enums\ImportJobStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -15,7 +16,7 @@ return new class extends Migration
             $table->foreignUlid('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('file_path');
             $table->string('original_name');
-            $table->string('status', 30)->default('dry_run');
+            $table->string('status', 30)->default(ImportJobStatus::DryRun->value);
             $table->json('commit_results')->nullable();
             $table->timestamps();
             $table->index(['organization_id', 'property_id']);

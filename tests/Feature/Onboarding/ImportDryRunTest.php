@@ -5,6 +5,8 @@ use App\Domains\Guests\Models\Guest;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Onboarding\Actions\DryRunImport;
+use App\Domains\Onboarding\Enums\ImportJobStatus;
+use App\Domains\Onboarding\Enums\ImportRowStatus;
 use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\RateRestriction;
@@ -29,8 +31,8 @@ test('dry run retains the upload and replayable row without creating reservation
         $row = $job->rows()->firstOrFail();
 
         Storage::disk('local')->assertExists($job->file_path);
-        expect($job->status)->toBe('dry_run')
-            ->and($row->status)->toBe('valid')
+        expect($job->status)->toBe(ImportJobStatus::DryRun)
+            ->and($row->status)->toBe(ImportRowStatus::Valid)
             ->and($row->row_number)->toBe(2)
             ->and($row->errors)->toBe([])
             ->and($row->validated_data['reservation'])->toMatchArray([
@@ -61,10 +63,10 @@ test('dry run rejects past stays using the property business date while retainin
             ImportForm::row(['source_reference' => 'OLD-002']),
         ]));
         $rows = $job->rows()->get();
-        expect($rows[0]->status)->toBe('invalid')
+        expect($rows[0]->status)->toBe(ImportRowStatus::Invalid)
             ->and($rows[0]->errors)->toHaveKey('arrival')
             ->and($rows[0]->validated_data)->toBeNull()
-            ->and($rows[1]->status)->toBe('valid')
+            ->and($rows[1]->status)->toBe(ImportRowStatus::Valid)
             ->and(Reservation::query()->count())->toBe(0);
     });
 });
@@ -81,7 +83,7 @@ test('dry run flags source references already imported at this property and repe
             ImportForm::row(['source_reference' => 'OLD-002']),
         ]));
         $rows = $job->rows()->get();
-        expect($rows->pluck('status')->all())->toBe(['duplicate', 'valid', 'duplicate'])
+        expect($rows->pluck('status')->all())->toBe([ImportRowStatus::Duplicate, ImportRowStatus::Valid, ImportRowStatus::Duplicate])
             ->and($rows[0]->errors)->toHaveKey('source_reference')
             ->and($rows[2]->errors)->toHaveKey('source_reference')
             ->and($rows[0]->source_reference)->toBe('OLD-001')
@@ -96,7 +98,7 @@ test('dry run names row errors for stays guests and rates', function (array $cha
         BookingForm::details($owner);
         $job = app(DryRunImport::class)->handle($owner, ImportForm::csv([ImportForm::row($changes)]));
         $row = $job->rows()->firstOrFail();
-        expect($row->status)->toBe('invalid')
+        expect($row->status)->toBe(ImportRowStatus::Invalid)
             ->and($row->errors)->toHaveKey($field)
             ->and($row->validated_data)->toBeNull()
             ->and(Reservation::query()->count())->toBe(0);
@@ -158,9 +160,9 @@ test('a dry run requires a restriction override rather than storing an unbookabl
             ImportForm::row(['source_reference' => 'OLD-002', 'restriction_override_reason' => 'Honour the previous system reservation']),
         ]));
         $rows = $job->rows()->get();
-        expect($rows[0]->status)->toBe('invalid')
+        expect($rows[0]->status)->toBe(ImportRowStatus::Invalid)
             ->and($rows[0]->errors)->toHaveKey('restriction_override_reason')
-            ->and($rows[1]->status)->toBe('valid')
+            ->and($rows[1]->status)->toBe(ImportRowStatus::Valid)
             ->and($rows[1]->validated_data['reservation']['restriction_override_reason'])->toBe('Honour the previous system reservation');
     });
 });
@@ -198,8 +200,8 @@ test('import references and room and rate codes are scoped to the selected prope
             ImportForm::row(['source_reference' => 'OLD-002', 'room_type_code' => 'OTHER', 'rate_plan_code' => 'OTHER']),
         ]));
         $rows = $job->rows()->get();
-        expect($rows[0]->status)->toBe('valid')
-            ->and($rows[1]->status)->toBe('invalid')
+        expect($rows[0]->status)->toBe(ImportRowStatus::Valid)
+            ->and($rows[1]->status)->toBe(ImportRowStatus::Invalid)
             ->and($rows[1]->errors)->toHaveKeys(['room_type_code', 'rate_plan_code']);
     });
     expect(inTenant($t->a->otherProperty, fn () => Reservation::query()->count()))->toBe(1);
@@ -243,6 +245,6 @@ test('malformed rows have their own errors and blank lines keep CSV row numbers'
         $rows = $job->rows()->get();
         expect($rows->pluck('row_number')->all())->toBe([3, 4])
             ->and($rows[0]->errors)->toHaveKey('row')
-            ->and($rows[1]->status)->toBe('valid');
+            ->and($rows[1]->status)->toBe(ImportRowStatus::Valid);
     });
 });

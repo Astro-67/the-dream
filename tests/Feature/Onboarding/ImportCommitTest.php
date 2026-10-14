@@ -7,6 +7,7 @@ use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Onboarding\Actions\CommitImport;
 use App\Domains\Onboarding\Actions\DryRunImport;
+use App\Domains\Onboarding\Enums\ImportJobStatus;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\RatePrice;
 use App\Domains\Rates\Models\RateRestriction;
@@ -179,7 +180,7 @@ test('an invalid dry run refuses the whole commit before creating anything', fun
             ImportForm::row(), ImportForm::row(['source_reference' => 'OLD-002', 'status' => 'checked-in']),
         ]));
         expect(fn () => app(CommitImport::class)->handle($owner, $job))->toThrow(ValidationException::class);
-        expect(Reservation::query()->count())->toBe(0)->and($job->fresh()->status)->toBe('dry_run');
+        expect(Reservation::query()->count())->toBe(0)->and($job->fresh()->status)->toBe(ImportJobStatus::DryRun);
     });
 });
 

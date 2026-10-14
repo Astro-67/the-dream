@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Onboarding;
 
 use App\Domains\Onboarding\Actions\CommitImport;
 use App\Domains\Onboarding\Actions\DryRunImport;
+use App\Domains\Onboarding\Enums\ImportRowStatus;
 use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Onboarding\ReservationImportCsv;
 use App\Http\Controllers\Controller;
@@ -46,9 +47,9 @@ class ImportController extends Controller
         Gate::authorize('view', $importJob);
         $importJob->loadCount([
             'rows',
-            'rows as valid_rows_count' => fn ($query) => $query->where('status', 'valid'),
-            'rows as invalid_rows_count' => fn ($query) => $query->where('status', 'invalid'),
-            'rows as duplicate_rows_count' => fn ($query) => $query->where('status', 'duplicate'),
+            'rows as valid_rows_count' => fn ($query) => $query->where('status', ImportRowStatus::Valid),
+            'rows as invalid_rows_count' => fn ($query) => $query->where('status', ImportRowStatus::Invalid),
+            'rows as duplicate_rows_count' => fn ($query) => $query->where('status', ImportRowStatus::Duplicate),
             'rows as completed_rows_count' => fn ($query) => $query->whereNotNull('commit_result'),
         ]);
 
