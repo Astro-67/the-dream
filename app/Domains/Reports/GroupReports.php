@@ -36,7 +36,7 @@ final class GroupReports
                 $operations = $this->operations->forProperties($properties, $from, $to);
                 $finance = $this->finance->summariesForProperties($properties, $from, $to);
                 $names = $properties->pluck('name', 'id');
-                $folios = $this->finance->folios($properties)->through(fn (array $folio): array => [...$folio, 'propertyName' => $names[$folio['propertyId']]]);
+                $folios = $this->finance->folios($properties, array_sum(array_column($finance, 'unsettledFolios')))->through(fn (array $folio): array => [...$folio, 'propertyName' => $names[$folio['propertyId']]]);
 
                 return ['folios' => $folios, 'reports' => $properties->map(fn (Property $property): array => [
                     'property' => $property,

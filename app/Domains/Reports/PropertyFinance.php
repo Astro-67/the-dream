@@ -39,19 +39,23 @@ final class PropertyFinance
 
     /**
      * Every folio of the given real properties whose balance is not zero, 50 to a page.
+     * A caller that already counted them passes $total, saving the count query.
      *
      * @param  Collection<int, Property>  $properties
      * @return LengthAwarePaginator<int, array{id: string, propertyId: string, reservationNumber: string, status: string, departure: string, departed: bool, currency: string, balance: int}>
      */
-    public function folios(Collection $properties): LengthAwarePaginator
+    public function folios(Collection $properties, ?int $total = null): LengthAwarePaginator
     {
         $ids = Property::query()->real()->whereKey($properties->pluck('id'))->pluck('id');
+        $balances = Posting::query()->whereIn('postings.property_id', $ids)
+            ->selectRaw('folio_id, SUM(amount) as balance')->groupBy('folio_id')->havingRaw('SUM(amount) <> 0');
 
-        return self::unsettled($ids)
-            ->select(['folios.id', 'folios.property_id', 'folios.currency', 'reservations.reservation_number', 'reservations.status', 'reservations.departure'])
-            ->selectSub(self::balance(), 'balance')
+        return Folio::query()->whereIn('folios.property_id', $ids)
+            ->joinSub($balances, 'balances', 'balances.folio_id', '=', 'folios.id')
+            ->join('reservations', 'reservations.id', '=', 'folios.reservation_id')
+            ->select(['folios.id', 'folios.property_id', 'folios.currency', 'reservations.reservation_number', 'reservations.status', 'reservations.departure', 'balances.balance'])
             ->orderBy('reservations.departure')->orderBy('reservations.reservation_number')->orderBy('folios.currency')->orderBy('folios.id')
-            ->paginate(50, pageName: 'folios')->withQueryString()
+            ->paginate(50, pageName: 'folios', total: $total)->withQueryString()
             ->through(fn (Folio $folio): array => [
                 'id' => $folio->id,
                 'propertyId' => $folio->property_id,
