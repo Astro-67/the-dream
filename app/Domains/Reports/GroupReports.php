@@ -29,12 +29,16 @@ final class GroupReports
     public function forProperties(Collection $properties, string $from, string $to): array
     {
         $properties = Property::query()->real()->whereKey($properties->pluck('id'))->orderBy('name')->orderBy('id')->get();
+        $finance = $properties->isEmpty() ? [] : Tenancy::within(
+            TenantContext::forOrganization($properties->first()->organization_id),
+            fn (): array => $this->finance->summariesForProperties($properties, $from, $to),
+        );
         // Each property in its own context: a property context scopes every query to its property.
         $reports = $properties->map(fn (Property $property): array => Tenancy::within(TenantContext::forProperty($property), fn (): array => [
             'property' => $property,
             'kpis' => $this->kpis->forProperty($property, $from, $to),
             'operations' => $this->operations->forProperty($property, $from, $to),
-            'finance' => $this->finance->forProperty($property, $from, $to),
+            'finance' => $finance[$property->id],
         ]));
         // Every property's rows of one section (a dotted path), as one collection.
         $part = fn (string $path): Collection => collect(array_merge(...$reports->map(fn (array $report): array => data_get($report, $path))->all()));
@@ -51,8 +55,7 @@ final class GroupReports
                 'name' => $report['property']->name,
                 'currency' => $report['property']->currency->value,
                 'timezone' => $report['property']->timezone,
-                // The paginator's total counts every unsettled folio, not just its first page.
-                'unsettledFolios' => $report['finance']['folios']->total(),
+                'unsettledFolios' => $report['finance']['unsettledFolios'],
             ])->all(),
             'kpis' => $this->kpis($reports->pluck('kpis')),
             'operations' => [

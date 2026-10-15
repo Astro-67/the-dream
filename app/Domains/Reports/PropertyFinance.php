@@ -8,6 +8,7 @@ use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Tenancy\Models\Property;
 use Carbon\CarbonImmutable;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -49,7 +50,42 @@ final class PropertyFinance
             ->selectRaw('currency, COUNT(*) as folios, SUM(balance) as balance')->groupBy('currency')->orderBy('currency')->get()
             ->map(fn (object $row): array => ['currency' => (string) $row->currency, 'folios' => (int) $row->folios, 'balance' => (int) $row->balance])->all();
 
-        return ['folios' => $folios, 'openAfterDeparture' => $openAfterDeparture, 'payments' => $this->payments($property, $from, $to)];
+        return ['folios' => $folios, 'openAfterDeparture' => $openAfterDeparture, 'payments' => $this->payments(collect([$property]), $from, $to)[$property->id]];
+    }
+
+    /**
+     * @param  Collection<int, Property>  $properties
+     * @return array<string, array<string, mixed>>
+     */
+    public function summariesForProperties(Collection $properties, string $from, string $to): array
+    {
+        $properties = Property::query()->real()->whereKey($properties->pluck('id'))->get();
+        $ids = $properties->pluck('id');
+        $balances = Posting::query()->whereIn('postings.property_id', $ids)
+            ->selectRaw('folio_id, SUM(amount) as balance')->groupBy('folio_id')->havingRaw('SUM(amount) <> 0');
+        $rows = Folio::query()->whereIn('folios.property_id', $ids)
+            ->joinSub($balances, 'balances', 'balances.folio_id', '=', 'folios.id')
+            ->join('reservations', 'reservations.id', '=', 'folios.reservation_id')
+            ->selectRaw('folios.property_id, folios.currency, COUNT(*) as unsettled')
+            ->selectRaw('SUM(CASE WHEN reservations.status = ? THEN 1 ELSE 0 END) as departed_folios', [ReservationStatus::CheckedOut->value])
+            ->selectRaw('SUM(CASE WHEN reservations.status = ? THEN balances.balance ELSE 0 END) as departed_balance', [ReservationStatus::CheckedOut->value])
+            ->groupBy('folios.property_id', 'folios.currency')->orderBy('folios.currency')->toBase()->get()->groupBy('property_id');
+        $payments = $this->payments($properties, $from, $to);
+
+        return $properties->mapWithKeys(function (Property $property) use ($rows, $payments): array {
+            $currencies = $rows->get($property->id, collect());
+
+            return [$property->id => [
+                'unsettledFolios' => (int) $currencies->sum('unsettled'),
+                'openAfterDeparture' => $currencies->filter(fn (object $row): bool => (int) $row->departed_folios > 0)
+                    ->map(fn (object $row): array => [
+                        'currency' => (string) $row->currency,
+                        'folios' => (int) $row->departed_folios,
+                        'balance' => (int) $row->departed_balance,
+                    ])->values()->all(),
+                'payments' => $payments[$property->id],
+            ]];
+        })->all();
     }
 
     /**
@@ -58,23 +94,23 @@ final class PropertyFinance
      * negative of a payment or refund, counted on its own business date. Received amounts are
      * positive. Charges, transfers and write-offs carry no method and are not money received.
      *
-     * @return array{rows: list<array{method: string, currency: string, shiftId: string|null, cashier: string|null, shiftOpenedAt: string|null, payments: int, refunds: int, reversals: int, net: int}>, totals: list<array{currency: string, payments: int, refunds: int, reversals: int, net: int}>}
+     * @param  Collection<int, Property>  $properties
+     * @return array<string, array{rows: list<array{method: string, currency: string, shiftId: string|null, cashier: string|null, shiftOpenedAt: string|null, payments: int, refunds: int, reversals: int, net: int}>, totals: list<array{currency: string, payments: int, refunds: int, reversals: int, net: int}>}>
      */
-    private function payments(Property $property, string $from, string $to): array
+    private function payments(Collection $properties, string $from, string $to): array
     {
-        $rows = Posting::query()->where('postings.property_id', $property->id)
+        $rows = Posting::query()->whereIn('postings.property_id', $properties->pluck('id'))
             ->whereNotNull('postings.method')->whereIn('postings.type', ['payment', 'refund', 'reversal'])
             ->whereDate('postings.business_date', '>=', $from)->whereDate('postings.business_date', '<=', $to)
             ->leftJoin('cashier_shifts', 'cashier_shifts.id', '=', 'postings.cashier_shift_id')
             ->leftJoin('users', 'users.id', '=', 'cashier_shifts.user_id')
-            ->groupBy('postings.method', 'postings.currency', 'postings.cashier_shift_id', 'users.name', 'cashier_shifts.opened_at')
+            ->groupBy('postings.property_id', 'postings.method', 'postings.currency', 'postings.cashier_shift_id', 'users.name', 'cashier_shifts.opened_at')
             ->orderBy('postings.method')->orderBy('postings.currency')->orderBy('postings.cashier_shift_id')
-            ->selectRaw('postings.method, postings.currency, postings.cashier_shift_id, users.name as cashier, cashier_shifts.opened_at as shift_opened_at')
+            ->selectRaw('postings.property_id, postings.method, postings.currency, postings.cashier_shift_id, users.name as cashier, cashier_shifts.opened_at as shift_opened_at')
             ->selectRaw("-SUM(CASE WHEN postings.type = 'payment' THEN postings.amount ELSE 0 END) as payments")
             ->selectRaw("SUM(CASE WHEN postings.type = 'refund' THEN postings.amount ELSE 0 END) as refunds")
             ->selectRaw("-SUM(CASE WHEN postings.type = 'reversal' THEN postings.amount ELSE 0 END) as reversals")
-            ->toBase()->get()
-            ->map(fn (object $row): array => [
+            ->toBase()->get()->mapToGroups(fn (object $row): array => [$row->property_id => [
                 'method' => $row->method,
                 'currency' => $row->currency,
                 'shiftId' => $row->cashier_shift_id,
@@ -84,12 +120,16 @@ final class PropertyFinance
                 'refunds' => (int) $row->refunds,
                 'reversals' => (int) $row->reversals,
                 'net' => (int) $row->payments - (int) $row->refunds + (int) $row->reversals,
-            ]);
-        $totals = $rows->groupBy('currency')->sortKeys()->map(fn ($group, string $currency): array => [
-            'currency' => $currency,
-            ...collect(['payments', 'refunds', 'reversals', 'net'])->mapWithKeys(fn (string $key) => [$key => $group->sum($key)])->all(),
-        ])->values()->all();
+            ]]);
 
-        return ['rows' => $rows->all(), 'totals' => $totals];
+        return $properties->mapWithKeys(function (Property $property) use ($rows): array {
+            $payments = $rows->get($property->id, collect());
+            $totals = $payments->groupBy('currency')->sortKeys()->map(fn ($group, string $currency): array => [
+                'currency' => $currency,
+                ...collect(['payments', 'refunds', 'reversals', 'net'])->mapWithKeys(fn (string $key) => [$key => $group->sum($key)])->all(),
+            ])->values()->all();
+
+            return [$property->id => ['rows' => $payments->values()->all(), 'totals' => $totals]];
+        })->all();
     }
 }

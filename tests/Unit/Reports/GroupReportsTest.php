@@ -2,13 +2,16 @@
 
 use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Actions\RecordAdjustment;
 use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Actions\ReversePosting;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Reports\GroupReports;
+use App\Domains\Reports\PropertyFinance;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -133,4 +136,39 @@ test('a property context still reads every included property of the organization
         ->forProperties(collect([$t->a->property, $t->a->otherProperty]), '2026-12-10', '2026-12-11'))['kpis'];
 
     expect($kpis['soldRoomNights'])->toBe(4)->and($kpis['currencies'][0]['bookedRoomValue'])->toBe(44000);
+});
+
+test('group finance preserves credit balances settled folios and dated refund reversals from property reports', function () {
+    $t = twoTenants();
+    $t->a->property->update(['business_date' => '2026-12-10']);
+    $t->a->otherProperty->update(['business_date' => '2026-12-10']);
+    foreach ([$t->a->property, $t->a->otherProperty] as $property) {
+        inTenant($property, function () use ($t, $property) {
+            $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+            $folio = Folio::query()->where('reservation_id', $reservation->id)->sole();
+            $settled = app(OpenFolio::class)->handle($t->a->owner, $reservation, 'TZS');
+            app(PostExtraCharge::class)->handle($t->a->owner, $settled, ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 100]);
+            app(RecordPayment::class)->handle($t->a->owner, $settled, ['method' => 'card', 'amount' => 100, 'currency' => 'TZS']);
+            app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'card', 'amount' => 2000, 'currency' => 'USD']);
+            $refund = app(RecordAdjustment::class)->handle($t->a->owner, $folio, 'refund', [
+                'amount' => 500, 'reason' => 'Overpayment', 'idempotency_key' => 'group-refund', 'method' => 'card',
+            ]);
+            $property->update(['business_date' => '2026-12-11']);
+            app(ReversePosting::class)->handle($t->a->owner, $refund, 'Not sent');
+            $reservation->update(['status' => ReservationStatus::CheckedOut]);
+        });
+    }
+    $report = inTenant($t->a->property, fn () => app(GroupReports::class)
+        ->forProperties(collect([$t->a->property, $t->a->otherProperty]), '2026-12-11', '2026-12-11'));
+
+    expect(array_column($report['properties'], 'unsettledFolios'))->toBe([1, 1])
+        ->and($report['finance']['openAfterDeparture'])->toEqual([['currency' => 'USD', 'folios' => 2, 'balance' => -4000]])
+        ->and($report['finance']['payments']['totals'])->toEqual([
+            ['currency' => 'USD', 'payments' => 0, 'refunds' => 0, 'reversals' => 1000, 'net' => 1000],
+        ]);
+    foreach ([$t->a->property, $t->a->otherProperty] as $property) {
+        $finance = inTenant($property, fn () => app(PropertyFinance::class)->forProperty($property, '2026-12-11', '2026-12-11'));
+        $row = collect($report['finance']['payments']['rows'])->firstWhere('propertyId', $property->id);
+        expect(collect($row)->except(['propertyId', 'propertyName', 'timezone'])->all())->toEqual($finance['payments']['rows'][0]);
+    }
 });
