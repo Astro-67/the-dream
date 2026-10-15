@@ -46,10 +46,12 @@ export default function PropertyOperations({
                     </h2>
                     <p className="max-w-prose text-sm text-muted-foreground">
                         Reservation counts for each selected business date,
-                        including both endpoints. Past dates keep stays that
-                        have since checked out, ending on the date the guest
-                        actually left after any extension or early departure.
-                        Future dates count stays as booked now.
+                        including both endpoints. Counts use current reservation
+                        dates, not an actual event timeline. Extensions and
+                        early departures update these dates. Completing
+                        check-out keeps prior stays in the counts without
+                        changing the departure date. Future dates count stays as
+                        booked now.
                     </p>
                 </div>
                 <dl className="grid gap-3 text-sm">

@@ -25,6 +25,10 @@ assert.match(empty, /Change the business date range/);
 assert.match(empty, /No active rooms/);
 assert.match(empty, /not a historical snapshot/);
 assert.match(empty, /arrival date is included and departure date is excluded/);
+assert.match(empty, /current reservation dates, not an actual event timeline/);
+assert.match(empty, /Extensions and early departures update these dates/);
+assert.match(empty, /Completing check-out keeps prior stays in the counts/);
+assert.doesNotMatch(empty, /actually left/);
 assert.doesNotMatch(empty, /<table/);
 console.log('Empty property operations: PASS');
 

@@ -116,7 +116,7 @@ test('daily counts retain identical stays and clip long in-house stays at the re
     });
 });
 
-test('checked-out stays keep their past arrival and in-house nights, ending on the actual departure', function () {
+test('checked-out stays keep their past arrival and in-house nights, ending on the reservation departure', function () {
     [$owner, , $property] = organizationWithOwner();
     $property->update(['business_date' => '2026-12-10']);
 
@@ -144,5 +144,30 @@ test('checked-out stays keep their past arrival and in-house nights, ending on t
             ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 1],
             ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0],
         ]);
+    });
+});
+
+test('delayed administrative check-out retains reservation-date counts rather than an actual event timeline', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $property->update(['business_date' => '2026-12-10']);
+
+    inTenant($property, function () use ($owner, $property) {
+        $details = BookingForm::details($owner);
+        $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        $guest = app(CreateGuest::class)->handle($owner, ['name' => 'Delayed check-out guest', 'documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE']]]);
+        ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+        $reservation = app(CheckIn::class)->handle($owner, $reservation);
+        $property->update(['business_date' => '2026-12-13']);
+        $checkedOut = app(CheckOut::class)->handle($owner, $reservation);
+
+        expect($checkedOut->status)->toBe(ReservationStatus::CheckedOut)
+            ->and($checkedOut->departure->toDateString())->toBe('2026-12-12')
+            ->and(app(PropertyOperations::class)->forProperty($property, '2026-12-10', '2026-12-13')['daily'])->toEqual([
+                ['date' => '2026-12-10', 'arrivals' => 1, 'departures' => 0, 'inHouse' => 1],
+                ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1],
+                ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0],
+                ['date' => '2026-12-13', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+            ]);
     });
 });
