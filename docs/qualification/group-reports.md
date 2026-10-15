@@ -130,3 +130,12 @@ The serial query/HTTP gap is fixed without stored aggregates, and concurrency 8 
 
 1. Re-measure the optimized code on production-like infrastructure (PHP-FPM or Octane, managed MySQL) with 1,000 staff sessions and an explicit report request rate/think time.
 2. If application/database execution still misses p95 < 800 ms there, use that profile to decide whether stored daily aggregates are warranted. They are not a fix for requests queued behind too few web workers.
+
+## Validation
+
+- Code/harness tip tested: `1402ffd`; integration tip `f453e25` is already included (`git merge spec/33-m2-reports` reports up to date).
+- Targeted report tests: 54 passed, 245 assertions. Report isolation coverage: 2 passed, 634 assertions.
+- `composer check:fast` completed with exit 0 on 15 October 2026, 14:27:53–14:37:56 Africa/Dar_es_Salaam: build, 1,560 Pest tests passed / 15 skipped / 26,224 assertions, Pint, PHPStan (0 errors), TypeScript and frontend formatting/lint.
+- PHPStan emitted an optional turbo-extension startup warning, then completed successfully using the fallback. No unrelated environment changes were made.
+- Evidence: `.scratch/check-fast-107-perf.log`, `.scratch/perf-final-targeted.log`, `.scratch/perf-final-isolation.log`. The throwaway MySQL container and HTTP workers were stopped after qualification.
+- Full MySQL and end-to-end suites were deliberately not run; they are reserved for final integration fix-up. Performance acceptance remains open for the explicitly recorded concurrency gap.
