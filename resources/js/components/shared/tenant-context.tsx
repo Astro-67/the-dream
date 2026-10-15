@@ -8,7 +8,7 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { SidebarMenuButton } from '@/components/ui/sidebar';
+import { SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import { StatusChip, Tag } from '@/components/ui/status-chip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatDate } from '@/lib/utils';
@@ -21,11 +21,16 @@ import { dashboard } from '@/routes';
 export function SidebarTenant() {
     const { tenant } = usePage().props;
     const isMobile = useIsMobile();
+    const { setOpenMobile } = useSidebar();
 
     if (!tenant.organization) {
         return (
             <SidebarMenuButton size="lg" asChild>
-                <Link href={dashboard()} prefetch>
+                <Link
+                    href={dashboard()}
+                    prefetch
+                    onClick={() => setOpenMobile(false)}
+                >
                     <AppLogo />
                 </Link>
             </SidebarMenuButton>

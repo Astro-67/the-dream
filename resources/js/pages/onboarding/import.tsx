@@ -78,6 +78,7 @@ export default function Import({
                     {({ processing, errors }) => (
                         <>
                             <PropertyIntent />
+                            <InputError message={errors._property} />
                             <p className="text-sm text-muted-foreground">
                                 {copy.instructions}
                             </p>

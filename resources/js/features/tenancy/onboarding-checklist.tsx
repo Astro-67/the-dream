@@ -24,6 +24,10 @@ export type Checklist = {
 
 export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
     const completed = checklist.items.filter((item) => item.completed).length;
+    // The first open step the member can act on is the call to action.
+    const nextKey = checklist.items.find(
+        (item) => !item.completed && item.href,
+    )?.key;
 
     return (
         <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
@@ -35,9 +39,26 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                     Your progress is saved automatically from your property
                     data. You can leave and return at any time.
                 </p>
-                <p className="text-sm tabular-nums">
-                    {completed} of {checklist.items.length} completed
-                </p>
+                <div className="space-y-2">
+                    <p className="text-sm tabular-nums">
+                        {completed} of {checklist.items.length} completed
+                    </p>
+                    <div
+                        role="progressbar"
+                        aria-label="Setup progress"
+                        aria-valuemin={0}
+                        aria-valuemax={checklist.items.length}
+                        aria-valuenow={completed}
+                        className="h-2 overflow-hidden rounded-full bg-muted"
+                    >
+                        <div
+                            className="h-full rounded-full bg-primary transition-[width]"
+                            style={{
+                                width: `${(completed / checklist.items.length) * 100}%`,
+                            }}
+                        />
+                    </div>
+                </div>
             </header>
 
             {checklist.receiptNotice && (
@@ -56,7 +77,15 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                     {checklist.items.map((item) => (
                         <li key={item.key} className="space-y-3 py-4">
                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                {item.href ? (
+                                {item.href &&
+                                !item.completed &&
+                                item.key === nextKey ? (
+                                    <Button asChild size="sm">
+                                        <Link href={item.href}>
+                                            {item.label}
+                                        </Link>
+                                    </Button>
+                                ) : item.href ? (
                                     <Link
                                         href={item.href}
                                         className="text-sm font-medium text-primary underline-offset-4 hover:underline"
@@ -76,10 +105,10 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                                     {item.completed ? 'Complete' : 'To do'}
                                 </StatusChip>
                             </div>
-                            {!item.href && (
+                            {!item.href && !item.completed && (
                                 <p className="text-sm text-muted-foreground">
-                                    CSV import is not available yet. This step
-                                    is optional for go-live.
+                                    Your role can't do this step. Ask an owner
+                                    or manager to complete it.
                                 </p>
                             )}
                             {item.key === 'taxes_reviewed' &&

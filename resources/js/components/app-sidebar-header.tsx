@@ -1,3 +1,4 @@
+import { AppearanceToggle } from '@/components/appearance-toggle';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { CurrentProperty } from '@/components/shared/tenant-context';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -14,8 +15,9 @@ export function AppSidebarHeader({
                 <SidebarTrigger className="-ml-1" />
                 <Breadcrumbs breadcrumbs={breadcrumbs} />
             </div>
-            <div className="ml-auto min-w-0">
+            <div className="ml-auto flex min-w-0 items-center gap-2">
                 <CurrentProperty />
+                <AppearanceToggle />
             </div>
         </header>
     );
