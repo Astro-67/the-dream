@@ -1,5 +1,10 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { Appearance } from '@/hooks/use-appearance';
 import { useAppearance } from '@/hooks/use-appearance';
 
@@ -19,14 +24,19 @@ export function AppearanceToggle() {
     const title = `Theme: ${label}. Switch to ${modes[next].label.toLowerCase()}`;
 
     return (
-        <Button
-            variant="ghost"
-            size="icon"
-            aria-label={title}
-            title={title}
-            onClick={() => updateAppearance(next)}
-        >
-            <Icon className="size-4" />
-        </Button>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-11"
+                    aria-label={title}
+                    onClick={() => updateAppearance(next)}
+                >
+                    <Icon className="size-4" />
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>{title}</TooltipContent>
+        </Tooltip>
     );
 }

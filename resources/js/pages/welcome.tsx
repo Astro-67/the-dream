@@ -28,7 +28,8 @@ type Plan = {
 // Only what the product does today; integrations awaiting certification are not advertised (PRD §13).
 const features = [
     {
-        slot: 'feature-front-desk',
+        screen: 'front-desk',
+        previewTitle: 'Arrivals and check-in',
         icon: ConciergeBell,
         title: 'Front desk that keeps up',
         body: 'Arrivals, departures and in-house guests on one screen. Assign rooms, check guests in and out, and book walk-ins in seconds.',
@@ -39,7 +40,8 @@ const features = [
         ],
     },
     {
-        slot: 'feature-housekeeping',
+        screen: 'housekeeping',
+        previewTitle: 'Room status and readiness',
         icon: BedDouble,
         title: 'Rooms, rates and housekeeping',
         body: 'Room types, rate plans and a rate calendar, with room status your housekeepers update as they work.',
@@ -50,7 +52,8 @@ const features = [
         ],
     },
     {
-        slot: 'feature-billing',
+        screen: 'billing',
+        previewTitle: 'Guest folios and payments',
         icon: Receipt,
         title: 'Billing and night audit',
         body: 'Folios, receipts, cashier shifts and a daily close that keeps your books traceable from the first night.',
@@ -61,7 +64,8 @@ const features = [
         ],
     },
     {
-        slot: 'feature-team',
+        screen: 'team',
+        previewTitle: 'Property-scoped team access',
         icon: Users,
         title: 'Your team, your permissions',
         body: 'Invite staff with roles limited to the properties they work in. Every change is recorded in the audit trail.',
@@ -136,7 +140,7 @@ function Screenshot({ name, label }: { name: string; label: string }) {
         <Photo
             key={`${name}-${resolvedAppearance}`}
             slot={`screens/${name}-${resolvedAppearance}`}
-            className="aspect-[16/10] rounded-xl border bg-card"
+            className="aspect-[16/10] rounded-lg bg-background"
             alt={label}
         />
     );
@@ -235,7 +239,7 @@ export default function Welcome({
 
     return (
         <>
-            <Head title="Hotel management for your property" />
+            <Head title="Property management for hotels, resorts and more" />
             <div className="min-h-svh bg-background text-foreground">
                 <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
                     <nav
@@ -297,17 +301,15 @@ export default function Welcome({
                 <main>
                     <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:px-6 md:py-24 lg:grid-cols-[1fr_1.1fr]">
                         <div className="space-y-6">
-                            <p className="text-sm font-medium text-muted-foreground">
-                                Hotel management for East Africa
-                            </p>
                             <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">
-                                Run your hotel from one secure place.
+                                Your property. Every stay. One system.
                             </h1>
                             <p className="max-w-xl text-lg text-muted-foreground">
-                                Reservations, rooms, rates, housekeeping and
-                                billing for independent hotels and groups. Set
-                                up at your own pace; your progress is saved as
-                                you go.
+                                A property management system for hotels,
+                                resorts, lodges and serviced apartments. Keep
+                                reservations, rooms, rates, housekeeping and
+                                billing connected, from one property to a
+                                growing group.
                             </p>
                             {!auth.user && (
                                 <div className="flex flex-col gap-3 sm:flex-row">
@@ -347,6 +349,7 @@ export default function Welcome({
                         >
                             <Photo
                                 slot="hero"
+                                alt="An open-air coastal property overlooking the ocean"
                                 className="aspect-[4/3] rounded-2xl lg:aspect-[16/11]"
                             />
                             {hasScreens && (
@@ -374,26 +377,45 @@ export default function Welcome({
                                     Everything your property runs on
                                 </h2>
                                 <p className="text-lg text-muted-foreground">
-                                    One system for the front desk, the back
-                                    office and the people who clean the rooms.
+                                    A connected workflow, from the first
+                                    reservation to the final receipt. Explore
+                                    the actual tools for your front desk,
+                                    housekeeping, billing and team.
                                 </p>
                             </div>
                             {features.map((feature, index) => (
                                 <article
-                                    key={feature.slot}
-                                    className="grid items-center gap-10 md:grid-cols-2"
+                                    key={feature.screen}
+                                    className={cn(
+                                        'grid items-center gap-8 md:gap-10 lg:gap-16',
+                                        index % 2 === 0
+                                            ? 'md:grid-cols-[1.2fr_1fr]'
+                                            : 'md:grid-cols-[1fr_1.2fr]',
+                                    )}
                                 >
-                                    <Photo
-                                        slot={feature.slot}
+                                    <figure
                                         className={cn(
-                                            'aspect-[4/3] rounded-2xl',
+                                            'min-w-0 space-y-4 rounded-xl border bg-card p-4 lg:p-5',
                                             index % 2 === 1 && 'md:order-last',
                                         )}
-                                    />
+                                    >
+                                        <figcaption className="flex items-center gap-3 text-sm font-medium">
+                                            <feature.icon
+                                                className="size-5 shrink-0"
+                                                aria-hidden="true"
+                                            />
+                                            {feature.previewTitle}
+                                        </figcaption>
+                                        <Screenshot
+                                            name={feature.screen}
+                                            label={`${feature.previewTitle} in Thedream, using sample property data`}
+                                        />
+                                        <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
+                                            <span>Actual product screen</span>
+                                            <span>Sample data</span>
+                                        </div>
+                                    </figure>
                                     <div className="space-y-5">
-                                        <span className="inline-flex size-10 items-center justify-center rounded-lg border bg-card text-foreground">
-                                            <feature.icon className="size-5" />
-                                        </span>
                                         <h3 className="text-2xl font-semibold">
                                             {feature.title}
                                         </h3>
