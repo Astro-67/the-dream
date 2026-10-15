@@ -27,7 +27,7 @@ function financeReportPayment(TenantFixture $tenant, Property $property): Folio
     });
 }
 
-test('an auditor reads the current property folio balances and payments for the selected dates', function () {
+test('an auditor reads finance alongside KPIs and operations for the current property', function () {
     $t = twoTenants();
     $folio = financeReportPayment($t->a, $t->a->property);
     financeReportPayment($t->a, $t->a->otherProperty);
@@ -37,6 +37,10 @@ test('an auditor reads the current property folio balances and payments for the 
         ->get(route('reports.index'))
         ->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('reports/index')
+        ->has('kpis.soldRoomNights')
+        ->has('operations.daily')
+        ->has('operations.housekeeping', 5)
+        ->has('refreshedAt')
         ->has('finance.folios.data', 1)
         ->where('finance.folios.total', 1)
         ->where('finance.folios.data.0.id', $folio->id)
