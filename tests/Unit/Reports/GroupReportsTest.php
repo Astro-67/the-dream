@@ -172,3 +172,25 @@ test('group finance preserves credit balances settled folios and dated refund re
         expect(collect($row)->except(['propertyId', 'propertyName', 'timezone'])->all())->toEqual($finance['payments']['rows'][0]);
     }
 });
+
+test('group KPI currency denominators follow price line currencies rather than the property currency', function () {
+    $t = twoTenants();
+    $t->a->otherProperty->update(['currency' => 'TZS']);
+    foreach ([$t->a->property, $t->a->otherProperty] as $property) {
+        inTenant($property, function () use ($t) {
+            app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+            ReservationPriceLine::query()->whereDate('date', '2026-12-11')->update(['currency' => 'EUR', 'amount' => 11999]);
+        });
+    }
+
+    $report = inTenant($t->a->property, fn () => app(GroupReports::class)
+        ->forProperties(collect([$t->a->property, $t->a->otherProperty]), '2026-12-10', '2026-12-11'));
+
+    expect($report['kpis'])->toEqual([
+        'soldRoomNights' => 4, 'sellableRoomNights' => 4, 'occupancy' => 1,
+        'currencies' => [
+            ['currency' => 'EUR', 'bookedRoomValue' => 23998, 'soldRoomNights' => 4, 'sellableRoomNights' => 4, 'bookedAdr' => 6000, 'bookedRevpar' => 6000],
+            ['currency' => 'USD', 'bookedRoomValue' => 22000, 'soldRoomNights' => 4, 'sellableRoomNights' => 4, 'bookedAdr' => 5500, 'bookedRevpar' => 5500],
+        ],
+    ]);
+});
