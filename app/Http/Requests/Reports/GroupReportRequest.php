@@ -2,21 +2,18 @@
 
 namespace App\Http\Requests\Reports;
 
-use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Reports\PropertyKpis;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 /**
  * Group reports over the real properties the member may view reports for. Supplied
  * property IDs must all be among them; anything else (another organization, a demo
  * property, a property the member isn't assigned) is one refusal.
  */
-class GroupReportRequest extends FormRequest
+class GroupReportRequest extends ReportRequest
 {
     /** @var Collection<int, Property>|null */
     private ?Collection $available = null;
@@ -30,22 +27,10 @@ class GroupReportRequest extends FormRequest
             && (! is_array($requested) || collect($requested)->every(fn ($id) => ! is_string($id) || $available->contains('id', $id)));
     }
 
-    protected function prepareForValidation(): void
-    {
-        if (Tenancy::property() !== null) {
-            $this->mergeIfMissing(['from' => BusinessDate::current(), 'to' => BusinessDate::current()]);
-        }
-    }
-
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        return [
-            'from' => ['bail', 'required', 'date_format:Y-m-d'],
-            'to' => ['bail', 'required', 'date_format:Y-m-d', Rule::when(is_string($this->input('from')), 'after_or_equal:from')],
-            'properties' => ['sometimes', 'array', 'list'],
-            'properties.*' => ['string'],
-        ];
+        return [...parent::rules(), 'properties' => ['sometimes', 'array', 'list'], 'properties.*' => ['string']];
     }
 
     /**
