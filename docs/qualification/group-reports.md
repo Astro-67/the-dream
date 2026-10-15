@@ -44,8 +44,10 @@ read-only; only this worktree's storage, bootstrap cache and `.scratch` are writ
 
 ### Declared load model
 
-Full mode retains 100 organizations, 500 real properties, 50,000 rooms,
-640,000 reservations/folios and the existing price-line/posting seed. All 1,000
+Full mode retains 100 organizations, 500 real properties, 50,000 rooms and now
+populates 60 inventory dates, including every measured date from business
+date minus 30 through business date. It contains 912,000 reservations/folios,
+2,615,000 price lines, 1,635,500 postings and 1,861,000 lifecycle events. All 1,000
 distinct users/sessions now have report authorization: one owner, one group
 operations manager, four property managers and four finance staff per organization.
 The previous seed included 300 front-desk sessions without `reports.view`; those
@@ -72,11 +74,39 @@ per range first; burst latency is diagnostic, not the 1,000-session steady model
 It also warms the ordinary persistent database permission cache and OPcache;
 there is no report cache.
 
-Smoke mode seeds two organizations (10 properties, 1,000 rooms, 12,800
+Smoke mode seeds two organizations (10 properties, 1,000 rooms, 18,240
 reservations) and exercises the same HTTP path: 32-request bursts per range,
 then 20 distinct authorized sessions over two seconds per range. Smoke checks
 responses and session coverage, **not** performance acceptance. Neither smoke
 nor the schedule self-check establishes full-capacity qualification.
+
+### Recorded-history seed verification
+
+`verify` runs before HTTP measurements and refuses incomplete measured-date
+coverage or unexpected row counts. Each property has 1,824 reservations:
+1,823 rolling stays plus a December 2025 delayed-checkout fixture. Event
+counts per property are 1,823 created, 894 checked in, 814 checked out,
+54 extended, 32 departed early and 105 cancelled. Snapshots contain identity,
+scheduled dates, status and price lines; event business dates are explicit,
+not derived from recording timestamps. Real properties use two timezones and
+the same explicitly stored business date. Confirmed stays have no actual
+boundaries; open stays include overdue scheduled departures.
+
+Exactly two completed stays per property deliberately model missing/partial
+legacy history (one with no events, one with only creation/check-in).
+The missing fraction is 1,000 / 912,000 reservations, approximately 0.110%.
+All other checked-in/out stays must have their required boundaries.
+The verifier checks event identities, snapshots, test flags, future-date
+exclusion, sequences and future planned/actual separation.
+
+Public property/group query fixtures assert literal nonzero recorded
+arrivals/departures/in-house totals: 41/38/79 for one business date and
+893/813/2,491 across 31 dates per property; five-property groups are five
+times those values. Only the 31-date fixture has incomplete-history warnings
+(two per property). The separate December 10 check-in, scheduled December 12
+departure, recorded December 13 checkout fixture asserts in-house on
+December 12 and departure on December 13, including a range beginning
+December 13.
 
 ### Resources, artifacts and cleanup
 
@@ -98,7 +128,9 @@ needed. Retain the built image ID and actual runtime versions from
 `.scratch/qualification/stack.txt` when comparing runs.
 
 Evidence is overwritten per run in `.scratch/qualification/`:
-`seed.json`, `burst.json`, `steady.json`, and `stack.txt`. Capture wrapper
+`seed.json`, `verification.json`, `profile.json`, `before.txt`, `after.txt`,
+`burst.json`, `steady.json`, and `stack.txt`. Query plans precede measurement;
+host and container CPU/memory snapshots bracket the load. Capture wrapper
 stdout/stderr separately if retaining successive runs. No cookies or keys are
 included in result JSON. Session material and config/route caches are removed
 on exit.

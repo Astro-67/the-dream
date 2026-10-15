@@ -31,6 +31,7 @@ use Illuminate\Support\Str;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 require __DIR__.'/qualification/schedule.php';
+require __DIR__.'/qualification/verify-seed.php';
 $app = require dirname(__DIR__).'/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 set_exception_handler(static function (Throwable $error): never {
@@ -46,11 +47,13 @@ define('ORGANIZATIONS', (int) (getenv('QUALIFY_ORGANIZATIONS') ?: 100));
 const PROPERTIES_PER_ORGANIZATION = 5;
 const ROOMS_PER_PROPERTY = 100;
 const STAFF_PER_ORGANIZATION = 10;
-const WINDOW_DAYS = 21; // nights on each side of the business date carrying inventory and bookings
+const WINDOW_DAYS = 30;
 
 $mode = $argv[1] ?? '';
 match ($mode) {
     'seed' => seed(),
+    'verify' => verifySeed(),
+    'profile' => profileReports(),
     'query' => measureQueries((int) ($argv[2] ?? 5)),
     'http' => measureHttp($argv[2] ?? '', (int) ($argv[3] ?? 200), array_map('intval', array_slice($argv, 4)) ?: [1]),
     'steady' => measureSteady($argv[2] ?? '', (int) ($argv[3] ?? 300), (int) ($argv[4] ?? 1000)),
@@ -87,13 +90,14 @@ function seed(): void
             'timezone' => 'Africa/Dar_es_Salaam', 'currency' => 'USD', 'jurisdiction_profile' => 'zanzibar', 'zra_hotel_code' => "ZH-Q{$o}",
         ]));
         $first = Tenancy::within(TenantContext::forOrganization($organization), fn () => Property::query()->sole());
-        DB::table('properties')->where('id', $first->id)->update(['status' => 'live']);
+        DB::table('properties')->where('id', $first->id)->update(['status' => 'live', 'business_date' => $today->toDateString()]);
         $propertyIds = [$first->id];
         for ($p = 2; $p <= PROPERTIES_PER_ORGANIZATION; $p++) {
             $id = ulid();
             DB::table('properties')->insert([
                 ...collect((array) DB::table('properties')->find($first->id))->except(['id', 'name', 'currency', 'zra_hotel_code'])->all(),
                 'id' => $id, 'name' => "Group {$o} Property {$p}", 'currency' => $p % 2 === 0 ? 'TZS' : 'USD', 'zra_hotel_code' => null,
+                'timezone' => $p % 2 === 0 ? 'Europe/London' : 'Africa/Dar_es_Salaam',
             ]);
             $propertyIds[] = $id;
         }
@@ -136,7 +140,7 @@ function seedProperty(string $organizationId, string $propertyId, string $curren
     $bookerId = ulid();
     DB::table('bookers')->insert([...$base, 'id' => $bookerId, 'name' => 'Qualification Booker']);
     $price = $currency === 'TZS' ? 25000000 : 12000;
-    $statuses = $inventory = $reservations = $lines = $folios = $postings = [];
+    $statuses = $inventory = $reservations = $lines = $folios = $postings = $events = [];
     $number = 100;
 
     foreach (['STD' => 60, 'DLX' => 40] as $code => $count) {
@@ -162,14 +166,20 @@ function seedProperty(string $organizationId, string $propertyId, string $curren
                 };
                 $reservationId = ulid();
                 $folioId = ulid();
-                $reservations[] = [...$base, 'id' => $reservationId, 'reservation_number' => 'Q-'.substr($reservationId, -10), 'room_type_id' => $typeId,
+                $reservation = [...$base, 'id' => $reservationId, 'reservation_number' => 'Q-'.substr($reservationId, -10), 'room_type_id' => $typeId,
                     'rate_plan_id' => $planId, 'booker_id' => $bookerId, 'arrival' => $arrival->toDateString(), 'departure' => $departure->toDateString(),
                     'adults' => 2, 'children' => 0, 'source' => 'phone', 'status' => $status, 'room_id' => $status === 'confirmed' ? null : $roomId];
+                if ($status === 'checked_in' && $r % 10 === 0 && $arrival < $today->subDay()) {
+                    $reservation['departure'] = $today->subDay()->toDateString();
+                }
+                $reservations[] = $reservation;
                 $folios[] = [...$base, 'id' => $folioId, 'reservation_id' => $reservationId, 'currency' => $currency];
                 $charged = 0;
+                $priceLines = [];
                 for ($n = 0; $n < $length; $n++) {
                     $date = $arrival->addDays($n);
                     $lines[] = [...$base, 'id' => ulid(), 'reservation_id' => $reservationId, 'rate_plan_id' => $planId, 'date' => $date->toDateString(), 'amount' => $price, 'currency' => $currency];
+                    $priceLines[] = ['date' => $date->toDateString(), 'amount' => $price, 'currency' => $currency, 'rate_plan_id' => $planId];
                     if ($status !== 'cancelled') {
                         $sold[$date->toDateString()] = ($sold[$date->toDateString()] ?? 0) + 1;
                     }
@@ -183,12 +193,17 @@ function seedProperty(string $organizationId, string $propertyId, string $curren
                     $paid = $status === 'checked_out' && ($r + $night) % 10 !== 0 ? $charged : intdiv($charged, 2);
                     $postings[] = posting($base, $folioId, 'payment', 'payment', -$paid, $currency, $departure->min($today), ['card', 'cash', 'mobile_money'][$r % 3], 'payment');
                 }
+                $legacy = $r === 0 && $night === -WINDOW_DAYS;
+                if (! $legacy || $code === 'DLX') {
+                    seedLifecycle($events, $base, $reservation, $priceLines, $arrival, $departure, $today, $r, $legacy);
+                }
                 if (count($lines) >= 1000) {
                     // Parents first, so foreign keys hold.
                     insertRows('reservations', $reservations, true);
                     insertRows('folios', $folios, true);
                     insertRows('reservation_price_lines', $lines, true);
                     insertRows('postings', $postings, true);
+                    insertRows('reservation_lifecycle_events', $events, true);
                 }
                 $night += $length + ($r % 2);
             }
@@ -199,10 +214,67 @@ function seedProperty(string $organizationId, string $propertyId, string $curren
         }
     }
     foreach (['reservations' => $reservations, 'housekeeping_room_statuses' => $statuses, 'inventory_records' => $inventory,
-        'folios' => $folios, 'reservation_price_lines' => $lines, 'postings' => $postings] as $table => $batch) {
+        'folios' => $folios, 'reservation_price_lines' => $lines, 'postings' => $postings, 'reservation_lifecycle_events' => $events] as $table => $batch) {
         foreach (array_chunk($batch, 1000) as $chunk) {
             DB::table($table)->insert($chunk);
         }
+    }
+    $events = [];
+    $reservationId = ulid();
+    $folioId = ulid();
+    $arrival = CarbonImmutable::parse('2025-12-10');
+    $departure = CarbonImmutable::parse('2025-12-12');
+    $reservation = [...$base, 'id' => $reservationId, 'reservation_number' => 'Q-DELAYED', 'room_type_id' => $typeId,
+        'rate_plan_id' => $planId, 'booker_id' => $bookerId, 'arrival' => $arrival->toDateString(), 'departure' => $departure->toDateString(),
+        'adults' => 2, 'children' => 0, 'source' => 'phone', 'status' => 'checked_out', 'room_id' => $roomId];
+    DB::table('reservations')->insert($reservation);
+    DB::table('folios')->insert([...$base, 'id' => $folioId, 'reservation_id' => $reservationId, 'currency' => $currency]);
+    $priceLines = [];
+    for ($night = 0; $night < 3; $night++) {
+        $date = $arrival->addDays($night);
+        if ($night < 2) {
+            $priceLines[] = ['date' => $date->toDateString(), 'amount' => $price, 'currency' => $currency, 'rate_plan_id' => $planId];
+            DB::table('reservation_price_lines')->insert([...$base, 'id' => ulid(), 'reservation_id' => $reservationId, ...end($priceLines)]);
+        }
+        DB::table('postings')->insert([...posting($base, $folioId, 'charge', 'room', $price, $currency, $date, null, "room-{$night}"), 'reservation_id' => $reservationId]);
+    }
+    DB::table('postings')->insert(posting($base, $folioId, 'payment', 'payment', -3 * $price, $currency, $departure->addDay(), 'card', 'payment'));
+    seedLifecycle($events, $base, $reservation, $priceLines, $arrival, $departure->addDay(), $today, 1, false);
+    insertRows('reservation_lifecycle_events', $events, true);
+}
+
+function seedLifecycle(array &$events, array $base, array $reservation, array $priceLines, CarbonImmutable $arrival, CarbonImmutable $departure, CarbonImmutable $today, int $room, bool $partial): void
+{
+    $snapshot = [...collect($reservation)->except(['id', 'organization_id', 'property_id', 'created_at', 'updated_at'])->all(),
+        'source_reference' => null, 'imported' => false, 'channel_reference' => null, 'outside_integration_reason' => null,
+        'requires_reconciliation' => false, 'payment_collector' => 'property', 'price_lines' => $priceLines];
+    $sequence = 0;
+    $record = function (string $type, CarbonImmutable $date, array $state) use (&$events, $base, $reservation, &$sequence): void {
+        $events[] = [...$base, 'id' => ulid(), 'reservation_id' => $reservation['id'], 'type' => $type, 'sequence' => ++$sequence,
+            'occurred_at' => $date->addDay()->setTime(1, $sequence)->toDateTimeString(), 'business_date' => $date->toDateString(),
+            'actor_id' => null, 'snapshot' => json_encode($state, JSON_THROW_ON_ERROR), 'test' => false];
+    };
+    $arrived = in_array($reservation['status'], ['checked_in', 'checked_out'], true);
+    $extended = $arrived && count($priceLines) >= 3 && $room % 11 === 0;
+    $early = $reservation['status'] === 'checked_out' && ! $extended && count($priceLines) >= 3 && $room % 13 === 0;
+    $original = $snapshot;
+    if ($extended || $early) {
+        $original['departure'] = $departure->addDays($extended ? -1 : 1)->toDateString();
+        $original['price_lines'] = $extended ? array_slice($priceLines, 0, -1) : [...$priceLines, [...end($priceLines), 'date' => $departure->toDateString()]];
+    }
+    $record('created', $arrival->subDays(7)->min($today), [...$original, 'status' => 'confirmed']);
+    if ($arrived) {
+        $record('checked_in', $arrival, [...$original, 'status' => 'checked_in']);
+        if ($extended) {
+            $record('extended', $arrival, [...$snapshot, 'status' => 'checked_in', 'previous_departure' => $original['departure']]);
+        } elseif ($early) {
+            $record('departed_early', $departure, [...$snapshot, 'status' => 'checked_in', 'previous_departure' => $original['departure']]);
+        }
+        if ($reservation['status'] === 'checked_out' && ! $partial) {
+            $record('checked_out', $departure, $snapshot);
+        }
+    } elseif ($reservation['status'] === 'cancelled') {
+        $record('cancelled', $arrival->subDay()->min($today), $snapshot);
     }
 }
 
@@ -253,6 +325,31 @@ function measureQueries(int $repeats): void
         $results[$label] = summary($times) + ['queriesPerReport' => max($queries)];
     }
     echo json_encode(['mode' => 'query (in-process, serial, no HTTP)', 'propertiesPerReport' => PROPERTIES_PER_ORGANIZATION, 'results' => $results], JSON_PRETTY_PRINT)."\n";
+}
+
+function profileReports(): void
+{
+    $today = CarbonImmutable::now('Africa/Dar_es_Salaam');
+    $organization = DB::table('organizations')->orderBy('id')->value('id');
+    $results = Tenancy::within(TenantContext::forOrganization($organization), function () use ($today): array {
+        $properties = Property::query()->real()->get();
+        $results = [];
+        foreach (['1 night' => $today, '31 nights' => $today->subDays(30)] as $label => $from) {
+            DB::enableQueryLog();
+            $started = hrtime(true);
+            app(GroupReports::class)->forProperties($properties, $from->toDateString(), $today->toDateString());
+            $elapsed = (hrtime(true) - $started) / 1e6;
+            $queries = DB::getQueryLog();
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+            $results[$label] = ['wallMs' => $elapsed, 'sqlMs' => array_sum(array_column($queries, 'time')), 'queries' => array_map(fn ($query) => [
+                ...$query, 'plan' => str_starts_with(strtolower($query['query']), 'select') ? DB::select('EXPLAIN FORMAT=JSON '.$query['query'], $query['bindings']) : [],
+            ], $queries)];
+        }
+
+        return $results;
+    });
+    echo json_encode($results, JSON_PRETTY_PRINT)."\n";
 }
 
 /**
@@ -334,7 +431,7 @@ function measureSteady(string $baseUrl, int $seconds, int $expectedSessions): vo
         throw new RuntimeException('Distinct seeded session count does not match workload.');
     }
     if ($expectedSessions === 1000) {
-        foreach (['organizations' => 100, 'properties' => 500, 'rooms' => 50000, 'reservations' => 640000, 'folios' => 640000, 'postings' => 1139000] as $table => $expected) {
+        foreach (['organizations' => 100, 'properties' => 500, 'rooms' => 50000, 'reservations' => 912000, 'folios' => 912000, 'postings' => 1635500] as $table => $expected) {
             if (DB::table($table)->count() !== $expected) {
                 throw new RuntimeException("Capacity mismatch: {$table}");
             }

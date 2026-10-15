@@ -80,7 +80,8 @@ cli php artisan route:cache >&2
 organizations=100
 [[ "$mode" == smoke ]] && organizations=2
 cli env QUALIFY_ORGANIZATIONS="$organizations" php -d memory_limit=1G scripts/qualify-group-reports.php seed >.scratch/qualification/seed.json
-"${compose[@]}" exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql -uqualification ticket107_qualification -e "ANALYZE TABLE postings, folios, reservations, reservation_price_lines, inventory_records, housekeeping_room_statuses, rooms, properties, sessions"' >&2
+cli env QUALIFY_ORGANIZATIONS="$organizations" php -d memory_limit=1G scripts/qualify-group-reports.php verify >.scratch/qualification/verification.json
+"${compose[@]}" exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql -uqualification ticket107_qualification -e "ANALYZE TABLE postings, folios, reservations, reservation_lifecycle_events, reservation_price_lines, inventory_records, housekeeping_room_statuses, rooms, properties, sessions"' >&2
 port="$("${compose[@]}" port nginx 80)"
 [[ "$port" =~ ^127\.0\.0\.1:[1-9][0-9]*$ ]] || { echo "Missing loopback HTTP publication" >&2; exit 1; }
 url="http://$port"
@@ -91,6 +92,11 @@ for attempt in {1..60}; do
 done
 {
     git rev-parse HEAD
+    git rev-parse HEAD^{tree}
+    git status --short
+    date --iso-8601=seconds
+    uname -a
+    lscpu
     "${compose[@]}" images
     cli php --version
     cli php -r 'echo "OPcache enabled: ".ini_get("opcache.enable").PHP_EOL;'
@@ -98,10 +104,28 @@ done
     "${compose[@]}" exec -T mysql mysql --version
     docker info --format 'Docker CPUs={{.NCPU}} memory={{.MemTotal}}'
 } >.scratch/qualification/stack.txt 2>&1
+telemetry() {
+    date --iso-8601=seconds
+    uptime
+    free -b
+    cat /proc/stat
+    docker stats --no-stream --format '{{.Name}} CPU={{.CPUPerc}} memory={{.MemUsage}}' $("${compose[@]}" ps -q)
+    for service in php mysql nginx; do
+        printf '%s cgroup CPU\n' "$service"
+        "${compose[@]}" exec -T "$service" cat /sys/fs/cgroup/cpu.stat
+    done
+}
+cli php -d memory_limit=1G scripts/qualify-group-reports.php profile >.scratch/qualification/profile.json
+telemetry >.scratch/qualification/before.txt
 cli php scripts/qualify-group-reports.php http http://nginx 32 32 >.scratch/qualification/burst.json
+set +e
 if [[ "$mode" == smoke ]]; then
     cli php scripts/qualify-group-reports.php steady http://nginx 2 20 >.scratch/qualification/steady.json
 else
     cli php scripts/qualify-group-reports.php steady http://nginx 300 1000 >.scratch/qualification/steady.json
 fi
+result=$?
+set -e
+telemetry >.scratch/qualification/after.txt
 cat .scratch/qualification/{burst,steady}.json
+exit "$result"
