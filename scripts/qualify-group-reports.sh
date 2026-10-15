@@ -30,6 +30,22 @@ if [[ -n "$(docker ps -aq --filter "label=com.docker.compose.project=$project")"
     exit 2
 fi
 umask 077
+restoring="${QUALIFY_RESTORE_CHECKPOINT:-0}"
+checkpoint="$PWD/.scratch/qualification-checkpoint"
+if [[ "$restoring" == 1 ]]; then
+    [[ "$mode" == run ]] || { echo "Checkpoint restore requires full mode." >&2; exit 2; }
+    [[ "$(docker volume inspect --format '{{index .Labels "dev.thedream.qualification-checkpoint"}}' "${project}_checkpoint" 2>/dev/null)" == "$project" ]] || {
+        echo "Missing owned disposable checkpoint." >&2; exit 2;
+    }
+    for file in runtime.env sessions.json seed-source.txt seed.json; do
+        [[ -f "$checkpoint/$file" && -O "$checkpoint/$file" && ! -L "$checkpoint/$file" ]] || exit 2
+    done
+    if docker volume inspect "${project}_mysql" >/dev/null 2>&1; then
+        echo "Refusing to overwrite an existing database volume." >&2; exit 2
+    fi
+    cp "$checkpoint/runtime.env" "$QUALIFY_ENV_FILE"
+else
+    [[ "$restoring" == 0 ]] || exit 2
 cat >"$QUALIFY_ENV_FILE" <<EOF
 APP_ENV=production
 APP_DEBUG=false
@@ -54,6 +70,7 @@ LOG_LEVEL=error
 APP_CONFIG_CACHE=/app/.scratch/qualification/config.php
 APP_ROUTES_CACHE=/app/.scratch/qualification/routes.php
 EOF
+fi
 unset DB_PASSWORD QUALIFY_ROOT_PASSWORD
 cleanup() {
     result=$?
@@ -71,6 +88,12 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+if [[ "$restoring" == 1 ]]; then
+    image="$("${compose[@]}" config --images | grep -E '^mysql:8\.0@sha256:[[:xdigit:]]{64}$')"
+    docker volume create --label "com.docker.compose.project=$project" --label com.docker.compose.volume=mysql "${project}_mysql" >/dev/null
+    docker run --rm --network none --name "$project-restore-copy" --entrypoint sh \
+        -v "${project}_checkpoint:/from:ro" -v "${project}_mysql:/to" "$image" -c 'cp -a /from/. /to/ && sync -f /to'
+fi
 "${compose[@]}" build >&2
 "${compose[@]}" up -d --wait --wait-timeout 200 >&2
 cli() { "${compose[@]}" exec -T --user "$HOST_UID:$HOST_GID" php "$@"; }
@@ -83,8 +106,15 @@ cli php artisan config:cache >&2
 cli php artisan route:cache >&2
 organizations=100
 [[ "$mode" == smoke ]] && organizations=2
-git rev-parse HEAD HEAD^{tree} >.scratch/qualification/seed-source.txt
-cli env QUALIFY_ORGANIZATIONS="$organizations" php -d memory_limit=1G scripts/qualify-group-reports.php seed >.scratch/qualification/seed.json
+if [[ "$restoring" == 1 ]]; then
+    cp "$checkpoint/seed-source.txt" .scratch/qualification/seed-source.txt
+    cp "$checkpoint/sessions.json" .scratch/qualification-sessions.json
+    chmod 600 .scratch/qualification-sessions.json
+    php -r '$seed = json_decode(file_get_contents($argv[1]), true, flags: JSON_THROW_ON_ERROR); $seed["mode"] = "restored owned checkpoint"; $seed["originalSeedSeconds"] = $seed["seconds"]; unset($seed["seconds"]); echo json_encode($seed, JSON_PRETTY_PRINT).PHP_EOL;' "$checkpoint/seed.json" >.scratch/qualification/seed.json
+else
+    git rev-parse HEAD HEAD^{tree} >.scratch/qualification/seed-source.txt
+    cli env QUALIFY_ORGANIZATIONS="$organizations" php -d memory_limit=1G scripts/qualify-group-reports.php seed >.scratch/qualification/seed.json
+fi
 cli env QUALIFY_ORGANIZATIONS="$organizations" php -d memory_limit=1G scripts/qualify-group-reports.php verify >.scratch/qualification/verification.json
 "${compose[@]}" exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql -uqualification ticket107_qualification -e "ANALYZE TABLE postings, folios, reservations, reservation_lifecycle_events, reservation_price_lines, inventory_records, housekeeping_room_statuses, rooms, properties, sessions"' >&2
 port="$("${compose[@]}" port nginx 80)"

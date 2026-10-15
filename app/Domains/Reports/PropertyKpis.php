@@ -32,12 +32,17 @@ final class PropertyKpis
         $inventory = InventoryRecord::query()->whereIn('property_id', $ids)->where('date', '>=', $from)->where('date', '<', $until)
             ->selectRaw('property_id, SUM(sold_count) as sold, SUM(sellable_count) as sellable')
             ->groupBy('property_id')->toBase()->get()->keyBy('property_id');
-        $reservations = Reservation::query()->whereIn('property_id', $ids)
+        $prices = ReservationPriceLine::query()->whereIn('property_id', $ids)
+            ->where('date', '>=', $from)->where('date', '<', $until)
+            ->selectRaw('property_id, reservation_id, currency, SUM(amount) as booked_value')
+            ->groupBy('property_id', 'reservation_id', 'currency');
+        $values = Reservation::query()->whereIn('reservations.property_id', $ids)
             ->whereIn('status', [ReservationStatus::Confirmed, ReservationStatus::CheckedIn, ReservationStatus::CheckedOut])
-            ->select('id');
-        $values = ReservationPriceLine::query()->whereIn('property_id', $ids)
-            ->whereIn('reservation_id', $reservations)->where('date', '>=', $from)->where('date', '<', $until)
-            ->selectRaw('property_id, currency, SUM(amount) as booked_value')->groupBy('property_id', 'currency')->orderBy('currency')
+            ->joinSub($prices, 'prices', function ($join): void {
+                $join->on('prices.reservation_id', '=', 'reservations.id')->on('prices.property_id', '=', 'reservations.property_id');
+            })
+            ->selectRaw('reservations.property_id, prices.currency, SUM(prices.booked_value) as booked_value')
+            ->groupBy('reservations.property_id', 'prices.currency')->orderBy('prices.currency')
             ->toBase()->get()->mapToGroups(function (object $line) use ($inventory): array {
                 $sold = (int) ($inventory->get($line->property_id)->sold ?? 0);
                 $sellable = (int) ($inventory->get($line->property_id)->sellable ?? 0);

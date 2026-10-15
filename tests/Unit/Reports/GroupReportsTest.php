@@ -12,17 +12,32 @@ use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Reports\GroupReports;
 use App\Domains\Reports\PropertyFinance;
+use App\Domains\Reports\PropertyKpis;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationPriceLine;
 use App\Domains\Tenancy\Actions\CreateDemoProperty;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
+
+test('group booked value joins price lines to their owning property', function () {
+    $tenants = twoTenants();
+    $reservation = inTenant($tenants->a->property, fn () => app(CreateReservation::class)->handle($tenants->a->owner, BookingForm::details($tenants->a->owner)));
+    DB::table('reservation_price_lines')->where('reservation_id', $reservation->id)->update(['property_id' => $tenants->a->otherProperty->id]);
+
+    inTenant($tenants->a->organization, function () use ($tenants) {
+        $group = app(GroupReports::class)->forProperties(collect([$tenants->a->property, $tenants->a->otherProperty]), '2026-12-10', '2026-12-11');
+        $property = app(PropertyKpis::class)->forProperty($tenants->a->otherProperty, '2026-12-10', '2026-12-11');
+        expect($group['kpis']['currencies'][0]['bookedRoomValue'])->toBe(0)
+            ->and($property['currencies'][0]['bookedRoomValue'])->toBe(0);
+    });
+});
 
 test('group KPIs add numerators and denominators and keep currencies apart', function () {
     $t = twoTenants();

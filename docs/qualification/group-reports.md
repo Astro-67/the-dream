@@ -114,6 +114,53 @@ still 4 GiB/2 GiB buffer, before the full timed workload. PHP/Nginx limits
 and all load/error/latency gates remain unchanged. This is a quota on a
 shared laptop, not six dedicated physical cores.
 
+### Second complete workload: a29bd5d
+
+The 6-CPU MySQL run completes both 5,000-request ranges, all 1,000 sessions
+per range, with 10,000 HTTP 200 valid reports and no transport/body errors.
+Business date is 16 October 2026; 31 dates begin 16 September 2026.
+Source `a29bd5dcfb42b89000b24a23963fbe72a22e89bb`, tree
+`75c7523567060466a56d983c9e2cb147d9b407bf`. Seed provenance is `509bb12`.
+
+| Range    | p50 ms | p95 ms |  Max ms | Scheduling queue p95 ms | Elapsed/drain seconds |
+| -------- | -----: | -----: | ------: | ----------------------: | --------------------: |
+| 1 date   |  130.4 |  464.2 |   697.8 |                     1.1 |               300.098 |
+| 31 dates |  222.5 |  950.9 | 2,725.6 |                     1.1 |               300.247 |
+
+The longer range **still fails**, so wrapper exit is 1; evidence is retained
+under `.scratch/qualification-evidence/full-tuned/`. Peak in-flight is 6/30.
+PHP accrued 39.6 seconds cgroup throttling at its 2-CPU quota; MySQL
+accrued only 1.4 seconds at 6 CPUs. No test process ran during timing.
+
+The next measured change aggregates in-range price lines per owning
+property/reservation/currency before joining scoped reservation statuses,
+rather than repeatedly looking up all reservation price lines. Full one-
+and five-property payloads for both ranges remain byte-identical (SHA-256
+`bf868249816bdedce5c3836690ed541ff374fef7d3bc1d92a9770c27edbe7383`).
+Long-range price SQL improves from approximately 85–88 to 65 ms.
+A public regression also rejects a price line incorrectly attached to a
+different included property; baseline returns 22,000 instead of zero.
+SQLite checks pass 76 tests/377 assertions, MySQL 79/1,015.
+An indexed correlated lifecycle-boundary candidate is discarded:
+it produces identical rows but takes 156 ms versus 97 ms for five properties.
+
+Before the next full measurement, PHP's quota increases from 2 to
+**3 CPU equivalents**, retaining 2 GiB/16 FPM workers; MySQL stays 6/4 GiB.
+A CPU-only diagnostic on the same candidate dataset improves short-range
+throughput from 21.5 to 26.7 req/s and long-range from 19.1 to 20.5;
+diagnostic p95 is 687.9/922.0 ms. No workload/gate reduction or report cache.
+
+For sequential same-dataset diagnosis, an owned native checkpoint was
+copied only after cleanly stopping the disposable MySQL server. Optional
+`QUALIFY_RESTORE_CHECKPOINT=1` in full mode restores only a volume bearing
+the exact worktree-owned checkpoint label into an absent disposable volume;
+it refuses an existing destination, never accesses development data, and
+reruns full seed verification before any timing. The checkpoint preserves
+seed provenance; measured source is pinned separately. Private generated
+credentials/session material remain mode 0600 and are removed with the
+owned checkpoint at final cleanup. Restored buffer/report outputs are
+never treated as precomputed report caches.
+
 The old positional interface used PHP's built-in server. It is replaced by the
 disposable Nginx + PHP-FPM + OPcache + MySQL stack in `scripts/qualification/`.
 All measurements below remain historical built-in-server evidence, not results
@@ -220,7 +267,7 @@ December 13.
 ### Resources, artifacts and cleanup
 
 Current stack limits: MySQL 6 CPU equivalents / 4 GiB, 2 GiB InnoDB buffer pool, 100 connections;
-PHP 2 CPUs / 2 GiB, 16 static FPM children, 256 MiB per-request PHP limit,
+PHP 3 CPU equivalents / 2 GiB, 16 static FPM children, 256 MiB per-request PHP limit,
 192 MiB shared OPcache; Nginx 0.5 CPU / 128 MiB. The PHP curl client currently
 shares the PHP container's CPU/memory limit with FPM, so results include that
 local generator overhead. Containers share the host with Docker, the OS and
