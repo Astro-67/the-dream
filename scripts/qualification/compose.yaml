@@ -10,7 +10,7 @@ services:
         volumes:
             - mysql:/var/lib/mysql
         mem_limit: 4g
-        cpus: 3
+        cpus: 6
         healthcheck:
             test:
                 [

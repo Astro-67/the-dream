@@ -102,6 +102,18 @@ indexes before dropping the report indexes. The rollback check uses
 database; FPM, seed and all measurements remain production-mode.
 Full mode uses the canonical freshly migrated schema without this round-trip.
 
+A same-dataset CPU-only diagnostic then compares the 3-CPU MySQL cap with
+6 CPU equivalents (the host has 4 physical cores / 8 logical CPUs).
+At 200 closed-loop requests per range/concurrency 8, all responses are 200:
+throughput improves from 13.9/8.5 to 23.6/18.8 requests/s; p95 improves from
+1,404.1/2,547.3 to 663.7/999.2 ms. These are **diagnostics**, not the
+1,000-session qualification. MySQL consumes 82.75 CPU-seconds over the
+approximately 20-second 6-CPU probe; quota throttling falls substantially.
+This supports changing the current MySQL cap to **6 CPU equivalents**,
+still 4 GiB/2 GiB buffer, before the full timed workload. PHP/Nginx limits
+and all load/error/latency gates remain unchanged. This is a quota on a
+shared laptop, not six dedicated physical cores.
+
 The old positional interface used PHP's built-in server. It is replaced by the
 disposable Nginx + PHP-FPM + OPcache + MySQL stack in `scripts/qualification/`.
 All measurements below remain historical built-in-server evidence, not results
@@ -207,7 +219,7 @@ December 13.
 
 ### Resources, artifacts and cleanup
 
-Current stack limits: MySQL 3 CPUs / 4 GiB, 2 GiB InnoDB buffer pool, 100 connections;
+Current stack limits: MySQL 6 CPU equivalents / 4 GiB, 2 GiB InnoDB buffer pool, 100 connections;
 PHP 2 CPUs / 2 GiB, 16 static FPM children, 256 MiB per-request PHP limit,
 192 MiB shared OPcache; Nginx 0.5 CPU / 128 MiB. The PHP curl client currently
 shares the PHP container's CPU/memory limit with FPM, so results include that
