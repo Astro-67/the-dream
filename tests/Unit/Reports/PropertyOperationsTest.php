@@ -1,9 +1,15 @@
 <?php
 
+use App\Domains\FrontDesk\Actions\CheckIn;
+use App\Domains\FrontDesk\Actions\CheckOut;
+use App\Domains\FrontDesk\Actions\DepartEarly;
+use App\Domains\Guests\Actions\CreateGuest;
+use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reports\PropertyOperations;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
@@ -14,7 +20,7 @@ use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
 
-test('daily operations follow reservation lists and include both range boundaries', function () {
+test('daily operations count every stay that was or will be taken, excluding cancelled, no-show and void, over both range boundaries', function () {
     [$owner, , $property] = organizationWithOwner();
 
     inTenant($property, function () use ($owner, $property) {
@@ -29,8 +35,8 @@ test('daily operations follow reservation lists and include both range boundarie
 
         expect(app(PropertyOperations::class)->forProperty($property, '2026-12-09', '2026-12-12')['daily'])->toEqual([
             ['date' => '2026-12-09', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
-            ['date' => '2026-12-10', 'arrivals' => 2, 'departures' => 0, 'inHouse' => 1],
-            ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1],
+            ['date' => '2026-12-10', 'arrivals' => 3, 'departures' => 0, 'inHouse' => 2],
+            ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 2],
             ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 3, 'inHouse' => 0],
         ]);
         expect(app(PropertyOperations::class)->forProperty($property, '2026-12-12', '2026-12-12')['daily'])
@@ -106,6 +112,37 @@ test('daily counts retain identical stays and clip long in-house stays at the re
             ['date' => '2026-12-31', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 2],
             ['date' => '2027-01-01', 'arrivals' => 0, 'departures' => 2, 'inHouse' => 0],
             ['date' => '2027-01-02', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+        ]);
+    });
+});
+
+test('checked-out stays keep their past arrival and in-house nights, ending on the actual departure', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $property->update(['business_date' => '2026-12-10']);
+
+    inTenant($property, function () use ($owner, $property) {
+        $details = BookingForm::details($owner);
+        app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        $stays = [];
+        foreach (Room::query()->orderBy('number')->get() as $index => $room) {
+            $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => $room->id]);
+            $guest = app(CreateGuest::class)->handle($owner, ['name' => 'Guest '.$index, 'documents' => [['type' => 'passport', 'number' => 'P123456'.$index, 'nationality' => 'DE']]]);
+            ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+            $stays[] = app(CheckIn::class)->handle($owner, $reservation);
+        }
+        [$full, $early] = $stays;
+        $property->update(['business_date' => '2026-12-11']);
+        app(DepartEarly::class)->handle($owner, $early);
+        app(CheckOut::class)->handle($owner, $early->fresh());
+        $property->update(['business_date' => '2026-12-12']);
+        app(CheckOut::class)->handle($owner, $full->fresh());
+
+        expect(app(PropertyOperations::class)->forProperty($property, '2026-12-09', '2026-12-12')['daily'])->toEqual([
+            ['date' => '2026-12-09', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+            ['date' => '2026-12-10', 'arrivals' => 2, 'departures' => 0, 'inHouse' => 2],
+            ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 1],
+            ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0],
         ]);
     });
 });

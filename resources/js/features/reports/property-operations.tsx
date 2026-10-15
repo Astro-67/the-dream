@@ -46,17 +46,18 @@ export default function PropertyOperations({
                     </h2>
                     <p className="max-w-prose text-sm text-muted-foreground">
                         Reservation counts for each selected business date,
-                        including both endpoints. Computed from current
-                        reservation dates and statuses, matching front-desk
-                        lists; not reconstructed historical snapshots.
+                        including both endpoints. Past dates keep stays that
+                        have since checked out, ending on the date the guest
+                        actually left after any extension or early departure.
+                        Future dates count stays as booked now.
                     </p>
                 </div>
                 <dl className="grid gap-3 text-sm">
                     <div>
                         <dt className="font-medium">Arrivals</dt>
                         <dd className="text-muted-foreground">
-                            Confirmed or checked-in reservations with this
-                            arrival date.
+                            Confirmed, checked-in or checked-out reservations
+                            with this arrival date.
                         </dd>
                     </div>
                     <div>
@@ -69,10 +70,11 @@ export default function PropertyOperations({
                     <div>
                         <dt className="font-medium">In-house</dt>
                         <dd className="text-muted-foreground">
-                            Currently checked-in reservations spanning this
+                            Checked-in or checked-out reservations spanning this
                             date: arrival date is included and departure date is
-                            excluded. Cancelled, no-show and void reservations
-                            are excluded from all daily counts.
+                            excluded. Confirmed guests who have not arrived are
+                            not in-house. Cancelled, no-show and void
+                            reservations are excluded from all daily counts.
                         </dd>
                     </div>
                 </dl>

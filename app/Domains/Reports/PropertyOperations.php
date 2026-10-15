@@ -49,13 +49,15 @@ final class PropertyOperations
                 $arrival = substr($reservation->arrival, 0, 10);
                 $departure = substr($reservation->departure, 0, 10);
                 $count = (int) $reservation->reservations;
-                if (isset($daily[$arrival]) && $reservation->status !== ReservationStatus::CheckedOut->value) {
+                if (isset($daily[$arrival])) {
                     $daily[$arrival]['arrivals'] += $count;
                 }
                 if (isset($daily[$departure])) {
                     $daily[$departure]['departures'] += $count;
                 }
-                if ($reservation->status === ReservationStatus::CheckedIn->value) {
+                // A checked-out stay keeps its nights: early departure and extension rewrite
+                // its departure to the actual date before check-out, so its dates are the stay.
+                if ($reservation->status !== ReservationStatus::Confirmed->value) {
                     foreach ($daily as $day => &$counts) {
                         if ($day >= $arrival && $day < $departure) {
                             $counts['inHouse'] += $count;
