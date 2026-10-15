@@ -2,6 +2,9 @@
 
 namespace App\Domains\Reports;
 
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
@@ -41,6 +44,18 @@ final class PropertyOperations
             }
         }
 
-        return ['daily' => array_values($daily)];
+        $statuses = RoomStatus::query()->where('property_id', $property->id)
+            ->whereIn('room_id', Room::query()->where('property_id', $property->id)->active()->select('id'))
+            ->selectRaw('status, COUNT(*) as rooms')->groupBy('status')->pluck('rooms', 'status');
+
+        return [
+            'daily' => array_values($daily),
+            'housekeeping' => array_map(fn (HousekeepingStatus $status): array => [
+                'status' => $status->value,
+                'label' => $status->label(),
+                'tone' => $status->tone(),
+                'rooms' => (int) ($statuses[$status->value] ?? 0),
+            ], HousekeepingStatus::cases()),
+        ];
     }
 }
