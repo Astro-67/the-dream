@@ -30,10 +30,15 @@ final class GroupReports
         $reports = $properties->map(fn (Property $property): array => [
             'property' => $property,
             'kpis' => $this->kpis->forProperty($property, $from, $to),
+            'operations' => $this->operations->forProperty($property, $from, $to),
         ]);
 
         return [
             'kpis' => $this->kpis($reports->pluck('kpis')),
+            'operations' => [
+                'daily' => self::addUp($reports->flatMap(fn (array $report) => $report['operations']['daily']), 'date', ['arrivals', 'departures', 'inHouse']),
+                'housekeeping' => self::addUp($reports->flatMap(fn (array $report) => $report['operations']['housekeeping']), 'status', ['rooms']),
+            ],
         ];
     }
 
@@ -69,6 +74,21 @@ final class GroupReports
             'occupancy' => $sellable === 0 ? null : $sold / $sellable,
             'currencies' => $currencies,
         ];
+    }
+
+    /**
+     * Rows with the same $key merged in first-seen order, their $counts added.
+     *
+     * @param  Collection<int, array<string, mixed>>  $rows
+     * @param  list<string>  $counts
+     * @return list<array<string, mixed>>
+     */
+    private static function addUp(Collection $rows, string $key, array $counts): array
+    {
+        return $rows->groupBy($key)->map(fn (Collection $group): array => [
+            ...$group->first(),
+            ...array_combine($counts, array_map(fn (string $count): int => (int) $group->sum($count), $counts)),
+        ])->values()->all();
     }
 
     /** Minor units rounded half up, as PropertyKpis rounds; null for a zero denominator. */
