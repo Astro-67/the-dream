@@ -12,6 +12,35 @@ scripts/qualify-group-reports.sh smoke
 QUALIFY_FULL=1 scripts/qualify-group-reports.sh run
 ```
 
+### Final-stage raw-query diagnosis
+
+The first fully populated recorded-history seed at `65dbc90` verifies
+912,000 reservations, 2,615,000 price lines, 1,635,500 postings and
+1,861,000 lifecycle events. All 500 properties pass the 31-date coverage
+and boundary-integrity checks. Serial five-property profiles cost
+344/359 ms for 1/31 dates, with 326/347 ms in SQL; history alone costs
+112 ms. EXPLAIN identifies non-covering event/posting reads and expensive
+booked-value membership reads.
+
+The separate 32-request bursts return 200 but have p95 39,846/22,502 ms.
+The overloaded baseline is interrupted during the first steady range,
+exit 143, to fix those measured access paths; it is **not** a completed
+1,000-session qualification and supplies no steady-range pass or percentile.
+Its artifacts remain under `.scratch/qualification-evidence/full-baseline/`.
+An earlier invocation stopped during seed, before any timing; evidence is
+under `aborted-seed/`, with old copied smoke files explicitly labelled stale.
+
+The additive `2026_10_30_000101_reports_add_covering_indexes` migration
+provides tenant/property covering access paths for lifecycle boundaries,
+reservation statuses/dates, booked value, folio balances and payments.
+These remain raw on-request reads; no report data is cached or materialized.
+Non-unique indexes change no figures or tenant/security behavior. They add
+index storage/write overhead and require a normal deployment migration;
+no actual production database or deployment is involved in this local run.
+Five schema-contract regressions fail before the migration; the same
+regressions and all property/group report tests pass after it.
+Final full measurements and functional gates remain pending.
+
 The old positional interface used PHP's built-in server. It is replaced by the
 disposable Nginx + PHP-FPM + OPcache + MySQL stack in `scripts/qualification/`.
 All measurements below remain historical built-in-server evidence, not results
