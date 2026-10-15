@@ -44,7 +44,9 @@ return new class extends Migration
             $table->dropIndex('report_reservation_prices_cover');
             $table->dropIndex('report_booked_value_cover');
         });
-        Schema::table('folios', fn (Blueprint $table) => $table->dropIndex('report_folios_cover'));
+        if (Schema::hasIndex('folios', 'report_folios_cover')) {
+            Schema::table('folios', fn (Blueprint $table) => $table->dropIndex('report_folios_cover'));
+        }
         Schema::table('reservations', fn (Blueprint $table) => $table->dropIndex('report_reservations_cover'));
         Schema::table('reservation_lifecycle_events', fn (Blueprint $table) => $table->dropIndex('report_lifecycle_cover'));
     }
