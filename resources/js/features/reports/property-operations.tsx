@@ -16,7 +16,10 @@ export type PropertyOperationsData = {
         arrivals: number;
         departures: number;
         inHouse: number;
+        plannedArrivals: number;
+        plannedDepartures: number;
     }[];
+    historyUnavailable: number;
     housekeeping: {
         status: string;
         label: string;
@@ -33,7 +36,12 @@ export default function PropertyOperations({
     group?: boolean;
 }) {
     const hasActivity = operations.daily.some(
-        (day) => day.arrivals || day.departures || day.inHouse,
+        (day) =>
+            day.arrivals ||
+            day.departures ||
+            day.inHouse ||
+            day.plannedArrivals ||
+            day.plannedDepartures,
     );
     const hasRooms = operations.housekeeping.some((status) => status.rooms > 0);
 
@@ -45,49 +53,76 @@ export default function PropertyOperations({
                         Daily operations
                     </h2>
                     <p className="max-w-prose text-sm text-muted-foreground">
-                        Reservation counts for each selected business date,
-                        including both endpoints. Counts use current reservation
-                        dates, not an actual event timeline. Extensions and
-                        early departures update these dates. Completing
-                        check-out keeps prior stays in the counts without
-                        changing the departure date. Future dates count stays as
-                        booked now.
+                        Counts use recorded lifecycle business dates, including
+                        both range endpoints. These are PMS operations, not
+                        evidence of physical arrival or departure. Planned
+                        counts use current reservation dates and are shown
+                        separately.
                     </p>
                 </div>
                 <dl className="grid gap-3 text-sm">
                     <div>
-                        <dt className="font-medium">Arrivals</dt>
+                        <dt className="font-medium">
+                            Recorded arrivals and departures
+                        </dt>
                         <dd className="text-muted-foreground">
-                            Confirmed, checked-in or checked-out reservations
-                            with this arrival date.
+                            Recorded check-ins and check-outs on this property
+                            business date, not their scheduled reservation dates
+                            or the calendar date of the recording timestamp.
                         </dd>
                     </div>
                     <div>
-                        <dt className="font-medium">Departures</dt>
+                        <dt className="font-medium">
+                            Planned arrivals and departures
+                        </dt>
                         <dd className="text-muted-foreground">
-                            Confirmed, checked-in or checked-out reservations
-                            with this departure date.
+                            Uncompleted arrivals of confirmed reservations and
+                            departures of confirmed or checked-in reservations,
+                            on or after each property's current business date.
+                            Overdue plans are not reported as completed
+                            operations.
                         </dd>
                     </div>
                     <div>
                         <dt className="font-medium">In-house</dt>
                         <dd className="text-muted-foreground">
-                            Checked-in or checked-out reservations spanning this
-                            date: arrival date is included and departure date is
-                            excluded. Confirmed guests who have not arrived are
-                            not in-house. Cancelled, no-show and void
-                            reservations are excluded from all daily counts.
+                            The recorded check-in business date is included and
+                            check-out business date is excluded. An open stay
+                            continues through the property's current business
+                            date, even past scheduled departure. No future
+                            in-house nights are inferred. Confirmed, cancelled,
+                            no-show and void reservations are not in-house;
+                            cancelled, no-show and void reservations are
+                            excluded from all daily counts.
                         </dd>
                     </div>
                 </dl>
+                {operations.historyUnavailable > 0 && (
+                    <p className="max-w-prose text-sm text-muted-foreground">
+                        Stays with incomplete recorded history:{' '}
+                        {operations.historyUnavailable}. Imported or legacy
+                        checked-in/out reservations may lack lifecycle events.
+                        Missing boundaries are unknown, not replaced by
+                        scheduled dates. Available recorded arrivals or
+                        departures still count; in-house counts omit stays
+                        without a recorded check-in or completed stays without a
+                        recorded check-out. Counts may therefore be incomplete.
+                    </p>
+                )}
                 {hasActivity ? (
                     <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Business date</TableHead>
-                                <TableHead numeric>Arrivals</TableHead>
-                                <TableHead numeric>Departures</TableHead>
+                                <TableHead numeric>Recorded arrivals</TableHead>
+                                <TableHead numeric>
+                                    Recorded departures
+                                </TableHead>
                                 <TableHead numeric>In-house</TableHead>
+                                <TableHead numeric>Planned arrivals</TableHead>
+                                <TableHead numeric>
+                                    Planned departures
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -103,6 +138,12 @@ export default function PropertyOperations({
                                         {day.departures}
                                     </TableCell>
                                     <TableCell numeric>{day.inHouse}</TableCell>
+                                    <TableCell numeric>
+                                        {day.plannedArrivals}
+                                    </TableCell>
+                                    <TableCell numeric>
+                                        {day.plannedDepartures}
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

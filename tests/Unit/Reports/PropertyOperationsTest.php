@@ -20,8 +20,9 @@ use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
 
-test('daily operations count every stay that was or will be taken, excluding cancelled, no-show and void, over both range boundaries', function () {
+test('unrecorded legacy stays are flagged rather than silently inferred and plans stay separate', function () {
     [$owner, , $property] = organizationWithOwner();
+    $property->update(['business_date' => '2026-12-10']);
 
     inTenant($property, function () use ($owner, $property) {
         $reservation = app(CreateReservation::class)->handle($owner, BookingForm::details($owner));
@@ -33,14 +34,16 @@ test('daily operations count every stay that was or will be taken, excluding can
             $copy->fill(['reservation_number' => 'STATUS-'.$status->value, 'status' => $status])->save();
         }
 
-        expect(app(PropertyOperations::class)->forProperty($property, '2026-12-09', '2026-12-12')['daily'])->toEqual([
-            ['date' => '2026-12-09', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
-            ['date' => '2026-12-10', 'arrivals' => 3, 'departures' => 0, 'inHouse' => 2],
-            ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 2],
-            ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 3, 'inHouse' => 0],
-        ]);
+        $operations = app(PropertyOperations::class)->forProperty($property, '2026-12-09', '2026-12-12');
+        expect($operations['historyUnavailable'])->toBe(2)
+            ->and($operations['daily'])->toEqual([
+                ['date' => '2026-12-09', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+                ['date' => '2026-12-10', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 1, 'plannedDepartures' => 0],
+                ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+                ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 2],
+            ]);
         expect(app(PropertyOperations::class)->forProperty($property, '2026-12-12', '2026-12-12')['daily'])
-            ->toEqual([['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 3, 'inHouse' => 0]]);
+            ->toEqual([['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 2]]);
     });
 });
 
@@ -82,10 +85,11 @@ test('an organization context counts only the requested property and empty dates
         ->forProperty($t->a->property, '2026-12-11', '2026-12-13'));
 
     expect($operations['daily'])->toEqual([
-        ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1],
-        ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0],
-        ['date' => '2026-12-13', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
-    ])->and(array_sum(array_column($operations['housekeeping'], 'rooms')))->toBe(1);
+        ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+        ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 1],
+        ['date' => '2026-12-13', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+    ])->and($operations['historyUnavailable'])->toBe(1)
+        ->and(array_sum(array_column($operations['housekeeping'], 'rooms')))->toBe(1);
 });
 
 test('an empty property returns every selected business date and all housekeeping statuses with zero counts', function () {
@@ -94,12 +98,12 @@ test('an empty property returns every selected business date and all housekeepin
         ->forProperty($property, '2026-12-10', '2026-12-11'));
 
     expect($operations['daily'])->toEqual([
-        ['date' => '2026-12-10', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
-        ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+        ['date' => '2026-12-10', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+        ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
     ])->and(array_column($operations['housekeeping'], 'rooms'))->toBe([0, 0, 0, 0, 0]);
 });
 
-test('daily counts retain identical stays and clip long in-house stays at the requested boundaries', function () {
+test('identical legacy stays retain their unknown history and planned departures', function () {
     [$owner, , $property] = organizationWithOwner();
 
     inTenant($property, function () use ($owner, $property) {
@@ -109,14 +113,14 @@ test('daily counts retain identical stays and clip long in-house stays at the re
         $copy->fill(['reservation_number' => 'SECOND-STAY'])->save();
 
         expect(app(PropertyOperations::class)->forProperty($property, '2026-12-31', '2027-01-02')['daily'])->toEqual([
-            ['date' => '2026-12-31', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 2],
-            ['date' => '2027-01-01', 'arrivals' => 0, 'departures' => 2, 'inHouse' => 0],
-            ['date' => '2027-01-02', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+            ['date' => '2026-12-31', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+            ['date' => '2027-01-01', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 2],
+            ['date' => '2027-01-02', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
         ]);
     });
 });
 
-test('checked-out stays keep their past arrival and in-house nights, ending on the reservation departure', function () {
+test('normal and early check-out retain recorded arrival and in-house nights at inclusive range endpoints', function () {
     [$owner, , $property] = organizationWithOwner();
     $property->update(['business_date' => '2026-12-10']);
 
@@ -139,15 +143,15 @@ test('checked-out stays keep their past arrival and in-house nights, ending on t
         app(CheckOut::class)->handle($owner, $full->fresh());
 
         expect(app(PropertyOperations::class)->forProperty($property, '2026-12-09', '2026-12-12')['daily'])->toEqual([
-            ['date' => '2026-12-09', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
-            ['date' => '2026-12-10', 'arrivals' => 2, 'departures' => 0, 'inHouse' => 2],
-            ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 1],
-            ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0],
+            ['date' => '2026-12-09', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+            ['date' => '2026-12-10', 'arrivals' => 2, 'departures' => 0, 'inHouse' => 2, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+            ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 1, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+            ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
         ]);
     });
 });
 
-test('delayed administrative check-out retains reservation-date counts rather than an actual event timeline', function () {
+test('delayed check-out uses its recorded business date rather than scheduled departure', function () {
     [$owner, , $property] = organizationWithOwner();
     $property->update(['business_date' => '2026-12-10']);
 
@@ -164,10 +168,10 @@ test('delayed administrative check-out retains reservation-date counts rather th
         expect($checkedOut->status)->toBe(ReservationStatus::CheckedOut)
             ->and($checkedOut->departure->toDateString())->toBe('2026-12-12')
             ->and(app(PropertyOperations::class)->forProperty($property, '2026-12-10', '2026-12-13')['daily'])->toEqual([
-                ['date' => '2026-12-10', 'arrivals' => 1, 'departures' => 0, 'inHouse' => 1],
-                ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1],
-                ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0],
-                ['date' => '2026-12-13', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+                ['date' => '2026-12-10', 'arrivals' => 1, 'departures' => 0, 'inHouse' => 1, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+                ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+                ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+                ['date' => '2026-12-13', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
             ]);
     });
 });

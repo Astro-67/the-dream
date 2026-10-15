@@ -65,7 +65,8 @@ final class GroupReports
             ])->all(),
             'kpis' => $this->kpis($reports->pluck('kpis')),
             'operations' => [
-                'daily' => self::addUp($part('operations.daily'), 'date', ['arrivals', 'departures', 'inHouse']),
+                'daily' => self::addUp($part('operations.daily'), 'date', ['arrivals', 'departures', 'inHouse', 'plannedArrivals', 'plannedDepartures']),
+                'historyUnavailable' => (int) $reports->sum('operations.historyUnavailable'),
                 'housekeeping' => self::addUp($part('operations.housekeeping'), 'status', ['rooms']),
             ],
             'finance' => [

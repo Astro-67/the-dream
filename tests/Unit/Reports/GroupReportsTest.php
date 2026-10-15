@@ -82,9 +82,9 @@ test('group operations add each business date and current housekeeping status ac
         ->forProperties(collect([$t->a->property, $t->a->otherProperty]), '2026-12-10', '2026-12-12'))['operations'];
 
     expect($operations['daily'])->toEqual([
-        ['date' => '2026-12-10', 'arrivals' => 2, 'departures' => 0, 'inHouse' => 0],
-        ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
-        ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 2, 'inHouse' => 0],
+        ['date' => '2026-12-10', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 2, 'plannedDepartures' => 0],
+        ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+        ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 2],
     ])->and(collect($operations['housekeeping'])->pluck('rooms', 'status')->all())->toEqual([
         'dirty' => 1, 'clean' => 1, 'occupied' => 0, 'inspection_required' => 0, 'unavailable' => 0,
     ]);

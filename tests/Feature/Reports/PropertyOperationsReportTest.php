@@ -23,9 +23,10 @@ test('an auditor reads date-filtered operations only for the current property wi
         ->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('reports/index')
         ->where('operations.daily', [
-            ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1],
-            ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0],
+            ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+            ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 1],
         ])
+        ->where('operations.historyUnavailable', 1)
         ->where('refreshedAt', now()->toIso8601String())
         ->where('operations.housekeeping.0.rooms', 1));
 });
