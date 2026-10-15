@@ -26,6 +26,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Cookie\CookieValuePrefix;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -38,7 +39,7 @@ set_exception_handler(static function (Throwable $error): never {
     fwrite(STDERR, $error."\n");
     exit(1);
 });
-if (getenv('QUALIFY_DISPOSABLE') !== '1' || config('database.connections.mysql.host') !== 'mysql' || DB::connection()->getDatabaseName() !== 'ticket107_qualification') {
+if (getenv('QUALIFY_DISPOSABLE') !== '1' || ! $app->isProduction() || config('database.connections.mysql.host') !== 'mysql' || DB::connection()->getDatabaseName() !== 'ticket107_qualification') {
     throw new RuntimeException('This harness requires its disposable ticket107_qualification database.');
 }
 
@@ -54,10 +55,11 @@ match ($mode) {
     'seed' => seed(),
     'verify' => verifySeed(),
     'profile' => profileReports(),
+    'profile-http' => profileHttp($argv[2] ?? 'owner', (int) ($argv[3] ?? 31)),
     'query' => measureQueries((int) ($argv[2] ?? 5)),
     'http' => measureHttp($argv[2] ?? '', (int) ($argv[3] ?? 200), array_map('intval', array_slice($argv, 4)) ?: [1]),
     'steady' => measureSteady($argv[2] ?? '', (int) ($argv[3] ?? 300), (int) ($argv[4] ?? 1000)),
-    default => throw new InvalidArgumentException('Mode must be seed, query, http or steady.'),
+    default => throw new InvalidArgumentException('Mode must be seed, verify, profile, profile-http, query, http or steady.'),
 };
 
 function ulid(): string
@@ -77,7 +79,7 @@ function insertRows(string $table, array &$rows, bool $flush = false): void
 function seed(): void
 {
     $started = microtime(true);
-    $today = CarbonImmutable::now('Africa/Dar_es_Salaam')->startOfDay();
+    $today = qualificationDate();
     $now = now();
     $session = [];
 
@@ -299,7 +301,7 @@ function summary(array $milliseconds): array
 /** In-process GroupReports for every organization's real properties: query and PHP time, no HTTP. */
 function measureQueries(int $repeats): void
 {
-    $today = CarbonImmutable::now('Africa/Dar_es_Salaam')->toDateString();
+    $today = qualificationDate()->toDateString();
     $ranges = ['1 night' => [$today, $today], '31 nights' => [CarbonImmutable::parse($today)->subDays(30)->toDateString(), $today]];
     $organizations = DB::table('organizations')->orderBy('id')->pluck('id');
     $results = [];
@@ -329,7 +331,7 @@ function measureQueries(int $repeats): void
 
 function profileReports(): void
 {
-    $today = CarbonImmutable::now('Africa/Dar_es_Salaam');
+    $today = qualificationDate();
     $organization = DB::table('organizations')->orderBy('id')->value('id');
     $results = Tenancy::within(TenantContext::forOrganization($organization), function () use ($today): array {
         $properties = Property::query()->real()->get();
@@ -353,6 +355,37 @@ function profileReports(): void
     echo json_encode($results, JSON_PRETTY_PRINT)."\n";
 }
 
+function profileHttp(string $role, int $days): void
+{
+    if (! in_array($role, ['owner', 'finance'], true) || ! in_array($days, [1, 31], true)) {
+        throw new InvalidArgumentException('Profile an owner or finance session for 1 or 31 dates.');
+    }
+    $session = collect(json_decode((string) file_get_contents(dirname(__DIR__).'/.scratch/qualification-sessions.json'), true, flags: JSON_THROW_ON_ERROR))->firstWhere('role', $role);
+    $name = (string) config('session.cookie');
+    $cookie = encrypt(CookieValuePrefix::create($name, app('encrypter')->getKey()).$session['id'], false);
+    $today = qualificationDate();
+    $from = $today->subDays($days - 1)->toDateString();
+    $to = $today->toDateString();
+    $request = Request::create("http://nginx/reports/group?from={$from}&to={$to}", cookies: [$name => $cookie], server: ['HTTP_ACCEPT' => 'text/html']);
+    $queries = [];
+    DB::listen(function ($query) use (&$queries): void {
+        $queries[] = ['ms' => $query->time, 'sql' => preg_replace("/'(?:''|[^'])*'/", "'<REDACTED>'", $query->sql)];
+    });
+    $kernel = app(Illuminate\Contracts\Http\Kernel::class);
+    $started = hrtime(true);
+    $response = $kernel->handle($request);
+    $kernel->terminate($request, $response);
+    $wall = (hrtime(true) - $started) / 1e6;
+    $body = (string) $response->getContent();
+    $valid = $response->getStatusCode() === 200 && (str_contains($body, 'component&quot;:&quot;reports\\/group') || str_contains($body, 'component":"reports\\/group'));
+    echo json_encode(['role' => $role, 'from' => $from, 'to' => $to, 'wallMs' => $wall, 'sqlMs' => array_sum(array_column($queries, 'ms')),
+        'environment' => app()->environment(), 'debug' => (bool) config('app.debug'), 'sessionDriver' => config('session.driver'), 'cacheStore' => config('cache.default'),
+        'status' => $response->getStatusCode(), 'validReport' => $valid, 'queries' => $queries], JSON_PRETTY_PRINT)."\n";
+    if (! $valid) {
+        throw new RuntimeException('HTTP-kernel profile did not render an authenticated group report.');
+    }
+}
+
 /**
  * GET /reports/group over HTTP with the seeded staff sessions, $requests per concurrency level.
  * Concurrency 1 is the serial measurement.
@@ -369,7 +402,7 @@ function measureHttp(string $baseUrl, int $requests, array $levels): void
     $name = (string) config('session.cookie');
     $key = app('encrypter')->getKey();
     $cookies = $sessions->map(fn (array $s) => $name.'='.urlencode(encrypt(CookieValuePrefix::create($name, $key).$s['id'], false)))->all();
-    $today = CarbonImmutable::now('Africa/Dar_es_Salaam')->toDateString();
+    $today = qualificationDate()->toDateString();
     $ranges = ['1 night' => "from={$today}&to={$today}", '31 nights' => 'from='.CarbonImmutable::parse($today)->subDays(30)->toDateString()."&to={$today}"];
     $results = [];
     foreach ($ranges as $label => $query) {
@@ -442,7 +475,7 @@ function measureSteady(string $baseUrl, int $seconds, int $expectedSessions): vo
     $key = app('encrypter')->getKey();
     $cookies = array_map(fn (array $session) => $name.'='.urlencode(encrypt(CookieValuePrefix::create($name, $key).$session['id'], false)), $sessions);
     $schedule = qualificationSchedule($expectedSessions, $seconds, $expectedSessions === 20 ? 2 : 60);
-    $today = CarbonImmutable::now('Africa/Dar_es_Salaam')->toDateString();
+    $today = qualificationDate()->toDateString();
     $results = [];
     foreach (['1 night' => $today, '31 nights' => CarbonImmutable::parse($today)->subDays(30)->toDateString()] as $label => $from) {
         $multi = curl_multi_init();
@@ -474,6 +507,9 @@ function measureSteady(string $baseUrl, int $seconds, int $expectedSessions): vo
                 $handle = $done['handle'];
                 $request = $active[spl_object_id($handle)];
                 $times[] = (hrtime(true) / 1e9 - $started - $request['due']) * 1000;
+                if (count($times) % 1000 === 0) {
+                    fwrite(STDERR, sprintf("%s: %d/%d completed, %.1fs elapsed\n", $label, count($times), count($schedule), hrtime(true) / 1e9 - $started));
+                }
                 $wire[] = curl_getinfo($handle, CURLINFO_TOTAL_TIME) * 1000;
                 $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
                 $body = (string) curl_multi_getcontent($handle);
@@ -504,6 +540,7 @@ function measureSteady(string $baseUrl, int $seconds, int $expectedSessions): vo
             'offeredRequestsPerSecond' => count($schedule) / $seconds, 'steadySeconds' => $seconds,
             'elapsedSecondsIncludingDrain' => round(hrtime(true) / 1e9 - $started, 3), 'peakInFlight' => $peak,
         ];
+        file_put_contents(dirname(__DIR__).'/.scratch/qualification/steady-progress.json', json_encode($results, JSON_PRETTY_PRINT));
     }
     echo json_encode(['mode' => 'open-loop, latency from scheduled arrival through completion INCLUDING errors and client queue', 'qualification' => $expectedSessions === 1000, 'results' => $results], JSON_PRETTY_PRINT)."\n";
     foreach ($results as $result) {

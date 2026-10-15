@@ -50,6 +50,58 @@ checks pass on SQLite (72 tests/372 assertions) and MySQL (75/1,010), including
 report isolation; no cache or stored aggregate is introduced.
 Final full measurements and functional gates remain pending.
 
+### Completed full-load failure at 219beac
+
+Both ranges complete the declared 5,000 requests and use all 1,000 distinct
+authorized sessions. All 10,000 responses are HTTP 200 group reports, but
+latency fails; wrapper exit 1. No queue delay or failure is discarded.
+
+| Range              | Scheduled-arrival p50 ms |    p95 ms | Maximum ms | Wire p95 ms | Queue p95 ms | Seconds including drain |
+| ------------------ | -----------------------: | --------: | ---------: | ----------: | -----------: | ----------------------: |
+| 15 Oct 2026        |                285,774.2 | 528,564.8 |  575,029.8 |    49,532.4 |    487,285.1 |                 874.079 |
+| 15 Sep–15 Oct 2026 |                455,735.6 | 864,076.8 |  934,221.5 |    71,678.2 |    803,720.4 |               1,233.166 |
+
+Source `219beac7f19bc20e5da2f29b6eea9c6666e3ff70`, tree
+`761f427a62d1a23b001460ba552e36a2ddf4a5e9`; evidence
+`.scratch/qualification-evidence/full-219beac/`. Steady load begins
+15 October 2026 at approximately 23:13:33 Africa/Dar_es_Salaam;
+wrapper finishes 23:48:46. Each range offers 16.6667 requests/s over
+300 seconds; both reach the 256-handle client limit, retaining queued arrivals.
+
+This run uses MySQL 2 CPUs/3 GiB/1 GiB buffer pool. During load MySQL uses
+its full 2-CPU quota while PHP uses approximately 0.86–1.16 CPUs, with
+high CPU and IO pressure but no memory pressure. No functional test runs
+alongside it. Full-size plans show a correlated ownership-estimate error:
+finance starts from 9,120 folios (estimated 183), rather than 535 nonzero
+balances, and repeats that path for summary and page. The long-range
+price query also chooses non-covering reservation/date lookups.
+
+The next raw-query correction adds covering folio ownership/reservation
+and reservation-first price indexes. These have red/green schema-contract
+tests. A separate clock-boundary regression requires qualification ranges
+to follow the stored property business date if setup crosses midnight;
+application time and monotonic latency timers are not frozen.
+
+Before the next measurement, MySQL resources are explicitly increased to
+**3 CPUs / 4 GiB, with a 2 GiB InnoDB buffer pool**. The laptop has 8 logical
+CPUs; PHP remains 2 CPUs/2 GiB/16 workers and Nginx 0.5 CPU/128 MiB.
+This addresses measured CPU throttling and the larger covering-index
+working set; comparisons are not presented as code-only speedups.
+The load, data capacity, duration and strict 800 ms gate are unchanged.
+This remains local production-like sizing, not a production deployment.
+HTTP-kernel profiles include middleware/auth/session SQL timings with
+bindings omitted and string literals redacted.
+The revised smoke passes all integrity/HTTP checks with p95 262.2/490.0 ms
+at its **smoke-only** rate; this is not full qualification. SQLite report
+regressions pass 75 tests/375 assertions; MySQL report/isolation checks pass
+78/1,013. Smoke also checks the new migration's MySQL down/up path before
+seeding: MySQL had silently replaced implicit organization foreign-key
+indexes with the covering indexes, so rollback restores those supporting
+indexes before dropping the report indexes. The rollback check uses
+`APP_ENV=testing` only for that CLI command against the empty disposable
+database; FPM, seed and all measurements remain production-mode.
+Full mode uses the canonical freshly migrated schema without this round-trip.
+
 The old positional interface used PHP's built-in server. It is replaced by the
 disposable Nginx + PHP-FPM + OPcache + MySQL stack in `scripts/qualification/`.
 All measurements below remain historical built-in-server evidence, not results
@@ -118,6 +170,13 @@ then 20 distinct authorized sessions over two seconds per range. Smoke checks
 responses and session coverage, **not** performance acceptance. Neither smoke
 nor the schedule self-check establishes full-capacity qualification.
 
+`QUALIFY_PAUSE_BEFORE_LOAD=1` optionally pauses the foreground wrapper after
+seed verification, before any timed load. It accepts only `continue`;
+EOF/other input exits and cleans up. This permits sequential diagnosis
+against the disposable full dataset without reseeding for each probe.
+Continuing restarts FPM, rebuilds its configuration/routes and pins committed
+source before normal profiling and the unchanged full workload.
+
 ### Recorded-history seed verification
 
 `verify` runs before HTTP measurements and refuses incomplete measured-date
@@ -148,7 +207,7 @@ December 13.
 
 ### Resources, artifacts and cleanup
 
-Fixed stack limits: MySQL 2 CPUs / 3 GiB, 1 GiB InnoDB buffer pool, 100 connections;
+Current stack limits: MySQL 3 CPUs / 4 GiB, 2 GiB InnoDB buffer pool, 100 connections;
 PHP 2 CPUs / 2 GiB, 16 static FPM children, 256 MiB per-request PHP limit,
 192 MiB shared OPcache; Nginx 0.5 CPU / 128 MiB. The PHP curl client currently
 shares the PHP container's CPU/memory limit with FPM, so results include that
@@ -166,7 +225,8 @@ needed. Retain the built image ID and actual runtime versions from
 `.scratch/qualification/stack.txt` when comparing runs.
 
 Evidence is overwritten per run in `.scratch/qualification/`:
-`seed.json`, `verification.json`, `profile.json`, `before.txt`, `after.txt`,
+`seed.json`, `seed-source.txt`, `verification.json`, `profile.json`,
+`profile-http-{owner,finance}-{1,31}.json`, `before.txt`, `after.txt`,
 `burst.json`, `steady.json`, and `stack.txt`. Query plans precede measurement;
 host and container CPU/memory snapshots bracket the load. Capture wrapper
 stdout/stderr separately if retaining successive runs. No cookies or keys are

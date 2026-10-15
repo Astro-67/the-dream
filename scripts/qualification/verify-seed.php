@@ -8,9 +8,14 @@ use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
+function qualificationDate(): CarbonImmutable
+{
+    return CarbonImmutable::parse(DB::table('properties')->value('business_date') ?? CarbonImmutable::now('Africa/Dar_es_Salaam'), 'Africa/Dar_es_Salaam')->startOfDay();
+}
+
 function verifySeed(): void
 {
-    $today = CarbonImmutable::now('Africa/Dar_es_Salaam')->startOfDay();
+    $today = qualificationDate();
     $properties = ORGANIZATIONS * PROPERTIES_PER_ORGANIZATION;
     $coverage = DB::table('inventory_records')->whereBetween('date', [$today->subDays(30)->toDateString(), $today->toDateString()])
         ->selectRaw('property_id, COUNT(DISTINCT date) as dates')->groupBy('property_id')->get();

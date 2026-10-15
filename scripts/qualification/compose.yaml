@@ -6,11 +6,11 @@ services:
             MYSQL_DATABASE: ticket107_qualification
             MYSQL_USER: qualification
             MYSQL_PASSWORD: ${DB_PASSWORD:?}
-        command: ['--innodb-buffer-pool-size=1G', '--max-connections=100']
+        command: ['--innodb-buffer-pool-size=2G', '--max-connections=100']
         volumes:
             - mysql:/var/lib/mysql
-        mem_limit: 3g
-        cpus: 2
+        mem_limit: 4g
+        cpus: 3
         healthcheck:
             test:
                 [
