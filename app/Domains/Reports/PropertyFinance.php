@@ -35,6 +35,10 @@ final class PropertyFinance
                 'balance' => (int) $folio->getAttribute('balance'),
             ])->all();
 
-        return ['folios' => $folios];
+        $openAfterDeparture = collect($folios)->where('departed', true)->groupBy('currency')->sortKeys()
+            ->map(fn ($rows, string $currency): array => ['currency' => $currency, 'folios' => $rows->count(), 'balance' => $rows->sum('balance')])
+            ->values()->all();
+
+        return ['folios' => $folios, 'openAfterDeparture' => $openAfterDeparture];
     }
 }

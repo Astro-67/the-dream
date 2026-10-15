@@ -1,9 +1,17 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\FrontDesk\Actions\CheckIn;
+use App\Domains\FrontDesk\Actions\CheckOut;
+use App\Domains\Guests\Actions\CreateGuest;
+use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reports\PropertyFinance;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
@@ -49,5 +57,35 @@ test('folio balances list every unsettled folio with its reservation and leave s
             'currency' => 'USD',
             'balance' => 1000,
         ]]);
+    });
+});
+
+test('open balances after departure total each currency separately and leave in-house folios out', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $property->update(['business_date' => '2026-12-10']);
+
+    inTenant($property, function () use ($owner, $property) {
+        [$departing, $inHouse] = financeReportFolios($owner, 2);
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        foreach ([$departing, $inHouse] as $index => $folio) {
+            $reservation = Reservation::query()->findOrFail($folio->reservation_id);
+            $reservation->update(['room_id' => Room::query()->orderBy('number')->skip($index)->value('id')]);
+            $guest = app(CreateGuest::class)->handle($owner, ['name' => 'Guest '.$index, 'documents' => [['type' => 'passport', 'number' => 'P765432'.$index, 'nationality' => 'DE']]]);
+            ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+            app(CheckIn::class)->handle($owner, $reservation);
+            app(PostExtraCharge::class)->handle($owner, $folio, ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 1500]);
+        }
+        $shillings = app(OpenFolio::class)->handle($owner, Reservation::query()->findOrFail($departing->reservation_id), 'TZS');
+        app(PostExtraCharge::class)->handle($owner, $shillings, ['category' => 'laundry', 'quantity' => 1, 'unit_price' => 20000]);
+        $property->update(['business_date' => '2026-12-12']);
+        app(CheckOut::class)->handle($owner, Reservation::query()->findOrFail($departing->reservation_id), 'Company pays by invoice');
+
+        $finance = app(PropertyFinance::class)->forProperty($property, '2026-12-10', '2026-12-11');
+
+        expect(collect($finance['folios'])->where('departed', true)->pluck('balance', 'currency')->all())->toEqual(['TZS' => 20000, 'USD' => 1500])
+            ->and($finance['openAfterDeparture'])->toEqual([
+                ['currency' => 'TZS', 'folios' => 1, 'balance' => 20000],
+                ['currency' => 'USD', 'folios' => 1, 'balance' => 1500],
+            ]);
     });
 });
