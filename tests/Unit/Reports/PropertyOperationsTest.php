@@ -61,3 +61,34 @@ test('housekeeping counts current active rooms in every status regardless of the
             ->and(app(PropertyOperations::class)->forProperty($property, '2027-01-01', '2027-01-01')['housekeeping'])->toEqual($expected);
     });
 });
+
+test('an organization context counts only the requested property and empty dates remain zero', function () {
+    $t = twoTenants();
+    foreach ([$t->a->property, $t->a->otherProperty, $t->b->property] as $property) {
+        $owner = $property->organization_id === $t->a->organization->id ? $t->a->owner : $t->b->owner;
+        inTenant($property, function () use ($owner) {
+            $reservation = app(CreateReservation::class)->handle($owner, BookingForm::details($owner));
+            $reservation->update(['status' => ReservationStatus::CheckedIn]);
+        });
+    }
+
+    $operations = inTenant($t->a->organization, fn () => app(PropertyOperations::class)
+        ->forProperty($t->a->property, '2026-12-11', '2026-12-13'));
+
+    expect($operations['daily'])->toEqual([
+        ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1],
+        ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0],
+        ['date' => '2026-12-13', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+    ])->and(array_sum(array_column($operations['housekeeping'], 'rooms')))->toBe(1);
+});
+
+test('an empty property returns every selected business date and all housekeeping statuses with zero counts', function () {
+    [, , $property] = organizationWithOwner();
+    $operations = inTenant($property, fn () => app(PropertyOperations::class)
+        ->forProperty($property, '2026-12-10', '2026-12-11'));
+
+    expect($operations['daily'])->toEqual([
+        ['date' => '2026-12-10', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+        ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+    ])->and(array_column($operations['housekeeping'], 'rooms'))->toBe([0, 0, 0, 0, 0]);
+});
