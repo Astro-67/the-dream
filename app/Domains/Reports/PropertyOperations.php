@@ -2,9 +2,9 @@
 
 namespace App\Domains\Reports;
 
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
-use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -41,9 +41,9 @@ final class PropertyOperations
                     ->on('history.property_id', '=', 'reservations.property_id');
             })
             ->whereIn('status', [ReservationStatus::Confirmed, ReservationStatus::CheckedIn, ReservationStatus::CheckedOut])
-            ->whereRaw('COALESCE(history.checked_in_date, arrival) <= ?', [$to])
+            ->whereRaw('COALESCE(history.checked_in_date, DATE(arrival)) <= ?', [$to])
             ->where(function ($query) use ($from): void {
-                $query->whereRaw('COALESCE(history.checked_out_date, departure) >= ?', [$from])
+                $query->whereRaw('COALESCE(history.checked_out_date, DATE(departure)) >= ?', [$from])
                     ->orWhere('status', ReservationStatus::CheckedIn);
             })
             ->selectRaw('reservations.property_id, arrival, departure, status, checked_in_date, checked_out_date, COUNT(*) as reservations')
