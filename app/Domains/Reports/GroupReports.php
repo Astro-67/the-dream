@@ -3,6 +3,8 @@
 namespace App\Domains\Reports;
 
 use App\Domains\Tenancy\Models\Property;
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Collection;
 
 /**
@@ -27,12 +29,13 @@ final class GroupReports
     public function forProperties(Collection $properties, string $from, string $to): array
     {
         $properties = Property::query()->real()->whereKey($properties->pluck('id'))->orderBy('name')->orderBy('id')->get();
-        $reports = $properties->map(fn (Property $property): array => [
+        // Each property in its own context: a property context scopes every query to its property.
+        $reports = $properties->map(fn (Property $property): array => Tenancy::within(TenantContext::forProperty($property), fn (): array => [
             'property' => $property,
             'kpis' => $this->kpis->forProperty($property, $from, $to),
             'operations' => $this->operations->forProperty($property, $from, $to),
             'finance' => $this->finance->forProperty($property, $from, $to),
-        ]);
+        ]));
         $finance = $reports->pluck('finance');
 
         return [

@@ -122,3 +122,15 @@ test('group finance adds full per-currency totals and never sums a page of folio
         $t->a->otherProperty->id => 51,
     ]);
 });
+
+test('a property context still reads every included property of the organization', function () {
+    $t = twoTenants();
+    foreach ([$t->a->property, $t->a->otherProperty] as $property) {
+        inTenant($property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+    }
+
+    $kpis = inTenant($t->a->property, fn () => app(GroupReports::class)
+        ->forProperties(collect([$t->a->property, $t->a->otherProperty]), '2026-12-10', '2026-12-11'))['kpis'];
+
+    expect($kpis['soldRoomNights'])->toBe(4)->and($kpis['currencies'][0]['bookedRoomValue'])->toBe(44000);
+});
