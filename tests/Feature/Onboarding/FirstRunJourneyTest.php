@@ -62,20 +62,37 @@ test('the registration form states the password policy before the user types', f
         ->where('passwordHint', 'At least 8 characters.'));
 });
 
-test('registration is throttled per IP and refused with a form error', function () {
+test('registration is throttled per IP and refused with a form error', function (int $elapsedSeconds) {
+    $this->freezeTime();
+
     foreach (range(1, 5) as $i) {
         $this->post(route('register.store'), ['name' => 'x', 'email' => "bad{$i}"]);
     }
+
+    $this->travel($elapsedSeconds)->seconds();
 
     $this->post(route('register.store'), [
         'name' => 'Late',
         'email' => 'late@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
-    ])->assertSessionHasErrors(['email' => __('Too many attempts. Try again in :seconds seconds.', ['seconds' => 60])]);
+    ])->assertSessionHasErrors(['email' => __('Too many attempts. Try again in :seconds seconds.', ['seconds' => 60 - $elapsedSeconds])]);
 
     $this->assertGuest();
-});
+
+    expect(User::query()->where('email', 'late@example.com')->exists())->toBeFalse();
+
+    $this->travel(60 - $elapsedSeconds)->seconds();
+
+    $this->post(route('register.store'), [
+        'name' => 'Late',
+        'email' => 'late@example.com',
+        'password' => 'password',
+        'password_confirmation' => 'password',
+    ])->assertSessionHasNoErrors()->assertRedirect(route('dashboard', absolute: false));
+
+    $this->assertAuthenticated();
+})->with(['immediate refusal' => 0, 'one second later' => 1]);
 
 test('the forgot-password form answers the same for unknown and known emails', function () {
     Notification::fake();
