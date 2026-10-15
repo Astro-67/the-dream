@@ -203,6 +203,7 @@ export function AppSidebar() {
                     <NavMain
                         items={platformNavItems}
                         label="Platform administration"
+                        labelHref={platformOrganizations()}
                     />
                 )}
             </SidebarContent>

@@ -26,6 +26,14 @@ _Avoid_: Group block, multi-room reservation
 The in-house phase of a reservation, from check-in to check-out. Not a separate record from the reservation.
 _Avoid_: Visit
 
+**Booked occupancy**:
+Rooms sold divided by sellable rooms for a date, counting reservations whether or not guests have arrived. Valid for future dates.
+_Avoid_: Occupancy (unqualified, for future dates)
+
+**Actual occupancy**:
+Rooms occupied overnight divided by sellable rooms for a past date.
+_Avoid_: Occupancy (unqualified, for past dates)
+
 **Room assignment**:
 Choosing the specific room for a reservation. Optional when booking, required by check-in.
 
@@ -108,6 +116,14 @@ A record that something happened to a reservation that authorities may need to k
 _Avoid_: Booking report (that is ZAN Gateway's message, derived from the event)
 
 ## Subscriptions
+
+**Plan**:
+A priced offer Thedream sells to organizations, setting the price, billing period, property and room limits, and included modules.
+_Avoid_: Package, tier, rate plan (that is a room price)
+
+**Subscription**:
+An organization's agreement to one plan, with its trial, billing period and status.
+_Avoid_: Account, licence
 
 **SaaS invoice**:
 A request for payment from Thedream to an organization for one subscription billing period. Separate from guest folios, non-fiscal receipts and fiscal receipts.

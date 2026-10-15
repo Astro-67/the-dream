@@ -193,6 +193,16 @@ Every new screen uses the shared building blocks; don't hand-roll their markup o
 
 Colours come only from theme tokens (`bg-primary`, `bg-primary-tint`, `text-muted-foreground`, `text-status-warning` and so on), never Tailwind palette colours such as `text-green-600`.
 
+## Marketing surfaces
+
+Public pages that sell Thedream (the landing page at `/`) follow every rule above, with these exceptions. PMS screens keep the strict rules.
+
+- **Photography:** photorealistic images of warm East-African boutique hotels, each with one small indigo accent so they relate to the UI. They live in `public/images/marketing/` as WebP under 350 KB. No people's faces, no text or logos, and no image that implies a real customer.
+- **Product screenshots:** real screens from the showcase data, in the visitor's active theme. Never a mock-up that shows a feature the product lacks.
+- **Image overlays:** a dark scrim (`bg-black/50` or stronger) is allowed over a photo so white text passes contrast. This is the only gradient or overlay allowed.
+- **Proof:** no testimonials, customer logos or usage numbers until they are real.
+- **Pricing:** live plan prices come from the plans a platform administrator publishes. Plans without a published price say "Talk to us". Integrations awaiting certification are never advertised (PRD §13).
+
 ## Do's and Don'ts
 
 - Do use Primary only for interactive and selected elements, never for decoration or static text.
@@ -206,5 +216,5 @@ Colours come only from theme tokens (`bg-primary`, `bg-primary-tint`, `text-mute
 - Don't use shadows on static elements, or move buttons on hover.
 - Don't use more than three font weights (400, 500, 600) on a screen.
 - Don't place more than one primary button in the same section.
-- Don't add gradients, illustrations or decorative patterns.
+- Don't add gradients, illustrations or decorative patterns (marketing photography is the one exception; see Marketing surfaces).
 - Don't add amounts in different currencies, or hide which currency an amount is in.
