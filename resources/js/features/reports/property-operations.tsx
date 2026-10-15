@@ -27,8 +27,10 @@ export type PropertyOperationsData = {
 
 export default function PropertyOperations({
     operations,
+    group = false,
 }: {
     operations: PropertyOperationsData;
+    group?: boolean;
 }) {
     const hasActivity = operations.daily.some(
         (day) => day.arrivals || day.departures || day.inHouse,
@@ -151,7 +153,11 @@ export default function PropertyOperations({
                     </Table>
                 ) : (
                     <EmptyState
-                        message="No active rooms in this property."
+                        message={
+                            group
+                                ? 'No active rooms in these properties.'
+                                : 'No active rooms in this property.'
+                        }
                         action="Ask a property manager to set up rooms in Inventory."
                     />
                 )}

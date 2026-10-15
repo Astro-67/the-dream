@@ -92,3 +92,20 @@ test('an empty property returns every selected business date and all housekeepin
         ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
     ])->and(array_column($operations['housekeeping'], 'rooms'))->toBe([0, 0, 0, 0, 0]);
 });
+
+test('daily counts retain identical stays and clip long in-house stays at the requested boundaries', function () {
+    [$owner, , $property] = organizationWithOwner();
+
+    inTenant($property, function () use ($owner, $property) {
+        $reservation = app(CreateReservation::class)->handle($owner, BookingForm::details($owner));
+        $reservation->update(['arrival' => '2026-10-01', 'departure' => '2027-01-01', 'status' => ReservationStatus::CheckedIn]);
+        $copy = $reservation->replicate();
+        $copy->fill(['reservation_number' => 'SECOND-STAY'])->save();
+
+        expect(app(PropertyOperations::class)->forProperty($property, '2026-12-31', '2027-01-02')['daily'])->toEqual([
+            ['date' => '2026-12-31', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 2],
+            ['date' => '2027-01-01', 'arrivals' => 0, 'departures' => 2, 'inHouse' => 0],
+            ['date' => '2027-01-02', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+        ]);
+    });
+});
