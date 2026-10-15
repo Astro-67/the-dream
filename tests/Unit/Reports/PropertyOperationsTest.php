@@ -147,7 +147,7 @@ test('checked-out stays keep their past arrival and in-house nights, ending on t
     });
 });
 
-test('delayed administrative check-out retains reservation-date counts rather than an actual event timeline', function () {
+test('delayed check-out uses its recorded business date rather than scheduled departure', function () {
     [$owner, , $property] = organizationWithOwner();
     $property->update(['business_date' => '2026-12-10']);
 
@@ -164,10 +164,10 @@ test('delayed administrative check-out retains reservation-date counts rather th
         expect($checkedOut->status)->toBe(ReservationStatus::CheckedOut)
             ->and($checkedOut->departure->toDateString())->toBe('2026-12-12')
             ->and(app(PropertyOperations::class)->forProperty($property, '2026-12-10', '2026-12-13')['daily'])->toEqual([
-                ['date' => '2026-12-10', 'arrivals' => 1, 'departures' => 0, 'inHouse' => 1],
-                ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1],
-                ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0],
-                ['date' => '2026-12-13', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 0],
+                ['date' => '2026-12-10', 'arrivals' => 1, 'departures' => 0, 'inHouse' => 1, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+                ['date' => '2026-12-11', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+                ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 0, 'inHouse' => 1, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
+                ['date' => '2026-12-13', 'arrivals' => 0, 'departures' => 1, 'inHouse' => 0, 'plannedArrivals' => 0, 'plannedDepartures' => 0],
             ]);
     });
 });
