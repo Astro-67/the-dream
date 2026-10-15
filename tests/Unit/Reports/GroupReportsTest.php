@@ -168,6 +168,14 @@ test('group finance preserves credit balances settled folios and dated refund re
         ]);
     foreach ([$t->a->property, $t->a->otherProperty] as $property) {
         $finance = inTenant($property, fn () => app(PropertyFinance::class)->forProperty($property, '2026-12-11', '2026-12-11'));
+        $single = inTenant($property, fn () => app(GroupReports::class)->forProperties(collect([$property]), '2026-12-11', '2026-12-11'))['finance'];
+        expect($finance['openAfterDeparture'])->toEqual([['currency' => 'USD', 'folios' => 1, 'balance' => -2000]])
+            ->and($single['openAfterDeparture'])->toEqual($finance['openAfterDeparture'])
+            ->and($finance['folios']->total())->toBe(1)
+            ->and($single['folios']->total())->toBe(1)
+            ->and(array_column($finance['folios']->items(), 'balance'))->toBe([-2000])
+            ->and(array_column($finance['folios']->items(), 'departed'))->toBe([true])
+            ->and(collect($single['folios']->items())->map(fn (array $folio): array => collect($folio)->except('propertyName')->all())->all())->toEqual($finance['folios']->items());
         $row = collect($report['finance']['payments']['rows'])->firstWhere('propertyId', $property->id);
         expect(collect($row)->except(['propertyId', 'propertyName', 'timezone'])->all())->toEqual($finance['payments']['rows'][0]);
     }

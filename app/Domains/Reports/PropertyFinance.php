@@ -10,7 +10,6 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Finance reports for one property: a snapshot of folio balances now, and payments
@@ -28,13 +27,10 @@ final class PropertyFinance
     public function forProperty(Property $property, string $from, string $to): array
     {
         $property = Property::query()->real()->findOrFail($property->id);
-        $balance = self::balance();
-        $openAfterDeparture = DB::query()->fromSub(self::unsettled(collect([$property->id]))->where('reservations.status', ReservationStatus::CheckedOut->value)
-            ->select('folios.currency')->selectSub($balance, 'balance'), 'departed')
-            ->selectRaw('currency, COUNT(*) as folios, SUM(balance) as balance')->groupBy('currency')->orderBy('currency')->get()
-            ->map(fn (object $row): array => ['currency' => (string) $row->currency, 'folios' => (int) $row->folios, 'balance' => (int) $row->balance])->all();
+        $properties = collect([$property]);
+        $summary = $this->summariesForProperties($properties, $from, $to)[$property->id];
 
-        return ['folios' => $this->folios(collect([$property])), 'openAfterDeparture' => $openAfterDeparture, 'payments' => $this->payments(collect([$property]), $from, $to)[$property->id]];
+        return ['folios' => $this->folios($properties, $summary['unsettledFolios']), 'openAfterDeparture' => $summary['openAfterDeparture'], 'payments' => $summary['payments']];
     }
 
     /**
@@ -47,12 +43,8 @@ final class PropertyFinance
     public function folios(Collection $properties, ?int $total = null): LengthAwarePaginator
     {
         $ids = Property::query()->real()->whereKey($properties->pluck('id'))->pluck('id');
-        $balances = Posting::query()->whereIn('postings.property_id', $ids)
-            ->selectRaw('folio_id, SUM(amount) as balance')->groupBy('folio_id')->havingRaw('SUM(amount) <> 0');
 
-        return Folio::query()->whereIn('folios.property_id', $ids)
-            ->joinSub($balances, 'balances', 'balances.folio_id', '=', 'folios.id')
-            ->join('reservations', 'reservations.id', '=', 'folios.reservation_id')
+        return self::unsettled($ids)
             ->select(['folios.id', 'folios.property_id', 'folios.currency', 'reservations.reservation_number', 'reservations.status', 'reservations.departure', 'balances.balance'])
             ->orderBy('reservations.departure')->orderBy('reservations.reservation_number')->orderBy('folios.currency')->orderBy('folios.id')
             ->paginate(50, pageName: 'folios', total: $total)->withQueryString()
@@ -68,12 +60,6 @@ final class PropertyFinance
             ]);
     }
 
-    /** @return Builder<Posting> A folio's balance: the sum of its postings. */
-    private static function balance(): Builder
-    {
-        return Posting::query()->selectRaw('coalesce(sum(amount), 0)')->whereColumn('postings.folio_id', 'folios.id');
-    }
-
     /**
      * Folios of the property IDs with a balance that is not zero, joined to their reservation.
      *
@@ -82,11 +68,12 @@ final class PropertyFinance
      */
     private static function unsettled(Collection $ids): Builder
     {
-        $balance = self::balance();
+        $balances = Posting::query()->whereIn('postings.property_id', $ids)
+            ->selectRaw('folio_id, SUM(amount) as balance')->groupBy('folio_id')->havingRaw('SUM(amount) <> 0');
 
         return Folio::query()->whereIn('folios.property_id', $ids)
-            ->join('reservations', 'reservations.id', '=', 'folios.reservation_id')
-            ->whereRaw('('.$balance->toSql().') <> 0', $balance->getBindings());
+            ->joinSub($balances, 'balances', 'balances.folio_id', '=', 'folios.id')
+            ->join('reservations', 'reservations.id', '=', 'folios.reservation_id');
     }
 
     /**
@@ -96,12 +83,7 @@ final class PropertyFinance
     public function summariesForProperties(Collection $properties, string $from, string $to): array
     {
         $properties = Property::query()->real()->whereKey($properties->pluck('id'))->get();
-        $ids = $properties->pluck('id');
-        $balances = Posting::query()->whereIn('postings.property_id', $ids)
-            ->selectRaw('folio_id, SUM(amount) as balance')->groupBy('folio_id')->havingRaw('SUM(amount) <> 0');
-        $rows = Folio::query()->whereIn('folios.property_id', $ids)
-            ->joinSub($balances, 'balances', 'balances.folio_id', '=', 'folios.id')
-            ->join('reservations', 'reservations.id', '=', 'folios.reservation_id')
+        $rows = self::unsettled($properties->pluck('id'))
             ->selectRaw('folios.property_id, folios.currency, COUNT(*) as unsettled')
             ->selectRaw('SUM(CASE WHEN reservations.status = ? THEN 1 ELSE 0 END) as departed_folios', [ReservationStatus::CheckedOut->value])
             ->selectRaw('SUM(CASE WHEN reservations.status = ? THEN balances.balance ELSE 0 END) as departed_balance', [ReservationStatus::CheckedOut->value])
