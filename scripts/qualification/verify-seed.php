@@ -95,6 +95,7 @@ function verifySeed(): void
         return $fixtures;
     });
     echo json_encode(['rows' => $counts, 'eventTypes' => $types, 'measuredDatesPerProperty' => 31,
+        'reservationStatuses' => DB::table('reservations')->selectRaw('status, COUNT(*) as reservations')->groupBy('status')->pluck('reservations', 'status'),
         'missingBoundaries' => $missing->sum('missing'), 'missingFraction' => $missing->sum('missing') / $counts['reservations'],
         'invalidEvents' => $invalid, 'confirmedBoundaries' => $confirmedBoundaries, 'fixtures' => $fixtures], JSON_PRETTY_PRINT)."\n";
 }

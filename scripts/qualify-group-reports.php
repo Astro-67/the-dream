@@ -344,6 +344,7 @@ function profileReports(): void
             DB::flushQueryLog();
             $results[$label] = ['wallMs' => $elapsed, 'sqlMs' => array_sum(array_column($queries, 'time')), 'queries' => array_map(fn ($query) => [
                 ...$query, 'plan' => str_starts_with(strtolower($query['query']), 'select') ? DB::select('EXPLAIN FORMAT=JSON '.$query['query'], $query['bindings']) : [],
+                'analyze' => str_starts_with(strtolower($query['query']), 'select') ? DB::select('EXPLAIN ANALYZE '.$query['query'], $query['bindings']) : [],
             ], $queries)];
         }
 
@@ -497,6 +498,7 @@ function measureSteady(string $baseUrl, int $seconds, int $expectedSessions): vo
         } while ($next < count($schedule) || $active !== [] || hrtime(true) / 1e9 - $started < $seconds);
         curl_multi_close($multi);
         $results[$label] = summary($times) + [
+            'from' => $from, 'to' => $today,
             'schedulingQueueMs' => summary($queues), 'wireMs' => summary($wire),
             'statuses' => $statuses, 'distinctSessionsIssued' => count($issued),
             'offeredRequestsPerSecond' => count($schedule) / $seconds, 'steadySeconds' => $seconds,

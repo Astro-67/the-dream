@@ -69,10 +69,12 @@ final class PropertyFinance
     private static function unsettled(Collection $ids): Builder
     {
         $balances = Posting::query()->whereIn('postings.property_id', $ids)
-            ->selectRaw('folio_id, SUM(amount) as balance')->groupBy('folio_id')->havingRaw('SUM(amount) <> 0');
+            ->selectRaw('property_id, folio_id, SUM(amount) as balance')->groupBy('property_id', 'folio_id')->havingRaw('SUM(amount) <> 0');
 
         return Folio::query()->whereIn('folios.property_id', $ids)
-            ->joinSub($balances, 'balances', 'balances.folio_id', '=', 'folios.id')
+            ->joinSub($balances, 'balances', function ($join): void {
+                $join->on('balances.folio_id', '=', 'folios.id')->on('balances.property_id', '=', 'folios.property_id');
+            })
             ->join('reservations', 'reservations.id', '=', 'folios.reservation_id');
     }
 
@@ -119,7 +121,7 @@ final class PropertyFinance
     {
         $rows = Posting::query()->whereIn('postings.property_id', $properties->pluck('id'))
             ->whereNotNull('postings.method')->whereIn('postings.type', ['payment', 'refund', 'reversal'])
-            ->whereDate('postings.business_date', '>=', $from)->whereDate('postings.business_date', '<=', $to)
+            ->where('postings.business_date', '>=', $from)->where('postings.business_date', '<', CarbonImmutable::parse($to)->addDay()->toDateString())
             ->leftJoin('cashier_shifts', 'cashier_shifts.id', '=', 'postings.cashier_shift_id')
             ->leftJoin('users', 'users.id', '=', 'cashier_shifts.user_id')
             ->groupBy('postings.property_id', 'postings.method', 'postings.currency', 'postings.cashier_shift_id', 'users.name', 'cashier_shifts.opened_at')

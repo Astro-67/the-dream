@@ -7,6 +7,7 @@ use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationPriceLine;
 use App\Domains\Tenancy\Models\Property;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 
 final class PropertyKpis
@@ -27,14 +28,15 @@ final class PropertyKpis
     {
         $properties = Property::query()->real()->whereKey($properties->pluck('id'))->get();
         $ids = $properties->pluck('id');
-        $inventory = InventoryRecord::query()->whereIn('property_id', $ids)->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
+        $until = CarbonImmutable::parse($to)->addDay()->toDateString();
+        $inventory = InventoryRecord::query()->whereIn('property_id', $ids)->where('date', '>=', $from)->where('date', '<', $until)
             ->selectRaw('property_id, SUM(sold_count) as sold, SUM(sellable_count) as sellable')
             ->groupBy('property_id')->toBase()->get()->keyBy('property_id');
         $reservations = Reservation::query()->whereIn('property_id', $ids)
             ->whereIn('status', [ReservationStatus::Confirmed, ReservationStatus::CheckedIn, ReservationStatus::CheckedOut])
             ->select('id');
         $values = ReservationPriceLine::query()->whereIn('property_id', $ids)
-            ->whereIn('reservation_id', $reservations)->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
+            ->whereIn('reservation_id', $reservations)->where('date', '>=', $from)->where('date', '<', $until)
             ->selectRaw('property_id, currency, SUM(amount) as booked_value')->groupBy('property_id', 'currency')->orderBy('currency')
             ->toBase()->get()->mapToGroups(function (object $line) use ($inventory): array {
                 $sold = (int) ($inventory->get($line->property_id)->sold ?? 0);

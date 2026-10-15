@@ -39,6 +39,15 @@ index storage/write overhead and require a normal deployment migration;
 no actual production database or deployment is involved in this local run.
 Five schema-contract regressions fail before the migration; the same
 regressions and all property/group report tests pass after it.
+The initial index-only probe still chose a full folio-key scan for balances.
+Grouping balances by property then folio permits the covering path, and the
+join also matches property IDs. Lifecycle grouping/index order likewise
+starts with property then reservation. Half-open raw DATE bounds replace
+DATE-wrapped indexed inventory, price-line and payment columns, retaining
+inclusive report endpoints (including SQLite's timestamp serialization).
+EXPLAIN ANALYZE is retained alongside estimated plans. Targeted regression
+checks pass on SQLite (72 tests/372 assertions) and MySQL (75/1,010), including
+report isolation; no cache or stored aggregate is introduced.
 Final full measurements and functional gates remain pending.
 
 The old positional interface used PHP's built-in server. It is replaced by the
@@ -214,7 +223,7 @@ cached intentionally. PHP lint, Bash syntax, Pint and the 5,000-arrival
 scheduler self-check pass. No full benchmark, fast suite, MySQL test suite
 or end-to-end suite ran during this bounded preparation.
 
-## Workload (seeded, 15 October 2026 run)
+## Historical Built-In-Server Workload (15 October 2026)
 
 | Rows                    | Count                                                                                                 |
 | ----------------------- | ----------------------------------------------------------------------------------------------------- |

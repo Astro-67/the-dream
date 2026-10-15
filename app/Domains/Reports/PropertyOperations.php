@@ -34,7 +34,7 @@ final class PropertyOperations
         $events = ReservationLifecycleEvent::query()->whereIn('property_id', $ids)
             ->whereIn('type', ['checked_in', 'checked_out'])
             ->selectRaw("reservation_id, property_id, MIN(CASE WHEN type = 'checked_in' THEN DATE(business_date) END) as checked_in_date, MAX(CASE WHEN type = 'checked_out' THEN DATE(business_date) END) as checked_out_date")
-            ->groupBy('reservation_id', 'property_id');
+            ->groupBy('property_id', 'reservation_id');
         $reservations = Reservation::query()->whereIn('reservations.property_id', $ids)
             ->leftJoinSub($events, 'history', function ($join): void {
                 $join->on('history.reservation_id', '=', 'reservations.id')

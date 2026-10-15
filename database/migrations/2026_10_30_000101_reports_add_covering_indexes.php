@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('reservation_lifecycle_events', function (Blueprint $table): void {
-            $table->index(['organization_id', 'property_id', 'type', 'reservation_id', 'business_date'], 'report_lifecycle_cover');
+            $table->index(['organization_id', 'property_id', 'reservation_id', 'type', 'business_date'], 'report_lifecycle_cover');
         });
         Schema::table('reservations', function (Blueprint $table): void {
             $table->index(['organization_id', 'property_id', 'status', 'arrival', 'departure'], 'report_reservations_cover');
