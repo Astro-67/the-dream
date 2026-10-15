@@ -2,11 +2,12 @@
 
 /**
  * Qualification harness for group reports (#107): PRD capacity workload, p95 < 800 ms.
- * Run through scripts/qualify-group-reports.sh, which owns the disposable MySQL container.
+ * Run through scripts/qualify-group-reports.sh, which owns the disposable HTTP/MySQL stack.
  *
  *   php scripts/qualify-group-reports.php seed
  *   php scripts/qualify-group-reports.php query [repeats]
  *   php scripts/qualify-group-reports.php http <base-url> <requests> <concurrency>...
+ *   php scripts/qualify-group-reports.php steady http://nginx <seconds> <distinct-sessions>
  *
  * Refuses any database but ticket107_qualification, so it never touches dev data.
  */
@@ -29,13 +30,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 require dirname(__DIR__).'/vendor/autoload.php';
+require __DIR__.'/qualification/schedule.php';
 $app = require dirname(__DIR__).'/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 set_exception_handler(static function (Throwable $error): never {
     fwrite(STDERR, $error."\n");
     exit(1);
 });
-if (DB::connection()->getDatabaseName() !== 'ticket107_qualification') {
+if (getenv('QUALIFY_DISPOSABLE') !== '1' || config('database.connections.mysql.host') !== 'mysql' || DB::connection()->getDatabaseName() !== 'ticket107_qualification') {
     throw new RuntimeException('This harness requires its disposable ticket107_qualification database.');
 }
 
@@ -51,7 +53,8 @@ match ($mode) {
     'seed' => seed(),
     'query' => measureQueries((int) ($argv[2] ?? 5)),
     'http' => measureHttp($argv[2] ?? '', (int) ($argv[3] ?? 200), array_map('intval', array_slice($argv, 4)) ?: [1]),
-    default => throw new InvalidArgumentException('Mode must be seed, query or http.'),
+    'steady' => measureSteady($argv[2] ?? '', (int) ($argv[3] ?? 300), (int) ($argv[4] ?? 1000)),
+    default => throw new InvalidArgumentException('Mode must be seed, query, http or steady.'),
 };
 
 function ulid(): string
@@ -98,7 +101,7 @@ function seed(): void
         Tenancy::within(TenantContext::forOrganization($organization), function () use ($o, $propertyIds, &$session, $organization, $owner) {
             $session[] = [$owner->id, $organization->id, $propertyIds[0], 'owner'];
             for ($s = 1; $s < STAFF_PER_ORGANIZATION; $s++) {
-                $role = $s === 1 ? OrganizationRole::GroupOperationsManager : [OrganizationRole::PropertyManager, OrganizationRole::Finance, OrganizationRole::FrontDesk][$s % 3];
+                $role = $s === 1 ? OrganizationRole::GroupOperationsManager : [OrganizationRole::PropertyManager, OrganizationRole::Finance][$s % 2];
                 $user = User::factory()->create(['name' => "Staff {$o}-{$s}", 'email' => "staff{$o}-{$s}@qualification.test"]);
                 $property = $propertyIds[$s % PROPERTIES_PER_ORGANIZATION];
                 app(AddOrganizationMember::class)->handle($user, $role->mayHaveAllProperties() ? MembershipGrant::allProperties($role) : MembershipGrant::properties($role, [$property]));
@@ -118,6 +121,7 @@ function seed(): void
         ], JSON_THROW_ON_ERROR)), 'last_activity' => time() + 86400, 'role' => $s[3]], $session);
     DB::table('sessions')->insert(array_map(fn (array $row) => collect($row)->except('role')->all(), $rows));
     file_put_contents(dirname(__DIR__).'/.scratch/qualification-sessions.json', json_encode(array_map(fn (array $row) => ['id' => $row['id'], 'role' => $row['role']], $rows), JSON_PRETTY_PRINT));
+    chmod(dirname(__DIR__).'/.scratch/qualification-sessions.json', 0600);
 
     $counts = collect(['organizations', 'properties', 'rooms', 'users', 'sessions', 'inventory_records', 'reservations', 'reservation_price_lines', 'folios', 'postings'])
         ->mapWithKeys(fn (string $table) => [$table => DB::table($table)->count()]);
@@ -259,6 +263,9 @@ function measureQueries(int $repeats): void
  */
 function measureHttp(string $baseUrl, int $requests, array $levels): void
 {
+    if (! in_array($baseUrl, ['http://nginx'], true) || $requests < 1 || min($levels) < 1) {
+        throw new InvalidArgumentException('HTTP measurements require the private qualification nginx and positive counts.');
+    }
     $sessions = collect(json_decode((string) file_get_contents(dirname(__DIR__).'/.scratch/qualification-sessions.json'), true))
         ->whereIn('role', ['owner', 'group_operations_manager', 'property_manager', 'finance'])->values();
     $name = (string) config('session.cookie');
@@ -308,4 +315,101 @@ function measureHttp(string $baseUrl, int $requests, array $levels): void
         }
     }
     echo json_encode(['mode' => 'http GET reports.group (full HTML page load)', 'eligibleSessions' => count($cookies), 'distinctSessions' => min($requests, count($cookies)), 'results' => $results], JSON_PRETTY_PRINT)."\n";
+    foreach ($results as $ranges) {
+        foreach ($ranges as $result) {
+            if (array_keys($result['statuses']) !== [200]) {
+                throw new RuntimeException('Burst contained failed report requests.');
+            }
+        }
+    }
+}
+
+function measureSteady(string $baseUrl, int $seconds, int $expectedSessions): void
+{
+    if ($baseUrl !== 'http://nginx' || ! (($seconds === 2 && $expectedSessions === 20) || ($seconds >= 300 && $expectedSessions === 1000))) {
+        throw new InvalidArgumentException('Use private nginx: smoke 2s/20 sessions, qualification >=300s/1,000 sessions.');
+    }
+    $sessions = json_decode((string) file_get_contents(dirname(__DIR__).'/.scratch/qualification-sessions.json'), true, flags: JSON_THROW_ON_ERROR);
+    if (count($sessions) !== $expectedSessions || count(array_unique(array_column($sessions, 'id'))) !== $expectedSessions) {
+        throw new RuntimeException('Distinct seeded session count does not match workload.');
+    }
+    if ($expectedSessions === 1000) {
+        foreach (['organizations' => 100, 'properties' => 500, 'rooms' => 50000, 'reservations' => 640000, 'folios' => 640000, 'postings' => 1139000] as $table => $expected) {
+            if (DB::table($table)->count() !== $expected) {
+                throw new RuntimeException("Capacity mismatch: {$table}");
+            }
+        }
+    }
+    $name = (string) config('session.cookie');
+    $key = app('encrypter')->getKey();
+    $cookies = array_map(fn (array $session) => $name.'='.urlencode(encrypt(CookieValuePrefix::create($name, $key).$session['id'], false)), $sessions);
+    $schedule = qualificationSchedule($expectedSessions, $seconds, $expectedSessions === 20 ? 2 : 60);
+    $today = CarbonImmutable::now('Africa/Dar_es_Salaam')->toDateString();
+    $results = [];
+    foreach (['1 night' => $today, '31 nights' => CarbonImmutable::parse($today)->subDays(30)->toDateString()] as $label => $from) {
+        $multi = curl_multi_init();
+        $active = $times = $queues = $wire = $statuses = $issued = [];
+        $next = $peak = 0;
+        $started = hrtime(true) / 1e9;
+        do {
+            $elapsed = hrtime(true) / 1e9 - $started;
+            while ($next < count($schedule) && $schedule[$next]['due'] <= $elapsed && count($active) < 256) {
+                $request = $schedule[$next++];
+                $handle = curl_init($baseUrl."/reports/group?from={$from}&to={$today}");
+                curl_setopt_array($handle, [
+                    CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 120, CURLOPT_CONNECTTIMEOUT => 5,
+                    CURLOPT_HTTPHEADER => ['Cookie: '.$cookies[$request['session']], 'Accept: text/html'],
+                ]);
+                $active[spl_object_id($handle)] = $request;
+                $queues[] = (hrtime(true) / 1e9 - $started - $request['due']) * 1000;
+                $issued[$request['session']] = true;
+                curl_multi_add_handle($multi, $handle);
+            }
+            $peak = max($peak, count($active));
+            do {
+                $code = curl_multi_exec($multi, $running);
+            } while ($code === CURLM_CALL_MULTI_PERFORM);
+            if ($code !== CURLM_OK) {
+                throw new RuntimeException('curl_multi_exec failed: '.curl_multi_strerror($code));
+            }
+            while ($done = curl_multi_info_read($multi)) {
+                $handle = $done['handle'];
+                $request = $active[spl_object_id($handle)];
+                $times[] = (hrtime(true) / 1e9 - $started - $request['due']) * 1000;
+                $wire[] = curl_getinfo($handle, CURLINFO_TOTAL_TIME) * 1000;
+                $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+                $body = (string) curl_multi_getcontent($handle);
+                if ($done['result'] !== CURLE_OK) {
+                    $status = 'curl:'.$done['result'];
+                } elseif ($status === 200 && ! str_contains($body, 'component&quot;:&quot;reports\\/group') && ! str_contains($body, 'component":"reports\\/group')) {
+                    $status = 'not a group report';
+                }
+                $statuses[$status] = ($statuses[$status] ?? 0) + 1;
+                unset($active[spl_object_id($handle)]);
+                curl_multi_remove_handle($multi, $handle);
+                curl_close($handle);
+            }
+            $untilNext = $next < count($schedule) ? max(0.001, $schedule[$next]['due'] - (hrtime(true) / 1e9 - $started)) : 0.01;
+            if ($active !== []) {
+                if (curl_multi_select($multi, min(0.01, $untilNext)) === -1) {
+                    usleep(1000);
+                }
+            } elseif ($next < count($schedule)) {
+                usleep((int) (min(0.01, $untilNext) * 1e6));
+            }
+        } while ($next < count($schedule) || $active !== [] || hrtime(true) / 1e9 - $started < $seconds);
+        curl_multi_close($multi);
+        $results[$label] = summary($times) + [
+            'schedulingQueueMs' => summary($queues), 'wireMs' => summary($wire),
+            'statuses' => $statuses, 'distinctSessionsIssued' => count($issued),
+            'offeredRequestsPerSecond' => count($schedule) / $seconds, 'steadySeconds' => $seconds,
+            'elapsedSecondsIncludingDrain' => round(hrtime(true) / 1e9 - $started, 3), 'peakInFlight' => $peak,
+        ];
+    }
+    echo json_encode(['mode' => 'open-loop, latency from scheduled arrival through completion INCLUDING errors and client queue', 'qualification' => $expectedSessions === 1000, 'results' => $results], JSON_PRETTY_PRINT)."\n";
+    foreach ($results as $result) {
+        if (array_keys($result['statuses']) !== [200] || $result['distinctSessionsIssued'] !== $expectedSessions || ($expectedSessions === 1000 && $result['p95'] >= 800)) {
+            throw new RuntimeException('Steady workload failed response/session/p95 acceptance; see JSON evidence.');
+        }
+    }
 }
