@@ -39,4 +39,28 @@ return [
 
         return $responses;
     }),
+    'reports.group' => RouteCoverage::attempt(function (TwoTenants $t) {
+        inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
+        $responses = [];
+        foreach ($t->a->members() as $role => $member) {
+            // Bravo's tenant in the session, and Bravo's property IDs supplied directly.
+            $session = ['tenancy.organization_id' => $t->b->organization->id, 'tenancy.property_id' => $t->b->property->id];
+            $supplied = $this->actingAs($member)->withSession($session)
+                ->get(route('reports.group', ['from' => '2026-12-10', 'to' => '2026-12-11', 'properties' => [$t->b->property->id, $t->b->otherProperty->id]]))
+                ->assertForbidden();
+            $responses[] = $supplied;
+
+            $response = $this->actingAs($member)->withSession($session)->get(route('reports.group', ['from' => '2026-12-10', 'to' => '2026-12-11']));
+            if (in_array($role, [OrganizationRole::FrontDesk->value, OrganizationRole::Housekeeping->value], true)) {
+                $response->assertForbidden();
+            } else {
+                $response->assertOk()->assertInertia(fn (Assert $page) => $page
+                    ->where('properties', fn ($properties) => collect($properties)->pluck('id')->diff([$t->a->property->id, $t->a->otherProperty->id])->isEmpty())
+                    ->where('kpis.soldRoomNights', 0));
+            }
+            $responses[] = $response;
+        }
+
+        return $responses;
+    }),
 ];
