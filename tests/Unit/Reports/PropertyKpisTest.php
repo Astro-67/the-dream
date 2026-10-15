@@ -57,6 +57,8 @@ test('booked values keep currencies separate exclude terminal reservations and r
             ReservationPriceLine::query()->create(['reservation_id' => $excluded->id, 'rate_plan_id' => $reservation->getAttribute('rate_plan_id'), 'date' => '2026-12-10', 'amount' => 999999, 'currency' => 'TZS']);
         }
 
+        // RPT-02 divides by all sold room-nights, which inventory does not split by currency:
+        // each currency's ADR is its share per room-night (EUR 119.99 / 2 nights), not per EUR night.
         expect(app(PropertyKpis::class)->forProperty($property, '2026-12-10', '2026-12-11')['currencies'])->toEqual([
             ['currency' => 'EUR', 'bookedRoomValue' => 11999, 'bookedAdr' => 6000, 'bookedRevpar' => 3000],
             ['currency' => 'USD', 'bookedRoomValue' => 11000, 'bookedAdr' => 5500, 'bookedRevpar' => 2750],

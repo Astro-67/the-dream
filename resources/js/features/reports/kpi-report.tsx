@@ -158,8 +158,12 @@ export default function KpiReport({
                 <p className="text-sm text-muted-foreground">
                     {group &&
                         'Group figures add up each property\u2019s room-nights and booked value, then divide; they are not averages of property ratios. '}
-                    Currencies are never added together. Money is rounded to the
-                    nearest minor unit. A zero denominator is not applicable.
+                    Currencies are never added together. Sold room-nights are
+                    not split by currency, so when rooms sell in several
+                    currencies each currency&apos;s ADR and RevPAR are its share
+                    per room-night, not the average price of rooms sold in that
+                    currency. Money is rounded to the nearest minor unit. A zero
+                    denominator is not applicable.
                 </p>
             </section>{' '}
         </>

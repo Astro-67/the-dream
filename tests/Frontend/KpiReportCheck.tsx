@@ -34,6 +34,7 @@ const group = renderToStaticMarkup(
 assert.equal((group.match(/Not applicable/g) ?? []).length, 3);
 assert.match(group, /not averages of property ratios/);
 assert.match(group, /properties reporting that currency/);
+assert.match(group, /not the average price of rooms sold in that currency/);
 assert.match(group, />TZS</);
 assert.match(group, />USD</);
 assert.doesNotMatch(
