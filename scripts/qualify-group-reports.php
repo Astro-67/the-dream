@@ -307,5 +307,5 @@ function measureHttp(string $baseUrl, int $requests, array $levels): void
             ];
         }
     }
-    echo json_encode(['mode' => 'http GET reports.group (full HTML page load)', 'distinctSessions' => count($cookies), 'results' => $results], JSON_PRETTY_PRINT)."\n";
+    echo json_encode(['mode' => 'http GET reports.group (full HTML page load)', 'eligibleSessions' => count($cookies), 'distinctSessions' => min($requests, count($cookies)), 'results' => $results], JSON_PRETTY_PRINT)."\n";
 }

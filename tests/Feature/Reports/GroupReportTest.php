@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Models\Folio;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\ReservationPriceLine;
 use App\Domains\Tenancy\Actions\CreateDemoProperty;
@@ -54,6 +56,21 @@ test('a single-property member sees only their property in the group view', func
         ->where('available', [['id' => $t->a->property->id, 'name' => $t->a->property->name]])
         ->where('kpis.soldRoomNights', 2)
         ->where('kpis.currencies.0.currency', 'USD')->has('kpis.currencies', 1));
+});
+
+test('batched finance excludes unassigned same-organization and other-organization postings', function () {
+    $t = twoTenants();
+    groupReportBookings($t);
+    foreach ([$t->a->otherProperty, $t->b->property] as $property) {
+        $owner = $property->organization_id === $t->a->organization->id ? $t->a->owner : $t->b->owner;
+        inTenant($property, fn () => app(RecordPayment::class)->handle($owner, Folio::query()->sole(), [
+            'method' => 'card', 'amount' => 777, 'currency' => 'USD',
+        ]));
+    }
+
+    groupReportAs($t, OrganizationRole::Auditor)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('properties', 1)->where('properties.0.unsettledFolios', 0)
+        ->where('finance.openAfterDeparture', [])->where('finance.payments.rows', [])->where('finance.payments.totals', []));
 });
 
 test('a selection narrows the group to the chosen authorized properties', function () {

@@ -21,7 +21,7 @@ port="$(docker port "$name" 3306/tcp | head -n1 | sed 's/.*://')"
 until docker exec "$name" mysql -uroot -proot -e 'select 1' ticket107_qualification >/dev/null 2>&1; do sleep 1; done
 
 export DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT="$port" DB_DATABASE=ticket107_qualification DB_USERNAME=root DB_PASSWORD=root DB_URL= \
-    APP_ENV=production APP_DEBUG=false LOG_LEVEL=error SESSION_DRIVER=database CACHE_STORE=array QUEUE_CONNECTION=sync \
+    APP_ENV=production APP_DEBUG=false LOG_LEVEL=error SESSION_DRIVER=database CACHE_STORE=database QUEUE_CONNECTION=sync \
     APP_CONFIG_CACHE="$PWD/.scratch/qualification-config.php" APP_ROUTES_CACHE="$PWD/.scratch/qualification-routes.php"
 
 php artisan migrate --force --no-interaction >/dev/null
