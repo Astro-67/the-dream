@@ -43,8 +43,8 @@ test('housekeeping counts current active rooms in every status regardless of the
 
     inTenant($property, function () use ($owner, $property) {
         $type = app(CreateRoomType::class)->handle($owner, InventoryForm::roomType());
-        foreach (HousekeepingStatus::cases() as $status) {
-            $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id, ['number' => $status->value]));
+        foreach (HousekeepingStatus::cases() as $index => $status) {
+            $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id, ['number' => (string) (101 + $index)]));
             RoomStatus::query()->where('room_id', $room->id)->update(['status' => $status]);
         }
         $room = app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id, ['number' => 'inactive']));
