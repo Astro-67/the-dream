@@ -16,7 +16,13 @@ use Illuminate\Support\Facades\DB;
  */
 final class PropertyFinance
 {
-    /** @return array{folios: LengthAwarePaginator<int, array<string, mixed>>, openAfterDeparture: list<array<string, mixed>>, payments: array{rows: list<array<string, mixed>>, totals: list<array<string, mixed>>}} */
+    /**
+     * @return array{
+     *     folios: LengthAwarePaginator<int, array{id: string, reservationNumber: string, status: string, departure: string, departed: bool, currency: string, balance: int}>,
+     *     openAfterDeparture: list<array{currency: string, folios: int, balance: int}>,
+     *     payments: array{rows: list<array{method: string, currency: string, shiftId: string|null, cashier: string|null, shiftOpenedAt: string|null, payments: int, refunds: int, reversals: int, net: int}>, totals: list<array{currency: string, payments: int, refunds: int, reversals: int, net: int}>},
+     * }
+     */
     public function forProperty(Property $property, string $from, string $to): array
     {
         $property = Property::query()->real()->findOrFail($property->id);
@@ -31,8 +37,8 @@ final class PropertyFinance
             ->paginate(50, pageName: 'folios')->withQueryString()
             ->through(fn (Folio $folio): array => [
                 'id' => $folio->id,
-                'reservationNumber' => $folio->getAttribute('reservation_number'),
-                'status' => $folio->getAttribute('status'),
+                'reservationNumber' => (string) $folio->getAttribute('reservation_number'),
+                'status' => (string) $folio->getAttribute('status'),
                 'departure' => substr((string) $folio->getAttribute('departure'), 0, 10),
                 'departed' => $folio->getAttribute('status') === ReservationStatus::CheckedOut->value,
                 'currency' => $folio->currency->value,
@@ -41,7 +47,7 @@ final class PropertyFinance
         $openAfterDeparture = DB::query()->fromSub((clone $unsettled)->where('reservations.status', ReservationStatus::CheckedOut->value)
             ->select('folios.currency')->selectSub($balance, 'balance'), 'departed')
             ->selectRaw('currency, COUNT(*) as folios, SUM(balance) as balance')->groupBy('currency')->orderBy('currency')->get()
-            ->map(fn (object $row): array => ['currency' => $row->currency, 'folios' => (int) $row->folios, 'balance' => (int) $row->balance])->all();
+            ->map(fn (object $row): array => ['currency' => (string) $row->currency, 'folios' => (int) $row->folios, 'balance' => (int) $row->balance])->all();
 
         return ['folios' => $folios, 'openAfterDeparture' => $openAfterDeparture, 'payments' => $this->payments($property, $from, $to)];
     }
@@ -52,7 +58,7 @@ final class PropertyFinance
      * negative of a payment or refund, counted on its own business date. Received amounts are
      * positive. Charges, transfers and write-offs carry no method and are not money received.
      *
-     * @return array{rows: list<array<string, mixed>>, totals: list<array<string, mixed>>}
+     * @return array{rows: list<array{method: string, currency: string, shiftId: string|null, cashier: string|null, shiftOpenedAt: string|null, payments: int, refunds: int, reversals: int, net: int}>, totals: list<array{currency: string, payments: int, refunds: int, reversals: int, net: int}>}
      */
     private function payments(Property $property, string $from, string $to): array
     {

@@ -16,11 +16,12 @@ class PropertyReportController extends Controller
     {
         /** @var array{from: string, to: string} $range */
         $range = $request->validated();
+        $property = Tenancy::property() ?? abort(404);
 
         return Inertia::render('reports/index', [
             'filters' => $range,
-            'kpis' => $kpis->forProperty(Tenancy::property() ?? abort(404), $range['from'], $range['to']),
-            'finance' => $finance->forProperty(Tenancy::property() ?? abort(404), $range['from'], $range['to']),
+            'kpis' => $kpis->forProperty($property, $range['from'], $range['to']),
+            'finance' => $finance->forProperty($property, $range['from'], $range['to']),
             'refreshedAt' => now()->toIso8601String(),
         ]);
     }
