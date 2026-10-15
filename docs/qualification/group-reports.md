@@ -6,11 +6,152 @@ Target (PRD §9): core server requests p95 under 800 ms at the initial qualifica
 
 ## How to reproduce
 
-```
-scripts/qualify-group-reports.sh 200 8 1 8 32
+```bash
+scripts/qualify-group-reports.sh smoke
+# Only after final history code is merged and the host is idle:
+QUALIFY_FULL=1 scripts/qualify-group-reports.sh run
 ```
 
-The arguments are requests per level, built-in server workers, then concurrency levels. The script starts a throwaway MySQL 8.0 container on tmpfs and seeds it. It runs `ANALYZE TABLE`, measures in-process, then measures over HTTP, and removes the container on exit. Sessions and the normal framework/permission cache use this disposable database; report figures are not cached. It refuses any database but `ticket107_qualification`. `QUALIFY_ORGANIZATIONS=2` makes a smoke run; any count below 100 is not the qualification workload.
+The old positional interface used PHP's built-in server. It is replaced by the
+disposable Nginx + PHP-FPM + OPcache + MySQL stack in `scripts/qualification/`.
+All measurements below remain historical built-in-server evidence, not results
+from the new stack. The full workload has **not** been rerun during infrastructure
+preparation.
+
+### Worktree prerequisites
+
+Use a copied (not symlinked) `vendor/`, and build the frontend in this worktree.
+Never copy the root `.env`. Follow `docs/agents/dev-workflow.md`, explicitly
+clearing `DB_URL` for every local Artisan/build command:
+
+```bash
+cp .env.example .env
+mkdir -p .scratch
+touch .scratch/build.sqlite
+DB_URL= DB_CONNECTION=sqlite DB_DATABASE="$PWD/.scratch/build.sqlite" php artisan key:generate
+DB_URL= DB_CONNECTION=sqlite DB_DATABASE="$PWD/.scratch/build.sqlite" php artisan migrate --force
+DB_URL= DB_CONNECTION=sqlite DB_DATABASE="$PWD/.scratch/build.sqlite" bun run build
+```
+
+Docker Engine/Compose, `curl`, `openssl`, `flock`, `sha256sum`, and PHP are required.
+The wrapper does not use host database settings or expose MySQL/FPM ports.
+It creates random throwaway credentials and an application key in a mode-0600
+gitignored runtime file, and supplies them to containers. No real credentials
+are read. The private backend Docker network has no external routing; Nginx
+also joins an edge network and is published on an automatically allocated
+loopback port. PHP and MySQL join only the private backend. Application source is
+read-only; only this worktree's storage, bootstrap cache and `.scratch` are writable.
+
+### Declared load model
+
+Full mode retains 100 organizations, 500 real properties, 50,000 rooms,
+640,000 reservations/folios and the existing price-line/posting seed. All 1,000
+distinct users/sessions now have report authorization: one owner, one group
+operations manager, four property managers and four finance staff per organization.
+The previous seed included 300 front-desk sessions without `reports.view`; those
+were excluded from HTTP. They are replaced with authorized property staff,
+not bypassed or counted as successful users.
+
+For **each** range (1 and 31 nights), full mode schedules five complete minutes:
+each session issues one report per minute, 5,000 requests per range, 16.67
+offered requests/second. Deterministic bounded jitter staggers arrivals inside
+individual slots; arrivals do not wait for previous responses. Every session
+must issue requests. This is 1,000 active sessions, **not** 1,000 in-flight requests.
+The client has at most 256 active curl handles; any waiting arrivals remain in
+the schedule and their queue delay is included. No arrival is silently dropped.
+
+Primary latency runs from the monotonic **scheduled arrival** to response/error
+completion, including client scheduling queue, FPM/MySQL queue and transport
+errors/timeouts. JSON also records wire-only and scheduling-queue percentiles,
+statuses, offered rate, actual drain duration, distinct sessions and peak
+in-flight requests. Only HTTP 200 bodies rendering `reports/group` succeed.
+Redirects, authorization failures and curl errors fail the run. Full steady
+p95 must be strictly below 800 ms for both ranges; failure is a nonzero exit,
+with JSON retained. The wrapper runs a separate simultaneous 32-request burst
+per range first; burst latency is diagnostic, not the 1,000-session steady model.
+It also warms the ordinary persistent database permission cache and OPcache;
+there is no report cache.
+
+Smoke mode seeds two organizations (10 properties, 1,000 rooms, 12,800
+reservations) and exercises the same HTTP path: 32-request bursts per range,
+then 20 distinct authorized sessions over two seconds per range. Smoke checks
+responses and session coverage, **not** performance acceptance. Neither smoke
+nor the schedule self-check establishes full-capacity qualification.
+
+### Resources, artifacts and cleanup
+
+Fixed stack limits: MySQL 2 CPUs / 3 GiB, 1 GiB InnoDB buffer pool, 100 connections;
+PHP 2 CPUs / 2 GiB, 16 static FPM children, 256 MiB per-request PHP limit,
+192 MiB shared OPcache; Nginx 0.5 CPU / 128 MiB. The PHP curl client currently
+shares the PHP container's CPU/memory limit with FPM, so results include that
+local generator overhead. Containers share the host with Docker, the OS and
+other work; this is local production-like infrastructure, not production sizing.
+MySQL uses its normal durability settings on a disposable named volume, not
+the earlier relaxed-durability tmpfs database. Compare runs only with these
+differences explicitly recorded.
+
+Official base images are digest-pinned in the Dockerfile/Compose file:
+`php:8.3-fpm-bookworm`, `nginx:1.28-alpine`, and `mysql:8.0`.
+Only PDO MySQL is compiled from the pinned image's bundled PHP source; curl,
+mbstring and OPcache are already included. No package repository download is
+needed. Retain the built image ID and actual runtime versions from
+`.scratch/qualification/stack.txt` when comparing runs.
+
+Evidence is overwritten per run in `.scratch/qualification/`:
+`seed.json`, `burst.json`, `steady.json`, and `stack.txt`. Capture wrapper
+stdout/stderr separately if retaining successive runs. No cookies or keys are
+included in result JSON. Session material and config/route caches are removed
+on exit.
+
+The worktree-path-derived Compose project (`dream107-` plus 12 hash characters)
+and `flock` prevent concurrent runs in this worktree. Startup refuses existing
+containers, networks or volumes belonging to that project. EXIT/INT/TERM
+cleanup removes only that project's containers, network and database volume,
+preserving failure exit status. No global `pkill`, Docker prune or dev database
+cleanup is used. On SIGKILL/host crash, inspect project labels first, then
+remove only its resources; the retained runtime file supports targeted recovery:
+
+```bash
+export QUALIFY_ROOT="$PWD" HOST_UID="$(id -u)" HOST_GID="$(id -g)"
+export QUALIFY_ENV_FILE="$PWD/.scratch/qualification/runtime.env"
+project="dream107-$(printf '%s' "$PWD" | sha256sum | cut -c1-12)"
+docker ps -a --filter "label=com.docker.compose.project=$project"
+docker compose --project-name "$project" --env-file "$QUALIFY_ENV_FILE" \
+  -f scripts/qualification/compose.yaml down --volumes --remove-orphans
+```
+
+Runnable scheduling invariant check (no application/database bootstrap):
+
+```bash
+php scripts/qualification/check-schedule.php
+```
+
+### Infrastructure preparation validation (15 October 2026)
+
+Application/report code remains at `34013f0`; no history implementation or report
+query was changed here. `scripts/qualify-group-reports.sh smoke` exited 0:
+two organizations, 10 properties, 1,000 rooms, 20 users/sessions, 12,800
+reservations/folios, 37,240 price lines and 22,780 postings. All 104 report
+requests returned 200 and rendered `reports/group`: 32 burst requests plus 20
+open-loop requests for each of the two date ranges. Each range used all
+20 distinct sessions. This establishes infrastructure/harness wiring only.
+The initial internal-network-only publication failed readiness; adding an
+Nginx-only edge network resolved it, and the failed run cleaned up safely.
+
+Runtime versions: PHP 8.3.35 with Zend OPcache 8.3.35, Nginx 1.28.3,
+MySQL Community Server 8.0.46, Linux/amd64. The successful built PHP image
+ID is recorded in `stack.txt`. Debian package transfer was initially slow;
+the final build needs no Debian downloads and official image pulls succeeded.
+No outstanding network blocker remains.
+
+Validation also covers full-run opt-in refusal (exit 2), concurrent-worktree
+lock refusal (exit 2), existing-project-volume refusal (exit 2), refusal of
+the worktree SQLite database (exit 1), and SIGTERM during actual stack startup
+(`timeout` exit 124). Both normal exit and interruption removed all owned
+containers, networks, MySQL volumes and runtime secret files. Images remain
+cached intentionally. PHP lint, Bash syntax, Pint and the 5,000-arrival
+scheduler self-check pass. No full benchmark, fast suite, MySQL test suite
+or end-to-end suite ran during this bounded preparation.
 
 ## Workload (seeded, 15 October 2026 run)
 
