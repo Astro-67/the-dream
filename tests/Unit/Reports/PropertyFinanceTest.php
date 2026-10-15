@@ -51,7 +51,7 @@ test('folio balances list every unsettled folio with its reservation and leave s
         app(PostExtraCharge::class)->handle($owner, $settled, ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 700]);
         app(RecordPayment::class)->handle($owner, $settled, ['method' => 'card', 'amount' => 700, 'currency' => 'USD']);
 
-        expect(app(PropertyFinance::class)->forProperty($property, '2026-12-10', '2026-12-11')['folios'])->toEqual([[
+        expect(app(PropertyFinance::class)->forProperty($property, '2026-12-10', '2026-12-11')['folios']->items())->toEqual([[
             'id' => $owing->id,
             'reservationNumber' => Reservation::query()->findOrFail($owing->reservation_id)->reservation_number,
             'status' => 'confirmed',
@@ -85,7 +85,7 @@ test('open balances after departure total each currency separately and leave in-
 
         $finance = app(PropertyFinance::class)->forProperty($property, '2026-12-10', '2026-12-11');
 
-        expect(collect($finance['folios'])->where('departed', true)->pluck('balance', 'currency')->all())->toEqual(['TZS' => 20000, 'USD' => 1500])
+        expect(collect($finance['folios']->items())->where('departed', true)->pluck('balance', 'currency')->all())->toEqual(['TZS' => 20000, 'USD' => 1500])
             ->and($finance['openAfterDeparture'])->toEqual([
                 ['currency' => 'TZS', 'folios' => 1, 'balance' => 20000],
                 ['currency' => 'USD', 'folios' => 1, 'balance' => 1500],

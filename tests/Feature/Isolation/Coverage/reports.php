@@ -31,7 +31,7 @@ return [
                     ->where('tenant.property.id', fn ($id) => in_array($id, [$t->a->property->id, $t->a->otherProperty->id], true))
                     ->where('kpis.soldRoomNights', 0)
                     ->where('kpis.currencies.0.bookedRoomValue', 0)
-                    ->where('finance.folios', [])
+                    ->where('finance.folios.data', [])
                     ->where('finance.payments.rows', []));
             }
             $responses[] = $response;

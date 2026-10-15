@@ -35,9 +35,10 @@ test('an auditor reads the current property folio balances and payments for the 
         ->get(route('reports.index'))
         ->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('reports/index')
-        ->has('finance.folios', 1)
-        ->where('finance.folios.0.id', $folio->id)
-        ->where('finance.folios.0.balance', 1100)
+        ->has('finance.folios.data', 1)
+        ->where('finance.folios.total', 1)
+        ->where('finance.folios.data.0.id', $folio->id)
+        ->where('finance.folios.data.0.balance', 1100)
         ->where('finance.openAfterDeparture', [])
         ->where('finance.payments.totals', [['currency' => 'USD', 'payments' => 400, 'refunds' => 0, 'reversals' => 0, 'net' => 400]]));
 });
@@ -50,6 +51,6 @@ test('payments outside the selected dates are left out but folio balances stay a
         ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
         ->get(route('reports.index', ['from' => '2026-12-11', 'to' => '2026-12-12']))
         ->assertOk()->assertInertia(fn (Assert $page) => $page
-        ->where('finance.folios.0.balance', 1100)
+        ->where('finance.folios.data.0.balance', 1100)
         ->where('finance.payments', ['rows' => [], 'totals' => []]));
 });
