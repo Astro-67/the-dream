@@ -44,7 +44,7 @@ import { index as platformOrganizations } from '@/routes/platform/organizations'
 import { index as platformPlans } from '@/routes/platform/plans';
 import { index as platformStaff } from '@/routes/platform/staff';
 import { index as properties } from '@/routes/properties';
-import { index as reports } from '@/routes/reports';
+import { group as groupReports, index as reports } from '@/routes/reports';
 import { index as ratePlans } from '@/routes/rate-plans';
 import { availability, index as reservations } from '@/routes/reservations';
 import { index as roomTypes } from '@/routes/room-types';
@@ -99,7 +99,18 @@ export function AppSidebar() {
     const navItems: NavItem[] = [
         ...mainNavItems,
         ...(can('reports.view')
-            ? [{ title: 'Reports', href: reports(), icon: ChartNoAxesCombined }]
+            ? [
+                  {
+                      title: 'Reports',
+                      href: reports(),
+                      icon: ChartNoAxesCombined,
+                  },
+                  {
+                      title: 'Group reports',
+                      href: groupReports(),
+                      icon: ChartNoAxesCombined,
+                  },
+              ]
             : []),
         ...(can('approvals.manage')
             ? [{ title: 'Approvals', href: approvals(), icon: ShieldCheck }]

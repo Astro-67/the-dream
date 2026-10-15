@@ -15,12 +15,17 @@ export default function ReportLayout({
     filters,
     refreshedAt,
     action,
+    description = 'Read-only reports for the current property. Dates include both the first and last night.',
+    fields,
     children,
 }: {
     title: string;
     filters: ReportFilters;
     refreshedAt: string;
     action: string;
+    description?: string;
+    /** Extra filter fields, placed before the submit button. */
+    fields?: ReactNode;
     children: ReactNode;
 }) {
     const { property } = usePage().props.tenant;
@@ -36,10 +41,7 @@ export default function ReportLayout({
         <>
             <Head title={title} />
             <div className="flex flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title={title}
-                    description="Read-only reports for the current property. Dates include both the first and last night."
-                />
+                <Heading title={title} description={description} />
                 <Form
                     action={action}
                     method="get"
@@ -83,6 +85,7 @@ export default function ReportLayout({
                                 />
                                 <InputError id="to-error" message={errors.to} />
                             </div>
+                            {fields}
                             <Button
                                 type="submit"
                                 variant="secondary"
