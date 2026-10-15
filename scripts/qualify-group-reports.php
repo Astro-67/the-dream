@@ -113,7 +113,7 @@ function seed(): void
             }
         });
         foreach ($propertyIds as $index => $propertyId) {
-            seedProperty($organization->id, $propertyId, $index % 2 === 1 ? 'TZS' : 'USD', $today, $now);
+            DB::transaction(fn () => seedProperty($organization->id, $propertyId, $index % 2 === 1 ? 'TZS' : 'USD', $today, $now));
         }
         fwrite(STDERR, sprintf("organization %d/%d seeded (%.0fs)\n", $o, ORGANIZATIONS, microtime(true) - $started));
     }
@@ -251,7 +251,7 @@ function seedLifecycle(array &$events, array $base, array $reservation, array $p
     $sequence = 0;
     $record = function (string $type, CarbonImmutable $date, array $state) use (&$events, $base, $reservation, &$sequence): void {
         $events[] = [...$base, 'id' => ulid(), 'reservation_id' => $reservation['id'], 'type' => $type, 'sequence' => ++$sequence,
-            'occurred_at' => $date->addDay()->setTime(1, $sequence)->toDateTimeString(), 'business_date' => $date->toDateString(),
+            'occurred_at' => $date->addDay()->setTime(1, $sequence)->min(CarbonImmutable::instance($base['created_at']))->toDateTimeString(), 'business_date' => $date->toDateString(),
             'actor_id' => null, 'snapshot' => json_encode($state, JSON_THROW_ON_ERROR), 'test' => false];
     };
     $arrived = in_array($reservation['status'], ['checked_in', 'checked_out'], true);

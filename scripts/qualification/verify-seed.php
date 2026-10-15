@@ -49,7 +49,8 @@ function verifySeed(): void
     }
     $invalid = DB::table('reservation_lifecycle_events as e')->join('reservations as r', 'r.id', '=', 'e.reservation_id')
         ->where(fn ($query) => $query->whereColumn('e.organization_id', '!=', 'r.organization_id')->orWhereColumn('e.property_id', '!=', 'r.property_id')
-            ->orWhere('e.test', true)->orWhereRaw('JSON_LENGTH(e.snapshot) < 10')->orWhereRaw('e.business_date > ?', [$today->toDateString()]))->count();
+            ->orWhere('e.test', true)->orWhereRaw('JSON_LENGTH(e.snapshot) < 10')->orWhereRaw('e.business_date > ?', [$today->toDateString()])
+            ->orWhere('e.occurred_at', '>', now()))->count();
     $confirmedBoundaries = DB::table('reservation_lifecycle_events as e')->join('reservations as r', 'r.id', '=', 'e.reservation_id')
         ->where('r.status', 'confirmed')->whereIn('e.type', ['checked_in', 'checked_out'])->count();
     if ($invalid !== 0 || $confirmedBoundaries !== 0) {
