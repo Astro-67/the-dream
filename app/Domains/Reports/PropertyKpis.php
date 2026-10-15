@@ -44,8 +44,8 @@ final class PropertyKpis
                 return [$line->property_id => [
                     'currency' => $line->currency,
                     'bookedRoomValue' => $amount,
-                    'bookedAdr' => $sold === 0 ? null : intdiv($amount + intdiv($sold, 2), $sold),
-                    'bookedRevpar' => $sellable === 0 ? null : intdiv($amount + intdiv($sellable, 2), $sellable),
+                    'bookedAdr' => self::ratio($amount, $sold),
+                    'bookedRevpar' => self::ratio($amount, $sellable),
                 ]];
             });
 
@@ -61,10 +61,16 @@ final class PropertyKpis
                 'currencies' => $currencies ?: [[
                     'currency' => $property->currency->value,
                     'bookedRoomValue' => 0,
-                    'bookedAdr' => $sold === 0 ? null : 0,
-                    'bookedRevpar' => $sellable === 0 ? null : 0,
+                    'bookedAdr' => self::ratio(0, $sold),
+                    'bookedRevpar' => self::ratio(0, $sellable),
                 ]],
             ]];
         })->all();
+    }
+
+    /** Minor units per room-night, rounded half up; null for a zero denominator. */
+    public static function ratio(int $amount, int $roomNights): ?int
+    {
+        return $roomNights === 0 ? null : intdiv($amount + intdiv($roomNights, 2), $roomNights);
     }
 }

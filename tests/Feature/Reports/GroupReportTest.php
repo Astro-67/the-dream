@@ -1,8 +1,11 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenFolio;
+use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationPriceLine;
 use App\Domains\Tenancy\Actions\CreateDemoProperty;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -113,3 +116,36 @@ test('group reports validate dates and property IDs at the request boundary', fu
     'properties not a list' => [['from' => '2026-12-10', 'to' => '2026-12-10', 'properties' => 'all'], ['properties']],
     'property not a string' => [['from' => '2026-12-10', 'to' => '2026-12-10', 'properties' => [['x']]], ['properties.0']],
 ]);
+
+test('group folio balances list each authorized property\'s unsettled folios with its identity and currency', function () {
+    $t = twoTenants();
+    groupReportBookings($t);
+    foreach ([$t->a->property, $t->a->otherProperty, $t->b->property] as $property) {
+        $owner = $property->organization_id === $t->a->organization->id ? $t->a->owner : $t->b->owner;
+        inTenant($property, fn () => app(PostExtraCharge::class)->handle($owner, Folio::query()->sole(), ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 1500]));
+    }
+
+    groupReportAs($t, OrganizationRole::Owner)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('finance.folios.total', 2)
+        ->where('finance.folios.data', fn ($rows) => collect($rows)->map(fn ($row) => [$row['propertyName'], $row['currency'], $row['balance']])->sort()->values()->all()
+            === collect([[$t->a->property->name, 'USD', 1500], [$t->a->otherProperty->name, 'USD', 1500]])->sort()->values()->all()));
+    groupReportAs($t, OrganizationRole::Auditor)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('finance.folios.total', 1)->where('finance.folios.data.0.propertyId', $t->a->property->id));
+});
+
+test('group folio balances paginate while keeping the selected properties and dates', function () {
+    $t = twoTenants();
+    groupReportBookings($t);
+    inTenant($t->a->otherProperty, function () use ($t) {
+        $reservation = Reservation::query()->sole();
+        for ($index = 0; $index < 51; $index++) {
+            app(PostExtraCharge::class)->handle($t->a->owner, app(OpenFolio::class)->handle($t->a->owner, $reservation, 'USD'), ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 100]);
+        }
+    });
+
+    groupReportAs($t, OrganizationRole::Owner, ['properties' => [$t->a->otherProperty->id], 'folios' => 2])->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('finance.folios.total', 51)->where('finance.folios.current_page', 2)->has('finance.folios.data', 1)
+            ->where('finance.folios.prev_page_url', fn ($url) => str_contains(urldecode($url), 'properties[0]='.$t->a->otherProperty->id)
+                && str_contains($url, 'from=2026-12-10') && str_contains($url, 'to=2026-12-11')));
+});

@@ -11,6 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { paymentMethodLabel } from '@/features/billing/payment-form';
 import { formatDate, formatMoney, formatTime } from '@/lib/utils';
 import { show } from '@/routes/reservations';
 import type { Paginated } from '@/types';
@@ -23,16 +24,21 @@ type Amounts = {
     net: number;
 };
 
+type FolioBalance = {
+    id: string;
+    propertyId: string;
+    reservationNumber: string;
+    status: string;
+    departure: string;
+    departed: boolean;
+    currency: string;
+    balance: number;
+};
+
+export type GroupFolios = Paginated<FolioBalance & { propertyName: string }>;
+
 export type PropertyFinance = {
-    folios: Paginated<{
-        id: string;
-        reservationNumber: string;
-        status: string;
-        departure: string;
-        departed: boolean;
-        currency: string;
-        balance: number;
-    }>;
+    folios: Paginated<FolioBalance>;
     openAfterDeparture: { currency: string; folios: number; balance: number }[];
     payments: {
         rows: (Amounts & {
@@ -45,14 +51,6 @@ export type PropertyFinance = {
     };
 };
 
-const methods: Record<string, string> = {
-    cash: 'Cash',
-    bank_transfer: 'Bank transfer',
-    mobile_money: 'Mobile money',
-    card: 'Card',
-    channel_collected: 'Channel collected',
-};
-
 const stays: Record<string, string> = {
     confirmed: 'Not arrived',
     checked_in: 'In house',
@@ -62,17 +60,8 @@ const stays: Record<string, string> = {
     void: 'Void',
 };
 
-/** "7 Oct 2026" for an instant, in the property's timezone. */
-const openedOn = (instant: string, timeZone: string) =>
-    new Intl.DateTimeFormat('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        timeZone,
-    }).format(new Date(instant));
-
 /** Money stays on one line, so an amount never splits from its currency. */
-const AmountCell = ({
+export const AmountCell = ({
     amount,
     currency,
 }: {
@@ -101,6 +90,76 @@ function SectionTitle({
             <p className="max-w-prose text-sm text-muted-foreground">
                 {children}
             </p>
+        </div>
+    );
+}
+
+/**
+ * Unsettled folios, 50 to a page. Group rows name their property and are not linked:
+ * a reservation opens only in its own property's context.
+ */
+export function FolioBalances({
+    folios,
+}: {
+    folios: PropertyFinance['folios'] | GroupFolios;
+}) {
+    const group = folios.data.some((folio) => 'propertyName' in folio);
+
+    return folios.data.length === 0 ? (
+        <EmptyState message="Every folio is settled." />
+    ) : (
+        <div className="grid gap-2">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        {group && <TableHead>Property</TableHead>}
+                        <TableHead>Reservation number</TableHead>
+                        <TableHead>Stay</TableHead>
+                        <TableHead>Departure</TableHead>
+                        <TableHead numeric>Balance</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {folios.data.map((folio) => (
+                        <TableRow key={folio.id}>
+                            {'propertyName' in folio && (
+                                <TableCell>{folio.propertyName}</TableCell>
+                            )}
+                            <TableCell>
+                                {'propertyName' in folio ? (
+                                    <Identifier
+                                        value={folio.reservationNumber}
+                                    />
+                                ) : (
+                                    <Link
+                                        href={show(folio.reservationNumber)}
+                                        className="text-primary underline"
+                                    >
+                                        <Identifier
+                                            value={folio.reservationNumber}
+                                        />
+                                    </Link>
+                                )}
+                            </TableCell>
+                            <TableCell>
+                                {folio.departed ? (
+                                    <StatusChip tone="warning">
+                                        Departed, balance open
+                                    </StatusChip>
+                                ) : (
+                                    (stays[folio.status] ?? folio.status)
+                                )}
+                            </TableCell>
+                            <TableCell>{formatDate(folio.departure)}</TableCell>
+                            <AmountCell
+                                amount={folio.balance}
+                                currency={folio.currency}
+                            />
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+            <Pagination page={folios} />
         </div>
     );
 }
@@ -147,60 +206,7 @@ export default function FinanceReport({
                         </dl>
                     )}
                 </div>
-                {folios.data.length === 0 ? (
-                    <EmptyState message="Every folio is settled." />
-                ) : (
-                    <div className="grid gap-2">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Reservation number</TableHead>
-                                    <TableHead>Stay</TableHead>
-                                    <TableHead>Departure</TableHead>
-                                    <TableHead numeric>Balance</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {folios.data.map((folio) => (
-                                    <TableRow key={folio.id}>
-                                        <TableCell>
-                                            <Link
-                                                href={show(
-                                                    folio.reservationNumber,
-                                                )}
-                                                className="text-primary underline"
-                                            >
-                                                <Identifier
-                                                    value={
-                                                        folio.reservationNumber
-                                                    }
-                                                />
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell>
-                                            {folio.departed ? (
-                                                <StatusChip tone="warning">
-                                                    Departed, balance open
-                                                </StatusChip>
-                                            ) : (
-                                                (stays[folio.status] ??
-                                                folio.status)
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatDate(folio.departure)}
-                                        </TableCell>
-                                        <AmountCell
-                                            amount={folio.balance}
-                                            currency={folio.currency}
-                                        />
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                        <Pagination page={folios} />
-                    </div>
-                )}
+                <FolioBalances folios={folios} />
             </section>
             <section aria-labelledby="payments-title" className="grid gap-4">
                 <SectionTitle id="payments-title" title="Payments">
@@ -232,12 +238,12 @@ export default function FinanceReport({
                                     key={`${row.method}-${row.currency}-${row.shiftId}`}
                                 >
                                     <TableCell>
-                                        {methods[row.method] ?? row.method}
+                                        {paymentMethodLabel(row.method)}
                                     </TableCell>
                                     <TableCell>
                                         {row.shiftOpenedAt === null
                                             ? 'No shift'
-                                            : `${row.cashier}, opened ${openedOn(row.shiftOpenedAt, timezone)} ${formatTime(row.shiftOpenedAt, timezone)}`}
+                                            : `${row.cashier}, opened ${formatDate(row.shiftOpenedAt, timezone)} ${formatTime(row.shiftOpenedAt, timezone)}`}
                                     </TableCell>
                                     <TableCell>{row.currency}</TableCell>
                                     <AmountCell

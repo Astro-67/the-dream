@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { formatTime } from '@/lib/utils';
+import { formatDate, formatTime } from '@/lib/utils';
 
 export type ReportFilters = { from: string; to: string };
 
@@ -30,12 +30,7 @@ export default function ReportLayout({
 }) {
     const { property } = usePage().props.tenant;
     const timezone = property?.timezone ?? 'UTC';
-    const refreshDate = new Intl.DateTimeFormat('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        timeZone: timezone,
-    }).format(new Date(refreshedAt));
+    const refreshDate = formatDate(refreshedAt, timezone);
 
     return (
         <>

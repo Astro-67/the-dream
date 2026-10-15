@@ -29,19 +29,21 @@ final class GroupReports
     public function forProperties(Collection $properties, string $from, string $to): array
     {
         $properties = Property::query()->real()->whereKey($properties->pluck('id'))->orderBy('name')->orderBy('id')->get();
-        $reports = $properties->isEmpty() ? collect() : Tenancy::within(
+        ['folios' => $folios, 'reports' => $reports] = $properties->isEmpty() ? ['folios' => null, 'reports' => collect()] : Tenancy::within(
             TenantContext::forOrganization($properties->first()->organization_id),
-            function () use ($properties, $from, $to): Collection {
+            function () use ($properties, $from, $to): array {
                 $kpis = $this->kpis->forProperties($properties, $from, $to);
                 $operations = $this->operations->forProperties($properties, $from, $to);
                 $finance = $this->finance->summariesForProperties($properties, $from, $to);
+                $names = $properties->pluck('name', 'id');
+                $folios = $this->finance->folios($properties)->through(fn (array $folio): array => [...$folio, 'propertyName' => $names[$folio['propertyId']]]);
 
-                return $properties->map(fn (Property $property): array => [
+                return ['folios' => $folios, 'reports' => $properties->map(fn (Property $property): array => [
                     'property' => $property,
                     'kpis' => $kpis[$property->id],
                     'operations' => $operations[$property->id],
                     'finance' => $finance[$property->id],
-                ]);
+                ])];
             },
         );
         // Every property's rows of one section (a dotted path), as one collection.
@@ -67,6 +69,7 @@ final class GroupReports
                 'housekeeping' => self::addUp($part('operations.housekeeping'), 'status', ['rooms']),
             ],
             'finance' => [
+                'folios' => $folios,
                 'openAfterDeparture' => self::sorted(self::addUp($part('finance.openAfterDeparture'), 'currency', ['folios', 'balance'])),
                 'payments' => [
                     'rows' => $payments,
@@ -101,8 +104,8 @@ final class GroupReports
                     'bookedRoomValue' => $amount,
                     'soldRoomNights' => $sold,
                     'sellableRoomNights' => $sellable,
-                    'bookedAdr' => self::ratio($amount, $sold),
-                    'bookedRevpar' => self::ratio($amount, $sellable),
+                    'bookedAdr' => PropertyKpis::ratio($amount, $sold),
+                    'bookedRevpar' => PropertyKpis::ratio($amount, $sellable),
                 ];
             })->values()->all();
 
@@ -136,11 +139,5 @@ final class GroupReports
     private static function sorted(array $rows): array
     {
         return collect($rows)->sortBy('currency')->values()->all();
-    }
-
-    /** Minor units rounded half up, as PropertyKpis rounds; null for a zero denominator. */
-    private static function ratio(int $amount, int $denominator): ?int
-    {
-        return $denominator === 0 ? null : intdiv($amount + intdiv($denominator, 2), $denominator);
     }
 }

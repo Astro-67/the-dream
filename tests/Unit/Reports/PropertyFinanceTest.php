@@ -53,6 +53,7 @@ test('folio balances list every unsettled folio with its reservation and leave s
 
         expect(app(PropertyFinance::class)->forProperty($property, '2026-12-10', '2026-12-11')['folios']->items())->toEqual([[
             'id' => $owing->id,
+            'propertyId' => $property->id,
             'reservationNumber' => Reservation::query()->findOrFail($owing->reservation_id)->reservation_number,
             'status' => 'confirmed',
             'departure' => '2026-12-12',

@@ -18,6 +18,9 @@ export const paymentMethods = {
     channel_collected: 'Channel-collected',
 };
 
+export const paymentMethodLabel = (method: string) =>
+    paymentMethods[method as keyof typeof paymentMethods] ?? method;
+
 export function PaymentForm({
     folio,
     channelCollected,

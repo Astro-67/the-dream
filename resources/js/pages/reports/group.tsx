@@ -9,13 +9,16 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { paymentMethodLabel } from '@/features/billing/payment-form';
+import { AmountCell, FolioBalances } from '@/features/reports/finance-report';
+import type { GroupFolios } from '@/features/reports/finance-report';
 import KpiReport from '@/features/reports/kpi-report';
 import type { Kpis } from '@/features/reports/kpi-report';
 import PropertyOperations from '@/features/reports/property-operations';
 import type { PropertyOperationsData } from '@/features/reports/property-operations';
 import ReportLayout from '@/features/reports/report-layout';
 import type { ReportFilters } from '@/features/reports/report-layout';
-import { formatMoney, formatTime } from '@/lib/utils';
+import { formatDate, formatMoney, formatTime } from '@/lib/utils';
 import { group } from '@/routes/reports';
 
 type Amounts = {
@@ -27,6 +30,7 @@ type Amounts = {
 };
 
 type GroupFinance = {
+    folios: GroupFolios;
     openAfterDeparture: { currency: string; folios: number; balance: number }[];
     payments: {
         rows: (Amounts & {
@@ -41,34 +45,6 @@ type GroupFinance = {
         totals: Amounts[];
     };
 };
-
-const methods: Record<string, string> = {
-    cash: 'Cash',
-    bank_transfer: 'Bank transfer',
-    mobile_money: 'Mobile money',
-    card: 'Card',
-    channel_collected: 'Channel collected',
-};
-
-const openedOn = (instant: string, timeZone: string) =>
-    new Intl.DateTimeFormat('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        timeZone,
-    }).format(new Date(instant));
-
-const AmountCell = ({
-    amount,
-    currency,
-}: {
-    amount: number;
-    currency: string;
-}) => (
-    <TableCell numeric className="whitespace-nowrap">
-        {formatMoney(amount, currency)}
-    </TableCell>
-);
 
 export default function GroupReport({
     filters,
@@ -169,24 +145,23 @@ export default function GroupReport({
                         ))}
                     </TableBody>
                 </Table>
-                <p className="text-sm text-muted-foreground">
-                    Switch to a property to see its folios and reservations.
-                </p>
             </section>
             <KpiReport kpis={kpis} group />
             <PropertyOperations operations={operations} group />
             <section aria-labelledby="balances-title" className="grid gap-4">
                 <div>
                     <h2 id="balances-title" className="text-lg font-semibold">
-                        Open balances after departure
+                        Folio balances
                     </h2>
                     <p className="max-w-prose text-sm text-muted-foreground">
                         A snapshot at the refresh time, not limited to the
-                        selected dates: departed guests&apos; folios with a
-                        balance that is not zero, totalled in each currency
-                        across every included property.
+                        selected dates. Charges less payments and credits on
+                        each folio with a balance that is not zero, in every
+                        included property. A negative balance is owed to the
+                        guest. Switch to a property to open its reservations.
                     </p>
                 </div>
+                <h3 className="font-medium">Open balances after departure</h3>
                 {finance.openAfterDeparture.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         No departed guest has an open balance.
@@ -206,6 +181,7 @@ export default function GroupReport({
                         ))}
                     </dl>
                 )}
+                <FolioBalances folios={finance.folios} />
             </section>
             <section aria-labelledby="payments-title" className="grid gap-4">
                 <div>
@@ -245,12 +221,12 @@ export default function GroupReport({
                                 >
                                     <TableCell>{row.propertyName}</TableCell>
                                     <TableCell>
-                                        {methods[row.method] ?? row.method}
+                                        {paymentMethodLabel(row.method)}
                                     </TableCell>
                                     <TableCell>
                                         {row.shiftOpenedAt === null
                                             ? 'No shift'
-                                            : `${row.cashier}, opened ${openedOn(row.shiftOpenedAt, row.timezone)} ${formatTime(row.shiftOpenedAt, row.timezone)}`}
+                                            : `${row.cashier}, opened ${formatDate(row.shiftOpenedAt, row.timezone)} ${formatTime(row.shiftOpenedAt, row.timezone)}`}
                                     </TableCell>
                                     <TableCell>{row.currency}</TableCell>
                                     <AmountCell
