@@ -1,9 +1,11 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Property;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -53,4 +55,26 @@ test('payments outside the selected dates are left out but folio balances stay a
         ->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('finance.folios.data.0.balance', 1100)
         ->where('finance.payments', ['rows' => [], 'totals' => []]));
+});
+
+test('folio balances paginate independently while preserving payment date filters and totals', function () {
+    $t = twoTenants();
+    $folio = financeReportPayment($t->a, $t->a->property);
+    inTenant($t->a->property, function () use ($t, $folio) {
+        $reservation = Reservation::query()->findOrFail($folio->reservation_id);
+        for ($index = 0; $index < 50; $index++) {
+            $additional = app(OpenFolio::class)->handle($t->a->owner, $reservation, 'USD');
+            app(PostExtraCharge::class)->handle($t->a->owner, $additional, ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 100]);
+        }
+    });
+
+    $this->actingAs($t->a->owner)
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('reports.index', ['from' => '2026-12-10', 'to' => '2026-12-11', 'folios' => 2]))
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('finance.folios.data', 1)
+        ->where('finance.folios.total', 51)
+        ->where('finance.folios.current_page', 2)
+        ->where('finance.folios.prev_page_url', fn ($url) => str_contains($url, 'from=2026-12-10') && str_contains($url, 'to=2026-12-11'))
+        ->where('finance.payments.totals', [['currency' => 'USD', 'payments' => 400, 'refunds' => 0, 'reversals' => 0, 'net' => 400]]));
 });

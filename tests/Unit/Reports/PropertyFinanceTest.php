@@ -128,3 +128,26 @@ test('payments in the date range group by method currency and cashier shift with
         ]);
     });
 });
+
+test('a refund reversal is received on its own business date without repeating the earlier refund', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $property->update(['business_date' => '2026-12-10']);
+
+    inTenant($property, function () use ($owner, $property) {
+        [$folio] = financeReportFolios($owner, 1);
+        $refund = app(RecordAdjustment::class)->handle($owner, $folio, 'refund', [
+            'amount' => 500, 'reason' => 'Overpaid', 'idempotency_key' => 'refund-reversal', 'method' => 'card',
+        ]);
+        $property->update(['business_date' => '2026-12-11']);
+        app(ReversePosting::class)->handle($owner, $refund, 'Refund was not sent');
+
+        $finance = app(PropertyFinance::class)->forProperty($property, '2026-12-11', '2026-12-11');
+
+        expect($finance['payments']['rows'])->toEqual([[
+            'method' => 'card', 'currency' => 'USD', 'shiftId' => null, 'cashier' => null, 'shiftOpenedAt' => null,
+            'payments' => 0, 'refunds' => 0, 'reversals' => 500, 'net' => 500,
+        ]])->and($finance['payments']['totals'])->toEqual([[
+            'currency' => 'USD', 'payments' => 0, 'refunds' => 0, 'reversals' => 500, 'net' => 500,
+        ]])->and($finance['folios']->total())->toBe(0);
+    });
+});
