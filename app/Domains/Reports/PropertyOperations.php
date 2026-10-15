@@ -25,22 +25,26 @@ final class PropertyOperations
         $reservations = Reservation::query()->where('property_id', $property->id)
             ->whereIn('status', [ReservationStatus::Confirmed, ReservationStatus::CheckedIn, ReservationStatus::CheckedOut])
             ->whereDate('arrival', '<=', $to)->whereDate('departure', '>=', $from)
-            ->get(['arrival', 'departure', 'status']);
+            ->selectRaw('arrival, departure, status, COUNT(*) as reservations')
+            ->groupBy('arrival', 'departure', 'status')->toBase()->get();
 
         foreach ($reservations as $reservation) {
-            $arrival = $reservation->arrival->toDateString();
-            $departure = $reservation->departure->toDateString();
-            if (isset($daily[$arrival]) && $reservation->status !== ReservationStatus::CheckedOut) {
-                $daily[$arrival]['arrivals']++;
+            $arrival = substr($reservation->arrival, 0, 10);
+            $departure = substr($reservation->departure, 0, 10);
+            $count = (int) $reservation->reservations;
+            if (isset($daily[$arrival]) && $reservation->status !== ReservationStatus::CheckedOut->value) {
+                $daily[$arrival]['arrivals'] += $count;
             }
             if (isset($daily[$departure])) {
-                $daily[$departure]['departures']++;
+                $daily[$departure]['departures'] += $count;
             }
-            if ($reservation->status === ReservationStatus::CheckedIn) {
-                $lastNight = min($to, $reservation->departure->subDay()->toDateString());
-                foreach (CarbonPeriod::create(max($from, $arrival), $lastNight) as $night) {
-                    $daily[$night->toDateString()]['inHouse']++;
+            if ($reservation->status === ReservationStatus::CheckedIn->value) {
+                foreach ($daily as $day => &$counts) {
+                    if ($day >= $arrival && $day < $departure) {
+                        $counts['inHouse'] += $count;
+                    }
                 }
+                unset($counts);
             }
         }
 
