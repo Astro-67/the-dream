@@ -118,10 +118,10 @@ test('payments in the date range group by method currency and cashier shift with
         $payments = app(PropertyFinance::class)->forProperty($property, '2026-12-10', '2026-12-11')['payments'];
 
         expect($payments['rows'])->toEqual([
-            ['method' => 'bank_transfer', 'currency' => 'USD', 'shiftId' => null, 'cashier' => null, 'payments' => 2000, 'refunds' => 0, 'reversals' => -2000, 'net' => 0],
-            ['method' => 'card', 'currency' => 'USD', 'shiftId' => null, 'cashier' => null, 'payments' => 3000, 'refunds' => 500, 'reversals' => 0, 'net' => 2500],
-            ['method' => 'cash', 'currency' => 'TZS', 'shiftId' => $shift->id, 'cashier' => 'Asha Cashier', 'payments' => 50000, 'refunds' => 0, 'reversals' => 0, 'net' => 50000],
-            ['method' => 'cash', 'currency' => 'USD', 'shiftId' => $shift->id, 'cashier' => 'Asha Cashier', 'payments' => 4000, 'refunds' => 0, 'reversals' => 0, 'net' => 4000],
+            ['method' => 'bank_transfer', 'currency' => 'USD', 'shiftId' => null, 'cashier' => null, 'shiftOpenedAt' => null, 'payments' => 2000, 'refunds' => 0, 'reversals' => -2000, 'net' => 0],
+            ['method' => 'card', 'currency' => 'USD', 'shiftId' => null, 'cashier' => null, 'shiftOpenedAt' => null, 'payments' => 3000, 'refunds' => 500, 'reversals' => 0, 'net' => 2500],
+            ['method' => 'cash', 'currency' => 'TZS', 'shiftId' => $shift->id, 'cashier' => 'Asha Cashier', 'shiftOpenedAt' => $shift->opened_at->toIso8601String(), 'payments' => 50000, 'refunds' => 0, 'reversals' => 0, 'net' => 50000],
+            ['method' => 'cash', 'currency' => 'USD', 'shiftId' => $shift->id, 'cashier' => 'Asha Cashier', 'shiftOpenedAt' => $shift->opened_at->toIso8601String(), 'payments' => 4000, 'refunds' => 0, 'reversals' => 0, 'net' => 4000],
         ])->and($payments['totals'])->toEqual([
             ['currency' => 'TZS', 'payments' => 50000, 'refunds' => 0, 'reversals' => 0, 'net' => 50000],
             ['currency' => 'USD', 'payments' => 9000, 'refunds' => 500, 'reversals' => -2000, 'net' => 6500],

@@ -6,6 +6,7 @@ use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Tenancy\Models\Property;
+use Carbon\CarbonImmutable;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -60,9 +61,9 @@ final class PropertyFinance
             ->whereDate('postings.business_date', '>=', $from)->whereDate('postings.business_date', '<=', $to)
             ->leftJoin('cashier_shifts', 'cashier_shifts.id', '=', 'postings.cashier_shift_id')
             ->leftJoin('users', 'users.id', '=', 'cashier_shifts.user_id')
-            ->groupBy('postings.method', 'postings.currency', 'postings.cashier_shift_id', 'users.name')
+            ->groupBy('postings.method', 'postings.currency', 'postings.cashier_shift_id', 'users.name', 'cashier_shifts.opened_at')
             ->orderBy('postings.method')->orderBy('postings.currency')->orderBy('postings.cashier_shift_id')
-            ->selectRaw('postings.method, postings.currency, postings.cashier_shift_id, users.name as cashier')
+            ->selectRaw('postings.method, postings.currency, postings.cashier_shift_id, users.name as cashier, cashier_shifts.opened_at as shift_opened_at')
             ->selectRaw("-SUM(CASE WHEN postings.type = 'payment' THEN postings.amount ELSE 0 END) as payments")
             ->selectRaw("SUM(CASE WHEN postings.type = 'refund' THEN postings.amount ELSE 0 END) as refunds")
             ->selectRaw("-SUM(CASE WHEN postings.type = 'reversal' THEN postings.amount ELSE 0 END) as reversals")
@@ -72,6 +73,7 @@ final class PropertyFinance
                 'currency' => $row->currency,
                 'shiftId' => $row->cashier_shift_id,
                 'cashier' => $row->cashier,
+                'shiftOpenedAt' => $row->shift_opened_at === null ? null : CarbonImmutable::parse($row->shift_opened_at)->toIso8601String(),
                 'payments' => (int) $row->payments,
                 'refunds' => (int) $row->refunds,
                 'reversals' => (int) $row->reversals,
