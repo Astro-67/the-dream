@@ -2,7 +2,7 @@
 
 Target (PRD §9): core server requests p95 under 800 ms at the initial qualification workload of 100 organizations, 500 properties, 50,000 rooms and 1,000 concurrent staff sessions.
 
-**Result: full concurrent qualification remains open.** At the full dataset, optimized HTTP passes p95 < 800 ms serially (248 / 265 ms for 1 / 31 nights) and at concurrency 8 (618 / 704 ms), using the normal persistent permission cache. Concurrency 32 still misses (2,167 / 2,305 ms). This is not evidence of 1,000 concurrent sessions meeting the target. No stored aggregates or report caches were added.
+**Result: full concurrent qualification remains open.** With the group folio balances added in the final fix-up, the full-dataset HTTP p95 passes serially (304 / 320 ms for 1 / 31 nights). At concurrency 8 the 1-night range passes (743 ms) and the 31-night range misses (841 ms). Concurrency 32 misses (2,498 / 2,910 ms). Before folio balances, concurrency 8 passed (618 / 704 ms); see "Final fix-up" below. This is not evidence of 1,000 concurrent sessions meeting the target. No stored aggregates or report caches were added.
 
 ## How to reproduce
 
@@ -124,9 +124,26 @@ The optimized 31-night p95 at concurrency 32 exceeds 800 ms by 1,505 ms. Through
 
 Raw evidence: `.scratch/perf-before-persistent-http.json`, `.scratch/perf-after-persistent-http.json`; server logs are `.scratch/perf-{before,after}-persistent-server.log`. Reproduction uses the command at the top of this document with the now-corrected database cache setting.
 
+## Final fix-up: group folio balances (15 October 2026)
+
+The spec review found that group reports lacked balances by folio. The group page now lists every unsettled folio of the included properties, 50 to a page, with each folio's property. That is one more page query on every group request. The first version reused the property report's balance subquery and measured worse: in-process p95 413 / 530 ms (14 queries). HTTP p95 was 445 / 536 ms serially, 1,134 / 1,362 ms at concurrency 8 and 3,748 / 4,284 ms at concurrency 32 (raw: `.scratch/perf-final-fixup.json`). The page query then switched to one grouped balance join over the included properties. It also reuses the unsettled-folio count the summaries already compute, so it needs no count query. Property reports keep their own query. A fresh throwaway container was seeded with the same row counts and the same command was rerun; all 1,200 HTTP responses were 200.
+
+| Measurement        | Range     | Concurrency | Samples | p50 ms | p95 ms | max ms | Requests/s |
+| ------------------ | --------- | ----------- | ------- | ------ | ------ | ------ | ---------- |
+| In-process, serial | 1 night   | 1           | 300     | 244.1  | 290.4  | 331.9  |            |
+| In-process, serial | 31 nights | 1           | 300     | 318.2  | 389.4  | 417.5  |            |
+| HTTP               | 1 night   | 1           | 200     | 121.8  | 303.5  | 1252.2 | 5.9        |
+| HTTP               | 31 nights | 1           | 200     | 127.5  | 319.9  | 351.9  | 5.6        |
+| HTTP               | 1 night   | 8           | 200     | 290.8  | 743.0  | 1339.1 | 17.9       |
+| HTTP               | 31 nights | 8           | 200     | 315.1  | 840.6  | 1245.3 | 16.1       |
+| HTTP               | 1 night   | 32          | 200     | 1524.4 | 2497.7 | 3479.3 | 18.0       |
+| HTTP               | 31 nights | 32          | 200     | 1703.6 | 2910.0 | 3888.8 | 16.1       |
+
+The report makes 13 queries, against 11 before folio balances. In-process p95 rose by about 40–50 ms (from 239 / 349 ms). The concurrency-8, 31-night cell now misses by 41 ms, so concurrency 8 no longer passes for every range. Same laptop and built-in server as above; runs on this host vary by tens of milliseconds, and this is one run per version. Raw: `.scratch/perf-final-fixup2.json`.
+
 ## Remaining qualification
 
-The serial query/HTTP gap is fixed without stored aggregates, and concurrency 8 passes. Concurrency 32 still fails on this host. The full target remains unproven: this laptop and built-in server do not represent production capacity, and 1,000 stored sessions are not 1,000 simultaneously active users. Do not mark the performance acceptance complete from serial or concurrency-8 timings.
+The serial query/HTTP gap is fixed without stored aggregates. With folio balances, concurrency 8 passes for 1 night and misses for 31 nights. Concurrency 32 still fails on this host. The full target remains unproven: this laptop and built-in server do not represent production capacity, and 1,000 stored sessions are not 1,000 simultaneously active users. Do not mark the performance acceptance complete from serial or concurrency-8 timings.
 
 1. Re-measure the optimized code on production-like infrastructure (PHP-FPM or Octane, managed MySQL) with 1,000 staff sessions and an explicit report request rate/think time.
 2. If application/database execution still misses p95 < 800 ms there, use that profile to decide whether stored daily aggregates are warranted. They are not a fix for requests queued behind too few web workers.
