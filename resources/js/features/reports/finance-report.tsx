@@ -71,6 +71,19 @@ const openedOn = (instant: string, timeZone: string) =>
         timeZone,
     }).format(new Date(instant));
 
+/** Money stays on one line, so an amount never splits from its currency. */
+const AmountCell = ({
+    amount,
+    currency,
+}: {
+    amount: number;
+    currency: string;
+}) => (
+    <TableCell numeric className="whitespace-nowrap">
+        {formatMoney(amount, currency)}
+    </TableCell>
+);
+
 function SectionTitle({
     id,
     title,
@@ -177,12 +190,10 @@ export default function FinanceReport({
                                         <TableCell>
                                             {formatDate(folio.departure)}
                                         </TableCell>
-                                        <TableCell numeric>
-                                            {formatMoney(
-                                                folio.balance,
-                                                folio.currency,
-                                            )}
-                                        </TableCell>
+                                        <AmountCell
+                                            amount={folio.balance}
+                                            currency={folio.currency}
+                                        />
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -229,24 +240,22 @@ export default function FinanceReport({
                                             : `${row.cashier}, opened ${openedOn(row.shiftOpenedAt, timezone)} ${formatTime(row.shiftOpenedAt, timezone)}`}
                                     </TableCell>
                                     <TableCell>{row.currency}</TableCell>
-                                    <TableCell numeric>
-                                        {formatMoney(
-                                            row.payments,
-                                            row.currency,
-                                        )}
-                                    </TableCell>
-                                    <TableCell numeric>
-                                        {formatMoney(row.refunds, row.currency)}
-                                    </TableCell>
-                                    <TableCell numeric>
-                                        {formatMoney(
-                                            row.reversals,
-                                            row.currency,
-                                        )}
-                                    </TableCell>
-                                    <TableCell numeric>
-                                        {formatMoney(row.net, row.currency)}
-                                    </TableCell>
+                                    <AmountCell
+                                        amount={row.payments}
+                                        currency={row.currency}
+                                    />
+                                    <AmountCell
+                                        amount={row.refunds}
+                                        currency={row.currency}
+                                    />
+                                    <AmountCell
+                                        amount={row.reversals}
+                                        currency={row.currency}
+                                    />
+                                    <AmountCell
+                                        amount={row.net}
+                                        currency={row.currency}
+                                    />
                                 </TableRow>
                             ))}
                             {payments.totals.map((total) => (
@@ -258,27 +267,22 @@ export default function FinanceReport({
                                         Total in {total.currency}
                                     </TableCell>
                                     <TableCell>{total.currency}</TableCell>
-                                    <TableCell numeric>
-                                        {formatMoney(
-                                            total.payments,
-                                            total.currency,
-                                        )}
-                                    </TableCell>
-                                    <TableCell numeric>
-                                        {formatMoney(
-                                            total.refunds,
-                                            total.currency,
-                                        )}
-                                    </TableCell>
-                                    <TableCell numeric>
-                                        {formatMoney(
-                                            total.reversals,
-                                            total.currency,
-                                        )}
-                                    </TableCell>
-                                    <TableCell numeric>
-                                        {formatMoney(total.net, total.currency)}
-                                    </TableCell>
+                                    <AmountCell
+                                        amount={total.payments}
+                                        currency={total.currency}
+                                    />
+                                    <AmountCell
+                                        amount={total.refunds}
+                                        currency={total.currency}
+                                    />
+                                    <AmountCell
+                                        amount={total.reversals}
+                                        currency={total.currency}
+                                    />
+                                    <AmountCell
+                                        amount={total.net}
+                                        currency={total.currency}
+                                    />
                                 </TableRow>
                             ))}
                         </TableBody>
