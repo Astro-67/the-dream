@@ -6,6 +6,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import FinanceReport from '@/features/reports/finance-report';
+import type { PropertyFinance } from '@/features/reports/finance-report';
 import ReportLayout from '@/features/reports/report-layout';
 import type { ReportFilters } from '@/features/reports/report-layout';
 import { formatMoney } from '@/lib/utils';
@@ -29,10 +31,12 @@ const money = (amount: number | null, currency: string) =>
 export default function PropertyReport({
     filters,
     kpis,
+    finance,
     refreshedAt,
 }: {
     filters: ReportFilters;
     kpis: PropertyKpis;
+    finance: PropertyFinance;
     refreshedAt: string;
 }) {
     return (
@@ -142,6 +146,7 @@ export default function PropertyReport({
                     nearest minor unit. A zero denominator is not applicable.
                 </p>
             </section>
+            <FinanceReport finance={finance} />
         </ReportLayout>
     );
 }
