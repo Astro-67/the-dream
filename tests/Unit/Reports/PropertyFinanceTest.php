@@ -1,8 +1,11 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenCashierShift;
 use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Actions\RecordAdjustment;
 use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Actions\ReversePosting;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\FrontDesk\Actions\CheckOut;
@@ -87,5 +90,41 @@ test('open balances after departure total each currency separately and leave in-
                 ['currency' => 'TZS', 'folios' => 1, 'balance' => 20000],
                 ['currency' => 'USD', 'folios' => 1, 'balance' => 1500],
             ]);
+    });
+});
+
+test('payments in the date range group by method currency and cashier shift with refunds and reversals netted', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $property->update(['business_date' => '2026-12-09']);
+
+    inTenant($property, function () use ($owner, $property) {
+        [$dollars] = financeReportFolios($owner, 1);
+        $shillings = app(OpenFolio::class)->handle($owner, Reservation::query()->findOrFail($dollars->reservation_id), 'TZS');
+        $owner->forceFill(['name' => 'Asha Cashier'])->save();
+        $shift = app(OpenCashierShift::class)->handle($owner, ['TZS' => 0, 'USD' => 0]);
+        $pay = fn (Folio $folio, string $method, int $amount) => app(RecordPayment::class)->handle($owner, $folio, ['method' => $method, 'amount' => $amount, 'currency' => $folio->currency->value]);
+        $pay($dollars, 'card', 9900);
+        $property->update(['business_date' => '2026-12-10']);
+        $pay($dollars, 'cash', 4000);
+        $pay($shillings, 'cash', 50000);
+        $pay($dollars, 'card', 3000);
+        $transfer = $pay($dollars, 'bank_transfer', 2000);
+        app(RecordAdjustment::class)->handle($owner, $dollars, 'refund', ['amount' => 500, 'reason' => 'Overpaid', 'idempotency_key' => 'refund-1', 'method' => 'card']);
+        $charge = app(PostExtraCharge::class)->handle($owner, $dollars, ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 800]);
+        app(ReversePosting::class)->handle($owner, $charge, 'Not consumed');
+        $property->update(['business_date' => '2026-12-11']);
+        app(ReversePosting::class)->handle($owner, $transfer, 'Bounced');
+
+        $payments = app(PropertyFinance::class)->forProperty($property, '2026-12-10', '2026-12-11')['payments'];
+
+        expect($payments['rows'])->toEqual([
+            ['method' => 'bank_transfer', 'currency' => 'USD', 'shiftId' => null, 'cashier' => null, 'payments' => 2000, 'refunds' => 0, 'reversals' => -2000, 'net' => 0],
+            ['method' => 'card', 'currency' => 'USD', 'shiftId' => null, 'cashier' => null, 'payments' => 3000, 'refunds' => 500, 'reversals' => 0, 'net' => 2500],
+            ['method' => 'cash', 'currency' => 'TZS', 'shiftId' => $shift->id, 'cashier' => 'Asha Cashier', 'payments' => 50000, 'refunds' => 0, 'reversals' => 0, 'net' => 50000],
+            ['method' => 'cash', 'currency' => 'USD', 'shiftId' => $shift->id, 'cashier' => 'Asha Cashier', 'payments' => 4000, 'refunds' => 0, 'reversals' => 0, 'net' => 4000],
+        ])->and($payments['totals'])->toEqual([
+            ['currency' => 'TZS', 'payments' => 50000, 'refunds' => 0, 'reversals' => 0, 'net' => 50000],
+            ['currency' => 'USD', 'payments' => 9000, 'refunds' => 500, 'reversals' => -2000, 'net' => 6500],
+        ]);
     });
 });
