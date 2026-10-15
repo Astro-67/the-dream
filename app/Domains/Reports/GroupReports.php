@@ -36,7 +36,14 @@ final class GroupReports
             'operations' => $this->operations->forProperty($property, $from, $to),
             'finance' => $this->finance->forProperty($property, $from, $to),
         ]));
-        $finance = $reports->pluck('finance');
+        // Every property's rows of one section (a dotted path), as one collection.
+        $part = fn (string $path): Collection => collect(array_merge(...$reports->map(fn (array $report): array => data_get($report, $path))->all()));
+        $payments = [];
+        foreach ($reports as $report) {
+            foreach ($report['finance']['payments']['rows'] as $row) {
+                $payments[] = ['propertyId' => $report['property']->id, 'propertyName' => $report['property']->name, 'timezone' => $report['property']->timezone, ...$row];
+            }
+        }
 
         return [
             'properties' => $reports->map(fn (array $report): array => [
@@ -49,19 +56,14 @@ final class GroupReports
             ])->all(),
             'kpis' => $this->kpis($reports->pluck('kpis')),
             'operations' => [
-                'daily' => self::addUp($reports->flatMap(fn (array $report) => $report['operations']['daily']), 'date', ['arrivals', 'departures', 'inHouse']),
-                'housekeeping' => self::addUp($reports->flatMap(fn (array $report) => $report['operations']['housekeeping']), 'status', ['rooms']),
+                'daily' => self::addUp($part('operations.daily'), 'date', ['arrivals', 'departures', 'inHouse']),
+                'housekeeping' => self::addUp($part('operations.housekeeping'), 'status', ['rooms']),
             ],
             'finance' => [
-                'openAfterDeparture' => self::sorted(self::addUp($finance->flatMap(fn (array $report) => $report['openAfterDeparture']), 'currency', ['folios', 'balance'])),
+                'openAfterDeparture' => self::sorted(self::addUp($part('finance.openAfterDeparture'), 'currency', ['folios', 'balance'])),
                 'payments' => [
-                    'rows' => $reports->flatMap(fn (array $report) => array_map(fn (array $row): array => [
-                        'propertyId' => $report['property']->id,
-                        'propertyName' => $report['property']->name,
-                        'timezone' => $report['property']->timezone,
-                        ...$row,
-                    ], $report['finance']['payments']['rows']))->values()->all(),
-                    'totals' => self::sorted(self::addUp($finance->flatMap(fn (array $report) => $report['payments']['totals']), 'currency', ['payments', 'refunds', 'reversals', 'net'])),
+                    'rows' => $payments,
+                    'totals' => self::sorted(self::addUp($part('finance.payments.totals'), 'currency', ['payments', 'refunds', 'reversals', 'net'])),
                 ],
             ],
         ];
@@ -75,9 +77,13 @@ final class GroupReports
     {
         $sold = (int) $reports->sum('soldRoomNights');
         $sellable = (int) $reports->sum('sellableRoomNights');
-        $currencies = $reports
-            ->flatMap(fn (array $report) => array_map(fn (array $row) => [...$row, 'sold' => $report['soldRoomNights'], 'sellable' => $report['sellableRoomNights']], $report['currencies']))
-            ->groupBy('currency')->sortKeys()
+        $rows = [];
+        foreach ($reports as $report) {
+            foreach ($report['currencies'] as $row) {
+                $rows[] = [...$row, 'sold' => $report['soldRoomNights'], 'sellable' => $report['sellableRoomNights']];
+            }
+        }
+        $currencies = collect($rows)->groupBy('currency')->sortKeys()
             ->map(function (Collection $rows, string $currency): array {
                 $amount = (int) $rows->sum('bookedRoomValue');
                 $sold = (int) $rows->sum('sold');
