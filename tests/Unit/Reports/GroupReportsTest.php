@@ -1,14 +1,22 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenFolio;
+use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Models\Folio;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Reports\GroupReports;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationPriceLine;
 use App\Domains\Tenancy\Actions\CreateDemoProperty;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -76,5 +84,41 @@ test('group operations add each business date and current housekeeping status ac
         ['date' => '2026-12-12', 'arrivals' => 0, 'departures' => 2, 'inHouse' => 0],
     ])->and(collect($operations['housekeeping'])->pluck('rooms', 'status')->all())->toEqual([
         'dirty' => 1, 'clean' => 1, 'occupied' => 0, 'inspection_required' => 0, 'unavailable' => 0,
+    ]);
+});
+
+test('group finance adds full per-currency totals and never sums a page of folios', function () {
+    $t = twoTenants();
+    $t->a->property->update(['business_date' => '2026-12-10']);
+    $t->a->otherProperty->update(['currency' => 'TZS', 'business_date' => '2026-12-10']);
+    foreach ([[$t->a->property, 'USD', 4000], [$t->a->otherProperty, 'TZS', 50000]] as [$property, $currency, $amount]) {
+        inTenant($property, function () use ($t, $currency, $amount) {
+            $details = BookingForm::details($t->a->owner);
+            for ($number = 2; $number <= 52; $number++) {
+                app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => (string) $number]));
+            }
+            foreach (range(1, 52) as $ignored) {
+                $reservation = app(CreateReservation::class)->handle($t->a->owner, $details);
+                $folio = $currency === 'USD' ? Folio::query()->where('reservation_id', $reservation->id)->sole() : app(OpenFolio::class)->handle($t->a->owner, $reservation, 'TZS');
+                app(PostExtraCharge::class)->handle($t->a->owner, $folio, ['category' => 'minibar', 'quantity' => 1, 'unit_price' => $amount]);
+            }
+            app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'card', 'amount' => $amount, 'currency' => $currency]);
+            Reservation::query()->orderBy('id')->limit(2)->update(['status' => ReservationStatus::CheckedOut]);
+        });
+    }
+    $report = inTenant($t->a->organization, fn () => app(GroupReports::class)
+        ->forProperties(collect([$t->a->property, $t->a->otherProperty]), '2026-12-10', '2026-12-10'));
+
+    expect($report['finance']['payments']['totals'])->toEqual([
+        ['currency' => 'TZS', 'payments' => 50000, 'refunds' => 0, 'reversals' => 0, 'net' => 50000],
+        ['currency' => 'USD', 'payments' => 4000, 'refunds' => 0, 'reversals' => 0, 'net' => 4000],
+    ])->and($report['finance']['openAfterDeparture'])->toEqual([
+        ['currency' => 'TZS', 'folios' => 2, 'balance' => 100000],
+        ['currency' => 'USD', 'folios' => 2, 'balance' => 8000],
+    ])->and(collect($report['finance']['payments']['rows'])->pluck('propertyId')->all())->toEqual(
+        collect([$t->a->otherProperty, $t->a->property])->sortBy('name')->pluck('id')->all(),
+    )->and(collect($report['properties'])->pluck('unsettledFolios', 'id')->all())->toEqual([
+        $t->a->property->id => 51,
+        $t->a->otherProperty->id => 51,
     ]);
 });

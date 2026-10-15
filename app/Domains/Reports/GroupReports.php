@@ -31,13 +31,35 @@ final class GroupReports
             'property' => $property,
             'kpis' => $this->kpis->forProperty($property, $from, $to),
             'operations' => $this->operations->forProperty($property, $from, $to),
+            'finance' => $this->finance->forProperty($property, $from, $to),
         ]);
+        $finance = $reports->pluck('finance');
 
         return [
+            'properties' => $reports->map(fn (array $report): array => [
+                'id' => $report['property']->id,
+                'name' => $report['property']->name,
+                'currency' => $report['property']->currency->value,
+                'timezone' => $report['property']->timezone,
+                // The paginator's total counts every unsettled folio, not just its first page.
+                'unsettledFolios' => $report['finance']['folios']->total(),
+            ])->all(),
             'kpis' => $this->kpis($reports->pluck('kpis')),
             'operations' => [
                 'daily' => self::addUp($reports->flatMap(fn (array $report) => $report['operations']['daily']), 'date', ['arrivals', 'departures', 'inHouse']),
                 'housekeeping' => self::addUp($reports->flatMap(fn (array $report) => $report['operations']['housekeeping']), 'status', ['rooms']),
+            ],
+            'finance' => [
+                'openAfterDeparture' => self::sorted(self::addUp($finance->flatMap(fn (array $report) => $report['openAfterDeparture']), 'currency', ['folios', 'balance'])),
+                'payments' => [
+                    'rows' => $reports->flatMap(fn (array $report) => array_map(fn (array $row): array => [
+                        'propertyId' => $report['property']->id,
+                        'propertyName' => $report['property']->name,
+                        'timezone' => $report['property']->timezone,
+                        ...$row,
+                    ], $report['finance']['payments']['rows']))->values()->all(),
+                    'totals' => self::sorted(self::addUp($finance->flatMap(fn (array $report) => $report['payments']['totals']), 'currency', ['payments', 'refunds', 'reversals', 'net'])),
+                ],
             ],
         ];
     }
@@ -89,6 +111,15 @@ final class GroupReports
             ...$group->first(),
             ...array_combine($counts, array_map(fn (string $count): int => (int) $group->sum($count), $counts)),
         ])->values()->all();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private static function sorted(array $rows): array
+    {
+        return collect($rows)->sortBy('currency')->values()->all();
     }
 
     /** Minor units rounded half up, as PropertyKpis rounds; null for a zero denominator. */
