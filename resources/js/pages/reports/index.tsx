@@ -6,6 +6,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import FinanceReport from '@/features/reports/finance-report';
+import type { PropertyFinance } from '@/features/reports/finance-report';
 import ReportLayout from '@/features/reports/report-layout';
 import type { ReportFilters } from '@/features/reports/report-layout';
 import PropertyOperations from '@/features/reports/property-operations';
@@ -32,11 +34,13 @@ export default function PropertyReport({
     filters,
     kpis,
     operations,
+    finance,
     refreshedAt,
 }: {
     filters: ReportFilters;
     kpis: PropertyKpis;
     operations: PropertyOperationsData;
+    finance: PropertyFinance;
     refreshedAt: string;
 }) {
     return (
@@ -147,6 +151,7 @@ export default function PropertyReport({
                 </p>
             </section>
             <PropertyOperations operations={operations} />
+            <FinanceReport finance={finance} />
         </ReportLayout>
     );
 }

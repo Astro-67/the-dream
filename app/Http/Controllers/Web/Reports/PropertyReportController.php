@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Reports;
 
+use App\Domains\Reports\PropertyFinance;
 use App\Domains\Reports\PropertyKpis;
 use App\Domains\Reports\PropertyOperations;
 use App\Http\Controllers\Controller;
@@ -12,7 +13,7 @@ use Inertia\Response;
 
 class PropertyReportController extends Controller
 {
-    public function __invoke(ReportRequest $request, PropertyKpis $kpis, PropertyOperations $operations): Response
+    public function __invoke(ReportRequest $request, PropertyKpis $kpis, PropertyOperations $operations, PropertyFinance $finance): Response
     {
         /** @var array{from: string, to: string} $range */
         $range = $request->validated();
@@ -22,6 +23,7 @@ class PropertyReportController extends Controller
             'filters' => $range,
             'kpis' => $kpis->forProperty($property, $range['from'], $range['to']),
             'operations' => $operations->forProperty($property, $range['from'], $range['to']),
+            'finance' => $finance->forProperty($property, $range['from'], $range['to']),
             'refreshedAt' => now()->toIso8601String(),
         ]);
     }
