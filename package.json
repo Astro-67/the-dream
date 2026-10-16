@@ -10,7 +10,7 @@
         "check": "vp check",
         "check:fix": "vp check --fix",
         "types:check": "tsc --noEmit",
-        "test:frontend": "bun tests/Frontend/FolioPanelCheck.tsx && bun tests/Frontend/NightAuditCheck.tsx && bun tests/Frontend/SidebarCheck.tsx"
+        "test:frontend": "bun tests/Frontend/FolioPanelCheck.tsx && bun tests/Frontend/NightAuditCheck.tsx && bun tests/Frontend/KpiReportCheck.tsx && bun tests/Frontend/PropertyOperationsCheck.tsx && bun tests/Frontend/FolioBalancesCheck.tsx && bun tests/Frontend/SidebarCheck.tsx"
     },
     "dependencies": {
         "@inertiajs/react": "^3.0.0",

@@ -18,16 +18,19 @@ export function formatMoney(minor: number, currency: string): string {
     return `${currency} ${new Intl.NumberFormat('en', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(minor / 10 ** decimals)}`;
 }
 
-/** "7 Oct 2026" for a Y-m-d date, without timezone shifting. */
-export function formatDate(date: string): string {
+/**
+ * "7 Oct 2026": a Y-m-d date as written, without timezone shifting, or, given the
+ * property's timezone, the date of an instant there.
+ */
+export function formatDate(date: string, timeZone?: string): string {
     const [y, m, d] = date.slice(0, 10).split('-').map(Number);
 
     return new Intl.DateTimeFormat('en-GB', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
-        timeZone: 'UTC',
-    }).format(Date.UTC(y, m - 1, d));
+        timeZone: timeZone ?? 'UTC',
+    }).format(timeZone ? new Date(date) : Date.UTC(y, m - 1, d));
 }
 
 /** "14:05" (24-hour) for an instant, in the property's timezone. */
