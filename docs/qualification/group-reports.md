@@ -2,7 +2,109 @@
 
 Target (PRD §9): core server requests p95 under 800 ms at the initial qualification workload of 100 organizations, 500 properties, 50,000 rooms and 1,000 concurrent staff sessions.
 
-**Result: full concurrent qualification remains open.** With the group folio balances added in the final fix-up, the full-dataset HTTP p95 passes serially (304 / 320 ms for 1 / 31 nights). At concurrency 8 the 1-night range passes (743 ms) and the 31-night range misses (841 ms). Concurrency 32 misses (2,498 / 2,910 ms). Before folio balances, concurrency 8 passed (618 / 704 ms); see "Final fix-up" below. This is not evidence of 1,000 concurrent sessions meeting the target. No stored aggregates or report caches were added.
+**Final workload result: PASS, 16 October 2026.** Both full 1,000-session ranges
+complete 5,000 requests at 16.6667 offered requests/s for 300 seconds each:
+scheduled-arrival p95 **524.3 ms / 795.5 ms** for 1 / 31 dates.
+All 10,000 responses are valid HTTP 200 group reports. The long-range margin
+is only **4.5 ms**: this establishes one local production-like workload pass,
+not robust production headroom or a production deployment. The separate
+32-request burst still exceeds 800 ms. Prior failures remain below.
+No stored aggregate, report cache, reduced load or relaxed gate is used.
+
+## Final Measurement
+
+Measured source `be19d36b8ffd1a8e84928f9e509d87d404ae2585`, tree
+`f038a978e6bd51c05153e61e1bc18a8729de87d8`. The wrapper's stack.txt pins
+this source after the explicit pre-load diagnosis pause; launch evidence
+predates the candidate commit. Seed source is `509bb12`, restored from the
+owned consistent disposable checkpoint and fully reverified before load.
+Measurement is bracketed by telemetry at 16 October 2026,
+01:51:10–02:01:22 Africa/Dar_es_Salaam; foreground wrapper exits **0**
+at 02:01:29. No seed, functional test, migration or checkpoint copy overlaps
+the timed workload.
+
+| Range (inclusive)  | Requests / distinct sessions | p50 ms |    p95 ms | Max ms | Wire p95 ms | Queue p95 / max ms | Elapsed including drain s | Peak in-flight |
+| ------------------ | ---------------------------: | -----: | --------: | -----: | ----------: | -----------------: | ------------------------: | -------------: |
+| 16 Oct 2026        |                5,000 / 1,000 |  136.1 | **524.3** |  719.7 |       523.4 |          1.1 / 3.0 |                   300.100 |              7 |
+| 16 Sep–16 Oct 2026 |                5,000 / 1,000 |  196.1 | **795.5** |  969.6 |       794.4 |          1.1 / 3.6 |                   300.226 |              9 |
+
+Each range independently schedules 300 seconds and 16.6667 requests/s:
+five requests per authenticated, authorized session, one/session/minute.
+Every arrival completes; no HTTP, transport, redirect or wrong-body error
+occurs. Primary latency begins at scheduled arrival, not curl dispatch;
+all generator/scheduler/FPM/MySQL queue time remains included.
+The model is 1,000 active distinct sessions, **not 1,000 requests in flight**.
+Max latency above 800 ms is retained: acceptance is strict p95 <800, not max.
+
+The separate simultaneous 32-request stress diagnostics return all 64
+responses as valid HTTP 200 reports but have p95 **5,313.7 / 1,762.9 ms**
+(max 5,315.1 / 1,767.7). They do not meet 800 ms and are not substituted for
+the steady workload. No stronger burst/in-flight capacity claim is made.
+
+### Final Verified Dataset
+
+| Table / capacity                                              |                        Actual count |
+| ------------------------------------------------------------- | ----------------------------------: |
+| Organizations / real properties / rooms                       |                  100 / 500 / 50,000 |
+| Authenticated authorized users / distinct sessions            |                       1,000 / 1,000 |
+| Inventory records                                             |                              60,000 |
+| Reservations / folios                                         |                   912,000 / 912,000 |
+| Reservation price lines / postings                            |               2,615,000 / 1,635,500 |
+| Lifecycle events                                              |                           1,861,000 |
+| Created / checked-in / checked-out events                     |         911,500 / 447,000 / 407,000 |
+| Extended / departed-early / cancelled events                  |            27,000 / 16,000 / 52,500 |
+| Confirmed / checked-in / checked-out / cancelled reservations | 412,000 / 39,500 / 408,000 / 52,500 |
+| Intentional incomplete-history stays                          |    1,000 (0.10965% of reservations) |
+
+Every property has inventory, price lines and postings on all 31 measured
+dates, normal completed/open/confirmed history distribution, and two explicit
+missing/partial legacy stays. Every event has matching tenant/property IDs,
+test=false, nonempty representative snapshots and valid per-reservation
+sequences. Confirmed stays have no actual boundaries, future plans stay
+separate, and no actual event is future-dated relative to stored business
+date. Literal public property/group fixtures and the December delayed-checkout
+fixture pass before load; none is an empty-history proxy.
+
+### Runtime And Limitations
+
+Digest-pinned Nginx 1.28.3, PHP-FPM/OPcache 8.3.35 and MySQL 8.0.46,
+Linux/amd64. Built PHP image:
+`sha256:3dd2da6fbf8f53de6ce20c6904ca98d0a442400d7adae73897998d08ab607f7e`.
+The host is an Intel i7-10610U laptop (4 physical / 8 logical CPUs,
+approximately 15.4 GiB RAM, non-rotational SSD), not a production server.
+Limits are MySQL **6 CPU equivalents / 4 GiB / 2 GiB buffer pool**;
+PHP **3 CPU equivalents / 2 GiB / 16 FPM workers**; Nginx 0.5 / 128 MiB.
+CPU quotas share the host; they are not dedicated physical cores.
+Generator CPU/memory remains inside PHP's budget. Normal database permission
+cache, OPcache and native InnoDB buffer warming are allowed; report figures
+remain uncached raw reads.
+
+The host retains ordinary desktop/OS/T3 background activity, not another
+test/benchmark process. Load average is 0.98/1.25/1.49 before and
+6.63/5.09/3.35 after. Bracketed CPU use is approximately PHP 713.42 CPU-s,
+MySQL 1,654.25 CPU-s; cgroup throttled-time deltas 17.315 s / 0.327 s.
+IO pressure remains high, CPU pressure low and memory pressure negligible.
+InnoDB physical reads increase 565,960 over 65,686,086 logical buffer requests.
+The 4.5 ms long-range margin warrants repeat qualification on the intended
+deployment hardware before relying on operational headroom.
+
+Final evidence is `.scratch/qualification-evidence/full-kpi/`:
+`steady.json`, `burst.json`, `verification.json`, `seed.json`, `seed-source.txt`,
+`stack.txt`, `before.txt`, `after.txt`, profiles and foreground `run.log`.
+All prior failed/aborted runs are separately retained and labelled.
+The wrapper removes its own containers/networks/live database volume and
+generated runtime/session secrets. The label-verified owned checkpoint,
+its private credential/session copies and executable throwaway probes are
+removed at 02:02:52; unrelated Docker resources, root `.env`, development
+data and root server are untouched. `.env` remains byte-identical.
+
+Final validation after timing additionally catches a teardown-only edge
+case: the existing historical folio-backfill test recreates its old table,
+removing the new folio index. Rollback now checks for that index before
+dropping it. This changes no migration-up schema, report query or measured
+runtime behavior. The regression fails before the guard and all 11 targeted
+backfill/audit/index tests pass afterward. Final functional gate results
+are recorded at the end of this document.
 
 ## How to reproduce
 
@@ -48,7 +150,8 @@ inclusive report endpoints (including SQLite's timestamp serialization).
 EXPLAIN ANALYZE is retained alongside estimated plans. Targeted regression
 checks pass on SQLite (72 tests/372 assertions) and MySQL (75/1,010), including
 report isolation; no cache or stored aggregate is introduced.
-Final full measurements and functional gates remain pending.
+At that intermediate stage full measurements and functional gates were pending;
+the final workload result is recorded at the start of this document.
 
 ### Completed full-load failure at 219beac
 
@@ -163,9 +266,9 @@ never treated as precomputed report caches.
 
 The old positional interface used PHP's built-in server. It is replaced by the
 disposable Nginx + PHP-FPM + OPcache + MySQL stack in `scripts/qualification/`.
-All measurements below remain historical built-in-server evidence, not results
-from the new stack. The full workload has **not** been rerun during infrastructure
-preparation.
+The historical built-in-server section retains the earlier evidence, not
+results from the new stack. Infrastructure preparation itself did not rerun
+the full workload; the later full FPM measurements are recorded above.
 
 ### Worktree prerequisites
 
@@ -471,14 +574,14 @@ The spec review found that group reports lacked balances by folio. The group pag
 
 The report makes 13 queries, against 11 before folio balances. In-process p95 rose by about 40–50 ms (from 239 / 349 ms). The concurrency-8, 31-night cell now misses by 41 ms, so concurrency 8 no longer passes for every range. Same laptop and built-in server as above; runs on this host vary by tens of milliseconds, and this is one run per version. Raw: `.scratch/perf-final-fixup2.json`.
 
-## Remaining qualification
+## Historical Qualification Gap
 
-The serial query/HTTP gap is fixed without stored aggregates. With folio balances, concurrency 8 passes for 1 night and misses for 31 nights. Concurrency 32 still fails on this host. The full target remains unproven: this laptop and built-in server do not represent production capacity, and 1,000 stored sessions are not 1,000 simultaneously active users. Do not mark the performance acceptance complete from serial or concurrency-8 timings.
+At the built-in-server stage the serial query/HTTP gap was fixed without stored aggregates. With folio balances, concurrency 8 passed for 1 night and missed for 31 nights; concurrency 32 failed. The full target was then unproven. These historical timings alone never establish the final acceptance; see the subsequent full FPM workload above.
 
 1. Re-measure the optimized code on production-like infrastructure (PHP-FPM or Octane, managed MySQL) with 1,000 staff sessions and an explicit report request rate/think time.
 2. If application/database execution still misses p95 < 800 ms there, use that profile to decide whether stored daily aggregates are warranted. They are not a fix for requests queued behind too few web workers.
 
-## Validation
+## Historical Validation
 
 - Code/harness tip tested: `1402ffd`; integration tip `f453e25` is already included (`git merge spec/33-m2-reports` reports up to date).
 - Targeted report tests: 54 passed, 245 assertions. Report isolation coverage: 2 passed, 634 assertions.
@@ -486,3 +589,45 @@ The serial query/HTTP gap is fixed without stored aggregates. With folio balance
 - PHPStan emitted an optional turbo-extension startup warning, then completed successfully using the fallback. No unrelated environment changes were made.
 - Evidence: `.scratch/check-fast-107-perf.log`, `.scratch/perf-final-targeted.log`, `.scratch/perf-final-isolation.log`. The throwaway MySQL container and HTTP workers were stopped after qualification.
 - Full MySQL and end-to-end suites were deliberately not run; they are reserved for final integration fix-up. Performance acceptance remains open for the explicitly recorded concurrency gap.
+
+## Final Functional Validation
+
+All final gates run **after** the complete benchmark and owned-resource
+cleanup, never alongside measurement. Final functional source is
+`6e91fcf2911a449f6c219ffc06c635ba3d8af776`, tree
+`330a6c4b031271902b150936204b0d94404b10d4`. Its only change after measured
+`be19d36` is the guarded migration-down folio-index drop; migration-up
+schema and measured report/harness/runtime behavior are unchanged.
+Subsequent qualification-document edits do not change executable code.
+
+- `composer check:fast`: exit **0**, 16 October 2026,
+  02:17:05–02:28:24 Africa/Dar_es_Salaam; build, **1,595 passed /
+  15 skipped / 26,524 assertions**, Pint, PHPStan 0 errors, TypeScript,
+  formatting and lint pass. Existing optional PHPStan turbo startup warning
+  falls back successfully.
+- Full `composer test:mysql -- --display-all-issues --log-junit=...`:
+  exit **0**, 02:29:28–02:38:05; **1,610 passed / zero skips /
+  26,630 assertions**, JUnit zero failures/errors. No test filter.
+  The wrapper starts/removes its own throwaway MySQL; no dev data touched.
+- Disposable worktree SQLite migration, `bun run build:ssr`,
+  `bun run types:check`, `bun run check`, and `bun run test:frontend`:
+  all exit **0**, completed 02:38:50. All six frontend scripts pass,
+  including populated/empty recorded operations, group KPIs, folio balances
+  and platform sidebar behavior.
+- PHP/Bash syntax, scheduler invariant check, seven-index/midnight and
+  report/isolation regressions pass. MySQL smoke migration down/up passes.
+  Recorded-history/nonzero seed fixtures are rechecked on the full dataset
+  before every complete workload.
+
+Evidence: `.scratch/qualification-evidence/final-gates/` contains exact
+source/date/command/exit records, build/test/tool logs and MySQL JUnit.
+The first fast invocation incorrectly exported the build SQLite path into
+PHPUnit, overriding its isolated `:memory:` setting, and failed. Its logs
+are preserved; the corrected final invocation unsets external DB overrides
+for `composer check:fast`, using the safe worktree `.env` for the build and
+PHPUnit's own isolated database for tests. The independently reproduced
+backfill rollback defect is fixed, not ignored. Prior failed experiments
+are not relabelled passes.
+
+The PR remains draft. This evidence does not ready/merge the PR, close
+issues, change deployment settings or establish production/burst headroom.
