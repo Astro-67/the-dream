@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Billing\Actions\RecordAdjustment;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Actions\ReversePosting;
 use App\Domains\Billing\Models\Folio;
@@ -43,6 +44,9 @@ test('automatic cancellation skips deposits channel payments and in-house stays 
             $reservation->update(['payment_collector' => 'channel', 'channel_collected_amount' => 100]);
         } else {
             $posting = app(RecordPayment::class)->handle($owner, Folio::query()->sole(), ['method' => 'bank_transfer', 'amount' => 100, 'currency' => 'USD']);
+            if ($kind === 'refunded') {
+                app(RecordAdjustment::class)->handle($owner, Folio::query()->sole(), 'refund', ['amount' => 100, 'reason' => 'Returned deposit', 'method' => 'bank_transfer', 'idempotency_key' => 'refund-deposit']);
+            }
             if ($kind === 'reversed') {
                 app(ReversePosting::class)->handle($owner, $posting, 'Payment error');
             }
@@ -56,4 +60,4 @@ test('automatic cancellation skips deposits channel payments and in-house stays 
         expect($reservation->fresh()->status === ReservationStatus::Cancelled)->toBe($cancelled);
         expect(Reservation::query()->count())->toBe(1);
     });
-})->with([['deposit', false], ['reversed', true], ['channel', false], ['checked-in', false]]);
+})->with([['deposit', false], ['refunded', true], ['reversed', true], ['channel', false], ['checked-in', false]]);

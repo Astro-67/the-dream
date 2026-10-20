@@ -23,7 +23,7 @@ class CancelUnpaidReservations
                     }
                     // Payment writers lock the folio; recheck after that lock to avoid cancelling a paid reservation.
                     $folios = Folio::query()->where('reservation_id', $reservation->id)->orderBy('id')->lockForUpdate()->get();
-                    $payments = Posting::query()->whereIn('folio_id', $folios->modelKeys())->whereIn('category', ['deposit', 'payment'])
+                    $payments = Posting::query()->whereIn('folio_id', $folios->modelKeys())->whereIn('category', ['deposit', 'payment', 'refund'])
                         ->select('currency')->selectRaw('SUM(amount) as received')->groupBy('currency')->get();
                     if (($reservation->channel_collected_amount ?? 0) > 0 || $payments->contains(fn (Posting $payment) => (int) $payment->getAttribute('received') < 0)) {
                         return;
