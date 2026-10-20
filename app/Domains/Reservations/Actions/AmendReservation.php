@@ -9,6 +9,7 @@ use App\Domains\Rates\DateRange;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
 use App\Domains\Rates\StayRestrictions;
+use App\Domains\Reservations\BookingRules;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\RoomAssignmentNight;
@@ -43,7 +44,9 @@ class AmendReservation
             if ($invalid !== null) {
                 throw ValidationException::withMessages(['adults' => $invalid]);
             }
-            $warnings = app(StayRestrictions::class)->warnings($plan, $type, $details['arrival'], $details['departure']);
+            $bookingWarnings = app(BookingRules::class)->warnings($property, $details['arrival'], $details['departure']);
+            app(BookingRules::class)->authorizeOverride($actor, $bookingWarnings);
+            $warnings = [...$bookingWarnings, ...app(StayRestrictions::class)->warnings($plan, $type, $details['arrival'], $details['departure'])];
             $reason = app(StayRestrictions::class)->overrideReason($warnings, $details['restriction_override_reason'] ?? null);
             $dates = DateRange::dates($details['arrival'], CarbonImmutable::parse($details['departure'])->subDay()->toDateString());
             $oldDates = DateRange::dates($reservation->arrival->toDateString(), $reservation->departure->subDay()->toDateString());

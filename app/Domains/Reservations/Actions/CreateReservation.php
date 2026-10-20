@@ -11,6 +11,7 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
 use App\Domains\Rates\StayRestrictions;
+use App\Domains\Reservations\BookingRules;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationNumberSequence;
@@ -61,7 +62,9 @@ class CreateReservation
             if ($quote->unquotable !== null) {
                 throw ValidationException::withMessages(['rate_plan_id' => $quote->unquotable]);
             }
-            $warnings = app(StayRestrictions::class)->warnings($plan, $type, $details['arrival'], $details['departure']);
+            $bookingWarnings = app(BookingRules::class)->warnings($property, $details['arrival'], $details['departure']);
+            app(BookingRules::class)->authorizeOverride($actor, $bookingWarnings);
+            $warnings = [...$bookingWarnings, ...app(StayRestrictions::class)->warnings($plan, $type, $details['arrival'], $details['departure'])];
             $details['restriction_override_reason'] = app(StayRestrictions::class)->overrideReason($warnings, $details['restriction_override_reason'] ?? null);
             $rooms = (int) ($details['rooms'] ?? 1);
             if ($rooms < 1 || $rooms > 20) {

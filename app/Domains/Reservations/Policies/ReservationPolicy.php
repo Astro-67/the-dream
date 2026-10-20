@@ -14,6 +14,11 @@ class ReservationPolicy
         return Access::inProperty($user, P::ReservationsView);
     }
 
+    public function overrideBookingRules(User $user): bool
+    {
+        return Access::inProperty($user, P::PropertiesUpdate);
+    }
+
     public function create(User $user): bool
     {
         return Access::inProperty($user, P::ReservationsManage);
