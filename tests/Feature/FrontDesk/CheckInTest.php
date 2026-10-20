@@ -184,3 +184,11 @@ test('at a mainland property only the configured registration fields are enforce
     $this->actingAs($t->a->owner)->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
     inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn));
 });
+
+test('foreign guest needs a passport at check-in when the property requires it', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a, [['type' => 'nida', 'number' => '12345', 'nationality' => 'DE']]);
+    assertCheckInRefused($t->a, $reservation, 'guests');
+    $t->a->property->update(['front_desk_settings' => ['passport_required_for_foreign_guests' => false]]);
+    $this->actingAs($t->a->owner)->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])->assertRedirect()->assertSessionHasNoErrors();
+});
