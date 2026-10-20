@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/select';
 import { RestrictionFields } from '@/features/rates/restriction-fields';
 import {
     CalendarRoomRows,
@@ -80,6 +81,8 @@ export default function RateCalendar({
     allRoomTypes,
     roomTypes,
     canManage,
+    filters,
+    businessDate,
 }: {
     from: string;
     to: string;
@@ -87,8 +90,15 @@ export default function RateCalendar({
     allRoomTypes: RoomType[];
     roomTypes: Row[];
     canManage: boolean;
+    filters: { list: string; search: string };
+    businessDate: string;
 }) {
     const [editing, setEditing] = useState<Editing | null>(null);
+    const [rangeFrom, setRangeFrom] = useState(from);
+    const [rangeTo, setRangeTo] = useState(to);
+    const rangeDays =
+        Math.round((Date.parse(rangeTo) - Date.parse(rangeFrom)) / 86400000) +
+        1;
     const selected = new Set(roomTypes.map((room) => room.id));
     const day = (date: string) =>
         new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', {
@@ -118,6 +128,9 @@ export default function RateCalendar({
                 <h1 className="text-2xl font-semibold tracking-tight">
                     Rate calendar
                 </h1>
+                <p className="text-sm text-muted-foreground">
+                    Business date: {day(businessDate)}
+                </p>
                 <Form
                     {...rateCalendar.form()}
                     className="flex flex-wrap items-end gap-4"
@@ -126,10 +139,10 @@ export default function RateCalendar({
                         <>
                             {(
                                 [
-                                    ['from', 'From', from],
-                                    ['to', 'To', to],
+                                    ['from', 'From'],
+                                    ['to', 'To'],
                                 ] as const
-                            ).map(([name, text, value]) => (
+                            ).map(([name, text]) => (
                                 <div key={name} className="space-y-2">
                                     <Label htmlFor={`range-${name}`}>
                                         {text}
@@ -138,13 +151,95 @@ export default function RateCalendar({
                                         id={`range-${name}`}
                                         name={name}
                                         type="date"
-                                        defaultValue={value}
+                                        value={
+                                            name === 'from'
+                                                ? rangeFrom
+                                                : rangeTo
+                                        }
+                                        onChange={(event) =>
+                                            name === 'from'
+                                                ? setRangeFrom(
+                                                      event.target.value,
+                                                  )
+                                                : setRangeTo(event.target.value)
+                                        }
                                         required
                                         aria-invalid={!!errors[name]}
                                     />
                                     <InputError message={errors[name]} />
                                 </div>
                             ))}
+                            <div className="space-y-2">
+                                <Label htmlFor="calendar-view">View</Label>
+                                <NativeSelect
+                                    id="calendar-view"
+                                    value={
+                                        [7, 15, 30, 60].includes(rangeDays)
+                                            ? String(rangeDays)
+                                            : ''
+                                    }
+                                    onChange={(event) => {
+                                        const end = new Date(
+                                            `${rangeFrom}T00:00:00Z`,
+                                        );
+                                        if (!Number.isNaN(end.getTime())) {
+                                            end.setUTCDate(
+                                                end.getUTCDate() +
+                                                    Number(event.target.value) -
+                                                    1,
+                                            );
+                                            setRangeTo(
+                                                end.toISOString().slice(0, 10),
+                                            );
+                                        }
+                                    }}
+                                >
+                                    <option value="" hidden>
+                                        Custom range
+                                    </option>
+                                    {[7, 15, 30, 60].map((days) => (
+                                        <option key={days} value={days}>
+                                            {days} days
+                                        </option>
+                                    ))}
+                                </NativeSelect>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="calendar-list">Stays</Label>
+                                <NativeSelect
+                                    id="calendar-list"
+                                    name="list"
+                                    defaultValue={filters.list}
+                                >
+                                    <option value="all">
+                                        All reservations
+                                    </option>
+                                    <option value="arrivals">Arrivals</option>
+                                    <option value="departures">
+                                        Departures
+                                    </option>
+                                    <option value="in-house">In-house</option>
+                                    <option value="overstays">Overstays</option>
+                                    <option value="balance-owing">
+                                        Balance owing
+                                    </option>
+                                    <option value="no-id-document">
+                                        No ID document
+                                    </option>
+                                </NativeSelect>
+                                <InputError message={errors.list} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="calendar-search">Search</Label>
+                                <Input
+                                    id="calendar-search"
+                                    name="search"
+                                    defaultValue={filters.search ?? ''}
+                                    maxLength={255}
+                                    placeholder="Room, guest, phone, reservation or channel reference"
+                                />
+                                <InputError message={errors.search} />
+                            </div>
                             <fieldset>
                                 <legend className="mb-2 text-sm font-medium">
                                     Room types

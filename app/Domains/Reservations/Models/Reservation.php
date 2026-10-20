@@ -35,6 +35,11 @@ class Reservation extends Model
         return ['imported' => 'boolean', 'requires_reconciliation' => 'boolean', 'arrival' => 'immutable_date', 'departure' => 'immutable_date', 'adults' => 'integer', 'children' => 'integer', 'channel_collected_amount' => 'integer', 'status' => ReservationStatus::class];
     }
 
+    public function isOverstay(string $businessDate): bool
+    {
+        return $this->status === ReservationStatus::CheckedIn && $this->departure->toDateString() < $businessDate;
+    }
+
     public function getRouteKeyName(): string
     {
         return 'reservation_number';

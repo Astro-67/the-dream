@@ -26,6 +26,7 @@ test('the calendar shows assigned reservations with guest names and detail links
         ->where('roomTypes.0.rooms.0.number', $room->number)
         ->has('roomTypes.0.rooms.0.reservations', 1)
         ->where('roomTypes.0.rooms.0.reservations.0', [
+            'is_overstay' => false, 'display_departure' => '2026-12-12',
             'reservation_number' => $reservation->reservation_number,
             'arrival' => '2026-12-10', 'departure' => '2026-12-12',
             'guest_name' => 'Staying Guest', 'source' => 'phone', 'status' => 'confirmed',
