@@ -50,3 +50,23 @@ test('foreign guest document type follows passport setting', function () {
     $t->a->property->update(['front_desk_settings' => ['passport_required_for_foreign_guests' => false]]);
     $this->postJson(route('reservations.store'), $payload)->assertRedirect()->assertSessionHasNoErrors();
 });
+
+test('new reservation sources are stored without a booker or ID', function (string $source) {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    unset($details['booker_id']);
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)
+        ->post(route('reservations.store'), [...$details, '_property' => $t->a->property->id, 'source' => $source, 'lead_guest' => ['first_name' => 'Sam', 'last_name' => 'Lee', 'nationality' => 'GB']])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    inTenant($t->a->property, fn () => expect(Reservation::query()->sole()->getAttribute('source'))->toBe($source));
+})->with(['whatsapp', 'email', 'website']);
+
+test('walk-in without ID is allowed when the property switches the requirement off', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    unset($details['booker_id']);
+    $t->a->property->update(['business_date' => '2026-12-10', 'front_desk_settings' => ['walk_in_requires_id' => false]]);
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)
+        ->post(route('reservations.store'), [...$details, '_property' => $t->a->property->id, 'source' => 'walk-in', 'lead_guest' => ['first_name' => 'Asha']])
+        ->assertRedirect()->assertSessionHasNoErrors();
+});
