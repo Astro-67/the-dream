@@ -14,7 +14,12 @@ class CancelUnpaidReservations
     public function handle(Property $property): void
     {
         $hours = $property->settings()['front_desk_settings']['auto_cancel_unpaid_hours'];
+        if ($hours <= 0) {
+            return;
+        }
+        // Channel and imported reservations are paid on the channel's or the old system's terms, never auto-cancelled here.
         Reservation::query()->where('property_id', $property->id)->where('status', ReservationStatus::Confirmed)
+            ->whereNull('channel_reference')->where('imported', false)
             ->where('created_at', '<=', now()->subHours($hours))->eachById(function (Reservation $reservation) use ($hours): void {
                 DB::transaction(function () use ($reservation, $hours): void {
                     $reservation = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();

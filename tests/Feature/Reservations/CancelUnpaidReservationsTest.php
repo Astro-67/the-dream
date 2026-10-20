@@ -4,12 +4,14 @@ use App\Domains\Billing\Actions\RecordAdjustment;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Actions\ReversePosting;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 
 test('automatic cancellation observes each property deadline and releases inventory exactly once', function () {
     $this->travelTo(new DateTimeImmutable('2026-12-01 10:00:00 UTC'));
@@ -61,3 +63,28 @@ test('automatic cancellation skips deposits channel payments and in-house stays 
         expect(Reservation::query()->count())->toBe(1);
     });
 })->with([['deposit', false], ['refunded', true], ['reversed', true], ['channel', false], ['checked-in', false]]);
+
+test('automatic cancellation is off at zero hours and never touches channel or imported reservations', function () {
+    $this->travelTo(new DateTimeImmutable('2026-12-01 10:00:00 UTC'));
+    [$owner, , $property] = organizationWithOwner();
+    [$staff, $channel, $imported] = inTenant($property, function () use ($owner) {
+        $details = BookingForm::details($owner);
+        foreach (['102', '103'] as $number) {
+            app(CreateRoom::class)->handle($owner, [...InventoryForm::room($details['room_type_id']), 'number' => $number]);
+        }
+        $make = fn () => app(CreateReservation::class)->handle($owner, $details);
+
+        return [$make(), tap($make(), fn ($r) => $r->forceFill(['channel_reference' => 'BDC-1'])->save()), tap($make(), fn ($r) => $r->forceFill(['imported' => true])->save())];
+    });
+    $property->update(['front_desk_settings' => ['auto_cancel_unpaid_hours' => 0]]);
+    $this->travel(48)->hours();
+    $this->artisan('reservations:cancel-unpaid')->assertSuccessful();
+    expect(inTenant($property, fn () => $staff->fresh()->status))->toBe(ReservationStatus::Confirmed);
+    $property->update(['front_desk_settings' => ['auto_cancel_unpaid_hours' => 2]]);
+    $this->artisan('reservations:cancel-unpaid')->assertSuccessful();
+    inTenant($property, function () use ($staff, $channel, $imported) {
+        expect($staff->fresh()->status)->toBe(ReservationStatus::Cancelled)
+            ->and($channel->fresh()->status)->toBe(ReservationStatus::Confirmed)
+            ->and($imported->fresh()->status)->toBe(ReservationStatus::Confirmed);
+    });
+});
