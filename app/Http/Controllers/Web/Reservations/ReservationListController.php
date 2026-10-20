@@ -7,6 +7,7 @@ use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Reservations\Actions\ListReservations;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\ListReservationsRequest;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,6 +23,7 @@ class ReservationListController extends Controller
         return Inertia::render('reservations/index', [
             'filters' => ['date' => $date, 'list' => $list, 'search' => $request->validated('search', '')],
             'reservations' => $reservations,
+            'blockCheckoutIfUnpaid' => Tenancy::property()?->settings()['payment_settings']['block_checkout_if_unpaid'] ?? true,
             'canImport' => Gate::allows('create', ImportJob::class),
             'importLabel' => __('Import future reservations'),
         ]);

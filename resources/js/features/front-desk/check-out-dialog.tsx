@@ -1,4 +1,4 @@
-import { Form } from '@inertiajs/react';
+import { Form, usePage } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,10 @@ export function CheckOutDialog({
     canOverride: boolean;
 }) {
     const open = balances.filter((total) => total.balance !== 0);
+    const { blockCheckoutIfUnpaid = true } = usePage<{
+        blockCheckoutIfUnpaid?: boolean;
+    }>().props;
+    const blocked = open.length > 0 && blockCheckoutIfUnpaid;
 
     return (
         <Dialog>
@@ -44,9 +48,9 @@ export function CheckOutDialog({
                     <DialogDescription>
                         {open.length === 0
                             ? 'Every folio is settled. The room is marked dirty for housekeeping.'
-                            : canOverride
+                            : !blocked || canOverride
                               ? 'A balance is still open. Checking out leaves it as an open balance after departure for finance to settle.'
-                              : 'Settle every folio balance before check-out, or ask a manager to override.'}
+                              : 'Settle every folio balance before check-out.'}
                     </DialogDescription>
                 </DialogHeader>
                 <dl className="grid grid-cols-2 gap-2">
@@ -65,7 +69,7 @@ export function CheckOutDialog({
                     {({ errors, processing }) => (
                         <>
                             <PropertyIntent />
-                            {open.length > 0 && canOverride && (
+                            {blocked && canOverride && (
                                 <div className="space-y-2">
                                     <Label htmlFor="check-out-override-reason">
                                         Reason for leaving a balance open
@@ -99,7 +103,7 @@ export function CheckOutDialog({
                                         Not now
                                     </Button>
                                 </DialogClose>
-                                {(open.length === 0 || canOverride) && (
+                                {(!blocked || canOverride) && (
                                     <Button type="submit" disabled={processing}>
                                         {processing && <Spinner />}
                                         {open.length === 0
