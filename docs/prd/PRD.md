@@ -35,7 +35,7 @@ Integrated hospitality suites such as Yanolja Cloud Solution combine PMS, channe
 Thedream's proposed differentiation:
 
 - practical local onboarding;
-- English and Kiswahili interfaces;
+- English-only interfaces for this version;
 - built-in Zanzibar compliance (ZAN Gateway and VFMS);
 - explicit multi-currency handling;
 - a clear path from one hotel to a group.
@@ -233,7 +233,7 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - **GST-01:** Maintain contact details, stay history, preferences, identity documents and notes, with restricted visibility.
     - Identity documents are visible only to front desk, property manager and roles explicitly granted access.
     - Mask sensitive fields for other roles.
-- **GST-02:** Separate the guest (the person staying) from the booker (the person who made the reservation). Booking.com reservations may name a booker who is not a guest.
+- **GST-02:** A reservation is made for its lead guest, taken inline when booking. When a tour operator books, record its name, ZRA registration number and what it pays for (ADR 0015). Booker records from earlier versions are kept but no longer created by staff.
 - **GST-03 (P1):** Booking-management links, pre-arrival registration (including identity documents for Zanzibar), and templated messages through an approved provider.
 
 **Acceptance criteria:** guests from different organizations are never merged because they share an email address.
@@ -287,7 +287,7 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 
 - A Booking.com test reservation appears in Thedream with its channel reference, payment collector and amounts.
 - A change to availability in Thedream reaches the channel manager.
-- The product does not promise that overbooking across channels is impossible. Conflicts surface as reconciliation items.
+- The product does not promise that overbooking across channels is impossible. Conflicts surface as reconciliation items. Staff may sell up to the property's overbooking allowance, zero by default (ADR 0015).
 
 ### 7.9 ZAN Gateway booking reporting (P0, Zanzibar)
 
@@ -352,7 +352,7 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
     - an added guest sends an add-guest call;
     - corrected guest details send a change-profile call;
     - at night audit, if the next night's rate differs, a change-room-price call is sent.
-- **FSC-05:** Extras charged to the room folio (for example minibar or laundry) are sent through the extra-services call, and the fiscal receipt number is stored against the folio charge.
+- **FSC-05:** Extras charged to the room folio (free-text items such as restaurant, minibar or laundry) are sent through the extra-services call, and the fiscal receipt number is stored against the folio charge.
 - **FSC-06:** At checkout, send the check-out call and issue the **fiscal check-out report** with the VFMS QR code. Store the report number and totals.
 - **FSC-07:** When VFMS is unavailable:
     - check-in, room moves and charges still go ahead in Thedream, and VFMS calls retry from a queue in order;
@@ -395,13 +395,13 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 
 ### 7.12 Localization (P0)
 
-- **LOC-01:** English and Kiswahili for staff workflows, configurable business dates and timezones, and explicit TZS, USD and EUR handling. VFMS's "EURO" is mapped to and from EUR.
+- **LOC-01:** English-only staff workflows for this version, configurable business dates and timezones, and explicit TZS, USD and EUR handling. VFMS's "EURO" is mapped to and from EUR. Kiswahili, a translation layer and translation enforcement are deferred to a future version.
 - **LOC-02:** Configurable tax and service-charge rules with effective dates, exemptions, inclusive or exclusive display, and rounding. A historical receipt keeps the tax settings it was issued with.
 - **LOC-03:** Authority reporting runs only through the integrations in §7.9 and §7.10. There is **no manual export workflow** for Zanzibar authority reporting.
 
 ### 7.13 Outlets and events (P1)
 
-Restaurant and outlet sales, menus, tables and kitchen workflow, conference venues and event bookings move to P1. Walk-in outlet sales need a fiscal receipt type that the VFMS hotel guide does not cover, so they must be researched before P1 scoping.
+Restaurant and outlet sales, menus, tables and kitchen workflow, conference venues and event bookings move to P1. Walk-in outlet sales can use the VFMS extra-services call with type `WS` (services for general customers); confirm with ZRA before P1 scoping.
 
 ## 8. Booking.com reservation lifecycle
 
@@ -497,7 +497,7 @@ Imports require templates, a dry run, duplicate detection, errors per row, and p
 
 ## 13. Commercial packaging
 
-| Package            | Customer                               | Includes                                                                                                                                                   |
+| Plan               | Customer                               | Includes                                                                                                                                                   |
 | ------------------ | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Essential          | Independent property                   | Core PMS, staff roles, housekeeping, basic reports, onboarding. **Zanzibar properties:** the full Zanzibar compliance pack, including channel connectivity |
 | Growth             | Properties needing more sales channels | Essential, plus a direct booking page, OTA connectivity for mainland properties, payment options and richer reports                                        |
