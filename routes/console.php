@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\FrontDesk\Actions\RunAutomaticCheckout;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Jobs\CloseDueBusinessDate;
 use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
@@ -280,6 +281,24 @@ Artisan::command('night-audit:close-due', function (): int {
 })->purpose('Dispatch night audit for properties past their local close time');
 
 Schedule::command('night-audit:close-due')->everyMinute()->withoutOverlapping();
+
+Artisan::command('front-desk:checkout-due', function (RunAutomaticCheckout $checkout): int {
+    $properties = Tenancy::within(TenantContext::platform('automatic check-out trigger'), fn () => Property::query()->active()->get());
+    $failed = 0;
+    foreach ($properties as $property) {
+        try {
+            Tenancy::within(TenantContext::forProperty($property), fn () => $checkout->handle($property));
+        } catch (Throwable $exception) {
+            report($exception);
+            $failed++;
+            $this->error("{$property->name}: {$exception->getMessage()}");
+        }
+    }
+
+    return $failed === 0 ? self::SUCCESS : self::FAILURE;
+})->purpose('Check out due stays after each property local automatic check-out time');
+
+Schedule::command('front-desk:checkout-due')->everyMinute()->withoutOverlapping();
 
 Artisan::command('subscriptions:advance', function (AdvanceSubscription $advance): int {
     $organizations = Tenancy::within(TenantContext::platform('hourly subscription lifecycle'), fn () => Subscription::query()->pluck('organization_id'));
