@@ -11,6 +11,30 @@ use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
 return [
+    'payments.index' => RouteCoverage::attempt(function (TwoTenants $t) {
+        inTenant($t->b->property, function () use ($t) {
+            app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            app(RecordPayment::class)->handle($t->b->owner, Folio::query()->sole(), ['method' => 'card', 'amount' => 700, 'currency' => 'USD']);
+        });
+        $responses = [];
+        foreach ($t->a->members() as $role => $member) {
+            foreach (['received', 'outstanding'] as $view) {
+                $response = $this->actingAs($member)->withSession([
+                    'tenancy.organization_id' => $t->b->organization->id,
+                    'tenancy.property_id' => $t->b->property->id,
+                ])->get(route('payments.index', ['view' => $view]));
+                if (in_array($role, [OrganizationRole::FrontDesk->value, OrganizationRole::Housekeeping->value], true)) {
+                    $response->assertForbidden();
+                } else {
+                    $response->assertOk()->assertInertia(fn (Assert $page) => $page
+                        ->where($view === 'received' ? 'received.rows' : 'folios.data', []));
+                }
+                $responses[] = $response;
+            }
+        }
+
+        return $responses;
+    }),
     'reports.index' => RouteCoverage::attempt(function (TwoTenants $t) {
         inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
         inTenant($t->b->property, function () use ($t) {

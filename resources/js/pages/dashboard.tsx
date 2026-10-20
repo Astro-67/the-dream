@@ -5,6 +5,11 @@ import {
     OnboardingChecklist,
     type Checklist,
 } from '@/features/tenancy/onboarding-checklist';
+import {
+    CollectionsTable,
+    periodLabels,
+    type Received,
+} from '@/features/reports/collections-table';
 import { useCan } from '@/hooks/use-can';
 import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
@@ -25,9 +30,17 @@ const listLabels: Record<string, string> = {
 export default function Dashboard({
     onboarding,
     today,
+    collections,
 }: {
     onboarding: Checklist | null;
     today: Today | null;
+    collections: {
+        period: string;
+        from: string;
+        to: string;
+        received: Received;
+        href: string;
+    } | null;
 }) {
     const { auth, tenant } = usePage().props;
     const can = useCan();
@@ -95,6 +108,67 @@ export default function Dashboard({
                         </Button>
                     )}
                 </header>
+
+                {collections && (
+                    <section
+                        aria-labelledby="collections-title"
+                        className="grid gap-4 rounded-xl border p-4"
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <h2
+                                id="collections-title"
+                                className="text-lg font-semibold"
+                            >
+                                Collections
+                            </h2>
+                            <Link
+                                className="text-sm text-primary underline"
+                                href={collections.href}
+                            >
+                                View payments
+                            </Link>
+                        </div>
+                        <nav
+                            aria-label="Collections period"
+                            className="flex flex-wrap gap-2"
+                        >
+                            {['today', 'this-month', 'this-year'].map(
+                                (period) => (
+                                    <Button
+                                        key={period}
+                                        variant={
+                                            collections.period === period
+                                                ? 'default'
+                                                : 'outline'
+                                        }
+                                        size="sm"
+                                        asChild
+                                    >
+                                        <Link
+                                            href={dashboard({
+                                                query: { period },
+                                            })}
+                                            aria-current={
+                                                collections.period === period
+                                                    ? 'page'
+                                                    : undefined
+                                            }
+                                            preserveScroll
+                                        >
+                                            {periodLabels[period]}
+                                        </Link>
+                                    </Button>
+                                ),
+                            )}
+                        </nav>
+                        <p className="text-sm text-muted-foreground">
+                            {formatDate(collections.from)} –{' '}
+                            {formatDate(collections.to)} · Business dates. Net
+                            received includes refunds and reversals.
+                        </p>
+                        <CollectionsTable received={collections.received} />
+                    </section>
+                )}
 
                 {today ? (
                     <section aria-labelledby="today" className="space-y-3">

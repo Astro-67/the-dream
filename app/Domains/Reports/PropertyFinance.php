@@ -117,8 +117,9 @@ final class PropertyFinance
      * @param  Collection<int, Property>  $properties
      * @return array<string, array{rows: list<array{method: string, currency: string, shiftId: string|null, cashier: string|null, shiftOpenedAt: string|null, payments: int, refunds: int, reversals: int, net: int}>, totals: list<array{currency: string, payments: int, refunds: int, reversals: int, net: int}>}>
      */
-    private function payments(Collection $properties, string $from, string $to): array
+    public function payments(Collection $properties, string $from, string $to): array
     {
+        $properties = Property::query()->real()->whereKey($properties->pluck('id'))->get();
         $rows = Posting::query()->whereIn('postings.property_id', $properties->pluck('id'))
             ->whereNotNull('postings.method')->whereIn('postings.type', ['payment', 'refund', 'reversal'])
             ->where('postings.business_date', '>=', $from)->where('postings.business_date', '<', CarbonImmutable::parse($to)->addDay()->toDateString())

@@ -37,6 +37,7 @@ import { index as invitations } from '@/routes/invitations';
 import { index as guests } from '@/routes/guests';
 import { index as bookers } from '@/routes/bookers';
 import { index as members } from '@/routes/members';
+import { index as payments } from '@/routes/payments';
 import { index as nightAudit } from '@/routes/night-audit';
 import { index as openBalances } from '@/routes/open-balances';
 import { index as platformInvoices } from '@/routes/platform/invoices';
@@ -100,6 +101,11 @@ export function AppSidebar() {
         ...mainNavItems,
         ...(can('reports.view')
             ? [
+                  {
+                      title: 'Payments',
+                      href: payments(),
+                      icon: Banknote,
+                  },
                   {
                       title: 'Reports',
                       href: reports(),
