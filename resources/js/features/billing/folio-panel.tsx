@@ -89,12 +89,14 @@ export function FolioPanel({
     canPostCharge,
     canRecordPayment = false,
     channelCollected = false,
+    acceptedPaymentMethods,
 }: {
     folios: Paginated<Folio>;
     totals: FolioTotal[];
     canPostCharge: boolean;
     canRecordPayment?: boolean;
     channelCollected?: boolean;
+    acceptedPaymentMethods: string[];
 }) {
     const { tenant } = usePage().props;
     const timezone = tenant.property?.timezone ?? 'UTC';
@@ -302,6 +304,7 @@ export function FolioPanel({
                         <PaymentForm
                             folio={folio}
                             channelCollected={channelCollected}
+                            acceptedMethods={acceptedPaymentMethods}
                         />
                     )}
                     <AdjustmentForms folio={folio} />
