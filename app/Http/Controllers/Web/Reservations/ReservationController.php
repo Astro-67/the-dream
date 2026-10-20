@@ -37,7 +37,7 @@ class ReservationController extends Controller
             'stay' => $request->validated(),
             'rooms' => app(AssignableRooms::class)->forStay($request->validated('room_type_id'), $request->validated('arrival'), $request->validated('departure')),
             'roomType' => $type->only(['id', 'name']),
-            'ratePlan' => $plan->only(['id', 'name']),
+            'ratePlan' => $plan->only(['id', 'name', 'currency']),
             'restrictionWarnings' => $restrictions->warnings($plan, $type, $request->validated('arrival'), $request->validated('departure')),
             'nightlyRate' => app(StayPricing::class)->quote($plan, $type, $request->validated('arrival'), $request->validated('departure'), (int) $request->validated('adults'), (int) $request->validated('children'))->nights[0]['total'] ?? null,
             'businessDate' => BusinessDate::current(),
