@@ -60,12 +60,22 @@ _Avoid_: Room revenue (a report figure)
 A room clean enough to check a guest into. Only a clean room is ready, unless the property skips inspection or a manager overrides with a reason.
 
 **Overbooking conflict**:
-A channel reservation that arrived when its room type had no inventory left on some night. It is accepted and flagged for staff, never refused. Staff can never overbook deliberately.
+A channel reservation that arrived when its room type had no inventory left on some night, beyond the property's overbooking allowance. It is accepted and flagged for staff, never refused.
 _Avoid_: Overbooking (as a feature)
+
+**Overbooking allowance**:
+The percentage of a room type's rooms a property lets staff sell beyond its inventory for a night. Zero unless the property sets it.
+
+**Overstay**:
+An in-house reservation whose departure date has passed without check-out. A marker on the stay, not a separate status.
+
+**Automatic check-out**:
+The property's daily run, at a time it sets, that checks out departing guests and emails the property a summary. The property chooses whether it includes guests with unpaid folios and overstays.
+_Avoid_: Night audit (which never checks guests out)
 
 **Folio**:
 The guest account for one reservation in one currency, open from booking until its balance is settled, which may be after departure. Charges move between folios only by a linked transfer.
-_Avoid_: Bill, invoice, guest ledger
+_Avoid_: Bill, invoice, guest ledger, guest account
 
 **Deposit**:
 A payment posted to a folio before the guest arrives.
@@ -79,16 +89,24 @@ _Avoid_: Till, session
 The rule on a rate plan that proposes a fee when a reservation is cancelled or becomes a no-show. Staff post or waive the proposed fee with a reason.
 
 **Open balance after departure**:
-A balance left on a folio when a manager let the guest check out without settling it. It stays on the folio until paid or written off.
+A balance left on a folio when a manager, or automatic check-out set to include unpaid folios, let the guest check out without settling it. It stays on the folio until paid or written off.
 _Avoid_: Bad debt (until written off), city ledger
 
 **Guest**:
 A person staying at the property, held per property. Repeat guests are linked by staff choice, never matched automatically.
 _Avoid_: Customer, client
 
-**Booker**:
-The person who made a reservation, who need not be a guest on it.
-_Avoid_: Contact, lead guest (when not staying)
+**Lead guest**:
+The guest whose details are taken with the reservation. Other guests are added to the reservation later.
+_Avoid_: Main guest, primary guest
+
+**Tour operator**:
+A ZRA-registered company that books a reservation and pays some or all of it: the room, the infrastructure levy, other services, or a combination. A reservation either has one or is paid by the guest directly.
+_Avoid_: Booker, agent, company
+
+**Meal plan**:
+What a reservation's price includes besides the room: room only, bed and breakfast, half board, full board or all-inclusive.
+_Avoid_: Package (that is a subscription plan), board
 
 **Imported reservation**:
 A future reservation brought in from a property's previous system before go-live.
@@ -158,6 +176,17 @@ _Avoid_: Booking ID, confirmation number
 **Channel reference**:
 The identifier a channel gives a reservation, such as the Booking.com reservation ID. Stored alongside the reservation number, never in place of it.
 _Avoid_: External ID, OTA ID
+
+**Star rating**:
+A property's classification from the Zanzibar Commission for Tourism, or "not yet classified". ZRA sets the infrastructure levy from it.
+_Avoid_: Category, grade
+
+**Infrastructure levy**:
+ZRA's flat charge per guest per night, set by star rating and assessed by VFMS. Shown on the folio as returned, never calculated by Thedream.
+_Avoid_: Infrastructure tax, tourism levy
+
+**ZRA tax registration**:
+A property's registration numbers with ZRA: ZRA number, TIN, VRN and Z-number. Optional at sign-up, required before go-live in Zanzibar.
 
 **Fiscal receipt**:
 A receipt or check-out report issued through VFMS, carrying a VFMS QR code.
