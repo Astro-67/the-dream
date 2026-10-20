@@ -71,7 +71,7 @@ test('new Zanzibar properties receive inclusive VAT and the USD infrastructure l
         ->and($rules[0]->name)->toBe('Infrastructure levy')->and($rules[0]->amount)->toBe($levy)
         ->and($rules[0]->currency->value)->toBe('USD')->and($rules[0]->zra_tax_category->value)->toBe('hotel_levy')
         ->and($rules[1]->rate)->toBe(1500)->and($rules[1]->inclusive)->toBeTrue()->and($rules[1]->zra_tax_category->value)->toBe('vat');
-})->with([[null, 200], [1, 200], [2, 200], [3, 400], [4, 500], [5, 500]]);
+})->with([[null, 200], [1, 200], [2, 400], [3, 400], [4, 500], [5, 500]]);
 
 test('settings updates preserve omitted values and normalize boolean form values', function () {
     [$owner, , $property] = organizationWithOwner();

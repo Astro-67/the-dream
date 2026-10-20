@@ -119,7 +119,7 @@ final class JurisdictionRules
 
         return match ($property->star_rating) {
             4, 5 => 500,
-            3 => 400,
+            2, 3 => 400,
             default => 200,
         };
     }
