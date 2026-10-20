@@ -12,6 +12,8 @@ export type CalendarReservation = {
     reservation_number: string;
     arrival: string;
     departure: string;
+    display_departure?: string;
+    is_overstay?: boolean;
     guest_name: string;
     source: string;
     status: string;
@@ -43,7 +45,9 @@ export function CalendarRoomRows({
             const date = dates[index];
             const reservation = room.reservations.find(
                 (reservation) =>
-                    reservation.arrival <= date && reservation.departure > date,
+                    reservation.arrival <= date &&
+                    (reservation.display_departure ?? reservation.departure) >
+                        date,
             );
             if (!reservation) {
                 cells.push(
@@ -57,9 +61,13 @@ export function CalendarRoomRows({
                 continue;
             }
             let end = index + 1;
-            while (end < dates.length && dates[end] < reservation.departure)
+            while (
+                end < dates.length &&
+                dates[end] <
+                    (reservation.display_departure ?? reservation.departure)
+            )
                 end++;
-            const description = `${reservation.guest_name}, ${reservation.reservation_number}, ${formatDate(reservation.arrival)} to ${formatDate(reservation.departure)}, ${reservation.status.replaceAll('_', ' ')}`;
+            const description = `${reservation.guest_name}, ${reservation.reservation_number}, ${formatDate(reservation.arrival)} to ${formatDate(reservation.departure)}, ${reservation.is_overstay ? 'Overstay, ' : ''}${reservation.status.replaceAll('_', ' ')}`;
             cells.push(
                 <TableCell
                     key={date}
@@ -74,6 +82,11 @@ export function CalendarRoomRows({
                                 className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-primary-tint px-3 py-2 text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                             >
                                 <span>{reservation.guest_name}</span>
+                                {reservation.is_overstay && (
+                                    <StatusChip tone="warning">
+                                        Overstay
+                                    </StatusChip>
+                                )}
                                 <Identifier
                                     value={reservation.reservation_number}
                                 />

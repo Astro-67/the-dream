@@ -31,7 +31,7 @@ class RateCalendarController extends Controller
     {
         $today = CarbonImmutable::parse(BusinessDate::current());
         $from = $request->string('from', $today->toDateString())->value();
-        $to = $request->string('to', $today->addDays(13)->toDateString())->value();
+        $to = $request->string('to', CarbonImmutable::parse($from)->addDays((int) $request->validated('days', 15) - 1)->toDateString())->value();
         $dates = DateRange::dates($from, $to);
         $empty = array_fill_keys($dates, null);
         $allRoomTypes = RoomType::query()->orderBy('code')->get(['id', 'name', 'code']);
@@ -40,9 +40,11 @@ class RateCalendarController extends Controller
         $restrictions = RateRestriction::query()->whereIn('room_type_id', $selected->pluck('id'))->whereBetween('date', [$from, $to])->get()
             ->groupBy(fn (RateRestriction $r) => $r->rate_plan_id.'|'.$r->room_type_id);
 
-        $reservations = $calendar->forRange($selected->pluck('id')->all(), $from, $to);
+        $reservations = $calendar->forRange($selected->pluck('id')->all(), $from, $to, (string) $request->validated('list', 'all'), (string) $request->validated('search', ''));
 
         return Inertia::render('rates/calendar', [
+            'filters' => ['list' => $request->validated('list', 'all'), 'search' => $request->validated('search', '')],
+            'businessDate' => $today->toDateString(),
             'from' => $from,
             'to' => $to,
             'dates' => $dates,

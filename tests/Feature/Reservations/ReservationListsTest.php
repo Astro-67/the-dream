@@ -36,8 +36,8 @@ test('front desk lists arrivals departures and in-house reservations on the prop
     foreach (['arrivals' => 0, 'departures' => 1, 'in-house' => 2] as $list => $index) {
         $this->get(route('reservations.index', ['list' => $list]))->assertOk()->assertInertia(fn (Assert $page) => $page
             ->component('reservations/index')->where('filters.date', '2026-12-11')
-            ->where('filters.list', $list)->has('reservations.data', 1)
-            ->where('reservations.data.0.reservation_number', $reservations[$index]->reservation_number)
+            ->where('filters.list', $list)->has('reservations.data', $list === 'in-house' ? 2 : 1)
+            ->where('reservations.data.0.reservation_number', $reservations[$list === 'in-house' ? 1 : $index]->reservation_number)
             ->where('reservations.per_page', 50));
     }
 });

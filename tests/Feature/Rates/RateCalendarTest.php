@@ -106,7 +106,7 @@ test('front desk sees the calendar read-only and the server refuses their edits'
     $t = twoTenants();
     $s = calendarSetup($t->a->property, $t->a->owner);
     $this->actingAs($t->a->member($role))->get(route('rate-calendar'))->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('canManage', false)->has('dates', 14)->where('from', '2026-10-08')->has('roomTypes', 2));
+        ->assertInertia(fn (Assert $page) => $page->where('canManage', false)->has('dates', 15)->where('from', '2026-10-08')->has('roomTypes', 2));
 
     $this->put(route('rate-calendar.prices', $s['base']), ['_property' => $t->a->property->id, 'room_type_id' => $s['deluxe']->id, 'from' => '2026-10-09', 'to' => '2026-10-09', 'weekdays' => [5], 'base_price' => 1, 'extra_adult' => 0, 'extra_child' => 0])->assertForbidden();
     $this->put(route('rate-calendar.restrictions', $s['base']), ['_property' => $t->a->property->id, 'room_type_id' => $s['deluxe']->id, 'from' => '2026-10-09', 'to' => '2026-10-09', 'weekdays' => [5], 'min_stay' => 9])->assertForbidden();
