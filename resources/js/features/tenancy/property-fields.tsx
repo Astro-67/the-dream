@@ -205,7 +205,7 @@ export function PropertyFields({
                 id="star_rating"
                 label="Star rating"
                 error={errors.star_rating}
-                hint="Infrastructure levy: not yet classified or 1–2 stars $2, 3 stars $4, 4–5 stars $5 per guest per night. Assessed by ZRA at check-out."
+                hint="Zanzibar infrastructure levy: not yet classified or 1 star $2, 2–3 stars $4, 4–5 stars $5 per guest per night. Assessed by ZRA at check-out."
             >
                 <NativeSelect
                     id="star_rating"
