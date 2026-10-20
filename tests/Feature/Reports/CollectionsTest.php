@@ -1,8 +1,12 @@
 <?php
 
+use App\Domains\Billing\Actions\CloseCashierShift;
+use App\Domains\Billing\Actions\OpenCashierShift;
 use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Actions\RecordAdjustment;
 use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Actions\ReversePosting;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -62,6 +66,31 @@ test('last month and custom dates filter received but outstanding stays a curren
     $this->get(route('payments.index', ['period' => 'custom', 'from' => '2025-12-31', 'to' => '2025-12-31']))->assertOk()->assertInertia(fn (Assert $page) => $page->where('received.rows.0.payments', 400));
     $this->get(route('payments.index', ['view' => 'outstanding', 'period' => 'custom', 'from' => '2020-01-01', 'to' => '2020-01-02']))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('filters.view', 'outstanding')->has('folios.data', 2)->where('folios.data', fn ($rows) => collect($rows)->contains(fn ($row) => $row['id'] === $folio->id && $row['balance'] === 450)));
+});
+
+test('collections combines cashier shifts and retains refunds and reversals', function () {
+    $t = twoTenants();
+    $folio = collectionsFolio($t->a);
+    inTenant($t->a->property, function () use ($t, $folio) {
+        $shift = app(OpenCashierShift::class)->handle($t->a->owner, ['USD' => 0]);
+        app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'cash', 'amount' => 60, 'currency' => 'USD']);
+        app(CloseCashierShift::class)->handle($t->a->owner, $shift, ['USD' => 60], null);
+        app(OpenCashierShift::class)->handle($t->a->owner, ['USD' => 0]);
+        app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'cash', 'amount' => 70, 'currency' => 'USD']);
+        app(RecordAdjustment::class)->handle($t->a->owner, $folio, 'refund', ['amount' => 20, 'method' => 'card', 'reason' => 'Overpaid', 'idempotency_key' => 'collections-refund']);
+        $payment = app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'card', 'amount' => 30, 'currency' => 'USD']);
+        app(ReversePosting::class)->handle($t->a->owner, $payment, 'Not received');
+    });
+    $this->actingAs($t->a->member(OrganizationRole::Auditor))
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('payments.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('received.rows', 4)
+        ->where('received.rows.2', ['method' => 'card', 'currency' => 'USD', 'payments' => 130, 'refunds' => 20, 'reversals' => -30, 'net' => 80])
+        ->where('received.rows.3', ['method' => 'cash', 'currency' => 'USD', 'payments' => 130, 'refunds' => 0, 'reversals' => 0, 'net' => 130])
+        ->where('received.totals', [
+            ['currency' => 'TZS', 'payments' => 50000, 'refunds' => 0, 'reversals' => 0, 'net' => 50000],
+            ['currency' => 'USD', 'payments' => 310, 'refunds' => 20, 'reversals' => -30, 'net' => 260],
+        ]));
 });
 
 test('collections validates dates periods and views and preserves report permissions', function () {
