@@ -15,7 +15,7 @@ class CancelUnpaidReservations
     {
         $hours = $property->settings()['front_desk_settings']['auto_cancel_unpaid_hours'];
         Reservation::query()->where('property_id', $property->id)->where('status', ReservationStatus::Confirmed)
-            ->where('created_at', '<=', now()->subHours($hours))->orderBy('id')->each(function (Reservation $reservation) use ($hours): void {
+            ->where('created_at', '<=', now()->subHours($hours))->eachById(function (Reservation $reservation) use ($hours): void {
                 DB::transaction(function () use ($reservation, $hours): void {
                     $reservation = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();
                     if ($reservation->status !== ReservationStatus::Confirmed || $reservation->created_at->gt(now()->subHours($hours))) {
