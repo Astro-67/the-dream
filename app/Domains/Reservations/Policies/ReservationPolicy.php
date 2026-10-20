@@ -4,6 +4,7 @@ namespace App\Domains\Reservations\Policies;
 
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationPermission as P;
+use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Tenancy\Access;
 
@@ -52,7 +53,8 @@ class ReservationPolicy
     /** Check out leaving an open balance after departure. */
     public function checkOutWithBalance(User $user, Reservation $reservation): bool
     {
-        return $this->checkOut($user, $reservation) && Access::allows($user, P::CheckoutOverrideBalance, $reservation);
+        return $this->checkOut($user, $reservation) && Access::allows($user, P::CheckoutOverrideBalance, $reservation)
+            && Property::query()->findOrFail($reservation->property_id)->settings()['payment_settings']['manager_override'];
     }
 
     public function moveRoom(User $user, Reservation $reservation): bool

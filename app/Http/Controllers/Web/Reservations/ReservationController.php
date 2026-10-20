@@ -54,6 +54,7 @@ class ReservationController extends Controller
     public function show(Reservation $reservation): Response
     {
         Gate::authorize('view', $reservation);
+        $property = Property::query()->findOrFail($reservation->property_id);
         $canMove = $reservation->status === ReservationStatus::CheckedIn && Gate::allows('moveRoom', $reservation);
         $folios = Folio::query()->where('reservation_id', $reservation->id)->withSum('postings as balance_amount', 'amount')
             ->orderBy('created_at')->orderBy('id')->paginate(50, ['*'], 'folios_page')->withQueryString();
@@ -97,8 +98,10 @@ class ReservationController extends Controller
             'canReverse' => $folios->isNotEmpty() && Gate::allows('reverse', $folios->first()),
             'canTransfer' => $folios->total() > 1 && $folios->isNotEmpty() && Gate::allows('transfer', $folios->first()),
             'canOpenFolio' => Gate::allows('create', [Folio::class, $reservation]),
-            'folioCurrencies' => array_map(fn (Currency $currency) => $currency->value, JurisdictionRules::allowedCurrencies(Property::query()->findOrFail($reservation->property_id))),
+            'folioCurrencies' => array_map(fn (Currency $currency) => $currency->value, JurisdictionRules::allowedCurrencies($property)),
             'canRecordPayment' => $folios->isNotEmpty() && Gate::allows('recordPayment', $folios->first()),
+            'acceptedPaymentMethods' => $property->settings()['payment_settings']['accepted_methods'],
+            'blockCheckoutIfUnpaid' => $property->settings()['payment_settings']['block_checkout_if_unpaid'],
             'canRefund' => $folios->isNotEmpty() && Gate::allows('refund', $folios->first()),
             'canWriteOff' => $folios->isNotEmpty() && Gate::allows('writeOff', $folios->first()),
             'reservation' => $reservation->load('priceLines'),

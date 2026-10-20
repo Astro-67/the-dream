@@ -24,17 +24,24 @@ export const paymentMethodLabel = (method: string) =>
 export function PaymentForm({
     folio,
     channelCollected,
+    acceptedMethods,
 }: {
     folio: { id: string; currency: string };
     channelCollected: boolean;
+    acceptedMethods: string[];
 }) {
     // One key per filled-in form, so a resubmission of the same form posts once.
     const [key, setKey] = useState(() => crypto.randomUUID());
-    const [method, setMethod] = useState('bank_transfer');
     const id = (field: string) => `payment-${folio.id}-${field}`;
     const methods = Object.entries(paymentMethods).filter(
-        ([value]) => channelCollected || value !== 'channel_collected',
+        ([value]) =>
+            acceptedMethods.includes(value) &&
+            (channelCollected || value !== 'channel_collected'),
     );
+    const [selectedMethod, setMethod] = useState('bank_transfer');
+    const method = methods.some(([value]) => value === selectedMethod)
+        ? selectedMethod
+        : (methods[0]?.[0] ?? '');
 
     return (
         <Form
@@ -137,7 +144,7 @@ export function PaymentForm({
                         className="sm:col-span-2"
                     />
                     <div className="sm:col-span-2">
-                        <Button disabled={processing}>
+                        <Button disabled={processing || methods.length === 0}>
                             <span className="size-4">
                                 {processing && <Spinner />}
                             </span>

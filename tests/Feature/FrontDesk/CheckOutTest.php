@@ -14,6 +14,7 @@ use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
@@ -117,6 +118,48 @@ test('an override needs a reason', function () {
 
     $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id, 'override_reason' => '   '])
         ->assertUnprocessable()->assertJsonValidationErrors('balance');
+});
+
+test('turning off the unpaid check-out block leaves the debt open without an override', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    $folio = chargeBeforeCheckOut($t->a, $reservation, 1500);
+    $t->a->property->update(['payment_settings' => ['block_checkout_if_unpaid' => false, 'manager_override' => false]]);
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (AssertableInertia $page) => $page->where('blockCheckoutIfUnpaid', false));
+    $this->get(route('reservations.index', ['list' => 'departures']))->assertInertia(fn (AssertableInertia $page) => $page->where('blockCheckoutIfUnpaid', false));
+    $this->post(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
+        ->assertRedirect(route('reservations.show', $reservation))->assertSessionHasNoErrors();
+
+    inTenant($t->a->property, function () use ($reservation, $folio) {
+        expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedOut)
+            ->and($folio->balance()->amount)->toBe(1500);
+        expect($reservation->lifecycleEvents()->where('type', 'checked_out')->sole()->snapshot['open_balances'])
+            ->toBe([['amount' => 1500, 'currency' => 'USD']]);
+    });
+});
+
+test('a property may disable manager overrides on unpaid check-out', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    chargeBeforeCheckOut($t->a, $reservation, 1500);
+    $t->a->property->update(['payment_settings' => ['manager_override' => false]]);
+    $this->actingAs($t->a->owner)
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (AssertableInertia $page) => $page->where('can.overrideBalance', false));
+    $this->get(route('reservations.index', ['list' => 'departures']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.can_override_balance', false));
+    $this->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id, 'override_reason' => 'Invoice'])
+        ->assertForbidden();
+    $this->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('balance');
+    inTenant($t->a->property, function () use ($t, $reservation) {
+        expect(fn () => app(CheckOut::class)->handle($t->a->owner, $reservation, 'Invoice'))
+            ->toThrow(ValidationException::class);
+    });
+    expect(inTenant($t->a->property, fn () => $reservation->fresh()->status))->toBe(ReservationStatus::CheckedIn);
 });
 
 test('a stay departing later needs an early departure before check-out', function () {

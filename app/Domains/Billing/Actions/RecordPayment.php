@@ -41,8 +41,9 @@ class RecordPayment
                 return $existing;
             }
             $method = $details['method'];
-            if (! in_array($method, self::METHODS, true)) {
-                throw ValidationException::withMessages(['method' => __('Choose a payment method.')]);
+            $property = Property::query()->findOrFail($folio->property_id);
+            if (! in_array($method, self::METHODS, true) || ! in_array($method, $property->settings()['payment_settings']['accepted_methods'], true)) {
+                throw ValidationException::withMessages(['method' => __('Choose a payment method accepted by this property.')]);
             }
             if ($details['currency'] !== $folio->currency->value) {
                 throw ValidationException::withMessages(['currency' => __('This folio is in :currency.', ['currency' => $folio->currency->value])]);
@@ -58,7 +59,6 @@ class RecordPayment
                 throw ValidationException::withMessages(['card_last_four' => __('Enter only the last four digits of the card.')]);
             }
             $shift = $method === 'cash' ? $this->openShift($actor) : null;
-            $property = Property::query()->findOrFail($folio->property_id);
             $date = BusinessDate::of($property);
             $posting = Posting::query()->create([
                 'folio_id' => $folio->id, 'type' => 'payment',

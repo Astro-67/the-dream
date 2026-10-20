@@ -17,13 +17,13 @@ use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
- * Posts an extra (minibar, laundry, other) to a folio, with the property's tax
+ * Posts a VAT-inclusive extra to a folio, with the property's tax
  * rules in force today frozen on it. The same idempotency key on the same folio
  * posts once and returns the first posting (FIN-03).
  */
 class PostExtraCharge
 {
-    /** @param array{category: string, description?: string|null, quantity: int, unit_price: int, idempotency_key?: string|null} $details */
+    /** @param array{category?: string, description?: string|null, quantity: int, unit_price: int, idempotency_key?: string|null} $details */
     public function handle(?User $actor, Folio $folio, array $details): Posting
     {
         return Audit::validationRefusal($actor, $folio, 'Extra charge refused', fn () => DB::transaction(function () use ($actor, $folio, $details) {
@@ -39,12 +39,12 @@ class PostExtraCharge
             $date = BusinessDate::of($property);
             $gross = $details['quantity'] * $details['unit_price'];
             try {
-                $breakdown = TaxCalculator::forProperty($property, $gross, $folio->currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Extra);
+                $breakdown = TaxCalculator::forProperty($property, $gross, $folio->currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Extra, inclusivePrice: true);
             } catch (InvalidArgumentException $e) {
                 throw ValidationException::withMessages(['unit_price' => $e->getMessage()]);
             }
             $posting = Posting::query()->create([
-                'folio_id' => $folio->id, 'type' => 'charge', 'category' => $details['category'], 'description' => $details['description'] ?? null,
+                'folio_id' => $folio->id, 'type' => 'charge', 'category' => $details['category'] ?? 'other', 'description' => $details['description'] ?? null,
                 'quantity' => $details['quantity'], 'unit_price' => $details['unit_price'],
                 'net' => $breakdown->net, 'amount' => $breakdown->gross(), 'currency' => $folio->currency,
                 'tax_lines' => $breakdown->lines, 'tax_rule_ids' => $breakdown->ruleIds,

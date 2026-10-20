@@ -5,10 +5,42 @@ use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\ReversePosting;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\Rates\Actions\CreateTaxRule;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
+
+test('front desk charges a free-text item at its VAT-inclusive price and sees it beside existing extras', function () {
+    $t = twoTenants();
+    $this->travelTo(CarbonImmutable::parse('2026-06-01'));
+    [$reservation, $folio] = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $folio = Folio::query()->sole();
+        app(PostExtraCharge::class)->handle($t->a->owner, $folio, ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 100]);
+        app(CreateTaxRule::class)->handle($t->a->owner, [
+            'name' => 'VAT', 'kind' => 'percentage', 'rate' => 1800, 'amount' => null, 'currency' => null,
+            'inclusive' => false, 'applies_to' => 'extras', 'rounding' => 'half_up',
+            'effective_from' => '2026-01-01', 'effective_to' => null,
+        ]);
+
+        return [$reservation, $folio];
+    });
+
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
+        ->post(route('folios.charges.store', $folio), [
+            '_property' => $t->a->property->id, 'description' => 'Sunset boat trip', 'quantity' => 2,
+            'unit_price' => 590, 'idempotency_key' => 'boat-trip',
+        ])->assertRedirect(route('reservations.show', $reservation))->assertSessionHasNoErrors();
+
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('folios.data.0.balance', 1280)
+        ->where('folios.data.0.postings.data.0.category', 'minibar')
+        ->where('folios.data.0.postings.data.1.description', 'Sunset boat trip')
+        ->where('folios.data.0.postings.data.1.amount', 1180)
+        ->where('folios.data.0.postings.data.1.net', 1000));
+});
 
 test('only roles with charges.post post an extra charge', function (OrganizationRole $role, bool $allowed) {
     $t = twoTenants();
@@ -30,7 +62,7 @@ test('a resubmitted charge form posts once', function () {
     $t = twoTenants();
     inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
     $folio = inTenant($t->a->property, fn () => Folio::query()->sole());
-    $form = ['_property' => $t->a->property->id, 'category' => 'laundry', 'quantity' => 1, 'unit_price' => 900, 'idempotency_key' => '01JABCDEFGHJKMNPQRSTVWXYZ0'];
+    $form = ['_property' => $t->a->property->id, 'description' => 'Laundry', 'quantity' => 1, 'unit_price' => 900, 'idempotency_key' => '01JABCDEFGHJKMNPQRSTVWXYZ0'];
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
 
     $this->post(route('folios.charges.store', $folio), $form)->assertSessionHasNoErrors();
@@ -39,13 +71,15 @@ test('a resubmitted charge form posts once', function () {
     expect(inTenant($t->a->property, fn () => Posting::query()->count()))->toBe(1);
 });
 
-test('the charge form validates category, quantity, price and key', function () {
+test('the charge form validates item name, whole-number quantity, price and key', function () {
     $t = twoTenants();
     inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
     $folio = inTenant($t->a->property, fn () => Folio::query()->sole());
 
     $this->actingAs($t->a->owner)->postJson(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'category' => 'spa', 'quantity' => 0, 'unit_price' => -1])
-        ->assertUnprocessable()->assertJsonValidationErrors(['category', 'quantity', 'unit_price', 'idempotency_key']);
+        ->assertUnprocessable()->assertJsonValidationErrors(['description', 'quantity', 'unit_price', 'idempotency_key']);
+    $this->postJson(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'description' => str_repeat('a', 256), 'quantity' => 1.5, 'unit_price' => 100, 'idempotency_key' => 'fraction'])
+        ->assertUnprocessable()->assertJsonValidationErrors(['description', 'quantity']);
 });
 
 test('the reservation shows its folio postings, totals per currency and balance', function () {
@@ -53,15 +87,15 @@ test('the reservation shows its folio postings, totals per currency and balance'
     $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
     $folio = inTenant($t->a->property, fn () => Folio::query()->sole());
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
-    $this->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'category' => 'minibar', 'quantity' => 2, 'unit_price' => 150, 'idempotency_key' => 'a']);
-    $this->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'category' => 'laundry', 'quantity' => 1, 'unit_price' => 1000, 'idempotency_key' => 'b']);
+    $this->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'description' => 'Minibar', 'quantity' => 2, 'unit_price' => 150, 'idempotency_key' => 'a']);
+    $this->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'description' => 'Laundry', 'quantity' => 1, 'unit_price' => 1000, 'idempotency_key' => 'b']);
 
     $this->actingAs($t->a->member(OrganizationRole::Auditor))->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->has('folios.data', 1)
         ->where('folios.data.0.id', $folio->id)->where('folios.data.0.currency', 'USD')
         ->where('folios.data.0.balance', 1300)
         ->has('folios.data.0.postings.data', 2)
-        ->where('folios.data.0.postings.data.0.category', 'minibar')->where('folios.data.0.postings.data.0.amount', 300)
+        ->where('folios.data.0.postings.data.0.description', 'Minibar')->where('folios.data.0.postings.data.0.amount', 300)
         ->where('totals', [['currency' => 'USD', 'charges' => 1300, 'balance' => 1300]]));
 });
 

@@ -16,10 +16,15 @@ use InvalidArgumentException;
  */
 final class TaxCalculator
 {
-    /** The breakdown under the property's rules in force on the date. */
-    public static function forProperty(Property $property, int $amount, Currency $currency, string $date, int $guests, ChargeKind $charge): TaxBreakdown
+    /** The breakdown under the property's rules, optionally taking a VAT-inclusive input price. */
+    public static function forProperty(Property $property, int $amount, Currency $currency, string $date, int $guests, ChargeKind $charge, bool $inclusivePrice = false): TaxBreakdown
     {
         $rules = TaxRule::query()->where('property_id', $property->id)->orderBy('name')->get()->all();
+        if ($inclusivePrice) {
+            foreach ($rules as $rule) {
+                $rule->inclusive = true;
+            }
+        }
 
         return self::breakdown($rules, $amount, $currency, $date, $guests, $charge);
     }
