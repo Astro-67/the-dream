@@ -45,7 +45,7 @@ test('only managers override property booking rules with a recorded reason over 
         $reservation = Reservation::query()->sole();
         expect($reservation->getAttribute('restriction_override_reason'))->toBe('Returning guest');
         expect(Activity::query()->where('subject_id', $reservation->id)->where('event', 'created')->sole()->properties->get('restriction_warnings'))->toHaveCount(1);
-        expect(InventoryRecord::query()->sum('sold_count'))->toBe(2);
+        expect(InventoryRecord::query()->sum('sold_count'))->toEqual(2);
     });
 });
 
