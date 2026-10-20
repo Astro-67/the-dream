@@ -22,7 +22,13 @@ class UpdateProperty
                 JurisdictionRules::ensureProfileCanChange($property, $details->jurisdictionProfile);
             }
 
-            $property->fill($details->toAttributes());
+            $attributes = $details->toAttributes();
+            foreach ($property->settings() as $group => $current) {
+                if (isset($attributes[$group])) {
+                    $attributes[$group] = array_replace($current, $attributes[$group]);
+                }
+            }
+            $property->fill($attributes);
             $changed = array_keys($property->getDirty());
 
             if ($changed === []) {

@@ -95,6 +95,9 @@ class HandleInertiaRequests extends Middleware
             'currency' => $property->currency->value,
             'jurisdictionProfile' => $property->jurisdiction_profile->value,
             'jurisdictionLabel' => $property->jurisdiction_profile->label(),
+            'frontDeskSettings' => $property->settings()['front_desk_settings'],
+            'taxSettings' => $property->settings()['tax_settings'],
+            'paymentSettings' => $property->settings()['payment_settings'],
             'businessDate' => $property->business_date->toDateString(),
             'demo' => $property->isDemo(),
         ];

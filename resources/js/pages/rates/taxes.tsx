@@ -28,6 +28,7 @@ import { change, end, preview, store } from '@/routes/tax-rules';
 import { Spinner } from '@/components/ui/spinner';
 
 type Rule = {
+    zra_tax_category: string | null;
     id: string;
     name: string;
     kind: 'percentage' | 'flat_per_person_night';
@@ -117,6 +118,19 @@ function RuleFields({
                     <InputError message={errors.name} />
                 </div>
             )}
+            <Select
+                name="zra_tax_category"
+                label="ZRA tax category"
+                options={{
+                    '': 'Not specified',
+                    vat: 'VAT',
+                    hotel_levy: 'Hotel levy',
+                    tour_operator: 'Tour operator',
+                    exempt: 'Exempt',
+                }}
+                defaultValue={rule?.zra_tax_category ?? ''}
+                error={errors.zra_tax_category}
+            />
             <Select
                 name="kind"
                 label="Kind"

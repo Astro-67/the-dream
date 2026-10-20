@@ -4,6 +4,7 @@ namespace App\Http\Requests\Tenancy;
 
 use App\Domains\Guests\Models\IdentityDocument;
 use App\Domains\Tenancy\Data\PropertyDetails;
+use App\Domains\Tenancy\Data\PropertySettings;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\PropertyType;
 use App\Domains\Tenancy\Models\Property;
@@ -11,6 +12,7 @@ use App\Support\Money\Currency;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * The property form, for adding a property (no route property) or editing one.
@@ -33,6 +35,7 @@ class PropertyRequest extends FormRequest
     {
         return [
             ...self::propertyRules(),
+            ...PropertySettings::rules(),
             'name' => ['required', 'string', 'max:255'],
             'housekeeping_inspection_required' => ['sometimes', 'boolean'],
             'stayover_service_on_close' => ['sometimes', 'boolean'],
@@ -49,6 +52,10 @@ class PropertyRequest extends FormRequest
     public static function propertyRules(): array
     {
         return [
+            'star_rating' => ['sometimes', 'nullable', 'integer', 'between:1,5'],
+            'tin' => ['sometimes', 'nullable', 'string', 'max:64'],
+            'z_number' => ['sometimes', 'nullable', 'string', 'max:64'],
+            'vrn' => ['sometimes', 'nullable', 'string', 'max:64'],
             'property_type' => ['required', Rule::enum(PropertyType::class)],
             'address_line' => ['required', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:120'],
@@ -61,6 +68,20 @@ class PropertyRequest extends FormRequest
             'jurisdiction_profile' => ['required', Rule::enum(JurisdictionProfile::class)],
             'zra_hotel_code' => ['nullable', 'string', 'max:64'],
         ];
+    }
+
+    /** @return list<\Closure> */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            $property = $this->route('property');
+            $defaults = $property instanceof Property ? $property->settings()['front_desk_settings'] : PropertySettings::DEFAULTS['front_desk_settings'];
+            $min = $this->input('front_desk_settings.minimum_stay', $defaults['minimum_stay']);
+            $max = $this->input('front_desk_settings.maximum_stay', $defaults['maximum_stay']);
+            if (is_numeric($min) && is_numeric($max) && $max < $min) {
+                $validator->errors()->add('front_desk_settings.maximum_stay', __('Maximum stay must be at least the minimum stay.'));
+            }
+        }];
     }
 
     public function details(): PropertyDetails
