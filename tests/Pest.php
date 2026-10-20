@@ -95,7 +95,11 @@ function organizationSetupPayload(array $overrides = []): array
 function organizationWithOwner(array $overrides = [], ?User $owner = null): array
 {
     $owner ??= User::factory()->withTwoFactor()->create();
-    $organization = app(CreateOrganization::class)->handle($owner, OrganizationSetup::fromArray(organizationSetupPayload($overrides)));
+    $organization = app(CreateOrganization::class)->handle($owner, OrganizationSetup::fromArray(organizationSetupPayload([
+        'star_rating' => 3,
+        'z_number' => 'Z-0042',
+        ...$overrides,
+    ])));
     $property = inTenant($organization, fn () => Property::query()->sole());
     // Operational fixtures keep explicit tax arrangements; default seeding is tested through HTTP setup/creation.
     inTenant($property, function (): void {

@@ -38,7 +38,7 @@ test('the selected setup property shows a checklist derived from its data', func
             ->where('onboarding.items.6.completed', false)
             ->where('onboarding.items.7.key', 'sample_reservation')
             ->where('onboarding.items.7.completed', false)
-            ->has('onboarding.gates', 4)
+            ->has('onboarding.gates', 6)
             ->where('onboarding.canGoLive', false));
 });
 
