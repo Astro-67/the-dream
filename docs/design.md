@@ -4,7 +4,7 @@
 
 A precise, calm interface for people running hotels: front desk, reservations, housekeeping, finance and compliance staff, working long shifts on desktops and tablets, often on slow connections. The aesthetic is quietly confident: clear headings, generous but disciplined spacing, flat surfaces with crisp borders. Information density is high where staff scan and act (calendars, tables, folios) and relaxed where they read or decide (onboarding, settings, confirmations). Every status is readable at a glance and never depends on colour alone.
 
-The interface is built on the Laravel React starter kit: Tailwind CSS 4, shadcn/ui and Radix. This document sets the values; the starter kit's components implement them. Interfaces ship in English and Kiswahili.
+The interface is built on the Laravel React starter kit: Tailwind CSS 4, shadcn/ui and Radix. This document sets the values; the starter kit's components implement them. Interfaces ship in English only for this version; Kiswahili and translation infrastructure are deferred.
 
 ## Colors
 
@@ -124,7 +124,7 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 - **Identifiers:** reservation numbers, channel references and receipt numbers are set in JetBrains Mono, with a copy button where staff need to read them out or paste them elsewhere.
 - **Identity documents:** masked by default (••••4821) for roles without access (GST-01). Revealing one is a deliberate action and is logged.
 - **Receipts and print:** print styles for A4 and 80mm thermal paper. A **fiscal receipt** shows the VFMS QR code and receipt number prominently (FSC-06). A **non-fiscal receipt** carries a clear "NON-FISCAL RECEIPT" heading (FSC-08). Print output uses black text on white only.
-- **Kiswahili:** Kiswahili strings often run 20–30% longer than English. Buttons and labels must wrap or grow rather than truncate, never use fixed widths for text, and every layout is checked in both languages.
+- **Text sizing:** buttons and labels must wrap or grow rather than truncate; never use fixed widths for text.
 - **Touch:** housekeeping on mobile and the front desk on tablets need touch targets of at least 44 × 44px, with 8px between targets.
 
 ## Spacing
@@ -210,7 +210,7 @@ Public pages that sell Thedream (the landing page at `/`) follow every rule abov
 - Do keep the 4px spacing grid for padding, margins and gaps.
 - Do use General Sans for headings and DM Sans for everything else; never swap them.
 - Do show the current organization, property and business date on every operational screen.
-- Do test every screen in light and dark themes, in English and Kiswahili, and with the keyboard only.
+- Do test every screen in light and dark themes, in English, and with the keyboard only.
 - Do keep the radius scale: cards 12px, controls 6px, chips as specified.
 - Don't use the bright status shades (#10B981, #F59E0B, #EF4444) for text.
 - Don't use shadows on static elements, or move buttons on hover.
