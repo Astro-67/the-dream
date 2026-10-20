@@ -20,12 +20,23 @@ class Registration
     public static function ensure(Property $property, Collection $guests): void
     {
         $fields = JurisdictionRules::requiredRegistrationFields($property);
-        if ($fields === []) {
+        if ($fields === [] && ! $property->settings()['front_desk_settings']['passport_required_for_foreign_guests']) {
             return;
         }
         $guests->loadMissing('documents');
-        $missing = $guests->isEmpty() ? [__('Add a guest')] : $guests
-            ->reject(fn (Guest $guest) => $guest->documents->contains(fn (IdentityDocument $document) => collect($fields)->every(fn (string $field) => filled($document->getAttribute($field)))))
+        $missing = $guests->isEmpty() && $fields !== [] ? [__('Add a guest')] : $guests
+            ->reject(function (Guest $guest) use ($fields, $property): bool {
+                if ($fields === [] && ! JurisdictionRules::requiresPassport($property, $guest->getAttribute('nationality'))) {
+                    return true;
+                }
+
+                return $guest->documents->contains(function (IdentityDocument $document) use ($fields, $property, $guest): bool {
+                    $passport = JurisdictionRules::requiresPassport($property, $guest->getAttribute('nationality') ?? $document->getAttribute('nationality'));
+
+                    return collect($fields)->every(fn (string $field) => filled($document->getAttribute($field)))
+                        && (! $passport || ($document->getAttribute('type') === 'passport' && filled($document->getAttribute('number'))));
+                });
+            })
             ->map->name->values()->all();
         if ($missing !== []) {
             throw ValidationException::withMessages(['guests' => __('Registration incomplete (:fields required): :guests.', ['fields' => implode(', ', $fields), 'guests' => implode(', ', $missing)])]);

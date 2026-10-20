@@ -29,7 +29,7 @@ class ReceiptController extends Controller
                 'method' => $payment->method, 'reference' => $payment->reference, 'card_last_four' => $payment->card_last_four, 'card_brand' => $payment->card_brand,
             ],
             'reservation' => ['reservation_number' => $reservation->reservation_number, 'payment_collector' => $reservation->payment_collector],
-            'booker' => Booker::query()->findOrFail($reservation->getAttribute('booker_id'))->only(['name']),
+            'booker' => ['name' => Booker::query()->find($reservation->getAttribute('booker_id'))?->getAttribute('name') ?? $reservation->leadGuest()->name ?? __('Guest')],
             'property' => $property->only(['name', 'address_line', 'city', 'phone', 'email']),
         ]);
     }

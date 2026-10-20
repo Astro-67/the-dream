@@ -1,29 +1,14 @@
-import { NativeSelect } from '@/components/ui/select';
 import { useState } from 'react';
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head, router } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Label } from '@/components/ui/label';
-import { Pagination } from '@/components/ui/pagination';
+import { NativeSelect } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { formatDate } from '@/features/platform/format';
-import { create as createBooker } from '@/routes/bookers';
-import { store } from '@/routes/reservations';
-import type { Paginated } from '@/types';
+import { create, store } from '@/routes/reservations';
 
-type Named = { id: string; name: string };
 type Stay = {
     room_type_id: string;
     rate_plan_id: string;
@@ -32,200 +17,189 @@ type Stay = {
     adults: number;
     children: number;
     rooms?: number;
-    booker_id?: string;
     source?: string;
-    channel_reference?: string;
-    outside_integration_reason?: string;
 };
+type Named = { id: string; name: string };
 
 export default function Create({
     stay,
     roomType,
     ratePlan,
-    bookers,
     rooms,
     restrictionWarnings,
+    nightlyRate,
+    businessDate,
 }: {
     stay: Stay;
     roomType: Named;
-    ratePlan: Named;
-    bookers: Paginated<Named>;
+    ratePlan: Named & { currency: string };
     rooms: { id: string; number: string; isReady: boolean }[];
     restrictionWarnings: string[];
+    nightlyRate: number | null;
+    businessDate: string;
 }) {
     const [source, setSource] = useState(stay.source ?? 'direct');
+    const [operator, setOperator] = useState(false);
+    const [documentType, setDocumentType] = useState('');
     const [collector, setCollector] = useState('property');
+    function refreshStay(input: HTMLInputElement) {
+        if (!input.form) return;
+        const data = new FormData(input.form);
+        const arrival = data.get('arrival');
+        const departure = data.get('departure');
+        const adults = data.get('adults');
+        const children = data.get('children');
+        if (
+            typeof arrival !== 'string' ||
+            typeof departure !== 'string' ||
+            typeof adults !== 'string' ||
+            typeof children !== 'string' ||
+            !arrival ||
+            departure <= arrival
+        )
+            return;
+        router.get(
+            create.url(),
+            {
+                room_type_id: stay.room_type_id,
+                rate_plan_id: stay.rate_plan_id,
+                arrival,
+                departure,
+                adults,
+                children,
+            },
+            {
+                only: ['rooms', 'nightlyRate', 'restrictionWarnings'],
+                preserveState: true,
+                preserveScroll: true,
+            },
+        );
+    }
     return (
         <>
-            <Head title="Book rooms" />
+            <Head title="New reservation" />
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <header className="space-y-2">
-                    <h1 className="text-2xl font-semibold">Book rooms</h1>
+                    <h1 className="text-2xl font-semibold">New reservation</h1>
                     <p className="text-sm text-muted-foreground">
-                        {roomType.name} · {ratePlan.name} ·{' '}
-                        {formatDate(stay.arrival, 'UTC')}–
-                        {formatDate(stay.departure, 'UTC')}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        {stay.adults} adults, {stay.children} children. Prices
-                        and availability are checked again when you confirm.
+                        {roomType.name} · {ratePlan.name}. Prices and
+                        availability are checked again when you confirm.
                     </p>
                 </header>
-                <Form {...store.form()} className="flex flex-col gap-6">
+                <Form
+                    {...store.form()}
+                    className="flex max-w-[720px] flex-col gap-6"
+                >
                     {({ errors, processing }) => (
                         <>
                             <PropertyIntent />
-                            {(
-                                [
-                                    'room_type_id',
-                                    'rate_plan_id',
-                                    'arrival',
-                                    'departure',
-                                    'adults',
-                                    'children',
-                                ] as const
-                            ).map((name) => (
-                                <input
-                                    key={name}
-                                    type="hidden"
-                                    name={name}
-                                    value={stay[name]}
-                                />
+                            <input
+                                type="hidden"
+                                name="room_type_id"
+                                value={stay.room_type_id}
+                            />
+                            <input
+                                type="hidden"
+                                name="rate_plan_id"
+                                value={stay.rate_plan_id}
+                            />
+                            {Object.entries(errors).map(([name, message]) => (
+                                <InputError key={name} message={message} />
                             ))}
-                            {Object.entries(errors)
-                                .filter(([name]) => name !== 'booker_id')
-                                .map(([name, message]) => (
-                                    <InputError key={name} message={message} />
-                                ))}
-                            {(restrictionWarnings.length > 0 ||
-                                errors.restriction_override_reason) && (
-                                <div className="max-w-[720px] space-y-3">
-                                    <Alert className="border-status-warning bg-status-warning-tint">
-                                        <AlertTitle>
-                                            Restriction warnings
-                                        </AlertTitle>
-                                        <AlertDescription>
-                                            <ul className="list-disc space-y-1 pl-4">
-                                                {restrictionWarnings.map(
-                                                    (warning) => (
-                                                        <li key={warning}>
-                                                            {warning}
-                                                        </li>
-                                                    ),
-                                                )}
-                                            </ul>
-                                            <p>
-                                                Give a reason to proceed.
-                                                Exhausted inventory cannot be
-                                                overridden.
-                                            </p>
-                                        </AlertDescription>
-                                    </Alert>
-                                    <Label htmlFor="restriction_override_reason">
-                                        Restriction override reason
-                                    </Label>
-                                    <Input
-                                        id="restriction_override_reason"
-                                        name="restriction_override_reason"
-                                        required
-                                        maxLength={2000}
-                                        aria-invalid={
-                                            !!errors.restriction_override_reason
-                                        }
-                                        aria-describedby="restriction-override-error"
-                                    />
-                                    <div id="restriction-override-error">
-                                        <InputError
-                                            message={
-                                                errors.restriction_override_reason
-                                            }
+                            <fieldset className="space-y-4">
+                                <legend className="font-medium">
+                                    Lead guest
+                                </legend>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {(
+                                        [
+                                            ['first_name', 'First name'],
+                                            ['last_name', 'Last name'],
+                                            ['email', 'Email'],
+                                            ['phone', 'Phone'],
+                                            [
+                                                'nationality',
+                                                'Country (two-letter code)',
+                                            ],
+                                        ] as const
+                                    ).map(([name, label]) => (
+                                        <div key={name} className="space-y-2">
+                                            <Label htmlFor={`guest-${name}`}>
+                                                {label}
+                                            </Label>
+                                            <Input
+                                                id={`guest-${name}`}
+                                                name={`lead_guest[${name}]`}
+                                                type={
+                                                    name === 'email'
+                                                        ? 'email'
+                                                        : name === 'phone'
+                                                          ? 'tel'
+                                                          : 'text'
+                                                }
+                                                required={
+                                                    name === 'first_name' ||
+                                                    (name === 'last_name' &&
+                                                        source !== 'walk-in')
+                                                }
+                                                maxLength={
+                                                    name === 'nationality'
+                                                        ? 2
+                                                        : name === 'phone'
+                                                          ? 50
+                                                          : name.endsWith(
+                                                                  'name',
+                                                              )
+                                                            ? 120
+                                                            : 255
+                                                }
+                                                aria-invalid={
+                                                    !!errors[
+                                                        `lead_guest.${name}`
+                                                    ]
+                                                }
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    ID is needed at check-in. Add it now or
+                                    later; walk-ins follow the property's ID
+                                    requirement. Foreign guests may need a
+                                    passport.
+                                </p>
+                                <Label htmlFor="document_type">
+                                    ID document (optional)
+                                </Label>
+                                <NativeSelect
+                                    id="document_type"
+                                    name="lead_guest[document_type]"
+                                    value={documentType}
+                                    onChange={(event) =>
+                                        setDocumentType(event.target.value)
+                                    }
+                                >
+                                    <option value="">Add later</option>
+                                    <option value="passport">Passport</option>
+                                    <option value="nida">NIDA</option>
+                                    <option value="zanid">ZanID</option>
+                                </NativeSelect>
+                                {documentType && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="document_number">
+                                            Document number
+                                        </Label>
+                                        <Input
+                                            id="document_number"
+                                            name="lead_guest[document_number]"
+                                            required
+                                            maxLength={255}
                                         />
                                     </div>
-                                </div>
-                            )}
-                            <div className="max-w-[720px] space-y-2">
-                                <Label htmlFor="rooms">Rooms</Label>
-                                <Input
-                                    id="rooms"
-                                    name="rooms"
-                                    type="number"
-                                    min={1}
-                                    max={20}
-                                    defaultValue={stay.rooms ?? 1}
-                                    required
-                                    aria-invalid={!!errors.rooms}
-                                    aria-describedby="rooms-help"
-                                />
-                                <p
-                                    id="rooms-help"
-                                    className="text-sm text-muted-foreground"
-                                >
-                                    Guest counts and nightly prices apply to
-                                    each room. Several rooms create a booking
-                                    group with one reservation per room. An
-                                    optional room assignment applies to the
-                                    first reservation; assign the others from
-                                    their detail pages.
-                                </p>
-                            </div>
-                            <fieldset className="space-y-3">
-                                <legend className="font-medium">
-                                    Choose the booker
-                                </legend>
-                                {bookers.data.length === 0 ? (
-                                    <EmptyState
-                                        message="Create a booker before confirming this reservation."
-                                        action={
-                                            <Button variant="outline" asChild>
-                                                <Link href={createBooker()}>
-                                                    Create booker
-                                                </Link>
-                                            </Button>
-                                        }
-                                    />
-                                ) : (
-                                    <>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>
-                                                        Booker
-                                                    </TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {bookers.data.map((booker) => (
-                                                    <TableRow key={booker.id}>
-                                                        <TableCell>
-                                                            <label className="flex items-center gap-3">
-                                                                <input
-                                                                    type="radio"
-                                                                    name="booker_id"
-                                                                    value={
-                                                                        booker.id
-                                                                    }
-                                                                    defaultChecked={
-                                                                        stay.booker_id ===
-                                                                        booker.id
-                                                                    }
-                                                                    required
-                                                                    aria-describedby="booker-error"
-                                                                />
-                                                                {booker.name}
-                                                            </label>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                        <Pagination page={bookers} />
-                                    </>
                                 )}
-                                <div id="booker-error">
-                                    <InputError message={errors.booker_id} />
-                                </div>
                             </fieldset>
-                            <div className="max-w-[720px] space-y-2">
+                            <fieldset className="space-y-4">
+                                <legend className="font-medium">Stay</legend>
                                 <Label htmlFor="source">Source</Label>
                                 <NativeSelect
                                     id="source"
@@ -238,14 +212,96 @@ export default function Create({
                                     <option value="direct">Direct</option>
                                     <option value="walk-in">Walk-in</option>
                                     <option value="phone">Phone</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="email">Email</option>
+                                    <option value="website">Our website</option>
                                     <option value="outside-integration">
                                         Booking received outside integration
                                     </option>
                                 </NativeSelect>
-                            </div>
-                            <div className="max-w-[720px] space-y-2">
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {(
+                                        [
+                                            'arrival',
+                                            'departure',
+                                            'adults',
+                                            'children',
+                                        ] as const
+                                    ).map((name) => (
+                                        <div key={name} className="space-y-2">
+                                            <Label htmlFor={name}>
+                                                {
+                                                    {
+                                                        arrival:
+                                                            'Check-in date',
+                                                        departure:
+                                                            'Check-out date',
+                                                        adults: 'Adults',
+                                                        children: 'Children',
+                                                    }[name]
+                                                }
+                                            </Label>
+                                            <Input
+                                                key={
+                                                    name === 'arrival'
+                                                        ? source
+                                                        : name
+                                                }
+                                                id={name}
+                                                name={name}
+                                                onBlur={(event) =>
+                                                    refreshStay(
+                                                        event.currentTarget,
+                                                    )
+                                                }
+                                                type={
+                                                    name === 'arrival' ||
+                                                    name === 'departure'
+                                                        ? 'date'
+                                                        : 'number'
+                                                }
+                                                defaultValue={
+                                                    name === 'arrival' &&
+                                                    source === 'walk-in'
+                                                        ? businessDate
+                                                        : stay[name]
+                                                }
+                                                required
+                                                min={
+                                                    name === 'adults'
+                                                        ? 1
+                                                        : name === 'children'
+                                                          ? 0
+                                                          : undefined
+                                                }
+                                                max={
+                                                    name === 'adults' ||
+                                                    name === 'children'
+                                                        ? 20
+                                                        : undefined
+                                                }
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                                <Label htmlFor="rooms">Rooms</Label>
+                                <Input
+                                    id="rooms"
+                                    name="rooms"
+                                    type="number"
+                                    min={1}
+                                    max={20}
+                                    defaultValue={stay.rooms ?? 1}
+                                    required
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Several rooms create a booking group. Guest
+                                    details and prices apply to each room; the
+                                    assignment applies to the first. Free rooms
+                                    refresh when you finish editing the stay.
+                                </p>
                                 <Label htmlFor="room_id">
-                                    Room assignment (optional)
+                                    Specific room (optional)
                                 </Label>
                                 <NativeSelect id="room_id" name="room_id">
                                     <option value="">Leave unassigned</option>
@@ -258,106 +314,193 @@ export default function Create({
                                         </option>
                                     ))}
                                 </NativeSelect>
-                            </div>
+                                <Label htmlFor="nightly_rate">
+                                    Own nightly rate ({ratePlan.currency}, minor
+                                    units)
+                                </Label>
+                                <Input
+                                    id="nightly_rate"
+                                    name="nightly_rate"
+                                    type="number"
+                                    min={0}
+                                    max={1000000000000}
+                                    placeholder={nightlyRate?.toString()}
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Leave blank to use the rate plan's price for
+                                    each night. First night:{' '}
+                                    {nightlyRate ?? 'Unavailable'}{' '}
+                                    {ratePlan.currency} minor units.
+                                </p>
+                                <Label htmlFor="meal_plan">Meal plan</Label>
+                                <NativeSelect id="meal_plan" name="meal_plan">
+                                    <option value="room-only">Room only</option>
+                                    <option value="bed-and-breakfast">
+                                        Bed and breakfast
+                                    </option>
+                                    <option value="half-board">
+                                        Half board
+                                    </option>
+                                    <option value="full-board">
+                                        Full board
+                                    </option>
+                                    <option value="all-inclusive">
+                                        All-inclusive
+                                    </option>
+                                </NativeSelect>
+                            </fieldset>
+                            <fieldset className="space-y-4">
+                                <legend className="font-medium">
+                                    Booked through
+                                </legend>
+                                <Label htmlFor="booked_through">
+                                    Who books and pays
+                                </Label>
+                                <NativeSelect
+                                    id="booked_through"
+                                    name="booked_through"
+                                    value={operator ? 'tour-operator' : 'guest'}
+                                    onChange={(event) =>
+                                        setOperator(
+                                            event.target.value ===
+                                                'tour-operator',
+                                        )
+                                    }
+                                >
+                                    <option value="guest">
+                                        Guest directly
+                                    </option>
+                                    <option value="tour-operator">
+                                        Tour operator
+                                    </option>
+                                </NativeSelect>
+                                {operator && (
+                                    <>
+                                        <Label htmlFor="tour_operator_name">
+                                            Tour operator name
+                                        </Label>
+                                        <Input
+                                            id="tour_operator_name"
+                                            name="tour_operator_name"
+                                            required
+                                            maxLength={255}
+                                        />
+                                        <Label htmlFor="tour_operator_registration">
+                                            ZRA registration number
+                                        </Label>
+                                        <Input
+                                            id="tour_operator_registration"
+                                            name="tour_operator_registration"
+                                            required
+                                            maxLength={255}
+                                        />
+                                        <Label htmlFor="tour_operator_pays_for">
+                                            Pays for
+                                        </Label>
+                                        <NativeSelect
+                                            id="tour_operator_pays_for"
+                                            name="tour_operator_pays_for"
+                                        >
+                                            <option value="room-and-levy">
+                                                Room and levy
+                                            </option>
+                                            <option value="room-only">
+                                                Room only
+                                            </option>
+                                            <option value="room-levy-and-other-services">
+                                                Room, levy and other services
+                                            </option>
+                                            <option value="room-and-other-services">
+                                                Room and other services
+                                            </option>
+                                        </NativeSelect>
+                                    </>
+                                )}
+                                <Label htmlFor="special_requests">
+                                    Special requests
+                                </Label>
+                                <Input
+                                    id="special_requests"
+                                    name="special_requests"
+                                    maxLength={5000}
+                                />
+                            </fieldset>
                             {source === 'outside-integration' && (
-                                <fieldset className="max-w-[720px] space-y-3">
+                                <fieldset className="space-y-4">
                                     <legend className="font-medium">
                                         Reconciliation details
                                     </legend>
-                                    <p className="text-sm text-muted-foreground">
-                                        This booking will be marked for
-                                        reconciliation.
-                                    </p>
                                     <Label htmlFor="channel_reference">
                                         Channel reference
                                     </Label>
                                     <Input
                                         id="channel_reference"
                                         name="channel_reference"
-                                        defaultValue={stay.channel_reference}
                                         required
                                         maxLength={255}
-                                        aria-invalid={
-                                            !!errors.channel_reference
-                                        }
-                                        aria-describedby="channel-reference-error"
                                     />
-                                    <div id="channel-reference-error">
-                                        <InputError
-                                            message={errors.channel_reference}
-                                        />
-                                    </div>
                                     <Label htmlFor="outside_integration_reason">
                                         Reason received outside integration
                                     </Label>
                                     <Input
                                         id="outside_integration_reason"
                                         name="outside_integration_reason"
-                                        defaultValue={
-                                            stay.outside_integration_reason
-                                        }
                                         required
                                         maxLength={2000}
-                                        aria-invalid={
-                                            !!errors.outside_integration_reason
-                                        }
-                                        aria-describedby="outside-integration-error"
                                     />
-                                    <div id="outside-integration-error">
-                                        <InputError
-                                            message={
-                                                errors.outside_integration_reason
-                                            }
-                                        />
-                                    </div>
                                 </fieldset>
                             )}
-                            <div className="max-w-[720px] space-y-2">
-                                <Label htmlFor="payment_collector">
-                                    Payment collector
-                                </Label>
-                                <NativeSelect
-                                    id="payment_collector"
-                                    name="payment_collector"
-                                    value={collector}
-                                    onChange={(event) =>
-                                        setCollector(event.target.value)
-                                    }
-                                >
-                                    <option value="property">Property</option>
-                                    <option value="channel">Channel</option>
-                                </NativeSelect>
-                                <InputError
-                                    message={errors.payment_collector}
-                                />
-                            </div>
+                            <Label htmlFor="payment_collector">
+                                Payment collector
+                            </Label>
+                            <NativeSelect
+                                id="payment_collector"
+                                name="payment_collector"
+                                value={collector}
+                                onChange={(event) =>
+                                    setCollector(event.target.value)
+                                }
+                            >
+                                <option value="property">Property</option>
+                                <option value="channel">Channel</option>
+                            </NativeSelect>
                             {collector === 'channel' && (
-                                <div className="max-w-[720px] space-y-2">
+                                <>
                                     <Label htmlFor="channel_collected_amount">
-                                        Channel-collected amount in minor units
+                                        Channel-collected amount (minor units)
                                     </Label>
                                     <Input
                                         id="channel_collected_amount"
                                         name="channel_collected_amount"
                                         type="number"
                                         min={0}
+                                        max={1000000000000}
                                         required
-                                        aria-invalid={
-                                            !!errors.channel_collected_amount
-                                        }
                                     />
-                                    <InputError
-                                        message={
-                                            errors.channel_collected_amount
-                                        }
+                                </>
+                            )}
+                            {(restrictionWarnings.length > 0 ||
+                                errors.restriction_override_reason) && (
+                                <div className="space-y-3">
+                                    <ul className="list-disc pl-4">
+                                        {restrictionWarnings.map((warning) => (
+                                            <li key={warning}>{warning}</li>
+                                        ))}
+                                    </ul>
+                                    <Label htmlFor="restriction_override_reason">
+                                        Restriction override reason
+                                    </Label>
+                                    <Input
+                                        id="restriction_override_reason"
+                                        name="restriction_override_reason"
+                                        required
+                                        maxLength={2000}
                                     />
                                 </div>
                             )}
                             <Button
                                 type="submit"
-                                disabled={
-                                    processing || bookers.data.length === 0
-                                }
+                                disabled={processing}
                                 className="self-end"
                             >
                                 {processing && <Spinner />}Confirm reservation

@@ -37,3 +37,12 @@ test('a mainland property requires only the registration fields it configured', 
         ->and(JurisdictionRules::requiredRegistrationFields(new Property(['jurisdiction_profile' => JurisdictionProfile::MainlandTanzania, 'registration_fields' => ['number', 'type']])))
         ->toBe(['number', 'type']);
 });
+
+test('passport rule follows the property setting for foreign guests', function (JurisdictionProfile $profile) {
+    $property = propertyUnder($profile);
+    expect(JurisdictionRules::requiresPassport($property, 'GB'))->toBeTrue()
+        ->and(JurisdictionRules::requiresPassport($property, 'TZ'))->toBeFalse()
+        ->and(JurisdictionRules::requiresPassport($property, null))->toBeFalse();
+    $property->setAttribute('front_desk_settings', ['passport_required_for_foreign_guests' => false]);
+    expect(JurisdictionRules::requiresPassport($property, 'GB'))->toBeFalse();
+})->with(JurisdictionProfile::cases());

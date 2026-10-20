@@ -136,6 +136,12 @@ final class JurisdictionRules
         return $property->jurisdiction_profile === JurisdictionProfile::Zanzibar && ! $property->isLive();
     }
 
+    public static function requiresPassport(Property $property, ?string $country): bool
+    {
+        return $property->settings()['front_desk_settings']['passport_required_for_foreign_guests']
+            && filled($country) && $country !== 'TZ';
+    }
+
     private static function of(JurisdictionProfile $profile): ProfileRules
     {
         return match ($profile) {

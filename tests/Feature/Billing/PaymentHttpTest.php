@@ -123,3 +123,11 @@ test('an owner configures the receipt prefix on the property', function () {
 
     expect($property->fresh()->receipt_prefix)->toBe('SD-');
 });
+
+test('a bookerless reservation receipt identifies the lead guest', function () {
+    [$t, $folio] = folioForPayments(['booker_id' => null, 'lead_guest' => ['first_name' => 'Asha', 'last_name' => 'Ali', 'nationality' => 'TZ']]);
+    $response = $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)
+        ->post(route('folios.payments.store', $folio), ['_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 100, 'idempotency_key' => 'inline-receipt']);
+    $response->assertRedirect()->assertSessionHasNoErrors();
+    $this->get($response->headers->get('Location'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('booker.name', 'Asha Ali'));
+});
