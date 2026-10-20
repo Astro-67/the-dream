@@ -1,14 +1,17 @@
 <?php
 
+use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Reservations\Actions\AmendReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\AvailabilitySearch;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 
 test('property booking rules refuse creation and amendment by name', function (array $settings, string $message) {
     $this->travelTo(new DateTimeImmutable((($settings['book_ahead_days'] ?? null) === 0 ? '2026-12-09' : '2026-12-10').' 09:00:00 UTC'));
@@ -44,3 +47,22 @@ test('only managers override property booking rules with a recorded reason over 
         expect(InventoryRecord::query()->sum('sold_count'))->toBe(2);
     });
 });
+
+test('staff sell only the rounded down room type allowance and availability agrees', function (int $percentage, int $capacity) {
+    [$owner, , $property] = organizationWithOwner();
+    $property->update(['front_desk_settings' => ['maximum_overbooking_percentage' => $percentage]]);
+    inTenant($property, function () use ($owner, $capacity) {
+        $details = BookingForm::details($owner);
+        app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        for ($i = 0; $i < $capacity; $i++) {
+            expect(app(AvailabilitySearch::class)->search($details)[0]['available'])->toBe($capacity - $i);
+            app(CreateReservation::class)->handle($owner, $details);
+        }
+        expect(app(AvailabilitySearch::class)->search($details))->toBe([]);
+        expect(fn () => app(CreateReservation::class)->handle($owner, $details))->toThrow(ValidationException::class);
+        expect(Reservation::query()->count())->toBe($capacity);
+        $reservation = Reservation::query()->firstOrFail();
+        app(AmendReservation::class)->handle($owner, $reservation, [...$details, 'room_id' => null, 'pricing' => 'keep']);
+        expect(InventoryRecord::query()->whereDate('date', $details['arrival'])->sole()->sold_count)->toBe($capacity);
+    });
+})->with([[49, 2], [50, 3], [100, 4]]);

@@ -32,7 +32,8 @@ class AvailabilitySearch
             if ($records === null || $records->count() !== count($dates)) {
                 continue;
             }
-            $available = $records->min(fn (InventoryRecord $record) => $record->sellable_count - $record->sold_count);
+            $allowance = $type->overbookingAllowance();
+            $available = $records->min(fn (InventoryRecord $record) => $record->sellable_count + $allowance - $record->sold_count);
             if ($available < 1) {
                 continue;
             }

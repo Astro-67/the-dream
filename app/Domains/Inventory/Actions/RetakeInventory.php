@@ -25,6 +25,7 @@ class RetakeInventory
         foreach ($types as $type) {
             RoomType::query()->whereKey($type)->lockForUpdate()->firstOrFail();
         }
+        $allowance = RoomType::query()->findOrFail($newType)->overbookingAllowance();
         $records = InventoryRecord::query()->where(function ($query) use ($oldType, $oldDates, $newType, $newDates) {
             $query->where(fn ($query) => $query->where('room_type_id', $oldType)->whereIn('date', $oldDates))
                 ->orWhere(fn ($query) => $query->where('room_type_id', $newType)->whereIn('date', $newDates));
@@ -38,7 +39,7 @@ class RetakeInventory
             $release = $record->room_type_id === $oldType && in_array($date, $oldDates, true);
             $take = $record->room_type_id === $newType && in_array($date, $newDates, true);
             $sold = $record->sold_count - (int) $release + (int) $take;
-            if (($release && $record->sold_count < 1) || $sold < 0 || ($take && $sold > $record->sellable_count)) {
+            if (($release && $record->sold_count < 1) || $sold < 0 || ($take && $sold > $record->sellable_count + $allowance)) {
                 throw ValidationException::withMessages(['room_type_id' => __('No rooms are left for every night of this stay.')]);
             }
             $record->sold_count = $sold;
