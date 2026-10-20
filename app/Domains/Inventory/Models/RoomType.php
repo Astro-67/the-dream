@@ -3,6 +3,7 @@
 namespace App\Domains\Inventory\Models;
 
 use App\Domains\Inventory\Policies\InventoryPolicy;
+use App\Domains\Tenancy\Models\Property;
 use App\Support\Tenancy\BelongsToProperty;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -46,6 +47,13 @@ class RoomType extends Model
             'max_children' => 'integer',
             'max_occupancy' => 'integer',
         ];
+    }
+
+    public function overbookingAllowance(): int
+    {
+        $percentage = Property::query()->findOrFail($this->property_id)->settings()['front_desk_settings']['maximum_overbooking_percentage'];
+
+        return (int) floor($this->rooms()->active()->count() * $percentage / 100);
     }
 
     /**

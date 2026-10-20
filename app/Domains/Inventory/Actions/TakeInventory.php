@@ -19,9 +19,10 @@ class TakeInventory
         }
         // RecalculateInventory uses the same type lock before changing sellable counts.
         RoomType::query()->whereKey($roomType->id)->lockForUpdate()->firstOrFail();
+        $allowance = $roomType->overbookingAllowance();
         $records = InventoryRecord::query()->where('room_type_id', $roomType->id)
             ->whereIn('date', $dates)->orderBy('date')->lockForUpdate()->get();
-        if ($records->count() !== count($dates) || $records->contains(fn (InventoryRecord $record) => $record->sold_count + $rooms > $record->sellable_count)) {
+        if ($records->count() !== count($dates) || $records->contains(fn (InventoryRecord $record) => $record->sold_count + $rooms > $record->sellable_count + $allowance)) {
             throw ValidationException::withMessages(['room_type_id' => __('No rooms are left for every night of this stay.')]);
         }
         foreach ($records as $record) {

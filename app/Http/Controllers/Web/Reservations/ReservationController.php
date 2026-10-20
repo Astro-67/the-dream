@@ -14,6 +14,7 @@ use App\Domains\Rates\StayPricing;
 use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\AssignableRooms;
+use App\Domains\Reservations\BookingRules;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -21,6 +22,7 @@ use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\CreateReservationRequest;
 use App\Support\Money\Currency;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -38,7 +40,7 @@ class ReservationController extends Controller
             'rooms' => app(AssignableRooms::class)->forStay($request->validated('room_type_id'), $request->validated('arrival'), $request->validated('departure')),
             'roomType' => $type->only(['id', 'name']),
             'ratePlan' => $plan->only(['id', 'name', 'currency']),
-            'restrictionWarnings' => $restrictions->warnings($plan, $type, $request->validated('arrival'), $request->validated('departure')),
+            'restrictionWarnings' => [...app(BookingRules::class)->warnings(Tenancy::property(), $request->validated('arrival'), $request->validated('departure')), ...$restrictions->warnings($plan, $type, $request->validated('arrival'), $request->validated('departure'))],
             'nightlyRate' => app(StayPricing::class)->quote($plan, $type, $request->validated('arrival'), $request->validated('departure'), (int) $request->validated('adults'), (int) $request->validated('children'))->nights[0]['total'] ?? null,
             'businessDate' => BusinessDate::current(),
         ]);
