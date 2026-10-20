@@ -111,6 +111,19 @@ final class JurisdictionRules
         ];
     }
 
+    public static function defaultInfrastructureLevy(Property $property): ?int
+    {
+        if ($property->jurisdiction_profile !== JurisdictionProfile::Zanzibar) {
+            return null;
+        }
+
+        return match ($property->star_rating) {
+            4, 5 => 500,
+            3 => 400,
+            default => 200,
+        };
+    }
+
     public static function onboardingReceiptNotice(Property $property): ?string
     {
         return $property->jurisdiction_profile === JurisdictionProfile::MainlandTanzania

@@ -99,6 +99,8 @@ class PropertyController extends Controller
         return Inertia::render('properties/edit', [
             ...$this->formOptions('edit'),
             'property' => [
+                ...$property->only(['star_rating', 'tin', 'z_number', 'vrn']),
+                ...$property->settings(),
                 'id' => $property->id,
                 'name' => $property->name,
                 'property_type' => $property->property_type->value,

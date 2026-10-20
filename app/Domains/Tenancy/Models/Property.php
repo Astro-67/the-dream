@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tenancy\Models;
 
+use App\Domains\Tenancy\Data\PropertySettings;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Enums\PropertyType;
@@ -37,6 +38,13 @@ use LogicException;
  * @property string $timezone
  * @property Currency $currency
  * @property JurisdictionProfile $jurisdiction_profile
+ * @property int|null $star_rating
+ * @property string|null $tin
+ * @property string|null $z_number
+ * @property string|null $vrn
+ * @property array<string, mixed>|null $front_desk_settings
+ * @property array<string, mixed>|null $tax_settings
+ * @property array<string, mixed>|null $payment_settings
  * @property string|null $zra_hotel_code
  * @property bool $housekeeping_inspection_required
  * @property bool $stayover_service_on_close
@@ -55,6 +63,7 @@ use LogicException;
  * @property CarbonImmutable|null $updated_at
  */
 #[Fillable([
+    'star_rating', 'tin', 'z_number', 'vrn', 'front_desk_settings', 'tax_settings', 'payment_settings',
     'organization_id', 'name', 'property_type', 'address_line', 'city', 'region', 'postal_code',
     'phone', 'email', 'timezone', 'currency', 'jurisdiction_profile', 'zra_hotel_code', 'housekeeping_inspection_required', 'stayover_service_on_close', 'registration_fields', 'receipt_prefix', 'business_date', 'close_time',
 ])]
@@ -98,6 +107,10 @@ class Property extends Model
             'stayover_service_on_close' => 'boolean',
             'registration_fields' => 'array',
             'demo' => 'boolean',
+            'star_rating' => 'integer',
+            'front_desk_settings' => 'array',
+            'tax_settings' => 'array',
+            'payment_settings' => 'array',
         ];
     }
 
@@ -119,6 +132,18 @@ class Property extends Model
     protected function real(Builder $query): void
     {
         $query->where($this->qualifyColumn('demo'), false);
+    }
+
+    /** @return array<string, array<string, mixed>> */
+    public function settings(): array
+    {
+        $settings = [];
+        foreach (PropertySettings::DEFAULTS as $group => $defaults) {
+            $settings[$group] = array_replace($defaults, $this->getAttribute($group) ?? []);
+        }
+        $settings['front_desk_settings']['automatic_checkout_summary_email'] ??= $this->email;
+
+        return $settings;
     }
 
     public function isDemo(): bool

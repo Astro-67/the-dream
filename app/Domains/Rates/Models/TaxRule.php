@@ -5,6 +5,7 @@ namespace App\Domains\Rates\Models;
 use App\Domains\Rates\Enums\TaxAppliesTo;
 use App\Domains\Rates\Enums\TaxKind;
 use App\Domains\Rates\Enums\TaxRounding;
+use App\Domains\Rates\Enums\ZraTaxCategory;
 use App\Domains\Rates\Policies\TaxRulePolicy;
 use App\Support\Money\Currency;
 use App\Support\Tenancy\BelongsToProperty;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Model;
  * One tax or service charge of a property over its effective dates, both ends included.
  * Rules sharing a name never overlap: a change ends one and starts the next.
  *
+ * @property ZraTaxCategory|null $zra_tax_category
  * @property string $id
  * @property string $name
  * @property TaxKind $kind
@@ -31,7 +33,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property CarbonImmutable $effective_from
  * @property CarbonImmutable|null $effective_to
  */
-#[Fillable(['name', 'kind', 'rate', 'amount', 'currency', 'inclusive', 'applies_to', 'rounding', 'effective_from', 'effective_to'])]
+#[Fillable(['zra_tax_category', 'name', 'kind', 'rate', 'amount', 'currency', 'inclusive', 'applies_to', 'rounding', 'effective_from', 'effective_to'])]
 #[UsePolicy(TaxRulePolicy::class)]
 class TaxRule extends Model
 {
@@ -41,6 +43,7 @@ class TaxRule extends Model
     protected function casts(): array
     {
         return [
+            'zra_tax_category' => ZraTaxCategory::class,
             'kind' => TaxKind::class, 'rate' => 'integer', 'amount' => 'integer', 'currency' => Currency::class,
             'inclusive' => 'boolean', 'applies_to' => TaxAppliesTo::class, 'rounding' => TaxRounding::class,
             'effective_from' => 'immutable_date', 'effective_to' => 'immutable_date',

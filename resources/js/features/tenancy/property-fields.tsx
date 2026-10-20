@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+    NativeSelect,
     Select,
     SelectContent,
     SelectItem,
@@ -22,6 +23,10 @@ export type PropertyFormOptions = {
 
 /** A property's stored values, as the edit form receives them. */
 export type PropertyValues = {
+    star_rating?: number | null;
+    tin?: string | null;
+    z_number?: string | null;
+    vrn?: string | null;
     housekeeping_inspection_required: boolean;
     id: string;
     name: string;
@@ -195,6 +200,61 @@ export function PropertyFields({
                 </div>
                 <InputError message={errors.jurisdiction_profile} />
             </fieldset>
+
+            <Field
+                id="star_rating"
+                label="Star rating"
+                error={errors.star_rating}
+                hint="Infrastructure levy: not yet classified or 1–2 stars $2, 3 stars $4, 4–5 stars $5 per guest per night. Assessed by ZRA at check-out."
+            >
+                <NativeSelect
+                    id="star_rating"
+                    name="star_rating"
+                    defaultValue={values?.star_rating ?? ''}
+                    aria-invalid={!!errors.star_rating}
+                >
+                    <option value="">Not yet classified</option>
+                    {[1, 2, 3, 4, 5].map((stars) => (
+                        <option key={stars} value={stars}>
+                            {stars} {stars === 1 ? 'star' : 'stars'}
+                        </option>
+                    ))}
+                </NativeSelect>
+            </Field>
+            <details
+                className="sm:col-span-2"
+                open={
+                    !!(errors.tin || errors.z_number || errors.vrn) || undefined
+                }
+            >
+                <summary className="cursor-pointer text-sm font-medium">
+                    ZRA tax registration (optional)
+                </summary>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    {(['tin', 'z_number', 'vrn'] as const).map((field) => (
+                        <Field
+                            key={field}
+                            id={field}
+                            label={
+                                {
+                                    tin: 'TIN',
+                                    z_number: 'Z-number',
+                                    vrn: 'VRN',
+                                }[field]
+                            }
+                            error={errors[field]}
+                        >
+                            <Input
+                                id={field}
+                                name={field}
+                                defaultValue={values?.[field] ?? ''}
+                                maxLength={64}
+                                aria-invalid={!!errors[field]}
+                            />
+                        </Field>
+                    ))}
+                </div>
+            </details>
 
             {jurisdiction === 'zanzibar' && (
                 <Field

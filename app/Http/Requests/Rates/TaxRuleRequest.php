@@ -5,6 +5,7 @@ namespace App\Http\Requests\Rates;
 use App\Domains\Rates\Enums\TaxAppliesTo;
 use App\Domains\Rates\Enums\TaxKind;
 use App\Domains\Rates\Enums\TaxRounding;
+use App\Domains\Rates\Enums\ZraTaxCategory;
 use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Support\Tenancy\Tenancy;
@@ -31,6 +32,7 @@ class TaxRuleRequest extends FormRequest
         $flat = $this->input('kind') === TaxKind::FlatPerPersonNight->value;
 
         return [
+            'zra_tax_category' => ['sometimes', 'nullable', Rule::enum(ZraTaxCategory::class)],
             'name' => ['required', 'string', 'max:255'],
             'kind' => ['required', Rule::enum(TaxKind::class)],
             'rate' => $flat ? ['prohibited'] : ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:100'],
@@ -44,13 +46,14 @@ class TaxRuleRequest extends FormRequest
         ];
     }
 
-    /** @return array{name: string, kind: string, rate: int|null, amount: int|null, currency: string|null, inclusive: bool, applies_to: string, rounding: string, effective_from: string, effective_to: string|null} */
+    /** @return array{zra_tax_category?: string|null, name: string, kind: string, rate: int|null, amount: int|null, currency: string|null, inclusive: bool, applies_to: string, rounding: string, effective_from: string, effective_to: string|null} */
     public function details(): array
     {
-        /** @var array{name: string, kind: string, rate?: numeric-string, amount?: int|string, currency?: string, applies_to: string, rounding: string, effective_from: string, effective_to?: string|null} $valid */
+        /** @var array{zra_tax_category?: string|null, name: string, kind: string, rate?: numeric-string, amount?: int|string, currency?: string, applies_to: string, rounding: string, effective_from: string, effective_to?: string|null} $valid */
         $valid = $this->validated();
 
         return [
+            'zra_tax_category' => $this->validated('zra_tax_category', $this->route('taxRule') instanceof TaxRule ? $this->route('taxRule')->zra_tax_category?->value : null),
             'name' => $valid['name'], 'kind' => $valid['kind'],
             'rate' => isset($valid['rate']) ? (int) round((float) $valid['rate'] * 100) : null,
             'amount' => isset($valid['amount']) ? (int) $valid['amount'] : null,

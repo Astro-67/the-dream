@@ -1,3 +1,5 @@
+import { PropertySettingsFields } from '@/features/tenancy/property-settings-fields';
+import type { PropertySettings } from '@/features/tenancy/property-settings-fields';
 import { Form, Head, Link } from '@inertiajs/react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -15,12 +17,13 @@ import { PropertyFields } from '@/features/tenancy/property-fields';
 import { index, update } from '@/routes/properties';
 
 type Props = PropertyFormOptions & {
-    property: PropertyValues & {
-        registration_fields?: string[];
-        receipt_prefix: string;
-        close_time: string;
-        stayover_service_on_close: boolean;
-    };
+    property: PropertyValues &
+        PropertySettings & {
+            registration_fields?: string[];
+            receipt_prefix: string;
+            close_time: string;
+            stayover_service_on_close: boolean;
+        };
     registrationFieldOptions: string[];
 };
 
@@ -61,10 +64,24 @@ export default function EditProperty({
                         configuresRegistration
                             ? {
                                   ...data,
+                                  payment_settings: {
+                                      ...data.payment_settings,
+                                      accepted_methods:
+                                          data.payment_settings
+                                              ?.accepted_methods ?? [],
+                                  },
                                   registration_fields:
                                       data.registration_fields ?? [],
                               }
-                            : data
+                            : {
+                                  ...data,
+                                  payment_settings: {
+                                      ...data.payment_settings,
+                                      accepted_methods:
+                                          data.payment_settings
+                                              ?.accepted_methods ?? [],
+                                  },
+                              }
                     }
                     className="flex flex-col gap-6"
                 >
@@ -208,6 +225,15 @@ export default function EditProperty({
                                     />
                                 </fieldset>
                             )}
+                            <PropertySettingsFields
+                                values={{
+                                    front_desk_settings:
+                                        property.front_desk_settings,
+                                    tax_settings: property.tax_settings,
+                                    payment_settings: property.payment_settings,
+                                }}
+                                errors={errors}
+                            />
                             <div className="flex flex-wrap items-center justify-end gap-3">
                                 <Button variant="ghost" asChild>
                                     <Link href={index()}>Cancel</Link>
