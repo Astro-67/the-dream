@@ -19,11 +19,12 @@ use Illuminate\Validation\ValidationException;
  * Ends the stay (PMS-05) and hands the room to housekeeping as dirty. Refused
  * while any folio balance isn't zero when the property blocks it, unless a
  * permitted override reason is given. An override leaves an open balance
- * after departure.
+ * after departure. Automation uses the property's include-unpaid switch instead
+ * of a manager override.
  */
 class CheckOut
 {
-    public function handle(User $actor, Reservation $reservation, ?string $overrideReason = null): Reservation
+    public function handle(?User $actor, Reservation $reservation, ?string $overrideReason = null): Reservation
     {
         return Audit::validationRefusal($actor, $reservation, 'Check-out refused', fn () => DB::transaction(function () use ($actor, $reservation, $overrideReason) {
             $locked = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();
@@ -38,8 +39,12 @@ class CheckOut
                 ->map(fn (Folio $folio) => $folio->balance())->filter(fn ($balance) => $balance->amount !== 0)
                 ->map(fn ($balance) => ['amount' => $balance->amount, 'currency' => $balance->currency->value])->values()->all();
             $overrideReason = trim((string) $overrideReason);
-            $settings = Property::query()->findOrFail($locked->property_id)->settings()['payment_settings'];
-            if ($open !== [] && $settings['block_checkout_if_unpaid'] && ($overrideReason === '' || ! $settings['manager_override'])) {
+            $propertySettings = Property::query()->findOrFail($locked->property_id)->settings();
+            $settings = $propertySettings['payment_settings'];
+            $blocksUnpaid = $actor === null
+                ? ! $propertySettings['front_desk_settings']['automatic_checkout_include_unpaid']
+                : $settings['block_checkout_if_unpaid'] && ($overrideReason === '' || ! $settings['manager_override']);
+            if ($open !== [] && $blocksUnpaid) {
                 throw ValidationException::withMessages(['balance' => __('Settle every folio balance before check-out.')]);
             }
             $details = $open === [] ? [] : ['open_balances' => $open, 'override_reason' => $overrideReason === '' ? null : $overrideReason];

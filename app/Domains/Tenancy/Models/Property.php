@@ -52,6 +52,7 @@ use LogicException;
  * @property string $receipt_prefix
  * @property CarbonImmutable $business_date
  * @property string $close_time
+ * @property CarbonImmutable|null $automatic_checkout_date
  * @property PropertyStatus $status
  * @property CarbonImmutable|null $went_live_at
  * @property string|null $went_live_by
@@ -103,6 +104,7 @@ class Property extends Model
             'taxes_reviewed_at' => 'immutable_datetime',
             'archived_at' => 'datetime',
             'business_date' => 'immutable_date',
+            'automatic_checkout_date' => 'immutable_date',
             'housekeeping_inspection_required' => 'boolean',
             'stayover_service_on_close' => 'boolean',
             'registration_fields' => 'array',
