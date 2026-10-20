@@ -39,7 +39,7 @@ class PostExtraCharge
             $date = BusinessDate::of($property);
             $gross = $details['quantity'] * $details['unit_price'];
             try {
-                $breakdown = TaxCalculator::forProperty($property, $gross, $folio->currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Extra);
+                $breakdown = TaxCalculator::forProperty($property, $gross, $folio->currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Extra, inclusivePrice: true);
             } catch (InvalidArgumentException $e) {
                 throw ValidationException::withMessages(['unit_price' => $e->getMessage()]);
             }

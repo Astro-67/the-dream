@@ -19,11 +19,11 @@ test('a reversal links to the original, keeps the reason and cancels its amount 
         $reversal = app(ReversePosting::class)->handle($owner, $charge, 'Guest did not use the minibar');
 
         expect($reversal->only(['type', 'category', 'related_posting_id', 'reason', 'net', 'amount']))
-            ->toBe(['type' => 'reversal', 'category' => 'minibar', 'related_posting_id' => $charge->id, 'reason' => 'Guest did not use the minibar', 'net' => -500, 'amount' => -590])
-            ->and($reversal->tax_lines[0]['amount'])->toBe(-90)
+            ->toBe(['type' => 'reversal', 'category' => 'minibar', 'related_posting_id' => $charge->id, 'reason' => 'Guest did not use the minibar', 'net' => -424, 'amount' => -500])
+            ->and($reversal->tax_lines[0]['amount'])->toBe(-76)
             ->and($reversal->folio_id)->toBe($folio->id)
             ->and(Folio::query()->findOrFail($folio->id)->balance()->amount)->toBe(0)
-            ->and(Posting::query()->findOrFail($charge->id)->amount)->toBe(590);
+            ->and(Posting::query()->findOrFail($charge->id)->amount)->toBe(500);
     });
 });
 
