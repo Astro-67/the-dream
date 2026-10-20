@@ -20,6 +20,11 @@ final class TaxCalculator
     public static function forProperty(Property $property, int $amount, Currency $currency, string $date, int $guests, ChargeKind $charge): TaxBreakdown
     {
         $rules = TaxRule::query()->where('property_id', $property->id)->orderBy('name')->get()->all();
+        if ($charge === ChargeKind::Extra) {
+            foreach ($rules as $rule) {
+                $rule->inclusive = true;
+            }
+        }
 
         return self::breakdown($rules, $amount, $currency, $date, $guests, $charge);
     }

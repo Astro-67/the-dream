@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
 import { Spinner } from '@/components/ui/spinner';
-import { NativeSelect } from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -77,6 +76,7 @@ const categories = {
 
 const postingCategories = {
     ...categories,
+    room: 'Room charge',
     deposit: 'Deposit',
     payment: 'Payment',
     refund: 'Refund',
@@ -226,9 +226,11 @@ export function FolioPanel({
                                             )}
                                         </TableCell>
                                         <TableCell>
-                                            {postingCategories[
-                                                posting.category as keyof typeof postingCategories
-                                            ] ?? posting.category}
+                                            {posting.description ||
+                                                (postingCategories[
+                                                    posting.category as keyof typeof postingCategories
+                                                ] ??
+                                                    posting.category)}
                                             {posting.method && (
                                                 <div className="text-sm text-muted-foreground">
                                                     {paymentMethods[
@@ -253,11 +255,6 @@ export function FolioPanel({
                                                         }
                                                     />
                                                 </Link>
-                                            )}
-                                            {posting.description && (
-                                                <div className="text-sm text-muted-foreground">
-                                                    {posting.description}
-                                                </div>
                                             )}
                                             <PostingLink posting={posting} />
                                         </TableCell>
@@ -337,30 +334,13 @@ function ExtraChargeForm({ folio }: { folio: Folio }) {
                     <h3 className="font-semibold sm:col-span-2">
                         Post an extra
                     </h3>
-                    <div className="space-y-2">
-                        <Label htmlFor={id('category')}>Item</Label>
-                        <NativeSelect
-                            id={id('category')}
-                            name="category"
-                            required
-                            aria-invalid={Boolean(errors.category)}
-                        >
-                            {Object.entries(categories).map(
-                                ([value, label]) => (
-                                    <option key={value} value={value}>
-                                        {label}
-                                    </option>
-                                ),
-                            )}
-                        </NativeSelect>
-                        <InputError message={errors.category} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor={id('description')}>Description</Label>
+                    <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor={id('description')}>Item name</Label>
                         <Input
                             id={id('description')}
                             name="description"
                             maxLength={255}
+                            required
                             aria-invalid={Boolean(errors.description)}
                         />
                         <InputError message={errors.description} />
@@ -373,6 +353,7 @@ function ExtraChargeForm({ folio }: { folio: Folio }) {
                             type="number"
                             min={1}
                             max={1000}
+                            step={1}
                             defaultValue={1}
                             required
                             aria-invalid={Boolean(errors.quantity)}
@@ -381,7 +362,8 @@ function ExtraChargeForm({ folio }: { folio: Folio }) {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor={id('unit_price')}>
-                            Unit price in {folio.currency} minor units
+                            VAT-inclusive unit price in {folio.currency} minor
+                            units
                         </Label>
                         <Input
                             id={id('unit_price')}

@@ -26,9 +26,9 @@ test('an extra charge stores quantity, unit price, amount, tax lines and the rul
         $posting = app(PostExtraCharge::class)->handle($owner, $folio, ['category' => 'minibar', 'description' => 'Two sodas', 'quantity' => 2, 'unit_price' => 250]);
 
         expect($posting->only(['type', 'category', 'description', 'quantity', 'unit_price', 'net', 'amount']))
-            ->toBe(['type' => 'charge', 'category' => 'minibar', 'description' => 'Two sodas', 'quantity' => 2, 'unit_price' => 250, 'net' => 500, 'amount' => 590])
+            ->toBe(['type' => 'charge', 'category' => 'minibar', 'description' => 'Two sodas', 'quantity' => 2, 'unit_price' => 250, 'net' => 424, 'amount' => 500])
             ->and($posting->currency)->toBe(Currency::USD)
-            ->and($posting->tax_lines)->toEqual([['name' => 'VAT', 'kind' => 'percentage', 'inclusive' => false, 'rate' => 1800, 'per_person_night' => null, 'amount' => 90]])
+            ->and($posting->tax_lines)->toEqual([['name' => 'VAT', 'kind' => 'percentage', 'inclusive' => true, 'rate' => 1800, 'per_person_night' => null, 'amount' => 76]])
             ->and($posting->tax_rule_ids)->toEqual([$vat->id])
             ->and($posting->actor_id)->toBe($owner->id);
     });
@@ -45,7 +45,7 @@ test('changing a tax rule after posting leaves the posting tax lines unchanged',
         app(ChangeTaxRule::class)->handle($owner, $vat, extrasVat(['rate' => 2000, 'effective_from' => '2026-05-01']));
 
         $stored = Posting::query()->findOrFail($posting->id);
-        expect($stored->amount)->toBe(1180)->and($stored->tax_lines[0]['rate'])->toBe(1800)->and($stored->tax_lines[0]['amount'])->toBe(180)
+        expect($stored->amount)->toBe(1000)->and($stored->tax_lines[0]['rate'])->toBe(1800)->and($stored->tax_lines[0]['amount'])->toBe(153)
             ->and($stored->tax_rule_ids)->toEqual([$vat->id]);
     });
 });

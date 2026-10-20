@@ -76,6 +76,24 @@ const folios: Folio[] = Array.from({ length: 50 }, (_, index) => ({
     balance: 0,
     postings: pageOf<Posting>([]),
 }));
+folios[0].postings = pageOf([
+    {
+        ...posting,
+        id: 'free-text',
+        type: 'charge',
+        category: 'other',
+        description: 'Sunset boat trip',
+    },
+    { ...posting, id: 'legacy', type: 'charge', category: 'minibar' },
+    { ...posting, id: 'room', type: 'charge', category: 'room' },
+    {
+        ...posting,
+        id: 'payment',
+        type: 'payment',
+        category: 'payment',
+        method: 'card',
+    },
+]);
 const folioPage = {
     ...pageOf(folios),
     total: 51,
@@ -121,4 +139,11 @@ const panel = renderToStaticMarkup(
 assert.equal((panel.match(/<form\b/g) ?? []).length, 2);
 assert.equal((panel.match(/aria-label="View folio /g) ?? []).length, 50);
 assert.match(panel, /folios_page=2/);
+assert.match(panel, /Sunset boat trip/);
+assert.match(panel, /Minibar/);
+assert.match(panel, /Room charge/);
+assert.match(panel, /Payment/);
+assert.match(panel, /Item name/);
+assert.match(panel, /VAT-inclusive unit price/);
+assert.doesNotMatch(panel, /name="category"/);
 console.log('Only the selected folio mounts action forms: PASS');
