@@ -17,7 +17,7 @@ const fields = [
     ['type', 'Document type'],
     ['number', 'Document number'],
     ['nationality', 'Country'],
-    ['issuing_country', 'Issuing country (country code)'],
+    ['issuing_country', 'Issuing country'],
     ['expiry', 'Expiry date'],
 ] as const;
 
@@ -52,7 +52,8 @@ export function IdentityFields({
                         return (
                             <div key={field} className="space-y-2">
                                 <Label htmlFor={id}>{label}</Label>
-                                {field === 'nationality' ? (
+                                {field === 'nationality' ||
+                                field === 'issuing_country' ? (
                                     <CountrySelect
                                         id={id}
                                         name={`documents[${index}][${field}]`}
@@ -74,13 +75,7 @@ export function IdentityFields({
                                             field === 'type' ||
                                             field === 'number'
                                         }
-                                        maxLength={
-                                            field === 'issuing_country'
-                                                ? 2
-                                                : field === 'type'
-                                                  ? 50
-                                                  : 255
-                                        }
+                                        maxLength={field === 'type' ? 50 : 255}
                                         autoComplete="off"
                                         aria-invalid={Boolean(error)}
                                         aria-describedby={

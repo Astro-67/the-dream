@@ -66,6 +66,18 @@ export default function Create({
     const [operator, setOperator] = useState(false);
     const [documentType, setDocumentType] = useState('');
     const [collector, setCollector] = useState('property');
+    const [planId, setPlanId] = useState(ratePlan?.id ?? '');
+    const [shownPlan, setShownPlan] = useState(ratePlan?.id);
+    if (shownPlan !== ratePlan?.id) {
+        // A refresh chose a different default plan (after a room change).
+        setShownPlan(ratePlan?.id);
+        setPlanId(ratePlan?.id ?? '');
+    }
+    // The money fields follow the plan selected now, not the one the last refresh returned.
+    const currency =
+        ratePlans.find((plan) => plan.id === planId)?.currency ??
+        ratePlan?.currency ??
+        'USD';
     function refreshStay(input: HTMLInputElement | HTMLSelectElement) {
         if (!input.form) return;
         const data = new FormData(input.form);
@@ -87,12 +99,12 @@ export default function Create({
             {
                 room_type_id:
                     input.name === 'room_id'
-                        ? rooms.find((room) => room.id === input.value)
-                              ?.room_type_id
+                        ? (rooms.find((room) => room.id === input.value)
+                              ?.room_type_id ?? stay.room_type_id)
                         : data.get('room_type_id'),
                 room_id: data.get('room_id'),
                 rate_plan_id:
-                    input.name === 'room_id'
+                    input.name === 'room_id' && input.value
                         ? undefined
                         : data.get('rate_plan_id'),
                 arrival,
@@ -353,9 +365,10 @@ export default function Create({
                                     key={ratePlan?.id ?? 'none'}
                                     defaultValue={ratePlan?.id ?? ''}
                                     required
-                                    onChange={(event) =>
-                                        refreshStay(event.currentTarget)
-                                    }
+                                    onChange={(event) => {
+                                        setPlanId(event.target.value);
+                                        refreshStay(event.currentTarget);
+                                    }}
                                 >
                                     <option value="">Select rate plan</option>
                                     {ratePlans
@@ -391,13 +404,12 @@ export default function Create({
                                 </div>
                                 <fieldset hidden={!ownRate} disabled={!ownRate}>
                                     <Label htmlFor="nightly_rate">
-                                        Own nightly rate (
-                                        {ratePlan?.currency ?? ''})
+                                        Own nightly rate ({currency})
                                     </Label>
                                     <MoneyInput
                                         id="nightly_rate"
                                         name="nightly_rate"
-                                        currency={ratePlan?.currency ?? 'USD'}
+                                        currency={currency}
                                         min={0}
                                         max={1000000000000}
                                         placeholder={nightlyRate ?? undefined}
@@ -405,11 +417,11 @@ export default function Create({
                                     <p className="text-sm text-muted-foreground">
                                         Leave blank to use the rate plan's price
                                         for each night. First night:{' '}
-                                        {nightlyRate === null || !ratePlan
+                                        {nightlyRate === null
                                             ? 'Unavailable'
                                             : formatMoney(
                                                   nightlyRate,
-                                                  ratePlan.currency,
+                                                  currency,
                                               )}
                                         .
                                     </p>
@@ -615,13 +627,12 @@ export default function Create({
                             {collector === 'channel' && (
                                 <>
                                     <Label htmlFor="channel_collected_amount">
-                                        Channel-collected amount (
-                                        {ratePlan?.currency ?? ''})
+                                        Channel-collected amount ({currency})
                                     </Label>
                                     <MoneyInput
                                         id="channel_collected_amount"
                                         name="channel_collected_amount"
-                                        currency={ratePlan?.currency ?? 'USD'}
+                                        currency={currency}
                                         min={0}
                                         max={1000000000000}
                                         required

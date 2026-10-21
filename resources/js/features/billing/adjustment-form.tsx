@@ -43,6 +43,8 @@ function AdjustmentForm({
     return (
         <Form
             {...(type === 'refund' ? refund : writeOff).form(folio.id)}
+            // Remount on success so the amount clears with the rotated key.
+            key={key}
             onSuccess={() => setKey(crypto.randomUUID())}
             resetOnSuccess={['amount', 'reason', 'reference']}
             className="grid max-w-[720px] gap-3 sm:grid-cols-2"

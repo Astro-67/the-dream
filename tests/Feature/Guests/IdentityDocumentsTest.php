@@ -62,3 +62,12 @@ test('staff without identity permission cannot erase documents with an empty lis
     $this->put(route('guests.update', $guest), ['_property' => $t->a->property->id, 'name' => 'Amina', 'documents' => []])->assertSessionHasErrors('documents');
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('guests.show', $guest))->assertInertia(fn (Assert $page) => $page->where('documents.0.number', 'KEEP-IDENTITY'));
 });
+
+test('guest and document countries must be ISO countries', function () {
+    $t = twoTenants();
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
+    $this->post(route('guests.store'), ['_property' => $t->a->property->id, 'name' => 'Amina Said', 'nationality' => 'QO',
+        'documents' => [['type' => 'passport', 'number' => 'P1', 'nationality' => 'QO', 'issuing_country' => 'EU']]])
+        ->assertSessionHasErrors(['nationality', 'documents.0.nationality', 'documents.0.issuing_country']);
+    inTenant($t->a->property, fn () => expect(Guest::query()->count())->toBe(0));
+});
