@@ -4,6 +4,8 @@ import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
+import { formatMoney } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
@@ -324,22 +326,26 @@ export default function Create({
                                     ))}
                                 </NativeSelect>
                                 <Label htmlFor="nightly_rate">
-                                    Own nightly rate ({ratePlan.currency}, minor
-                                    units)
+                                    Own nightly rate ({ratePlan.currency})
                                 </Label>
-                                <Input
+                                <MoneyInput
                                     id="nightly_rate"
                                     name="nightly_rate"
-                                    type="number"
+                                    currency={ratePlan.currency}
                                     min={0}
                                     max={1000000000000}
-                                    placeholder={nightlyRate?.toString()}
+                                    placeholder={nightlyRate ?? undefined}
                                 />
                                 <p className="text-sm text-muted-foreground">
                                     Leave blank to use the rate plan's price for
                                     each night. First night:{' '}
-                                    {nightlyRate ?? 'Unavailable'}{' '}
-                                    {ratePlan.currency} minor units.
+                                    {nightlyRate === null
+                                        ? 'Unavailable'
+                                        : formatMoney(
+                                              nightlyRate,
+                                              ratePlan.currency,
+                                          )}
+                                    .
                                 </p>
                                 <Label htmlFor="meal_plan">Meal plan</Label>
                                 <NativeSelect id="meal_plan" name="meal_plan">
@@ -476,12 +482,13 @@ export default function Create({
                             {collector === 'channel' && (
                                 <>
                                     <Label htmlFor="channel_collected_amount">
-                                        Channel-collected amount (minor units)
+                                        Channel-collected amount (
+                                        {ratePlan.currency})
                                     </Label>
-                                    <Input
+                                    <MoneyInput
                                         id="channel_collected_amount"
                                         name="channel_collected_amount"
-                                        type="number"
+                                        currency={ratePlan.currency}
                                         min={0}
                                         max={1000000000000}
                                         required

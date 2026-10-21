@@ -5,6 +5,7 @@ import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
@@ -167,10 +168,10 @@ export default function Approvals({
                         Approval thresholds
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                        Amounts are in minor units. Requests above the threshold
-                        need approval. Leave the amount empty for none:
-                        approvals are switched off for that currency. Zero
-                        requires approval for every non-zero adjustment.
+                        Requests above the threshold need approval. Leave the
+                        amount empty for none: approvals are switched off for
+                        that currency. Zero requires approval for every non-zero
+                        adjustment.
                     </p>
                     {currencies.map((currency) => (
                         <Form
@@ -190,9 +191,9 @@ export default function Approvals({
                                         {currency} threshold (none if empty)
                                     </Label>
                                     <div className="flex gap-2">
-                                        <Input
+                                        <MoneyInput
                                             id={`threshold-${currency}`}
-                                            type="number"
+                                            currency={currency}
                                             name="amount"
                                             min={0}
                                             max={1000000000000}

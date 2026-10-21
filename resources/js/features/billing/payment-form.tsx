@@ -5,6 +5,7 @@ import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { store } from '@/routes/folios/payments';
@@ -82,12 +83,12 @@ export function PaymentForm({
                     ) : (
                         <div className="space-y-2">
                             <Label htmlFor={id('amount')}>
-                                Amount in {folio.currency} minor units
+                                Amount in {folio.currency}
                             </Label>
-                            <Input
+                            <MoneyInput
                                 id={id('amount')}
                                 name="amount"
-                                type="number"
+                                currency={folio.currency}
                                 min={1}
                                 required
                                 aria-invalid={Boolean(errors.amount)}

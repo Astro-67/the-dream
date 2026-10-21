@@ -11,10 +11,13 @@ export function toUrl(url: NonNullable<InertiaLinkProps['href']>): string {
     return typeof url === 'string' ? url : url.url;
 }
 
+export function currencyDecimals(currency: string): number {
+    return currency === 'TZS' ? 0 : 2;
+}
+
 /** Integer minor units shown with the currency code: TZS whole, USD and EUR to two decimals (design.md). */
 export function formatMoney(minor: number, currency: string): string {
-    const decimals = currency === 'TZS' ? 0 : 2;
-
+    const decimals = currencyDecimals(currency);
     return `${currency} ${new Intl.NumberFormat('en', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(minor / 10 ** decimals)}`;
 }
 
