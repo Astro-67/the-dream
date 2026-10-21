@@ -96,7 +96,7 @@ test('the reservation shows its folio postings, totals per currency and balance'
         ->where('folios.data.0.balance', 1300)
         ->has('folios.data.0.postings.data', 2)
         ->where('folios.data.0.postings.data.0.description', 'Minibar')->where('folios.data.0.postings.data.0.amount', 300)
-        ->where('totals', [['currency' => 'USD', 'charges' => 1300, 'balance' => 1300]]));
+        ->where('totals.0.currency', 'USD')->where('totals.0.charges', 1300)->where('totals.0.extras', 1300)->where('totals.0.balance', 1300));
 });
 
 test('posting pages stay bounded while totals and reversal links span all pages', function () {
@@ -116,7 +116,7 @@ test('posting pages stay bounded while totals and reversal links span all pages'
     $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
     $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
         ->has('folios.data.0.postings.data', 50)->where('folios.data.0.postings.total', 52)
-        ->where('folios.data.0.balance', 500)->where('totals.0.balance', 500)->where('totals.0.charges', 510)
+        ->where('folios.data.0.balance', 500)->where('totals.0.balance', 500)->where('totals.0.charges', 500)
         ->where('folios.data.0.postings.data.0.cancelled_by.type', 'reversal'));
     $this->get(route('reservations.show', [$reservation, 'postings_page_'.$folio->id => 2]))->assertInertia(fn (Assert $page) => $page
         ->has('folios.data.0.postings.data', 2)->where('folios.data.0.postings.current_page', 2)

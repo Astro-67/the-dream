@@ -11,7 +11,7 @@ use App\Support\Money\Currency;
 final readonly class TaxBreakdown
 {
     /**
-     * @param  list<array{name: string, kind: string, inclusive: bool, rate: int|null, per_person_night: int|null, amount: int}>  $lines
+     * @param  list<array{name: string, category?: string|null, kind: string, inclusive: bool, rate: int|null, per_person_night: int|null, amount: int}>  $lines
      * @param  list<string>  $ruleIds  the tax rule versions that gave the lines, in line order
      * @param  list<string>  $unavailable  names of taxes left out because they are not available in this currency
      */

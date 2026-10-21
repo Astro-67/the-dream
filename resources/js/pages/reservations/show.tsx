@@ -75,6 +75,7 @@ type Reservation = {
 export default function Show({
     reservation,
     roomType,
+    assignedRoom,
     ratePlan,
     booker,
     leadGuest,
@@ -95,6 +96,7 @@ export default function Show({
 }: {
     reservation: Reservation;
     roomType: Named;
+    assignedRoom: string | null;
     ratePlan: Named;
     booker: Named | null;
     leadGuest: Named | null;
@@ -194,10 +196,21 @@ export default function Show({
                 </header>
                 <dl className="grid gap-4 sm:grid-cols-2">
                     {[
+                        ['Room', assignedRoom ?? 'Not assigned'],
                         ['Room type', roomType.name],
                         ['Rate plan', ratePlan.name],
                         ['Arrival', formatDate(reservation.arrival, 'UTC')],
                         ['Departure', formatDate(reservation.departure, 'UTC')],
+                        [
+                            'Scheduled nights',
+                            String(
+                                Math.round(
+                                    (Date.parse(reservation.departure) -
+                                        Date.parse(reservation.arrival)) /
+                                        86_400_000,
+                                ),
+                            ),
+                        ],
                         [
                             'Guests',
                             `${reservation.adults} adults, ${reservation.children} children`,
@@ -325,6 +338,7 @@ export default function Show({
                         />
                     )}
                 <FolioPanel
+                    reservationNumber={reservation.reservation_number}
                     folios={folios}
                     totals={totals}
                     canPostCharge={canPostCharge}

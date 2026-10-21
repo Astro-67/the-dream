@@ -146,8 +146,8 @@ test('front desk previews the tax breakdown of a price on a date', function () {
     $preview([])->assertOk()->assertInertia(fn (Assert $page) => $page->component('rates/tax-preview')
         ->where('breakdown.net', 10000)->where('breakdown.tax', 2100)->where('breakdown.gross', 12100)
         ->where('breakdown.lines', [
-            ['name' => 'Infrastructure tax', 'kind' => 'flat_per_person_night', 'inclusive' => false, 'rate' => null, 'per_person_night' => 150, 'amount' => 300],
-            ['name' => 'VAT', 'kind' => 'percentage', 'inclusive' => true, 'rate' => 1800, 'per_person_night' => null, 'amount' => 1800],
+            ['name' => 'Infrastructure tax', 'category' => null, 'kind' => 'flat_per_person_night', 'inclusive' => false, 'rate' => null, 'per_person_night' => 150, 'amount' => 300],
+            ['name' => 'VAT', 'category' => null, 'kind' => 'percentage', 'inclusive' => true, 'rate' => 1800, 'per_person_night' => null, 'amount' => 1800],
         ]));
     $preview(['date' => '2025-12-31'])->assertInertia(fn (Assert $page) => $page->where('breakdown.tax', 0));
     $preview(['currency' => 'TZS'])->assertInertia(fn (Assert $page) => $page->where('breakdown', null)->where('unpreviewable', 'Infrastructure tax is charged in USD, not TZS.'));

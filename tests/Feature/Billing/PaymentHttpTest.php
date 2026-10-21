@@ -117,7 +117,7 @@ test('the reservation shows payments, deposits, receipts and the payment collect
         ->where('folios.data.0.balance', -24000)
         ->where('folios.data.0.postings.data.0.type', 'payment')->where('folios.data.0.postings.data.0.category', 'deposit')
         ->where('folios.data.0.postings.data.0.method', 'channel_collected')->where('folios.data.0.postings.data.0.receipt.number', 'RCT-000001')
-        ->where('totals', [['currency' => 'USD', 'charges' => 0, 'balance' => -24000]]));
+        ->where('totals.0.currency', 'USD')->where('totals.0.charges', 0)->where('totals.0.net_payments', 24000)->where('totals.0.balance', -24000));
 });
 
 test('front desk records the channel-collected amount when booking', function () {

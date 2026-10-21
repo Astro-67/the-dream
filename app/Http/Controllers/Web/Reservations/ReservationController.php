@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Reservations;
 
+use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
@@ -64,10 +65,6 @@ class ReservationController extends Controller
         $canMove = $reservation->status === ReservationStatus::CheckedIn && Gate::allows('moveRoom', $reservation);
         $folios = Folio::query()->where('reservation_id', $reservation->id)->withSum('postings as balance_amount', 'amount')
             ->orderBy('created_at')->orderBy('id')->paginate(50, ['*'], 'folios_page')->withQueryString();
-        $totals = Folio::query()->where('folios.reservation_id', $reservation->id)
-            ->leftJoin('postings', 'postings.folio_id', '=', 'folios.id')->select('folios.currency')
-            ->selectRaw("COALESCE(SUM(postings.amount), 0) as balance_total, COALESCE(SUM(CASE WHEN postings.type = 'charge' THEN postings.amount ELSE 0 END), 0) as charge_total")
-            ->groupBy('folios.currency')->orderBy('folios.currency')->get();
         $folioPage = clone $folios;
         $folioPage->setCollection(clone $folios->getCollection());
 
@@ -91,11 +88,7 @@ class ReservationController extends Controller
                         ...$posting->only(['method', 'reference', 'card_last_four', 'card_brand']), 'receipt' => $posting->receipt?->only(['id', 'number']),
                     ]),
             ]),
-            'totals' => $totals->map(fn (Folio $total) => [
-                'currency' => $total->currency->value,
-                'charges' => (int) $total->getAttribute('charge_total'),
-                'balance' => (int) $total->getAttribute('balance_total'),
-            ])->values()->all(),
+            'totals' => FolioSummary::totals($reservation),
             'feeProposals' => FeeProposal::query()->where('reservation_id', $reservation->id)->orderBy('created_at')->get()->map(fn (FeeProposal $fee) => [
                 ...$fee->only(['id', 'kind', 'amount', 'status', 'reason', 'fiscal_exception_candidate']), 'currency' => $fee->currency->value,
                 'can_resolve' => $fee->status === 'proposed' && Gate::allows('resolve', $fee),
@@ -132,7 +125,34 @@ class ReservationController extends Controller
             'leadGuest' => $reservation->leadGuest()?->only(['id', 'name', 'email', 'phone', 'nationality']),
             'booker' => Booker::query()->find($reservation->getAttribute('booker_id'))?->only(['id', 'name']),
             'roomType' => RoomType::query()->findOrFail($reservation->getAttribute('room_type_id'))->only(['id', 'name']),
+            'assignedRoom' => Room::query()->find($reservation->room_id)?->number,
             'ratePlan' => RatePlan::query()->findOrFail($reservation->getAttribute('rate_plan_id'))->only(['id', 'name']),
+        ]);
+    }
+
+    /** The guest-facing settlement statement: posted figures per folio, never identity documents or staff notes. */
+    public function statement(Reservation $reservation): Response
+    {
+        Gate::authorize('view', $reservation);
+        $folios = FolioSummary::folios($reservation);
+        $guest = $reservation->leadGuest()->name ?? Booker::query()->find($reservation->getAttribute('booker_id'))?->getAttribute('name');
+
+        return Inertia::render('reservations/statement', [
+            'reservation' => [
+                ...$reservation->only(['reservation_number', 'adults', 'children']), 'arrival' => $reservation->arrival->toDateString(), 'departure' => $reservation->departure->toDateString(),
+                'nights' => (int) $reservation->arrival->diffInDays($reservation->departure), 'guest' => $guest ?? __('Guest'),
+                'room' => Room::query()->find($reservation->room_id)?->number, 'room_type' => RoomType::query()->findOrFail($reservation->getAttribute('room_type_id'))->name,
+            ],
+            'folios' => $folios->map(fn (array $folio, int $index) => [
+                'number' => $index + 1, 'currency' => $folio['folio']->currency->value, 'summary' => $folio['summary'],
+                'postings' => $folio['postings']->map(fn (Posting $posting) => [
+                    ...$posting->only(['id', 'type', 'category', 'description', 'quantity', 'unit_price', 'amount', 'method']),
+                    'business_date' => $posting->business_date->toDateString(),
+                    'tax_lines' => array_map(fn (array $line) => ['name' => $line['name'], 'inclusive' => $line['inclusive'], 'amount' => $line['amount']], $posting->tax_lines),
+                ])->values(),
+            ])->values(),
+            'totals' => FolioSummary::totals($reservation, $folios),
+            'property' => Property::query()->findOrFail($reservation->property_id)->only(['name', 'address_line', 'city', 'phone', 'email']),
         ]);
     }
 }

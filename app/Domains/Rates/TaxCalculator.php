@@ -66,7 +66,7 @@ final class TaxCalculator
             $isFlat = $rule->kind === TaxKind::FlatPerPersonNight;
 
             return [
-                'name' => $rule->name, 'kind' => $rule->kind->value, 'inclusive' => $rule->inclusive,
+                'name' => $rule->name, 'category' => $rule->zra_tax_category?->value, 'kind' => $rule->kind->value, 'inclusive' => $rule->inclusive,
                 'rate' => $isFlat ? null : $rule->rate, 'per_person_night' => $isFlat ? $rule->amount : null,
                 'amount' => $isFlat ? $flat($rule) : $rule->rounding->round($base * (int) $rule->rate, $denominator),
             ];

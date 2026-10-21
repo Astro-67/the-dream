@@ -30,6 +30,8 @@ import {
 } from './folio-corrections';
 import { show as showReceipt } from '@/routes/receipts';
 import type { Paginated } from '@/types';
+import { FolioSummaryList, type FolioTotal } from './folio-summary';
+import { statement } from '@/routes/reservations';
 
 export type Posting = {
     id: string;
@@ -67,7 +69,7 @@ export type Folio = {
     number: number;
     postings: Paginated<Posting>;
 };
-export type FolioTotal = { currency: string; charges: number; balance: number };
+export type { FolioTotal } from './folio-summary';
 
 const categories = {
     minibar: 'Minibar',
@@ -75,7 +77,7 @@ const categories = {
     other: 'Other',
 };
 
-const postingCategories = {
+export const postingCategories: Record<string, string> = {
     ...categories,
     room: 'Room charge',
     deposit: 'Deposit',
@@ -91,7 +93,9 @@ export function FolioPanel({
     canRecordPayment = false,
     channelCollected = false,
     acceptedPaymentMethods,
+    reservationNumber,
 }: {
+    reservationNumber: string;
     folios: Paginated<Folio>;
     totals: FolioTotal[];
     canPostCharge: boolean;
@@ -109,21 +113,24 @@ export function FolioPanel({
     return (
         <section className="space-y-4">
             <h2 className="text-lg font-semibold">Folio</h2>
-            <dl className="flex flex-wrap gap-6">
+            <div className="flex flex-wrap gap-8">
                 {totals.map((total) => (
-                    <div key={total.currency}>
-                        <dt className="text-sm text-muted-foreground">
-                            Balance {total.currency}
-                        </dt>
-                        <dd className="text-xl font-semibold tabular-nums">
-                            {formatMoney(total.balance, total.currency)}
-                        </dd>
-                        <dd className="text-sm text-muted-foreground tabular-nums">
-                            Charges {formatMoney(total.charges, total.currency)}
-                        </dd>
-                    </div>
+                    <section key={total.currency} className="space-y-2">
+                        <h3 className="font-semibold">{total.currency}</h3>
+                        <FolioSummaryList
+                            summary={total}
+                            currency={total.currency}
+                            estimate={total.estimate}
+                        />
+                    </section>
                 ))}
-            </dl>
+            </div>
+            <Link
+                href={statement(reservationNumber)}
+                className="text-primary underline underline-offset-4"
+            >
+                Folio statement
+            </Link>
             {folioPage.total > 1 && (
                 <Table aria-label="Folios">
                     <TableHeader>
