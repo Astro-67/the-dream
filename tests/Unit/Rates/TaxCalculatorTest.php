@@ -138,6 +138,10 @@ test('a zero price and zero levy give zero tax', function () {
 test('included flat levies above the price are refused, not clamped', function () {
     expect(fn () => TaxCalculator::breakdown(seededTaxRules(true, true), 900, Currency::USD, '2026-06-01', 2, ChargeKind::Room))
         ->toThrow(InvalidArgumentException::class);
+
+    // Rounding inclusive percentages up on what remains can also take the net below zero.
+    $rules = [...seededTaxRules(false, true), taxRule(['name' => 'A', 'rate' => 10000, 'inclusive' => true, 'rounding' => 'up']), taxRule(['name' => 'B', 'rate' => 10000, 'inclusive' => true, 'rounding' => 'up'])];
+    expect(fn () => TaxCalculator::breakdown($rules, 1001, Currency::USD, '2026-06-01', 2, ChargeKind::Room))->toThrow(InvalidArgumentException::class);
 });
 
 // protects=TZS amounts never carry a converted USD levy; fails_when=an invented exchange rate or a silent zero line appears; no_claim=actual VFMS FX.

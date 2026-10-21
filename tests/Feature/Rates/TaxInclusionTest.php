@@ -64,8 +64,14 @@ test('the property form versions VAT and levy rules from a date and leaves poste
     $posting = inTenant($t->a->property, fn () => app(PostRoomCharge::class)->handle($t->a->owner, Reservation::query()->sole(), '2026-12-11'));
     $snapshot = inTenant($t->a->property, fn () => $posting->fresh()->getAttributes());
 
+    // A sibling property's rules neither show on this form nor change with it.
+    $t->a->otherProperty->update(['business_date' => '2026-12-10', 'jurisdiction_profile' => 'zanzibar', 'star_rating' => 4]);
+    inTenant($t->a->otherProperty, fn () => app(SeedDefaultTaxRules::class)->handle($t->a->owner, $t->a->otherProperty));
+    $sibling = inTenant($t->a->otherProperty, fn () => TaxRule::query()->orderBy('name')->get()->toArray());
+
     $this->actingAs($t->a->owner)->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '0', 'levy' => '1', 'effective_from' => '2026-12-12']))
         ->assertSessionHasNoErrors();
+    expect(inTenant($t->a->otherProperty, fn () => TaxRule::query()->orderBy('name')->get()->toArray()))->toEqual($sibling);
 
     expect(taxInclusionRules($t))->toBe([
         ['Infrastructure levy', false, '2026-12-10', '2026-12-11'], ['Infrastructure levy', true, '2026-12-12', null],
@@ -127,9 +133,10 @@ test('mixed VAT rules stay mixed until staff choose one, then all change togethe
 test('changing a rule on the taxes page refreshes the property control', function () {
     $t = taxInclusionProperty();
     $levy = inTenant($t->a->property, fn () => TaxRule::query()->where('name', 'Infrastructure levy')->sole());
-    inTenant($t->a->property, fn () => app(ChangeTaxRule::class)->handle($t->a->owner, $levy, [...$levy->terms(), 'inclusive' => true, 'effective_from' => '2026-12-11']));
+    $this->actingAs($t->a->owner)->post(route('tax-rules.change', $levy), [...$levy->terms(), '_property' => $t->a->property->id, 'inclusive' => '1', 'effective_from' => '2026-12-11'])
+        ->assertSessionHasNoErrors();
 
-    $this->actingAs($t->a->owner)->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('taxInclusion.levy.state', 'included'));
+    $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('taxInclusion.levy.state', 'included'));
 });
 
 // protects=properties.update alone cannot change tax rules; fails_when=a group operations manager rewrites taxes through the property form.
@@ -140,6 +147,7 @@ test('only tax.manage members change tax inclusion through the property form', f
 
     $this->actingAs($manager)->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('canManageTaxes', false));
     $this->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '0']))->assertForbidden();
+    expect(Activity::query()->where('description', 'Tax inclusion change refused')->count())->toBe(1);
     // The same member may still save the rest of the form.
     $this->put(route('properties.update', $t->a->property), PropertyForm::payload(['_property' => $t->a->property->id, 'jurisdiction_profile' => 'zanzibar', 'star_rating' => 4]))->assertSessionHasNoErrors();
 
@@ -153,4 +161,21 @@ test('a property without matching rules shows no switch, and a new property cann
         ->where('taxInclusion.vat.state', 'none')->where('taxInclusion.levy.state', 'none'));
     $this->post(route('properties.store'), PropertyForm::payload(['_property' => $property->id, 'tax_inclusion' => ['vat' => '0']]))
         ->assertSessionHasErrors('tax_inclusion');
+});
+
+// protects=a later scheduled version and the current end keep their terms; fails_when=the change runs over or rewrites a future version.
+test('a change keeps the end date and any later scheduled version', function () {
+    $t = taxInclusionProperty();
+    $vat = inTenant($t->a->property, fn () => TaxRule::query()->where('name', 'VAT')->sole());
+    inTenant($t->a->property, fn () => app(ChangeTaxRule::class)->handle($t->a->owner, $vat, [...$vat->terms(), 'rate' => 1800, 'effective_from' => '2027-01-01']));
+
+    $this->actingAs($t->a->owner)->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '0', 'effective_from' => '2026-12-12']))
+        ->assertSessionHasNoErrors();
+
+    expect(array_values(array_filter(taxInclusionRules($t), fn (array $rule) => $rule[0] === 'VAT')))->toBe([
+        ['VAT', true, '2026-12-10', '2026-12-11'], ['VAT', false, '2026-12-12', '2026-12-31'], ['VAT', true, '2027-01-01', null],
+    ]);
+    // A start inside the next version is refused rather than overlapping it.
+    $this->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '0', 'effective_from' => '2027-02-01']))
+        ->assertSessionHasErrors('tax_inclusion.effective_from');
 });

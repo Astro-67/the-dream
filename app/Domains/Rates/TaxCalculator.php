@@ -59,10 +59,7 @@ final class TaxCalculator
         $inclusive = $applying->where('inclusive', true);
         $inclusiveFlat = $inclusive->where('kind', TaxKind::FlatPerPersonNight)->sum($flat);
         $inclusiveRate = $inclusive->where('kind', TaxKind::Percentage)->sum('rate');
-        $base = $amount - (int) $inclusiveFlat;
-        if ($base < 0) {
-            throw new InvalidArgumentException(__('The included flat taxes (:tax) exceed the price (:amount).', ['tax' => $inclusiveFlat, 'amount' => $amount]));
-        }
+        $base = max(0, $amount - (int) $inclusiveFlat);
         $denominator = 10000 + (int) $inclusiveRate;
 
         $lines = $applying->map(function (TaxRule $rule) use ($flat, $base, $denominator): array {
@@ -76,6 +73,9 @@ final class TaxCalculator
         })->all();
 
         $net = $amount - array_sum(array_column(array_filter($lines, fn (array $line) => $line['inclusive']), 'amount'));
+        if ($net < 0) {
+            throw new InvalidArgumentException(__('The taxes included in this :currency price are more than the price.', ['currency' => $currency->value]));
+        }
 
         return new TaxBreakdown($currency, $net, $lines, $applying->pluck('id')->filter()->values()->all(), $unavailable->pluck('name')->values()->all());
     }

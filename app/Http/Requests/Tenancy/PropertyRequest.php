@@ -9,8 +9,8 @@ use App\Domains\Tenancy\Data\PropertySettings;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\PropertyType;
 use App\Domains\Tenancy\Models\Property;
+use App\Support\Audit\Audit;
 use App\Support\Money\Currency;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -25,9 +25,17 @@ class PropertyRequest extends FormRequest
     {
         $property = $this->route('property');
 
-        return $property instanceof Property
-            ? $this->user()?->can('update', $property) ?? false
-            : $this->user()?->can('create', Property::class) ?? false;
+        if (! $property instanceof Property) {
+            return $this->user()?->can('create', Property::class) ?? false;
+        }
+        // Tax inclusion changes tax rules, so it needs tax.manage as well as properties.update.
+        if ($this->has('tax_inclusion') && ! ($this->user()?->can('manageInclusion', [TaxRule::class, $property]) ?? false)) {
+            Audit::record($this->user(), 'refused', $property, 'Tax inclusion change refused', ['result' => 'refused', 'stage' => 'authorization']);
+
+            return false;
+        }
+
+        return $this->user()?->can('update', $property) ?? false;
     }
 
     /**
@@ -105,10 +113,6 @@ class PropertyRequest extends FormRequest
         $property = $this->route('property');
         if ($choices === [] || ! $property instanceof Property) {
             return [];
-        }
-        // A tax.manage check of its own: properties.update alone must not change tax rules.
-        if (! ($this->user()?->can('manageInclusion', [TaxRule::class, $property]) ?? false)) {
-            throw new AuthorizationException;
         }
 
         return [

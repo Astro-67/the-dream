@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { formatDate } from '@/features/platform/format';
 import { index as taxRules } from '@/routes/tax-rules';
 
@@ -239,14 +239,20 @@ const inclusionLabels: Record<string, string> = {
 
 /** Reads and changes the tax rules themselves; nothing here is stored as a property setting. */
 export function TaxInclusionFields({
+    propertyId,
     controls,
     canManage,
     errors,
 }: {
+    propertyId: string;
     controls: Record<string, TaxInclusionControl>;
     canManage: boolean;
     errors: Record<string, string | undefined>;
 }) {
+    // The taxes page works on the selected property, which may not be the one edited here.
+    const selected =
+        usePage<{ tenant: { property?: { id: string } | null } }>().props.tenant
+            .property?.id === propertyId;
     const earliest = Object.values(controls)
         .filter((control) => control.state !== 'none')
         .map((control) => control.earliest)
@@ -269,9 +275,16 @@ export function TaxInclusionFields({
                         {value.state === 'none' ? (
                             <p className="text-sm">
                                 No rule covers room charges.{' '}
-                                <Link href={taxRules()} className="underline">
-                                    Configure taxes
-                                </Link>
+                                {selected ? (
+                                    <Link
+                                        href={taxRules()}
+                                        className="underline"
+                                    >
+                                        Configure taxes
+                                    </Link>
+                                ) : (
+                                    'Switch to this property to configure taxes.'
+                                )}
                             </p>
                         ) : (
                             <NativeSelect

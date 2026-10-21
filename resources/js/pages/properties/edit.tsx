@@ -295,6 +295,7 @@ export default function EditProperty({
                                     errors={errors}
                                 />
                                 <TaxInclusionFields
+                                    propertyId={property.id}
                                     controls={taxInclusion}
                                     canManage={canManageTaxes}
                                     errors={errors}
