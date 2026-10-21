@@ -16,6 +16,7 @@ use App\Domains\Tenancy\Enums\OrganizationRole;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
+use Tests\Support\PropertyForm;
 use Tests\Support\TenantFixture;
 
 function automaticCheckoutStay(TenantFixture $tenant): Reservation
@@ -33,6 +34,22 @@ function automaticCheckoutStay(TenantFixture $tenant): Reservation
 
     return $reservation;
 }
+
+test('automatic check-out sends the summary to the property email when no recipient is configured', function (array $recipient) {
+    Mail::fake();
+    $t = twoTenants();
+    $stay = automaticCheckoutStay($t->a);
+    $this->actingAs($t->a->owner)->put(route('properties.update', $t->a->property), PropertyForm::payload([
+        '_property' => $t->a->property->id, 'jurisdiction_profile' => $t->a->property->jurisdiction_profile->value, 'email' => $t->a->property->email,
+        'front_desk_settings' => ['automatic_checkout_enabled' => true, ...$recipient],
+    ]))->assertSessionHasNoErrors();
+    $property = $t->a->property->fresh();
+    $this->travelTo(new DateTimeImmutable('2026-12-12 09:00:00 UTC'));
+    $this->artisan('front-desk:checkout-due')->assertSuccessful();
+    expect(inTenant($property, fn () => $stay->fresh()->status))->toBe(ReservationStatus::CheckedOut);
+    Mail::assertQueued(AutomaticCheckoutSummary::class, 1);
+    Mail::assertQueued(AutomaticCheckoutSummary::class, fn ($mail) => $mail->hasTo($property->email));
+})->with([[[]], [['automatic_checkout_summary_email' => null]], [['automatic_checkout_summary_email' => '']]]);
 
 test('automatic check-out waits for night audit before completing the local day', function () {
     Mail::fake();
