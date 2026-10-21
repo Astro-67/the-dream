@@ -1,11 +1,16 @@
 <?php
 
+use App\Domains\Billing\Actions\PostRoomCharge;
+use App\Domains\Rates\Actions\SeedDefaultTaxRules;
 use App\Domains\Rates\Models\TaxRule;
+use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\BookingForm;
 use Tests\Support\PropertyForm;
 
 test('managers edit settings and front desk reads them without changing another property', function () {
@@ -83,6 +88,48 @@ test('settings updates preserve omitted values and normalize boolean form values
     ]))->assertSessionHasNoErrors();
     $settings = $property->fresh()->settings()['front_desk_settings'];
     expect($settings['walk_ins_enabled'])->toBeFalse()->and($settings['book_ahead_days'])->toBe(180)->and($settings['minimum_notice_hours'])->toBe(12);
+});
+
+test('star rating changes version the seeded levy without changing posted tax snapshots', function () {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->update(['business_date' => '2026-12-10', 'jurisdiction_profile' => 'zanzibar', 'star_rating' => 1]);
+    $posting = inTenant($property, function () use ($t, $property) {
+        app(SeedDefaultTaxRules::class)->handle($t->a->owner, $property);
+        $stay = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $stay->update(['status' => ReservationStatus::CheckedIn]);
+
+        return app(PostRoomCharge::class)->handle($t->a->owner, $stay, '2026-12-10');
+    });
+    $snapshot = inTenant($property, fn () => $posting->fresh()->getAttributes());
+    $property->update(['business_date' => '2026-12-11']);
+    $this->actingAs($t->a->owner)->put(route('properties.update', $property), PropertyForm::payload([
+        '_property' => $property->id, 'jurisdiction_profile' => 'zanzibar', 'star_rating' => 4,
+    ]))->assertSessionHasNoErrors();
+    inTenant($property, function () use ($posting, $snapshot) {
+        $rules = TaxRule::query()->where('name', 'Infrastructure levy')->orderBy('effective_from')->get();
+        expect($rules)->toHaveCount(2)
+            ->and($rules[0]->amount)->toBe(200)->and($rules[0]->effective_to->toDateString())->toBe('2026-12-10')
+            ->and($rules[1]->amount)->toBe(500)->and($rules[1]->effective_from->toDateString())->toBe('2026-12-11')
+            ->and($posting->fresh()->getAttributes())->toEqual($snapshot);
+    });
+});
+
+test('a first-day star change takes effect the next day and repeated changes keep the latest levy', function () {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->update(['business_date' => '2026-12-10', 'jurisdiction_profile' => 'zanzibar', 'star_rating' => 1]);
+    inTenant($property, fn () => app(SeedDefaultTaxRules::class)->handle($t->a->owner, $property));
+    foreach ([4, 3] as $stars) {
+        $this->actingAs($t->a->owner)->put(route('properties.update', $property), PropertyForm::payload([
+            '_property' => $property->id, 'jurisdiction_profile' => 'zanzibar', 'star_rating' => $stars,
+        ]))->assertSessionHasNoErrors();
+    }
+    inTenant($property, function () {
+        $rules = TaxRule::query()->where('name', 'Infrastructure levy')->orderBy('effective_from')->get();
+        expect($rules)->toHaveCount(2)->and($rules[0]->amount)->toBe(200)
+            ->and($rules[1]->amount)->toBe(400)->and($rules[1]->effective_from->toDateString())->toBe('2026-12-11');
+    });
 });
 
 test('organization setup stores optional tax registration and seeds taxes for the selected stars', function () {
