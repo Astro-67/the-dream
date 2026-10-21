@@ -1,6 +1,9 @@
 <?php
 
+use App\Domains\Inventory\Actions\CreateRoom;
+use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Models\InventoryRecord;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Rates\Models\RatePrice;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
@@ -13,6 +16,54 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
+
+test('new booking opens without parameters using business date and property scoped choices', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => bookingDetails($t->a->owner));
+    inTenant($t->a->otherProperty, fn () => bookingDetails($t->a->owner));
+    inTenant($t->b->property, fn () => bookingDetails($t->b->owner));
+    $t->a->property->update(['business_date' => '2026-12-10']);
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('reservations.create'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('reservations/create')->where('stay.arrival', '2026-12-10')->where('stay.departure', '2026-12-11')
+        ->where('stay.adults', 1)->where('stay.children', 0)->where('roomType', null)
+        ->where('stay.rate_plan_id', $details['rate_plan_id'])->has('ratePlans', 1)->has('rooms', 1)
+        ->where('rooms.0.room_type_id', $details['room_type_id'])->where('countries.0.code', 'TZ')
+        ->where('countries', fn ($countries) => count($countries) >= 249 && collect($countries)->contains(fn ($country) => $country['code'] === 'GB' && $country['name'] === 'United Kingdom')));
+});
+
+test('booking refresh derives room type and price from the selected room', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => bookingDetails($t->a->owner));
+    $room = inTenant($t->a->property, fn () => Room::query()->sole());
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->get(route('reservations.create', [
+        'room_id' => $room->id, 'arrival' => $details['arrival'], 'departure' => $details['departure'], 'adults' => 2, 'children' => 1,
+    ]))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('stay.room_type_id', $details['room_type_id'])->where('ratePlan.id', $details['rate_plan_id'])
+        ->where('nightlyRate', 11000)->has('rooms', 1));
+    $payload = [...$details, 'room_id' => $room->id, '_property' => $t->a->property->id];
+    unset($payload['room_type_id']);
+    $this->post(route('reservations.store'), $payload)->assertSessionHasNoErrors()->assertRedirect();
+    $this->get(route('reservations.create', ['arrival' => $details['arrival'], 'departure' => $details['departure']]))
+        ->assertOk()->assertInertia(fn (Assert $page) => $page->has('rooms', 0));
+});
+
+test('direct booking offers free rooms across types and handles a property without rate plans', function () {
+    $t = twoTenants();
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('reservations.create'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('ratePlan', null)->has('rooms', 0));
+    inTenant($t->a->property, function () use ($t) {
+        bookingDetails($t->a->owner);
+        $type = app(CreateRoomType::class)->handle($t->a->owner, [...InventoryForm::roomType(), 'name' => 'Suite', 'code' => 'SUITE']);
+        app(CreateRoom::class)->handle($t->a->owner, [...InventoryForm::room($type->id), 'number' => '202']);
+    });
+    $this->get(route('reservations.create'))->assertOk()->assertInertia(fn (Assert $page) => $page->has('rooms', 2));
+    $this->getJson(route('reservations.create', ['arrival' => 'bad-date']))->assertUnprocessable()->assertJsonValidationErrors('arrival');
+    $this->postJson(route('reservations.store'), ['arrival' => '2026-12-10', 'departure' => '2026-12-11', 'adults' => 1, 'children' => 0, 'source' => 'direct', 'lead_guest' => ['first_name' => 'A', 'last_name' => 'Guest'], '_property' => $t->a->property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors(['room_type_id', 'rate_plan_id']);
+});
 
 test('front desk books an availability result and opens its reservation detail', function () {
     $t = twoTenants();

@@ -1,4 +1,3 @@
-import { NativeSelect } from '@/components/ui/select';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -19,7 +18,13 @@ import {
 import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
 import { formatDate } from '@/features/platform/format';
 import { PropertyIntent } from '@/components/shared/property-intent';
-import { availability, checkIn, index, show } from '@/routes/reservations';
+import {
+    availability,
+    checkIn,
+    create,
+    index,
+    show,
+} from '@/routes/reservations';
 import { index as importsIndex } from '@/routes/imports';
 import type { Paginated } from '@/types';
 
@@ -43,11 +48,13 @@ export default function Index({
     reservations,
     filters,
     canImport,
+    canCreate,
     importLabel,
 }: {
     reservations: Paginated<Reservation>;
     filters: Filters;
     canImport: boolean;
+    canCreate: boolean;
     importLabel: string;
 }) {
     return (
@@ -62,6 +69,11 @@ export default function Index({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                        {canCreate && (
+                            <Button asChild>
+                                <Link href={create()}>New booking</Link>
+                            </Button>
+                        )}
                         {canImport && (
                             <Button asChild variant="outline">
                                 <Link href={importsIndex()}>{importLabel}</Link>
@@ -72,6 +84,64 @@ export default function Index({
                         </Button>
                     </div>
                 </header>
+                <nav
+                    aria-label="Reservation lists"
+                    className="flex flex-wrap gap-2"
+                >
+                    {[
+                        ['upcoming', 'Upcoming'],
+                        ['today', 'Today'],
+                        ['in_house', 'In house'],
+                        ['past', 'Past'],
+                        ['all', 'All'],
+                    ].map(([list, label]) => (
+                        <Button
+                            key={list}
+                            asChild
+                            variant={
+                                filters.list === list ? 'default' : 'outline'
+                            }
+                        >
+                            <Link
+                                href={index({ query: { ...filters, list } })}
+                                aria-current={
+                                    filters.list === list ? 'page' : undefined
+                                }
+                            >
+                                {label}
+                            </Link>
+                        </Button>
+                    ))}
+                </nav>
+                <nav
+                    aria-label="Additional reservation lists"
+                    className="flex flex-wrap gap-2"
+                >
+                    {[
+                        ['departures', 'Departures'],
+                        ['overstays', 'Overstays'],
+                        ['balance-owing', 'Balance owing'],
+                        ['no-id-document', 'No ID document'],
+                    ].map(([list, label]) => (
+                        <Button
+                            key={list}
+                            asChild
+                            size="sm"
+                            variant={
+                                filters.list === list ? 'secondary' : 'ghost'
+                            }
+                        >
+                            <Link
+                                href={index({ query: { ...filters, list } })}
+                                aria-current={
+                                    filters.list === list ? 'page' : undefined
+                                }
+                            >
+                                {label}
+                            </Link>
+                        </Button>
+                    ))}
+                </nav>
                 <Form
                     {...index.form()}
                     className="flex flex-wrap items-end gap-4"
@@ -89,31 +159,12 @@ export default function Index({
                                 />
                                 <InputError message={errors.date} />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="list">List</Label>
-                                <NativeSelect
-                                    id="list"
-                                    name="list"
-                                    defaultValue={filters.list}
-                                >
-                                    <option value="arrivals">Arrivals</option>
-                                    <option value="departures">
-                                        Departures
-                                    </option>
-                                    <option value="in-house">In-house</option>
-                                    <option value="overstays">Overstays</option>
-                                    <option value="balance-owing">
-                                        Balance owing
-                                    </option>
-                                    <option value="no-id-document">
-                                        No ID document
-                                    </option>
-                                    <option value="all">
-                                        All reservations
-                                    </option>
-                                </NativeSelect>
-                                <InputError message={errors.list} />
-                            </div>
+                            <input
+                                type="hidden"
+                                name="list"
+                                value={filters.list}
+                            />
+                            <InputError message={errors.list} />
                             <div className="space-y-2">
                                 <Label htmlFor="search">Search</Label>
                                 <Input

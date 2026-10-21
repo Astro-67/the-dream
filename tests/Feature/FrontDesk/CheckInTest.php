@@ -63,12 +63,12 @@ test('today\'s arrivals list offers check-in to those who may check in', functio
         ->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.reservation_number', $reservation->reservation_number)->where('reservations.data.0.can_check_in', $offered));
 })->with([[OrganizationRole::FrontDesk, true], [OrganizationRole::PropertyManager, true], [OrganizationRole::Finance, false]]);
 
-test('check-in is not offered for another date or a checked-in arrival', function () {
+test('check-in is offered for late arrivals but not checked-in arrivals', function () {
     $t = twoTenants();
     $reservation = arrivingToday($t->a);
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
     $t->a->property->update(['business_date' => '2026-12-11']);
-    $this->get(route('reservations.index', ['list' => 'all']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.can_check_in', false));
+    $this->get(route('reservations.index', ['list' => 'all']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.can_check_in', true));
     $t->a->property->update(['business_date' => '2026-12-10']);
     $this->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id]);
     $this->get(route('reservations.index', ['list' => 'arrivals']))->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.status', 'checked_in')->where('reservations.data.0.can_check_in', false));
@@ -107,7 +107,7 @@ test('check-in is refused for a reservation that is not confirmed', function (Re
     inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe($status));
 })->with(array_filter(ReservationStatus::cases(), fn ($status) => $status !== ReservationStatus::Confirmed));
 
-test('check-in is refused unless the reservation arrives on the stored business date, whatever the local date', function (string $businessDate) {
+test('check-in is refused before the stored arrival business date, whatever the local date', function (string $businessDate) {
     $t = twoTenants();
     $reservation = arrivingToday($t->a);
     // The local date stays 10 December; only the stored business date differs.
@@ -115,8 +115,17 @@ test('check-in is refused unless the reservation arrives on the stored business 
     assertCheckInRefused($t->a, $reservation, 'reservation');
 })->with([
     'business date lagging the local date' => '2026-12-09',
-    'business date ahead of the local date' => '2026-12-11',
 ]);
+
+test('a late arriving guest can check in from the reservation detail', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    $t->a->property->update(['business_date' => '2026-12-11']);
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->from(route('reservations.show', $reservation))->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])
+        ->assertSessionHasNoErrors()->assertRedirect(route('reservations.show', $reservation));
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn));
+});
 
 test('check-in is refused without an assigned room', function () {
     $t = twoTenants();
@@ -191,4 +200,39 @@ test('foreign guest needs a passport at check-in when the property requires it',
     assertCheckInRefused($t->a, $reservation, 'guests');
     $t->a->property->update(['front_desk_settings' => ['passport_required_for_foreign_guests' => false]]);
     $this->actingAs($t->a->owner)->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])->assertRedirect()->assertSessionHasNoErrors();
+});
+
+test('reservation detail offers check-in only to reservation managers on the arrival business date', function (OrganizationRole $role, bool $offered) {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    $this->actingAs($t->a->member($role))->get(route('reservations.show', $reservation))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('can.checkIn', $offered));
+})->with([[OrganizationRole::FrontDesk, true], [OrganizationRole::PropertyManager, true], [OrganizationRole::Finance, false]]);
+
+test('reservation detail offers late arrivals but hides future and non-confirmed check-ins', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $t->a->property->update(['business_date' => '2026-12-11']);
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (AssertableInertia $page) => $page->where('can.checkIn', true));
+    $t->a->property->update(['business_date' => '2026-12-09']);
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (AssertableInertia $page) => $page->where('can.checkIn', false));
+    $t->a->property->update(['business_date' => '2026-12-10']);
+    foreach (ReservationStatus::cases() as $status) {
+        inTenant($t->a->property, fn () => $reservation->update(['status' => $status]));
+        $this->get(route('reservations.show', $reservation))->assertInertia(fn (AssertableInertia $page) => $page->where('can.checkIn', $status === ReservationStatus::Confirmed));
+    }
+});
+
+test('check-in validation returns to the reservation detail in its own error bag without changing the stay', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    inTenant($t->a->property, fn () => $reservation->update(['room_id' => null]));
+    $url = route('reservations.show', $reservation);
+    $bag = 'check-in-'.$reservation->reservation_number;
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->from($url)->withHeader('X-Inertia-Error-Bag', $bag)
+        ->followingRedirects()->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])
+        ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where("errors.{$bag}.room", 'Assign a room before checking in.')->where('can.checkIn', true));
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed));
 });

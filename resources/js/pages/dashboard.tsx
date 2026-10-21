@@ -102,9 +102,7 @@ export default function Dashboard({
                     </div>
                     {can('reservations.manage') && (
                         <Button asChild>
-                            <Link href={createReservation()}>
-                                New reservation
-                            </Link>
+                            <Link href={createReservation()}>New booking</Link>
                         </Button>
                     )}
                 </header>

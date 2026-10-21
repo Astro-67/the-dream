@@ -41,6 +41,14 @@ function formAfter(edits: [string, string][], source = 'direct') {
                 },
                 roomType: { id: 'type', name: 'Double' },
                 ratePlan: { id: 'plan', name: 'Standard', currency: 'USD' },
+                ratePlans: [
+                    {
+                        id: 'plan',
+                        name: 'Standard',
+                        currency: 'USD',
+                        room_type_ids: ['type'],
+                    },
+                ],
                 rooms: [],
                 restrictionWarnings: [],
                 nightlyRate: 10000,

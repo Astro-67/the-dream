@@ -1,3 +1,4 @@
+import { CountrySelect } from '@/components/shared/country-select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
@@ -15,7 +16,7 @@ export type IdentityDocument = {
 const fields = [
     ['type', 'Document type'],
     ['number', 'Document number'],
-    ['nationality', 'Nationality (country code)'],
+    ['nationality', 'Country'],
     ['issuing_country', 'Issuing country (country code)'],
     ['expiry', 'Expiry date'],
 ] as const;
@@ -51,28 +52,42 @@ export function IdentityFields({
                         return (
                             <div key={field} className="space-y-2">
                                 <Label htmlFor={id}>{label}</Label>
-                                <Input
-                                    id={id}
-                                    name={`documents[${index}][${field}]`}
-                                    type={field === 'expiry' ? 'date' : 'text'}
-                                    defaultValue={document[field] ?? ''}
-                                    required={
-                                        field === 'type' || field === 'number'
-                                    }
-                                    maxLength={
-                                        field === 'nationality' ||
-                                        field === 'issuing_country'
-                                            ? 2
-                                            : field === 'type'
-                                              ? 50
-                                              : 255
-                                    }
-                                    autoComplete="off"
-                                    aria-invalid={Boolean(error)}
-                                    aria-describedby={
-                                        error ? `${id}-error` : undefined
-                                    }
-                                />
+                                {field === 'nationality' ? (
+                                    <CountrySelect
+                                        id={id}
+                                        name={`documents[${index}][${field}]`}
+                                        defaultValue={document[field] ?? ''}
+                                        aria-invalid={Boolean(error)}
+                                        aria-describedby={
+                                            error ? `${id}-error` : undefined
+                                        }
+                                    />
+                                ) : (
+                                    <Input
+                                        id={id}
+                                        name={`documents[${index}][${field}]`}
+                                        type={
+                                            field === 'expiry' ? 'date' : 'text'
+                                        }
+                                        defaultValue={document[field] ?? ''}
+                                        required={
+                                            field === 'type' ||
+                                            field === 'number'
+                                        }
+                                        maxLength={
+                                            field === 'issuing_country'
+                                                ? 2
+                                                : field === 'type'
+                                                  ? 50
+                                                  : 255
+                                        }
+                                        autoComplete="off"
+                                        aria-invalid={Boolean(error)}
+                                        aria-describedby={
+                                            error ? `${id}-error` : undefined
+                                        }
+                                    />
+                                )}
                                 <InputError
                                     id={`${id}-error`}
                                     message={error}
