@@ -57,7 +57,7 @@ import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
+        title: 'Today',
         href: dashboard(),
         icon: LayoutGrid,
     },
@@ -96,8 +96,25 @@ export function AppSidebar() {
     const { platformRoles } = usePage().props.auth;
     // Hidden from members who can't use them; the server still checks.
     const can = useCan();
-    const navItems: NavItem[] = [
+    const frontDeskItems: NavItem[] = [
         ...mainNavItems,
+        ...(can('reservations.view')
+            ? [
+                  {
+                      title: 'Reservations',
+                      href: reservations(),
+                      icon: CalendarDays,
+                  },
+              ]
+            : []),
+        ...(can('housekeeping.view')
+            ? [{ title: 'Housekeeping', href: housekeeping(), icon: DoorOpen }]
+            : []),
+        ...(can('housekeeping.manage')
+            ? [{ title: 'My rooms', href: myRooms(), icon: DoorOpen }]
+            : []),
+    ];
+    const moneyItems: NavItem[] = [
         ...(can('reports.view')
             ? [
                   {
@@ -105,58 +122,7 @@ export function AppSidebar() {
                       href: payments(),
                       icon: Banknote,
                   },
-                  {
-                      title: 'Reports',
-                      href: reports(),
-                      icon: ChartNoAxesCombined,
-                  },
-                  {
-                      title: 'Group reports',
-                      href: groupReports(),
-                      icon: ChartNoAxesCombined,
-                  },
               ]
-            : []),
-        ...(can('approvals.manage')
-            ? [{ title: 'Approvals', href: approvals(), icon: ShieldCheck }]
-            : []),
-        ...(can('properties.view')
-            ? [{ title: 'Properties', href: properties(), icon: Hotel }]
-            : []),
-        ...(can('reservations.view')
-            ? [
-                  {
-                      title: 'Availability',
-                      href: availability(),
-                      icon: CalendarDays,
-                  },
-                  {
-                      title: 'Reservations',
-                      href: reservations(),
-                      icon: CalendarDays,
-                  },
-                  { title: 'Room types', href: roomTypes(), icon: BedDouble },
-                  { title: 'Rooms', href: rooms(), icon: DoorOpen },
-                  { title: 'Rate plans', href: ratePlans(), icon: Tags },
-                  {
-                      title: 'Rate calendar',
-                      href: rateCalendar(),
-                      icon: CalendarDays,
-                  },
-                  { title: 'Taxes', href: taxRules(), icon: Percent },
-              ]
-            : []),
-        ...(can('finance.view')
-            ? [
-                  {
-                      title: 'Open balances',
-                      href: openBalances(),
-                      icon: Wallet,
-                  },
-              ]
-            : []),
-        ...(can('night_audit.view')
-            ? [{ title: 'Night audit', href: nightAudit(), icon: CalendarDays }]
             : []),
         ...(can('charges.post', 'finance.view')
             ? [
@@ -167,11 +133,58 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        ...(can('housekeeping.view')
-            ? [{ title: 'Housekeeping', href: housekeeping(), icon: DoorOpen }]
+        ...(can('finance.view')
+            ? [{ title: 'Open balances', href: openBalances(), icon: Wallet }]
             : []),
-        ...(can('housekeeping.manage')
-            ? [{ title: 'My rooms', href: myRooms(), icon: DoorOpen }]
+        ...(can('reports.view')
+            ? [{ title: 'Reports', href: reports(), icon: ChartNoAxesCombined }]
+            : []),
+    ];
+    const setupItems: NavItem[] = [
+        ...(can('reservations.view')
+            ? [
+                  { title: 'Rooms', href: rooms(), icon: DoorOpen },
+                  { title: 'Room types', href: roomTypes(), icon: BedDouble },
+                  { title: 'Rate plans', href: ratePlans(), icon: Tags },
+                  {
+                      title: 'Rate calendar',
+                      href: rateCalendar(),
+                      icon: CalendarDays,
+                  },
+                  { title: 'Taxes', href: taxRules(), icon: Percent },
+              ]
+            : []),
+        ...(can('properties.view')
+            ? [{ title: 'Properties', href: properties(), icon: Hotel }]
+            : []),
+        ...(can('members.view')
+            ? [{ title: 'Members', href: members(), icon: Users }]
+            : []),
+    ];
+    const moreItems: NavItem[] = [
+        ...(can('reservations.view')
+            ? [
+                  {
+                      title: 'Availability',
+                      href: availability(),
+                      icon: CalendarDays,
+                  },
+              ]
+            : []),
+        ...(can('night_audit.view')
+            ? [{ title: 'Night audit', href: nightAudit(), icon: CalendarDays }]
+            : []),
+        ...(can('approvals.manage')
+            ? [{ title: 'Approvals', href: approvals(), icon: ShieldCheck }]
+            : []),
+        ...(can('reports.view')
+            ? [
+                  {
+                      title: 'Group reports',
+                      href: groupReports(),
+                      icon: ChartNoAxesCombined,
+                  },
+              ]
             : []),
         ...(can('housekeeping.supervise')
             ? [
@@ -185,9 +198,6 @@ export function AppSidebar() {
         // Bookers are no longer created by staff (ADR 0015); their pages stay reachable from old reservations.
         ...(can('guests.view')
             ? [{ title: 'Guests', href: guests(), icon: Users }]
-            : []),
-        ...(can('members.view')
-            ? [{ title: 'Members', href: members(), icon: Users }]
             : []),
         ...(can('members.manage', 'members.invite')
             ? [invitationsNavItem]
@@ -217,7 +227,10 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={navItems} />
+                <NavMain items={frontDeskItems} label="Front desk" />
+                <NavMain items={moneyItems} label="Money" />
+                <NavMain items={setupItems} label="Setup" />
+                <NavMain items={moreItems} label="More" collapsible />
                 {isPlatformAdministrator && (
                     <NavMain
                         items={platformNavItems}

@@ -14,6 +14,39 @@ export type PropertySettings = {
     payment_settings: Settings;
 };
 
+export const propertySettingsTabs: Record<string, string> = {
+    hotel: 'Hotel',
+    front_desk_settings: 'Front desk',
+    tax_settings: 'Tax & ZRA',
+    payment_settings: 'Payments',
+    registration_fields: 'Guest registration',
+};
+
+export function propertySettingsTabForErrors(
+    errors: Record<string, string | undefined>,
+) {
+    const errorTabs = Object.keys(errors).map((field) => {
+        const group = field.split('.')[0];
+        if (group in propertySettingsTabs) return group;
+        if (field === 'receipt_prefix') return 'payment_settings';
+        if (
+            [
+                'housekeeping_inspection_required',
+                'stayover_service_on_close',
+                'close_time',
+            ].includes(field)
+        ) {
+            return 'front_desk_settings';
+        }
+        return 'hotel';
+    });
+    return (
+        Object.keys(propertySettingsTabs).find((tab) =>
+            errorTabs.includes(tab),
+        ) ?? 'hotel'
+    );
+}
+
 const labels: Record<string, string> = {
     book_ahead_days: 'Book-ahead limit (days)',
     minimum_notice_hours: 'Minimum notice (hours)',
@@ -63,7 +96,7 @@ export function PropertySettingsFields({
     values,
     errors,
 }: {
-    values: PropertySettings;
+    values: Partial<PropertySettings>;
     errors: Record<string, string | undefined>;
 }) {
     return (
@@ -74,13 +107,7 @@ export function PropertySettingsFields({
                     className="grid gap-4 border-t pt-6 sm:grid-cols-2"
                 >
                     <legend className="px-1 text-lg font-semibold">
-                        {
-                            {
-                                front_desk_settings: 'Front desk',
-                                tax_settings: 'Tax & ZRA',
-                                payment_settings: 'Payments',
-                            }[group]
-                        }
+                        {propertySettingsTabs[group]}
                     </legend>
                     {group === 'tax_settings' && (
                         <p className="text-sm text-muted-foreground sm:col-span-2">
