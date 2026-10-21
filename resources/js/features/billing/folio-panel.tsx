@@ -5,6 +5,7 @@ import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
@@ -365,13 +366,12 @@ function ExtraChargeForm({ folio }: { folio: Folio }) {
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor={id('unit_price')}>
-                            VAT-inclusive unit price in {folio.currency} minor
-                            units
+                            VAT-inclusive unit price in {folio.currency}
                         </Label>
-                        <Input
+                        <MoneyInput
                             id={id('unit_price')}
                             name="unit_price"
-                            type="number"
+                            currency={folio.currency}
                             min={0}
                             required
                             aria-invalid={Boolean(errors.unit_price)}

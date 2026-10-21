@@ -22,6 +22,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { ruleSize } from '@/lib/utils';
 import { change, end, preview, store } from '@/routes/tax-rules';
@@ -99,6 +100,7 @@ function RuleFields({
     errors: Record<string, string | undefined>;
 }) {
     const [kind, setKind] = useState(rule?.kind ?? 'percentage');
+    const [currency, setCurrency] = useState(rule?.currency ?? currencies[0]);
     return (
         <>
             <PropertyIntent />
@@ -170,15 +172,15 @@ function RuleFields({
                             currencies.map((c) => [c, c]),
                         )}
                         defaultValue={rule?.currency ?? undefined}
+                        onChange={setCurrency}
                         error={errors.currency}
                     />
                     <div className="space-y-2">
-                        <Label htmlFor="amount">Amount in minor units</Label>
-                        <Input
+                        <Label htmlFor="amount">Amount in {currency}</Label>
+                        <MoneyInput
                             id="amount"
                             name="amount"
-                            type="number"
-                            step={1}
+                            currency={currency}
                             min={0}
                             required
                             defaultValue={rule?.amount ?? undefined}

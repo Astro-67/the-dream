@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
 import { Spinner } from '@/components/ui/spinner';
@@ -51,12 +52,12 @@ function PaymentForm({
                 <>
                     <div className="grid gap-2">
                         <Label htmlFor={id('amount')}>
-                            Amount ({invoice.currency}, minor units)
+                            Amount ({invoice.currency})
                         </Label>
-                        <Input
+                        <MoneyInput
                             id={id('amount')}
                             name="amount"
-                            type="number"
+                            currency={invoice.currency}
                             min={1}
                             max={invoice.balance}
                             required

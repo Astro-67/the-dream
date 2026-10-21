@@ -16,6 +16,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/utils';
@@ -481,7 +482,7 @@ function BulkEdit({
             </DialogTitle>
             <DialogDescription>
                 {kind === 'prices'
-                    ? `Amounts in ${plan.currency} minor units. Existing prices on selected dates are replaced.`
+                    ? `Amounts in ${plan.currency}. Existing prices on selected dates are replaced.`
                     : 'Existing restrictions on selected dates are replaced.'}
             </DialogDescription>
             <Form
@@ -558,12 +559,11 @@ function BulkEdit({
                                 ).map(([name, text]) => (
                                     <div key={name} className="space-y-2">
                                         <Label htmlFor={name}>{text}</Label>
-                                        <Input
+                                        <MoneyInput
                                             id={name}
                                             name={name}
-                                            type="number"
+                                            currency={plan.currency}
                                             min={0}
-                                            step={1}
                                             defaultValue={0}
                                             required
                                             aria-invalid={!!errors[name]}

@@ -4,6 +4,7 @@ import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { store as refund } from '@/routes/folios/refunds';
@@ -58,12 +59,12 @@ function AdjustmentForm({
                     </p>
                     <div className="space-y-2">
                         <Label htmlFor={id('amount')}>
-                            Amount in {folio.currency} minor units
+                            Amount in {folio.currency}
                         </Label>
-                        <Input
+                        <MoneyInput
                             id={id('amount')}
                             name="amount"
-                            type="number"
+                            currency={folio.currency}
                             min={1}
                             max={
                                 type === 'write_off'

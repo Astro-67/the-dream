@@ -5,6 +5,7 @@ import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
 import { Spinner } from '@/components/ui/spinner';
@@ -62,12 +63,12 @@ function OpenShiftForm({ currencies }: { currencies: string[] }) {
                         {currencies.map((currency) => (
                             <div key={currency} className="space-y-2">
                                 <Label htmlFor={`float-${currency}`}>
-                                    Float in {currency} minor units
+                                    Float in {currency}
                                 </Label>
-                                <Input
+                                <MoneyInput
                                     id={`float-${currency}`}
                                     name={`floats[${currency}]`}
-                                    type="number"
+                                    currency={currency}
                                     min={0}
                                     defaultValue={0}
                                     required
@@ -107,12 +108,12 @@ function CloseShiftForm({ shift }: { shift: Shift }) {
                         {shift.currencies.map((line) => (
                             <div key={line.currency} className="space-y-2">
                                 <Label htmlFor={`counted-${line.currency}`}>
-                                    Counted {line.currency} minor units
+                                    Counted {line.currency}
                                 </Label>
-                                <Input
+                                <MoneyInput
                                     id={`counted-${line.currency}`}
                                     name={`counted[${line.currency}]`}
-                                    type="number"
+                                    currency={line.currency}
                                     min={0}
                                     required
                                 />

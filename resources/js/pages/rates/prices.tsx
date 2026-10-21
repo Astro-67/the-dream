@@ -13,6 +13,7 @@ import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/utils';
@@ -154,13 +155,8 @@ export default function Prices({
                                     <InputError message={errors.weekdays} />
                                 </fieldset>
                                 <p className="text-sm text-muted-foreground">
-                                    Enter integer minor units in {plan.currency}
-                                    :{' '}
-                                    {plan.currency === 'TZS'
-                                        ? '1 = TZS 1'
-                                        : `100 = ${plan.currency} 1.00`}
-                                    . Existing prices on selected dates are
-                                    replaced.
+                                    Amounts in {plan.currency}. Existing prices
+                                    on selected dates are replaced.
                                 </p>
                                 <div className="grid gap-4 sm:grid-cols-3">
                                     {[
@@ -172,13 +168,12 @@ export default function Prices({
                                             <Label htmlFor={name}>
                                                 {label}
                                             </Label>
-                                            <Input
+                                            <MoneyInput
                                                 id={name}
                                                 name={name}
-                                                type="number"
+                                                currency={plan.currency}
                                                 min={0}
                                                 max={1000000000}
-                                                step={1}
                                                 required
                                                 aria-invalid={!!errors[name]}
                                             />
