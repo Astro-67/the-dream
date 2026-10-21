@@ -43,6 +43,22 @@ export function CalendarRoomRows({
         const cells: React.ReactNode[] = [];
         for (let index = 0; index < dates.length;) {
             const date = dates[index];
+            const departures = room.reservations
+                .filter(
+                    (reservation) =>
+                        !reservation.is_overstay &&
+                        reservation.departure === date,
+                )
+                .map((reservation) => (
+                    <a
+                        key={reservation.reservation_number}
+                        href={reservation.url}
+                        className="block rounded-md px-3 py-2 text-xs text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    >
+                        Departure: {reservation.guest_name}{' '}
+                        <Identifier value={reservation.reservation_number} />
+                    </a>
+                ));
             const reservation = room.reservations.find(
                 (reservation) =>
                     reservation.arrival <= date &&
@@ -55,7 +71,9 @@ export function CalendarRoomRows({
                         key={date}
                         aria-label={`Room ${room.number}, ${formatDate(date)}: unassigned`}
                         className="border-b border-l px-2 py-2"
-                    />,
+                    >
+                        {departures}
+                    </TableCell>,
                 );
                 index++;
                 continue;
@@ -64,7 +82,12 @@ export function CalendarRoomRows({
             while (
                 end < dates.length &&
                 dates[end] <
-                    (reservation.display_departure ?? reservation.departure)
+                    (reservation.display_departure ?? reservation.departure) &&
+                !room.reservations.some(
+                    (departure) =>
+                        !departure.is_overstay &&
+                        departure.departure === dates[end],
+                )
             )
                 end++;
             const description = `${reservation.guest_name}, ${reservation.reservation_number}, ${formatDate(reservation.arrival)} to ${formatDate(reservation.departure)}, ${reservation.is_overstay ? 'Overstay, ' : ''}${reservation.status.replaceAll('_', ' ')}`;
@@ -74,6 +97,7 @@ export function CalendarRoomRows({
                     colSpan={end - index}
                     className="border-b border-l p-1"
                 >
+                    {departures}
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <a
