@@ -56,6 +56,26 @@ class TaxRule extends Model
             && $this->kind === TaxKind::FlatPerPersonNight && $this->currency === Currency::USD;
     }
 
+    public function isVat(): bool
+    {
+        return $this->zra_tax_category === ZraTaxCategory::Vat && $this->kind === TaxKind::Percentage;
+    }
+
+    /**
+     * The rule's terms as ChangeTaxRule takes them, for a next version that changes only some.
+     *
+     * @return array{zra_tax_category: string|null, name: string, kind: string, rate: int|null, amount: int|null, currency: string|null, inclusive: bool, applies_to: string, rounding: string, effective_from: string, effective_to: string|null}
+     */
+    public function terms(): array
+    {
+        return [
+            'zra_tax_category' => $this->zra_tax_category?->value, 'name' => $this->name, 'kind' => $this->kind->value,
+            'rate' => $this->rate, 'amount' => $this->amount, 'currency' => $this->currency?->value, 'inclusive' => $this->inclusive,
+            'applies_to' => $this->applies_to->value, 'rounding' => $this->rounding->value,
+            'effective_from' => $this->effective_from->format('Y-m-d'), 'effective_to' => $this->effective_to?->format('Y-m-d'),
+        ];
+    }
+
     /** Whether the rule is in force on a Y-m-d date. */
     public function coversDate(string $date): bool
     {

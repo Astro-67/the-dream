@@ -141,7 +141,8 @@ class Property extends Model
     {
         $settings = [];
         foreach (PropertySettings::DEFAULTS as $group => $defaults) {
-            $settings[$group] = array_replace($defaults, $this->getAttribute($group) ?? []);
+            // Keys no longer in the defaults (the old tax_inclusive switch) are dropped, so a form never posts them back.
+            $settings[$group] = array_replace($defaults, array_intersect_key($this->getAttribute($group) ?? [], $defaults));
         }
         $settings['front_desk_settings']['automatic_checkout_summary_email'] ??= $this->email;
 

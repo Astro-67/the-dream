@@ -51,7 +51,7 @@ test('property settings reject invalid values', function (string $field, mixed $
     ['front_desk_settings.automatic_checkout_enabled', 'yes'], ['front_desk_settings.automatic_checkout_time', 'bad'],
     ['front_desk_settings.automatic_checkout_include_unpaid', 'yes'], ['front_desk_settings.automatic_checkout_include_overstays', 'yes'],
     ['front_desk_settings.automatic_checkout_summary_email', 'bad'], ['tax_settings.zra_tax_category', 'invalid'],
-    ['tax_settings.tax_inclusive', 'yes'], ['tax_settings.tax_label', ''], ['tax_settings.tax_rate', 101],
+    ['tax_settings.tax_label', ''], ['tax_settings.tax_rate', 101],
     ['tax_settings.service_charge_enabled', 'yes'], ['tax_settings.service_charge_rate', -1], ['tax_settings.show_breakdown_on_bill', 'yes'],
     ['tax_settings.show_breakdown_on_receipt', 'yes'], ['payment_settings.accepted_methods.0', 'bitcoin'],
     ['payment_settings.block_checkout_if_unpaid', 'yes'], ['payment_settings.manager_override', 'yes'],

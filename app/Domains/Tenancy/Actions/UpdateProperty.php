@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tenancy\Actions;
 
+use App\Domains\Rates\Actions\SetTaxInclusion;
 use App\Domains\Rates\Actions\UpdateInfrastructureLevy;
 use App\Domains\Tenancy\Data\PropertyDetails;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -12,14 +13,18 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Changes a property's details and records the changed fields, before and
- * after, in the audit trail.
+ * after, in the audit trail. Tax inclusion choices change its tax rules in the same transaction.
  */
 class UpdateProperty
 {
-    public function handle(?User $actor, Property $property, PropertyDetails $details): Property
+    /** @param array{vat?: bool|null, levy?: bool|null, effective_from?: string|null} $taxInclusion */
+    public function handle(?User $actor, Property $property, PropertyDetails $details, array $taxInclusion = []): Property
     {
-        return Audit::validationRefusal($actor, $property, 'Property update refused', fn () => DB::transaction(function () use ($actor, $property, $details) {
+        return Audit::validationRefusal($actor, $property, 'Property update refused', fn () => DB::transaction(function () use ($actor, $property, $details, $taxInclusion) {
             $property = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
+            if ($taxInclusion !== []) {
+                app(SetTaxInclusion::class)->handle($actor, $property, $taxInclusion, $taxInclusion['effective_from'] ?? null);
+            }
             if ($details->jurisdictionProfile !== $property->jurisdiction_profile) {
                 JurisdictionRules::ensureProfileCanChange($property, $details->jurisdictionProfile);
             }

@@ -3,12 +3,14 @@
 namespace App\Http\Requests\Tenancy;
 
 use App\Domains\Guests\Models\IdentityDocument;
+use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Tenancy\Data\PropertyDetails;
 use App\Domains\Tenancy\Data\PropertySettings;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\PropertyType;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Money\Currency;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -33,6 +35,8 @@ class PropertyRequest extends FormRequest
      */
     public function rules(): array
     {
+        $property = $this->route('property');
+
         return [
             ...self::propertyRules(),
             ...PropertySettings::rules(),
@@ -43,6 +47,11 @@ class PropertyRequest extends FormRequest
             'receipt_prefix' => ['sometimes', 'string', 'max:10', 'regex:/^[A-Za-z0-9\/-]+$/'],
             'close_time' => ['sometimes', 'date_format:H:i'],
             'registration_fields.*' => ['distinct', Rule::in(IdentityDocument::FIELDS)],
+            // Only an edit changes existing tax rules; a new property is seeded with the defaults.
+            'tax_inclusion' => [$property instanceof Property ? 'sometimes' : 'prohibited', 'array:vat,levy,effective_from'],
+            'tax_inclusion.vat' => ['sometimes', 'nullable', 'boolean'],
+            'tax_inclusion.levy' => ['sometimes', 'nullable', 'boolean'],
+            'tax_inclusion.effective_from' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
         ];
     }
 
@@ -82,6 +91,31 @@ class PropertyRequest extends FormRequest
                 $validator->errors()->add('front_desk_settings.maximum_stay', __('Maximum stay must be at least the minimum stay.'));
             }
         }];
+    }
+
+    /**
+     * The tax inclusion choices, empty when the form leaves taxes alone.
+     *
+     * @return array{vat?: bool|null, levy?: bool|null, effective_from?: string|null}
+     */
+    public function taxInclusion(): array
+    {
+        /** @var array{vat?: bool|string|null, levy?: bool|string|null, effective_from?: string|null} $choices */
+        $choices = $this->validated('tax_inclusion', []);
+        $property = $this->route('property');
+        if ($choices === [] || ! $property instanceof Property) {
+            return [];
+        }
+        // A tax.manage check of its own: properties.update alone must not change tax rules.
+        if (! ($this->user()?->can('manageInclusion', [TaxRule::class, $property]) ?? false)) {
+            throw new AuthorizationException;
+        }
+
+        return [
+            'vat' => isset($choices['vat']) ? (bool) $choices['vat'] : null,
+            'levy' => isset($choices['levy']) ? (bool) $choices['levy'] : null,
+            'effective_from' => $choices['effective_from'] ?? null,
+        ];
     }
 
     public function details(): PropertyDetails

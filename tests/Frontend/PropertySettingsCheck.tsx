@@ -30,7 +30,11 @@ function returnValidationErrors(
     return returnValidationErrors(node.props.children, errors);
 }
 
-function settings(registration = true, errors?: Record<string, string>) {
+function settings(
+    registration = true,
+    errors?: Record<string, string>,
+    vatState: 'included' | 'mixed' | 'none' = 'included',
+) {
     const component = () => {
         const [returnedErrors, setReturnedErrors] = useState(false);
         const page = EditProperty({
@@ -67,6 +71,21 @@ function settings(registration = true, errors?: Record<string, string>) {
             jurisdictionProfiles: [{ value: 'zanzibar', label: 'Zanzibar' }],
             timezones: ['Africa/Dar_es_Salaam'],
             registrationFieldOptions: ['number', 'nationality'],
+            taxInclusion: {
+                vat: {
+                    state: vatState,
+                    covers_extras: true,
+                    earliest: '2026-12-11',
+                    pending: [],
+                },
+                levy: {
+                    state: 'added',
+                    covers_extras: false,
+                    earliest: '2026-12-12',
+                    pending: [],
+                },
+            },
+            canManageTaxes: true,
         });
         if (errors && !returnedErrors) {
             assert.ok(returnValidationErrors(page, errors));
@@ -115,6 +134,9 @@ for (const name of [
     'tax_settings[tax_rate]',
     'payment_settings[deposit_percentage]',
     'registration_fields[]',
+    'tax_inclusion[vat]',
+    'tax_inclusion[levy]',
+    'tax_inclusion[effective_from]',
 ]) {
     assert.ok(html.includes(`name="${name}"`), `${name} must stay mounted`);
 }
@@ -136,6 +158,7 @@ for (const [field, expected] of [
     ['receipt_prefix', 'payment_settings'],
     ['payment_settings.accepted_methods.0', 'payment_settings'],
     ['registration_fields.0', 'registration_fields'],
+    ['tax_inclusion.effective_from', 'tax_settings'],
 ]) {
     assert.equal(
         propertySettingsTabForErrors({ [field]: 'Invalid' }),
@@ -164,4 +187,16 @@ assert.match(
     invalid,
     /id="hotel" role="tabpanel" aria-labelledby="tab-hotel" hidden=""/,
 );
+// The removed generic switch never renders; the change date starts at the latest earliest date.
+assert.doesNotMatch(html, /tax_inclusive|Prices include tax/);
+assert.match(html, /min="2026-12-12"/);
+assert.match(html, /This rule also covers extras/);
+// Mixed rules offer to leave them alone; no rule offers a link, not a fake switch.
+assert.match(
+    settings(true, undefined, 'mixed'),
+    /<option value="" selected="">Mixed: leave rules as they are/,
+);
+const none = settings(true, undefined, 'none');
+assert.doesNotMatch(none, /name="tax_inclusion\[vat\]"/);
+assert.match(none, /href="\/tax-rules"[^>]*>Configure taxes/);
 console.log('Tabbed property settings and validation destinations: PASS');

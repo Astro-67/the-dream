@@ -38,13 +38,14 @@ final class TaxCalculator
      * @param  int  $amount  minor units of $currency
      * @param  string  $date  Y-m-d
      *
-     * @throws InvalidArgumentException when a flat rule in force is in another currency
+     * @throws InvalidArgumentException when a flat rule in force is in another currency, or included flat rules exceed the amount
      */
     public static function breakdown(iterable $rules, int $amount, Currency $currency, string $date, int $guests, ChargeKind $charge): TaxBreakdown
     {
-        // The seeded USD levy is an estimate; VFMS assesses the actual levy at check-out.
-        $applying = collect($rules)->filter(fn (TaxRule $rule) => $rule->coversDate($date) && $rule->applies_to->covers($charge)
-            && ! ($rule->isInfrastructureLevy() && $rule->currency !== $currency))->values();
+        $inForce = collect($rules)->filter(fn (TaxRule $rule) => $rule->coversDate($date) && $rule->applies_to->covers($charge));
+        // The seeded USD levy is an estimate; VFMS assesses the actual levy at check-out, so it is left out, not converted.
+        $unavailable = $inForce->filter(fn (TaxRule $rule) => $rule->isInfrastructureLevy() && $rule->currency !== $currency);
+        $applying = $inForce->diffKeys($unavailable)->values();
 
         $flat = function (TaxRule $rule) use ($currency, $guests): int {
             if ($rule->currency !== $currency) {
@@ -58,7 +59,10 @@ final class TaxCalculator
         $inclusive = $applying->where('inclusive', true);
         $inclusiveFlat = $inclusive->where('kind', TaxKind::FlatPerPersonNight)->sum($flat);
         $inclusiveRate = $inclusive->where('kind', TaxKind::Percentage)->sum('rate');
-        $base = max(0, $amount - (int) $inclusiveFlat);
+        $base = $amount - (int) $inclusiveFlat;
+        if ($base < 0) {
+            throw new InvalidArgumentException(__('The included flat taxes (:tax) exceed the price (:amount).', ['tax' => $inclusiveFlat, 'amount' => $amount]));
+        }
         $denominator = 10000 + (int) $inclusiveRate;
 
         $lines = $applying->map(function (TaxRule $rule) use ($flat, $base, $denominator): array {
@@ -73,6 +77,6 @@ final class TaxCalculator
 
         $net = $amount - array_sum(array_column(array_filter($lines, fn (array $line) => $line['inclusive']), 'amount'));
 
-        return new TaxBreakdown($currency, $net, $lines, $applying->pluck('id')->filter()->values()->all());
+        return new TaxBreakdown($currency, $net, $lines, $applying->pluck('id')->filter()->values()->all(), $unavailable->pluck('name')->values()->all());
     }
 }

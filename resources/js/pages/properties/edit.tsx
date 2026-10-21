@@ -2,10 +2,14 @@ import { useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
     PropertySettingsFields,
+    TaxInclusionFields,
     propertySettingsTabs,
     propertySettingsTabForErrors,
 } from '@/features/tenancy/property-settings-fields';
-import type { PropertySettings } from '@/features/tenancy/property-settings-fields';
+import type {
+    PropertySettings,
+    TaxInclusionControl,
+} from '@/features/tenancy/property-settings-fields';
 import { Form, Head, Link } from '@inertiajs/react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -31,6 +35,8 @@ type Props = PropertyFormOptions & {
             stayover_service_on_close: boolean;
         };
     registrationFieldOptions: string[];
+    taxInclusion: Record<string, TaxInclusionControl>;
+    canManageTaxes: boolean;
 };
 
 const registrationFieldLabels: Record<string, string> = {
@@ -44,6 +50,8 @@ const registrationFieldLabels: Record<string, string> = {
 export default function EditProperty({
     property,
     registrationFieldOptions,
+    taxInclusion,
+    canManageTaxes,
     ...options
 }: Props) {
     const configuresRegistration = property.registration_fields !== undefined;
@@ -284,6 +292,11 @@ export default function EditProperty({
                                     values={{
                                         tax_settings: property.tax_settings,
                                     }}
+                                    errors={errors}
+                                />
+                                <TaxInclusionFields
+                                    controls={taxInclusion}
+                                    canManage={canManageTaxes}
                                     errors={errors}
                                 />
                             </div>

@@ -20,7 +20,7 @@ final class PropertySettings
             'automatic_checkout_summary_email' => null,
         ],
         'tax_settings' => [
-            'zra_tax_category' => 'vat', 'tax_inclusive' => true, 'tax_label' => 'VAT', 'tax_rate' => 15,
+            'zra_tax_category' => 'vat', 'tax_label' => 'VAT', 'tax_rate' => 15,
             'service_charge_enabled' => false, 'service_charge_rate' => 10,
             'show_breakdown_on_bill' => true, 'show_breakdown_on_receipt' => true,
         ],

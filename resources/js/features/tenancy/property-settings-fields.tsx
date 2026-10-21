@@ -3,6 +3,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Link } from '@inertiajs/react';
+import { formatDate } from '@/features/platform/format';
+import { index as taxRules } from '@/routes/tax-rules';
 
 export type Settings = Record<
     string,
@@ -29,6 +32,7 @@ export function propertySettingsTabForErrors(
         const group = field.split('.')[0];
         if (group in propertySettingsTabs) return group;
         if (field === 'receipt_prefix') return 'payment_settings';
+        if (group === 'tax_inclusion') return 'tax_settings';
         if (
             [
                 'housekeeping_inspection_required',
@@ -70,7 +74,6 @@ const labels: Record<string, string> = {
         'Include overstays in automatic check-out',
     automatic_checkout_summary_email: 'Automatic check-out summary email',
     zra_tax_category: 'ZRA tax category',
-    tax_inclusive: 'Prices include tax',
     tax_label: 'Tax label',
     tax_rate: 'Tax rate (%)',
     service_charge_enabled: 'Add service charge',
@@ -219,5 +222,125 @@ export function PropertySettingsFields({
                 </fieldset>
             ))}
         </>
+    );
+}
+
+export type TaxInclusionControl = {
+    state: 'included' | 'added' | 'mixed' | 'none';
+    covers_extras: boolean;
+    earliest: string;
+    pending: { name: string; inclusive: boolean; effective_from: string }[];
+};
+
+const inclusionLabels: Record<string, string> = {
+    vat: 'VAT included in room rate',
+    levy: 'Infrastructure levy included in room rate',
+};
+
+/** Reads and changes the tax rules themselves; nothing here is stored as a property setting. */
+export function TaxInclusionFields({
+    controls,
+    canManage,
+    errors,
+}: {
+    controls: Record<string, TaxInclusionControl>;
+    canManage: boolean;
+    errors: Record<string, string | undefined>;
+}) {
+    const earliest = Object.values(controls)
+        .filter((control) => control.state !== 'none')
+        .map((control) => control.earliest)
+        .sort()
+        .at(-1);
+    return (
+        <fieldset className="grid gap-4 border-t pt-6 sm:grid-cols-2">
+            <legend className="px-1 text-lg font-semibold">
+                Taxes in the room rate
+            </legend>
+            <p className="text-sm text-muted-foreground sm:col-span-2">
+                These choices change the tax rules from a date. Earlier dates
+                and posted charges keep their tax.
+            </p>
+            {Object.entries(controls).map(([control, value]) => {
+                const key = `tax_inclusion.${control}`;
+                return (
+                    <div key={control} className="grid content-start gap-2">
+                        <Label htmlFor={key}>{inclusionLabels[control]}</Label>
+                        {value.state === 'none' ? (
+                            <p className="text-sm">
+                                No rule covers room charges.{' '}
+                                <Link href={taxRules()} className="underline">
+                                    Configure taxes
+                                </Link>
+                            </p>
+                        ) : (
+                            <NativeSelect
+                                id={key}
+                                name={`tax_inclusion[${control}]`}
+                                defaultValue={
+                                    value.state === 'mixed'
+                                        ? ''
+                                        : value.state === 'included'
+                                          ? '1'
+                                          : '0'
+                                }
+                                disabled={!canManage}
+                                aria-invalid={!!errors[key]}
+                            >
+                                {value.state === 'mixed' && (
+                                    <option value="">
+                                        Mixed: leave rules as they are
+                                    </option>
+                                )}
+                                <option value="1">Yes</option>
+                                <option value="0">No</option>
+                            </NativeSelect>
+                        )}
+                        {value.covers_extras && (
+                            <p className="text-sm text-muted-foreground">
+                                This rule also covers extras. An extra entered
+                                as a VAT-inclusive price stays inclusive.
+                            </p>
+                        )}
+                        {value.pending.map((rule) => (
+                            <p
+                                key={`${rule.name}-${rule.effective_from}`}
+                                className="text-sm text-muted-foreground"
+                            >
+                                From {formatDate(rule.effective_from)}:{' '}
+                                {rule.name}{' '}
+                                {rule.inclusive ? 'included' : 'added'}
+                            </p>
+                        ))}
+                        <InputError message={errors[key]} />
+                    </div>
+                );
+            })}
+            {earliest && canManage && (
+                <div className="grid content-start gap-2">
+                    <Label htmlFor="tax_inclusion.effective_from">
+                        Change takes effect from
+                    </Label>
+                    <Input
+                        id="tax_inclusion.effective_from"
+                        name="tax_inclusion[effective_from]"
+                        type="date"
+                        min={earliest}
+                        defaultValue={earliest}
+                        aria-describedby="tax_inclusion_earliest"
+                        aria-invalid={!!errors['tax_inclusion.effective_from']}
+                    />
+                    <p
+                        id="tax_inclusion_earliest"
+                        className="text-sm text-muted-foreground"
+                    >
+                        Earliest: {formatDate(earliest)}
+                    </p>
+                    <InputError
+                        message={errors['tax_inclusion.effective_from']}
+                    />
+                </div>
+            )}
+        </fieldset>
     );
 }

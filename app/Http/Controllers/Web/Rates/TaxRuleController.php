@@ -92,7 +92,7 @@ class TaxRuleController extends Controller
             'charge' => $charge,
             'currencies' => $property ? JurisdictionRules::allowedCurrencies($property) : [],
             'breakdown' => $breakdown === null ? null : [
-                'currency' => $breakdown->currency->value, 'net' => $breakdown->net, 'tax' => $breakdown->tax(), 'gross' => $breakdown->gross(), 'lines' => $breakdown->lines,
+                'currency' => $breakdown->currency->value, 'net' => $breakdown->net, 'tax' => $breakdown->tax(), 'gross' => $breakdown->gross(), 'lines' => $breakdown->lines, 'unavailable' => $breakdown->unavailable,
             ],
             'unpreviewable' => $unpreviewable,
         ]);

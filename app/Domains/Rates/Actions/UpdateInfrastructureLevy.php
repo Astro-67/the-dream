@@ -36,13 +36,7 @@ class UpdateInfrastructureLevy
                     }
                     // A rule cannot be versioned on its first day; keep that day's estimate intact.
                     $from = $property->business_date->max($rule->effective_from->addDay())->toDateString();
-                    app(ChangeTaxRule::class)->handle($actor, $rule, [
-                        'name' => $rule->name, 'kind' => $rule->kind->value, 'rate' => $rule->rate,
-                        'amount' => $levy, 'currency' => $rule->currency?->value, 'inclusive' => $rule->inclusive,
-                        'applies_to' => $rule->applies_to->value, 'rounding' => $rule->rounding->value,
-                        'zra_tax_category' => $rule->zra_tax_category?->value,
-                        'effective_from' => $from, 'effective_to' => $rule->effective_to?->toDateString(),
-                    ]);
+                    app(ChangeTaxRule::class)->handle($actor, $rule, [...$rule->terms(), 'amount' => $levy, 'effective_from' => $from]);
                     break;
                 }
             });

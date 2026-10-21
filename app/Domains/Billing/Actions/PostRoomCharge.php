@@ -14,6 +14,7 @@ use App\Support\Audit\Audit;
 use App\Support\Money\Currency;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 class PostRoomCharge
 {
@@ -35,7 +36,11 @@ class PostRoomCharge
             $currency = Currency::from($line->getAttribute('currency'));
             $folio = Folio::query()->where('reservation_id', $reservation->id)->where('currency', $currency->value)->lockForUpdate()->firstOrFail();
             $property = Property::query()->findOrFail($reservation->property_id);
-            $tax = TaxCalculator::forProperty($property, $line->getAttribute('amount'), $currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Room);
+            try {
+                $tax = TaxCalculator::forProperty($property, $line->getAttribute('amount'), $currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Room);
+            } catch (InvalidArgumentException $e) {
+                throw ValidationException::withMessages(['reservation' => __(':reservation: :reason', ['reservation' => $reservation->reservation_number, 'reason' => $e->getMessage()])]);
+            }
             $posting = Posting::query()->create([
                 'folio_id' => $folio->id, 'reservation_id' => $reservation->id, 'price_line_id' => $line->getKey(),
                 'type' => 'charge', 'category' => 'room', 'quantity' => 1, 'unit_price' => $line->getAttribute('amount'),
