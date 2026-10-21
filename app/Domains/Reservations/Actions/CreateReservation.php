@@ -80,7 +80,8 @@ class CreateReservation
             $room = 0;
             do {
                 $sequence->increment('last_number');
-                $number = $property->id.'-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT);
+                // Unique per property only (staff read it aloud); existing long numbers are kept as issued.
+                $number = 'RES-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT);
                 $reservation = Reservation::query()->create([
                     ...array_diff_key($details, ['room_id' => true]),
                     'booking_group_id' => $groupId,

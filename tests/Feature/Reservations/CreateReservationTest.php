@@ -38,7 +38,7 @@ test('booking refuses an exhausted night without selling any earlier night', fun
 
 test('a failed outer transaction rolls back inventory number prices and lifecycle event', function () {
     [$owner, , $property] = organizationWithOwner();
-    inTenant($property, function () use ($owner, $property) {
+    inTenant($property, function () use ($owner) {
         $details = bookingDetails($owner);
         try {
             DB::transaction(function () use ($owner, $details) {
@@ -56,8 +56,8 @@ test('a failed outer transaction rolls back inventory number prices and lifecycl
         $first = app(CreateReservation::class)->handle($owner, [...$details, 'departure' => '2026-12-11']);
         $first->update(['status' => ReservationStatus::Cancelled]);
         $second = app(CreateReservation::class)->handle($owner, [...$details, 'arrival' => '2026-12-11']);
-        expect($first->reservation_number)->toBe($property->id.'-000001')
-            ->and($second->reservation_number)->toBe($property->id.'-000002');
+        expect($first->reservation_number)->toBe('RES-000001')
+            ->and($second->reservation_number)->toBe('RES-000002');
     });
 });
 
@@ -122,4 +122,14 @@ test('new booking refuses an arrival before the property local date', function (
     $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
     $t->a->property->update(['business_date' => '2026-12-11']);
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->postJson(route('reservations.store'), [...$details, '_property' => $t->a->property->id])->assertUnprocessable()->assertJsonValidationErrors('arrival');
+});
+
+test('each property numbers its reservations from RES-000001 and opens only its own', function () {
+    $t = twoTenants();
+    $book = fn ($tenant, $property) => inTenant($property, fn () => app(CreateReservation::class)->handle($tenant->owner, bookingDetails($tenant->owner)));
+    $a = $book($t->a, $t->a->property);
+    $b = $book($t->b, $t->b->property);
+    expect($a->reservation_number)->toBe('RES-000001')->and($b->reservation_number)->toBe('RES-000001');
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)
+        ->get(route('reservations.show', 'RES-000001'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('reservation.id', $a->id));
 });

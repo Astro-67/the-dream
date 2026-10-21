@@ -54,7 +54,7 @@ test('lookup matches reservation numbers and guest names only within the selecte
 
         return $reservation;
     });
-    $foreign = inTenant($t->a->otherProperty, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+    $foreign = inTenant($t->a->otherProperty, fn () => tap(app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)), fn ($r) => $r->update(['reservation_number' => 'OTHER-000001'])));
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
     foreach ([$reservation->reservation_number, 'Amina', 'Mussa'] as $search) {
         $this->get(route('reservations.index', ['list' => 'all', 'search' => $search]))->assertOk()->assertInertia(fn (Assert $page) => $page
