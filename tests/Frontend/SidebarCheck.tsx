@@ -83,18 +83,12 @@ assert.doesNotMatch(finance, />Setup</);
 const reservations = sidebar([], ['reservations.view']);
 assert.match(reservations, />Reservations</);
 assert.match(reservations, />Setup</);
-for (const label of [
-    'Rooms',
-    'Room types',
-    'Rate plans',
-    'Rate calendar',
-    'Taxes',
-]) {
+for (const label of ['Rooms', 'Room types', 'Rate plans', 'Taxes']) {
     assert.ok(reservations.includes(`>${label}<`));
 }
 assert.match(reservations, /aria-expanded="false"[^>]*>.*?<span>More<\/span>/);
 assert.doesNotMatch(reservations, />Availability</);
-assert.doesNotMatch(reservations, />Calendar</);
+assert.match(reservations, />Calendar</);
 assert.doesNotMatch(reservations, />Properties</);
 assert.doesNotMatch(reservations, />Members</);
 

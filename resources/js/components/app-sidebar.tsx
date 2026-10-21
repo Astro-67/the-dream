@@ -100,6 +100,12 @@ export function AppSidebar() {
         ...mainNavItems,
         ...(can('reservations.view')
             ? [
+                  // The rate calendar is also the room calendar (arrivals, in-house, overstays).
+                  {
+                      title: 'Calendar',
+                      href: rateCalendar(),
+                      icon: CalendarDays,
+                  },
                   {
                       title: 'Reservations',
                       href: reservations(),
@@ -146,11 +152,6 @@ export function AppSidebar() {
                   { title: 'Rooms', href: rooms(), icon: DoorOpen },
                   { title: 'Room types', href: roomTypes(), icon: BedDouble },
                   { title: 'Rate plans', href: ratePlans(), icon: Tags },
-                  {
-                      title: 'Rate calendar',
-                      href: rateCalendar(),
-                      icon: CalendarDays,
-                  },
                   { title: 'Taxes', href: taxRules(), icon: Percent },
               ]
             : []),
