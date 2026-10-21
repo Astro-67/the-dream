@@ -117,6 +117,15 @@ test('check-in is refused before the stored arrival business date, whatever the 
     'business date lagging the local date' => '2026-12-09',
 ]);
 
+test('check-in is refused once the stay has ended, until its dates are changed', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    $t->a->property->update(['business_date' => $reservation->departure->toDateString()]);
+    assertCheckInRefused($t->a, $reservation, 'reservation');
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->get(route('reservations.index', ['list' => 'all']))
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.can_check_in', false));
+});
+
 test('a late arriving guest can check in from the reservation detail', function () {
     $t = twoTenants();
     $reservation = arrivingToday($t->a);

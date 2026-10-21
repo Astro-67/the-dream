@@ -12,6 +12,7 @@ use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Reservations\Models\ReservationNumberSequence;
 use App\Domains\Reservations\Models\ReservationPriceLine;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Support\Countries;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -31,7 +32,7 @@ test('new booking opens without parameters using business date and property scop
         ->where('stay.adults', 1)->where('stay.children', 0)->where('roomType', null)
         ->where('stay.rate_plan_id', $details['rate_plan_id'])->has('ratePlans', 1)->has('rooms', 1)
         ->where('rooms.0.room_type_id', $details['room_type_id'])->where('countries.0.code', 'TZ')
-        ->where('countries', fn ($countries) => count($countries) >= 249 && collect($countries)->contains(fn ($country) => $country['code'] === 'GB' && $country['name'] === 'United Kingdom')));
+        ->where('countries', fn ($countries) => count($countries) === 249 && collect($countries)->contains(fn ($country) => $country['code'] === 'GB' && $country['name'] === 'United Kingdom')));
 });
 
 test('booking refresh derives room type and price from the selected room', function () {
@@ -183,4 +184,10 @@ test('each property numbers its reservations from RES-000001 and opens only its 
     expect($a->reservation_number)->toBe('RES-000001')->and($b->reservation_number)->toBe('RES-000001');
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)
         ->get(route('reservations.show', 'RES-000001'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('reservation.id', $a->id));
+});
+
+test('the country list holds ISO countries only, named as ICU names them', function () {
+    $icu = iterator_to_array(ResourceBundle::create('en', 'ICUDATA-region')->get('Countries'));
+    expect(Countries::NAMES)->not->toHaveKey('QO')->not->toHaveKey('EU')
+        ->and(collect(Countries::NAMES)->every(fn ($name, $code) => ($icu[$code] ?? null) === $name))->toBeTrue();
 });

@@ -182,8 +182,25 @@ export default function Create({
                                             <Input
                                                 id={`guest-${name}`}
                                                 name={`lead_guest[${name}]`}
-                                                type="date"
-                                                required
+                                                type={
+                                                    name === 'email'
+                                                        ? 'email'
+                                                        : name === 'phone'
+                                                          ? 'tel'
+                                                          : 'text'
+                                                }
+                                                required={
+                                                    name === 'first_name' ||
+                                                    (name === 'last_name' &&
+                                                        source !== 'walk-in')
+                                                }
+                                                maxLength={
+                                                    name === 'phone'
+                                                        ? 50
+                                                        : name.endsWith('name')
+                                                          ? 120
+                                                          : 255
+                                                }
                                             />
                                         </div>
                                     ))}

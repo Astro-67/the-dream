@@ -9,6 +9,7 @@ use App\Domains\Reservations\Enums\MealPlan;
 use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Requests\AuditsRefusals;
+use App\Support\Countries;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -54,7 +55,7 @@ class CreateReservationRequest extends FormRequest
             'lead_guest.last_name' => ['nullable', Rule::requiredIf(! $this->isMethod('GET') && $this->filled('lead_guest') && $this->input('source') !== 'walk-in'), 'string', 'max:120'],
             'lead_guest.email' => ['nullable', 'email', 'max:255'],
             'lead_guest.phone' => ['nullable', 'string', 'max:50'],
-            'lead_guest.nationality' => ['nullable', 'regex:/^[A-Z]{2}$/'],
+            'lead_guest.nationality' => ['nullable', Rule::in(array_keys(Countries::NAMES))],
             'lead_guest.document_type' => ['nullable', 'required_with:lead_guest.document_number', Rule::in(['passport', 'nida', 'zanid'])],
             'lead_guest.document_number' => ['nullable', 'required_with:lead_guest.document_type', 'string', 'max:255'],
             'meal_plan' => ['sometimes', Rule::enum(MealPlan::class)],

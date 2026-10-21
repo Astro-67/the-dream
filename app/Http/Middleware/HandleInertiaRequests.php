@@ -7,6 +7,7 @@ use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Organization;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
+use App\Support\Countries;
 use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\Request;
@@ -45,9 +46,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
-            'countries' => fn () => collect(iterator_to_array(\ResourceBundle::create('en', 'ICUDATA-region')->get('Countries')))
-                ->filter(fn ($name, $code) => preg_match('/^[A-Z]{2}$/', $code) && ! in_array($code, ['EU', 'EZ', 'UN', 'XA', 'XB', 'ZZ']))
-                ->sort()->sortBy(fn ($name, $code) => $code === 'TZ' ? 0 : 1)
+            'countries' => fn () => collect(Countries::NAMES)->sortBy(fn ($name, $code) => $code === 'TZ' ? 0 : 1)
                 ->map(fn ($name, $code) => ['code' => $code, 'name' => $name])->values()->all(),
             'auth' => [
                 'user' => $request->user(),

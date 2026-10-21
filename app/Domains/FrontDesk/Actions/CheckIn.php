@@ -39,6 +39,10 @@ class CheckIn
             if ($locked->arrival->toDateString() > BusinessDate::of($property)) {
                 throw ValidationException::withMessages(['reservation' => __('Reservations cannot be checked in before their arrival business date.')]);
             }
+            // A late arrival keeps only its remaining nights; once departure is reached nothing is held, so amend the dates first.
+            if ($locked->departure->toDateString() <= BusinessDate::of($property)) {
+                throw ValidationException::withMessages(['reservation' => __('This stay has already ended. Change its dates before checking in.')]);
+            }
             $room = $locked->room_id === null ? null : Room::query()->whereKey($locked->room_id)->lockForUpdate()->firstOrFail();
             if ($room === null) {
                 throw ValidationException::withMessages(['room' => __('Assign a room before checking in.')]);
