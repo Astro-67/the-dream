@@ -12,7 +12,8 @@ return [
         $foreign = inTenant($t->b->property, function () use ($t) {
             $details = BookingForm::details($t->b->owner);
 
-            return app(CreateReservation::class)->handle($t->b->owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+            // Numbers repeat across properties; a distinct one proves lookups never cross them.
+            return tap(app(CreateReservation::class)->handle($t->b->owner, [...$details, 'room_id' => Room::query()->sole()->id]), fn ($r) => $r->update(['reservation_number' => 'BRAVO-000001']));
         });
         $local = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
         $otherRoom = inTenant($t->a->otherProperty, function () use ($t) {
