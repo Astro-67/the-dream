@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\FrontDesk\Actions\RunAutomaticCheckout;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Jobs\CloseDueBusinessDate;
 use App\Domains\Housekeeping\Actions\SyncRoomServiceStatus;
@@ -7,6 +8,7 @@ use App\Domains\Inventory\Actions\RecalculateInventory;
 use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Reservations\Actions\CancelUnpaidReservations;
 use App\Domains\Subscriptions\Actions\AdvanceSubscription;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
@@ -281,6 +283,24 @@ Artisan::command('night-audit:close-due', function (): int {
 
 Schedule::command('night-audit:close-due')->everyMinute()->withoutOverlapping();
 
+Artisan::command('front-desk:checkout-due', function (RunAutomaticCheckout $checkout): int {
+    $properties = Tenancy::within(TenantContext::platform('automatic check-out trigger'), fn () => Property::query()->active()->get());
+    $failed = 0;
+    foreach ($properties as $property) {
+        try {
+            Tenancy::within(TenantContext::forProperty($property), fn () => $checkout->handle($property));
+        } catch (Throwable $exception) {
+            report($exception);
+            $failed++;
+            $this->error("{$property->name}: {$exception->getMessage()}");
+        }
+    }
+
+    return $failed === 0 ? self::SUCCESS : self::FAILURE;
+})->purpose('Check out due stays after each property local automatic check-out time');
+
+Schedule::command('front-desk:checkout-due')->everyMinute()->withoutOverlapping();
+
 Artisan::command('subscriptions:advance', function (AdvanceSubscription $advance): int {
     $organizations = Tenancy::within(TenantContext::platform('hourly subscription lifecycle'), fn () => Subscription::query()->pluck('organization_id'));
     $failed = 0;
@@ -298,3 +318,23 @@ Artisan::command('subscriptions:advance', function (AdvanceSubscription $advance
 })->purpose('Issue subscription invoices, send reminders and advance unpaid subscriptions');
 
 Schedule::command('subscriptions:advance')->hourly()->withoutOverlapping();
+
+Artisan::command('reservations:cancel-unpaid', function (): int {
+    $properties = Tenancy::within(TenantContext::platform('automatic unpaid reservation cancellation'), fn () => Property::query()->active()->get());
+    $failed = 0;
+    foreach ($properties as $property) {
+        try {
+            Tenancy::within(TenantContext::forProperty($property), function () use ($property): void {
+                app(CancelUnpaidReservations::class)->handle($property);
+            });
+        } catch (Throwable $exception) {
+            report($exception);
+            $failed++;
+            $this->error("{$property->name}: {$exception->getMessage()}");
+        }
+    }
+
+    return $failed === 0 ? self::SUCCESS : self::FAILURE;
+})->purpose('Cancel reservations still unpaid after the property deadline');
+
+Schedule::command('reservations:cancel-unpaid')->everyMinute()->withoutOverlapping();

@@ -3,8 +3,10 @@
 namespace App\Http\Requests\Rates;
 
 use App\Domains\Rates\Models\RatePlan;
+use App\Domains\Reservations\ReservationLists;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class RateCalendarRequest extends FormRequest
 {
@@ -20,8 +22,11 @@ class RateCalendarRequest extends FormRequest
 
         // Room type IDs are matched within the current property's scope, so unknown or foreign ones show nothing.
         return [
+            'search' => ['nullable', 'string', 'max:255'],
+            'list' => ['sometimes', Rule::in(ReservationLists::FILTERS)],
+            'days' => ['sometimes', Rule::in([7, 15, 30, 60])],
             'from' => ['required_with:to', 'date_format:Y-m-d'],
-            'to' => ['required_with:from', 'date_format:Y-m-d', 'after_or_equal:from', ...($from ? ['before_or_equal:'.$from->addDays(61)->format('Y-m-d')] : [])],
+            'to' => [Rule::requiredIf($this->filled('from') && ! $this->filled('days')), 'date_format:Y-m-d', 'after_or_equal:from', ...($from ? ['before_or_equal:'.$from->addDays(61)->format('Y-m-d')] : [])],
             'room_type_ids' => ['sometimes', 'array', 'max:100'],
             'room_type_ids.*' => ['string'],
         ];

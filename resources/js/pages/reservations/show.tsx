@@ -53,6 +53,12 @@ type Reservation = {
     adults: number;
     children: number;
     source: string;
+    meal_plan: string;
+    special_requests: string | null;
+    booked_through: string;
+    tour_operator_name: string | null;
+    tour_operator_registration: string | null;
+    tour_operator_pays_for: string | null;
     channel_reference: string | null;
     outside_integration_reason: string | null;
     requires_reconciliation: boolean;
@@ -71,6 +77,7 @@ export default function Show({
     roomType,
     ratePlan,
     booker,
+    leadGuest,
     rooms,
     canAssignRoom,
     canAmend,
@@ -84,11 +91,13 @@ export default function Show({
     canPostCharge,
     feeProposals,
     canRecordPayment,
+    acceptedPaymentMethods,
 }: {
     reservation: Reservation;
     roomType: Named;
     ratePlan: Named;
-    booker: Named;
+    booker: Named | null;
+    leadGuest: Named | null;
     rooms: { id: string; number: string; isReady: boolean }[];
     canAssignRoom: boolean;
     canAmend: boolean;
@@ -112,6 +121,7 @@ export default function Show({
     canPostCharge: boolean;
     feeProposals: FeeProposal[];
     canRecordPayment: boolean;
+    acceptedPaymentMethods: string[];
 }) {
     return (
         <>
@@ -169,7 +179,35 @@ export default function Show({
                             'Guests',
                             `${reservation.adults} adults, ${reservation.children} children`,
                         ],
-                        ['Booker', booker.name],
+                        ...(booker ? [['Booker', booker.name]] : []),
+                        ['Lead guest', leadGuest?.name ?? 'Not added'],
+                        [
+                            'Meal plan',
+                            reservation.meal_plan.replaceAll('-', ' '),
+                        ],
+                        [
+                            'Booked through',
+                            reservation.tour_operator_name ?? 'Guest directly',
+                        ],
+                        ...(reservation.tour_operator_registration
+                            ? [
+                                  [
+                                      'Tour operator ZRA registration',
+                                      reservation.tour_operator_registration,
+                                  ],
+                                  [
+                                      'Tour operator pays for',
+                                      reservation.tour_operator_pays_for?.replaceAll(
+                                          '-',
+                                          ' ',
+                                      ) ?? '',
+                                  ],
+                              ]
+                            : []),
+                        [
+                            'Special requests',
+                            reservation.special_requests ?? 'None',
+                        ],
                         [
                             'Source',
                             reservation.source === 'outside-integration'
@@ -268,6 +306,7 @@ export default function Show({
                     totals={totals}
                     canPostCharge={canPostCharge}
                     canRecordPayment={canRecordPayment}
+                    acceptedPaymentMethods={acceptedPaymentMethods}
                     channelCollected={
                         reservation.payment_collector === 'channel' &&
                         reservation.channel_collected_amount !== null

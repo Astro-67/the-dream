@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tenancy\Actions;
 
+use App\Domains\Rates\Actions\SeedDefaultTaxRules;
 use App\Domains\Subscriptions\Entitlements;
 use App\Domains\Tenancy\Data\PropertyDetails;
 use App\Domains\Tenancy\Models\Property;
@@ -20,7 +21,9 @@ class CreateProperty
         return Audit::validationRefusal($actor, new Property, 'Property creation refused', fn () => DB::transaction(function () use ($actor, $details, $demo) {
             app(Entitlements::class)->assertCanAdd($demo, properties: 1);
             $property = (new Property([...$details->toAttributes(), 'business_date' => now($details->timezone)->toDateString()]))->forceFill(['demo' => $demo]);
+            $property->fill($property->settings());
             $property->save();
+            app(SeedDefaultTaxRules::class)->handle($actor, $property);
 
             Audit::record($actor, 'created', $property, 'Property created', [
                 'result' => 'success',

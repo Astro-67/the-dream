@@ -4,7 +4,9 @@ use App\Domains\Tenancy\Actions\AddOrganizationMember;
 use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Enums\PropertyStatus;
+use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
@@ -17,7 +19,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(fn () => RateLimiter::clear('account-forms:register.store|127.0.0.1'));
 
-test('a new account walks register, verify, organization setup and lands on the setup checklist', function () {
+test('a new account walks register, verify, organization setup and lands on the setup checklist', function (array $registration) {
     $this->post(route('register.store'), [
         'name' => 'Amina Hassan',
         'email' => 'amina@example.com',
@@ -35,14 +37,26 @@ test('a new account walks register, verify, organization setup and lands on the 
     $this->actingAs($user);
 
     $this->get(route('dashboard'))->assertRedirect(route('organizations.create'));
-    $this->post(route('organizations.store'), organizationSetupPayload())
+    $this->post(route('organizations.store'), organizationSetupPayload($registration))
         ->assertRedirect(route('dashboard'))
         ->assertInertiaFlash('toast.type', 'success');
 
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('onboarding.propertyName', 'Stone Town Inn')
         ->where('today', null));
-});
+
+    $property = Tenancy::within(Tenancy::defaultContextFor($user), fn () => Property::query()->sole());
+    expect($property->only(['star_rating', 'tin', 'z_number', 'vrn']))->toEqual([
+        'star_rating' => $registration['star_rating'] ?? null,
+        'tin' => $registration['tin'] ?? null,
+        'z_number' => $registration['z_number'] ?? null,
+        'vrn' => $registration['vrn'] ?? null,
+    ]);
+})->with([
+    'registration omitted' => [[]],
+    'not yet classified and empty registration' => [['star_rating' => null, 'tin' => null, 'z_number' => null, 'vrn' => null]],
+    'classified and registered' => [['star_rating' => 2, 'tin' => 'TIN-122', 'z_number' => 'Z-122', 'vrn' => 'VRN-122']],
+]);
 
 test('registering with an email that already has an account is refused with a field error', function () {
     User::factory()->create(['email' => 'taken@example.com']);

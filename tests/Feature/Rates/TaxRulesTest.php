@@ -20,12 +20,12 @@ function vatForm(string $propertyId, array $terms = []): array
 test('a finance user adds a tax rule, sees it listed, and the addition is audited', function () {
     $t = twoTenants();
     $this->actingAs($t->a->member(OrganizationRole::Finance))
-        ->post(route('tax-rules.store'), vatForm($t->a->property->id, ['rate' => '12.5', 'inclusive' => '1', 'effective_to' => '2026-12-31']))
+        ->post(route('tax-rules.store'), vatForm($t->a->property->id, ['zra_tax_category' => 'vat', 'rate' => '12.5', 'inclusive' => '1', 'effective_to' => '2026-12-31']))
         ->assertSessionHasNoErrors()->assertRedirect(route('tax-rules.index'));
 
     $this->get(route('tax-rules.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('rates/taxes')->where('canManage', true)->has('taxRules', 1)
-        ->where('taxRules.0.name', 'VAT')->where('taxRules.0.rate', 1250)->where('taxRules.0.inclusive', true)
+        ->where('taxRules.0.zra_tax_category', 'vat')->where('taxRules.0.name', 'VAT')->where('taxRules.0.rate', 1250)->where('taxRules.0.inclusive', true)
         ->where('taxRules.0.effective_from', '2026-01-01')->where('taxRules.0.effective_to', '2026-12-31'));
     expect(Activity::query()->where('description', 'Tax rule created')->sole()->getExtraProperty('attributes'))
         ->toMatchArray(['name' => 'VAT', 'rate' => 1250, 'inclusive' => true, 'effective_from' => '2026-01-01', 'effective_to' => '2026-12-31']);

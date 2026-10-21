@@ -16,7 +16,7 @@ use Tests\Support\TwoTenants;
 
 /** @return array<string, array<string, mixed>> */
 $bravoProperties = fn (TwoTenants $t): array => inTenant($t->b->organization, fn () => Property::query()
-    ->orderBy('id')->get()->keyBy('id')->map(fn (Property $p) => [...$p->only(['name', 'email', 'currency', 'timezone']), 'archived_at' => $p->archived_at?->toIso8601String()])->all());
+    ->orderBy('id')->get()->keyBy('id')->map(fn (Property $p) => [...$p->only(['name', 'email', 'currency', 'timezone', 'star_rating', 'tin', 'z_number', 'vrn', 'front_desk_settings', 'tax_settings', 'payment_settings']), 'archived_at' => $p->archived_at?->toIso8601String()])->all());
 
 $bravoMembership = fn (TwoTenants $t): OrganizationMembership => inTenant($t->b->organization, fn () => OrganizationMembership::query()
     ->where('user_id', $t->b->member(OrganizationRole::FrontDesk)->id)->sole());

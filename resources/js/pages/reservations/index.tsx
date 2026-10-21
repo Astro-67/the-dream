@@ -29,6 +29,7 @@ type Reservation = {
     arrival: string;
     departure: string;
     status: string;
+    is_overstay: boolean;
     channel_reference: string | null;
     requires_reconciliation: boolean;
     can_check_in: boolean;
@@ -100,6 +101,13 @@ export default function Index({
                                         Departures
                                     </option>
                                     <option value="in-house">In-house</option>
+                                    <option value="overstays">Overstays</option>
+                                    <option value="balance-owing">
+                                        Balance owing
+                                    </option>
+                                    <option value="no-id-document">
+                                        No ID document
+                                    </option>
                                     <option value="all">
                                         All reservations
                                     </option>
@@ -113,7 +121,7 @@ export default function Index({
                                     name="search"
                                     defaultValue={filters.search}
                                     maxLength={255}
-                                    placeholder="Reservation number, guest name or channel reference"
+                                    placeholder="Room, guest, phone, reservation or channel reference"
                                 />
                                 <InputError message={errors.search} />
                             </div>
@@ -194,6 +202,11 @@ export default function Index({
                                                     ' ',
                                                 )}
                                             </StatusChip>
+                                            {reservation.is_overstay && (
+                                                <StatusChip tone="warning">
+                                                    Overstay
+                                                </StatusChip>
+                                            )}
                                             {reservation.requires_reconciliation && (
                                                 <StatusChip tone="warning">
                                                     Requires reconciliation

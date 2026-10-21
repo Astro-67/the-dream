@@ -2,7 +2,11 @@
 
 namespace App\Domains\Reservations\Models;
 
+use App\Domains\Guests\Models\Guest;
+use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Reservations\Enums\MealPlan;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Policies\ReservationPolicy;
 use App\Support\Tenancy\BelongsToProperty;
 use Carbon\CarbonImmutable;
@@ -23,7 +27,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $payment_collector
  * @property int|null $channel_collected_amount minor units, when the channel collects
  */
-#[Fillable(['booking_group_id', 'reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'source_reference', 'imported', 'payment_collector', 'status', 'room_id', 'restriction_override_reason', 'channel_reference', 'outside_integration_reason', 'requires_reconciliation', 'channel_collected_amount'])]
+#[Fillable(['meal_plan', 'special_requests', 'booked_through', 'tour_operator_name', 'tour_operator_registration', 'tour_operator_pays_for', 'booking_group_id', 'reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'source_reference', 'imported', 'payment_collector', 'status', 'room_id', 'restriction_override_reason', 'channel_reference', 'outside_integration_reason', 'requires_reconciliation', 'channel_collected_amount'])]
 #[UsePolicy(ReservationPolicy::class)]
 class Reservation extends Model
 {
@@ -32,7 +36,19 @@ class Reservation extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['imported' => 'boolean', 'requires_reconciliation' => 'boolean', 'arrival' => 'immutable_date', 'departure' => 'immutable_date', 'adults' => 'integer', 'children' => 'integer', 'channel_collected_amount' => 'integer', 'status' => ReservationStatus::class];
+        return ['meal_plan' => MealPlan::class, 'tour_operator_pays_for' => TourOperatorPaysFor::class, 'imported' => 'boolean', 'requires_reconciliation' => 'boolean', 'arrival' => 'immutable_date', 'departure' => 'immutable_date', 'adults' => 'integer', 'children' => 'integer', 'channel_collected_amount' => 'integer', 'status' => ReservationStatus::class];
+    }
+
+    public function leadGuest(): ?Guest
+    {
+        $link = ReservationGuest::query()->where('reservation_id', $this->id)->oldest('id')->first();
+
+        return $link === null ? null : Guest::query()->find($link->getAttribute('guest_id'));
+    }
+
+    public function isOverstay(string $businessDate): bool
+    {
+        return $this->status === ReservationStatus::CheckedIn && $this->departure->toDateString() < $businessDate;
     }
 
     public function getRouteKeyName(): string

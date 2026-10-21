@@ -23,6 +23,17 @@ function paymentFolio(User $owner, array $reservation = []): Folio
     return Folio::query()->where('reservation_id', $id)->sole();
 }
 
+test('the payment action refuses a disabled method without issuing a receipt', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $property->update(['payment_settings' => ['accepted_methods' => ['bank_transfer']]]);
+    inTenant($property, function () use ($owner) {
+        $folio = paymentFolio($owner);
+        expect(fn () => app(RecordPayment::class)->handle($owner, $folio, ['method' => 'card', 'amount' => 100, 'currency' => 'USD']))
+            ->toThrow(ValidationException::class);
+        expect($folio->balance()->amount)->toBe(0)->and(Receipt::query()->count())->toBe(0);
+    });
+});
+
 test('a bank transfer posts to the folio, reduces its balance and gets a receipt', function () {
     [$owner, , $property] = organizationWithOwner();
     inTenant($property, function () use ($owner) {

@@ -94,8 +94,7 @@ final class JurisdictionRules
     }
 
     /**
-     * What must be true before the property may go live. M2's gates hold for
-     * every profile; Zanzibar's compliance gates (REG-05) join here in M3.
+     * Common setup gates and the profile's required property registration.
      *
      * @return list<GoLiveGate>
      */
@@ -108,7 +107,24 @@ final class JurisdictionRules
             new GoLiveGate('room', __('At least one room'), Room::query()->where('property_id', $id)->active()->exists()),
             new GoLiveGate('rate_plan', __('At least one rate plan'), RatePlan::query()->where('property_id', $id)->whereNull('deactivated_at')->exists()),
             new GoLiveGate('taxes_reviewed', __('Taxes reviewed'), $property->taxes_reviewed_at !== null),
+            ...($property->jurisdiction_profile === JurisdictionProfile::Zanzibar ? [
+                new GoLiveGate('z_number', __('Z-number'), filled($property->z_number)),
+                new GoLiveGate('star_rating', __('Star rating'), $property->star_rating !== null),
+            ] : []),
         ];
+    }
+
+    public static function defaultInfrastructureLevy(Property $property): ?int
+    {
+        if ($property->jurisdiction_profile !== JurisdictionProfile::Zanzibar) {
+            return null;
+        }
+
+        return match ($property->star_rating) {
+            4, 5 => 500,
+            2, 3 => 400,
+            default => 200,
+        };
     }
 
     public static function onboardingReceiptNotice(Property $property): ?string
@@ -121,6 +137,12 @@ final class JurisdictionRules
     public static function defersImportedReservationCreated(Property $property): bool
     {
         return $property->jurisdiction_profile === JurisdictionProfile::Zanzibar && ! $property->isLive();
+    }
+
+    public static function requiresPassport(Property $property, ?string $country): bool
+    {
+        return $property->settings()['front_desk_settings']['passport_required_for_foreign_guests']
+            && filled($country) && $country !== 'TZ';
     }
 
     private static function of(JurisdictionProfile $profile): ProfileRules

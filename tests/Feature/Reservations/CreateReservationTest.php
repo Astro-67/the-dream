@@ -21,7 +21,7 @@ test('front desk books an availability result and opens its reservation detail',
     $this->get(route('reservations.create', $details))->assertOk()->assertInertia(fn (Assert $page) => $page->component('reservations/create')->where('stay.room_type_id', $details['room_type_id']));
     $response = $this->post(route('reservations.store'), [...$details, '_property' => $t->a->property->id]);
     $response->assertRedirect();
-    $this->get($response->headers->get('Location'))->assertOk()->assertInertia(fn (Assert $page) => $page->component('reservations/show')->where('reservation.status', 'confirmed')->where('booker.name', 'Travel Booker')->has('reservation.price_lines', 2));
+    $this->get($response->headers->get('Location'))->assertOk()->assertInertia(fn (Assert $page) => $page->component('reservations/show')->where('reservation.status', 'confirmed')->where('booker.name', 'Travel Booker')->where('reservation.meal_plan', 'room-only')->where('leadGuest', null)->has('reservation.price_lines', 2));
 });
 
 test('booking refuses an exhausted night without selling any earlier night', function () {

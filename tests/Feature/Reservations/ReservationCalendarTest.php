@@ -26,6 +26,7 @@ test('the calendar shows assigned reservations with guest names and detail links
         ->where('roomTypes.0.rooms.0.number', $room->number)
         ->has('roomTypes.0.rooms.0.reservations', 1)
         ->where('roomTypes.0.rooms.0.reservations.0', [
+            'is_overstay' => false, 'display_departure' => '2026-12-12',
             'reservation_number' => $reservation->reservation_number,
             'arrival' => '2026-12-10', 'departure' => '2026-12-12',
             'guest_name' => 'Staying Guest', 'source' => 'phone', 'status' => 'confirmed',
@@ -49,6 +50,26 @@ test('unassigned counts exclude departure dates and cancelled or void reservatio
         ->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('roomTypes.0.unassigned', ['2026-12-11' => 1, '2026-12-12' => 0, '2026-12-13' => 0])
         ->has('roomTypes.0.rooms.0.reservations', 0));
+});
+
+test('the departures calendar includes departures on its default first day without counting another night', function () {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+
+        return app(CreateReservation::class)->handle($t->a->owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+    });
+    $t->a->property->update(['business_date' => '2026-12-12']);
+
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->owner)->get(route('rate-calendar', ['list' => 'departures']))
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('from', '2026-12-12')
+        ->has('roomTypes.0.rooms.0.reservations', 1)
+        ->where('roomTypes.0.rooms.0.reservations.0.reservation_number', $reservation->reservation_number)
+        ->where('roomTypes.0.rooms.0.reservations.0.departure', '2026-12-12')
+        ->where('roomTypes.0.unassigned.2026-12-12', 0)
+        ->where('roomTypes.0.sellable.2026-12-12', 1));
 });
 
 test('the calendar keeps reservations guests and counts inside the selected property', function () {

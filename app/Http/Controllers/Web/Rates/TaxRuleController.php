@@ -32,6 +32,7 @@ class TaxRuleController extends Controller
         return Inertia::render('rates/taxes', [
             'taxRules' => TaxRule::query()->orderBy('name')->orderBy('effective_from')->get()->map(fn (TaxRule $rule) => [
                 ...$rule->only(['id', 'name', 'rate', 'amount', 'inclusive']),
+                'zra_tax_category' => $rule->zra_tax_category?->value,
                 'kind' => $rule->kind->value, 'currency' => $rule->currency?->value, 'applies_to' => $rule->applies_to->value, 'rounding' => $rule->rounding->value,
                 'effective_from' => $rule->effective_from->format('Y-m-d'), 'effective_to' => $rule->effective_to?->format('Y-m-d'),
             ]),

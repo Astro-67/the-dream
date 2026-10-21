@@ -16,10 +16,15 @@ use InvalidArgumentException;
  */
 final class TaxCalculator
 {
-    /** The breakdown under the property's rules in force on the date. */
-    public static function forProperty(Property $property, int $amount, Currency $currency, string $date, int $guests, ChargeKind $charge): TaxBreakdown
+    /** The breakdown under the property's rules, optionally taking a VAT-inclusive input price. */
+    public static function forProperty(Property $property, int $amount, Currency $currency, string $date, int $guests, ChargeKind $charge, bool $inclusivePrice = false): TaxBreakdown
     {
         $rules = TaxRule::query()->where('property_id', $property->id)->orderBy('name')->get()->all();
+        if ($inclusivePrice) {
+            foreach ($rules as $rule) {
+                $rule->inclusive = true;
+            }
+        }
 
         return self::breakdown($rules, $amount, $currency, $date, $guests, $charge);
     }
@@ -37,7 +42,9 @@ final class TaxCalculator
      */
     public static function breakdown(iterable $rules, int $amount, Currency $currency, string $date, int $guests, ChargeKind $charge): TaxBreakdown
     {
-        $applying = collect($rules)->filter(fn (TaxRule $rule) => $rule->coversDate($date) && $rule->applies_to->covers($charge))->values();
+        // The seeded USD levy is an estimate; VFMS assesses the actual levy at check-out.
+        $applying = collect($rules)->filter(fn (TaxRule $rule) => $rule->coversDate($date) && $rule->applies_to->covers($charge)
+            && ! ($rule->isInfrastructureLevy() && $rule->currency !== $currency))->values();
 
         $flat = function (TaxRule $rule) use ($currency, $guests): int {
             if ($rule->currency !== $currency) {

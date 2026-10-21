@@ -5,13 +5,16 @@ namespace App\Http\Controllers\Web\Reservations;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
+use App\Domains\Rates\StayPricing;
 use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\AssignableRooms;
+use App\Domains\Reservations\BookingRules;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -19,6 +22,7 @@ use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\CreateReservationRequest;
 use App\Support\Money\Currency;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -35,9 +39,10 @@ class ReservationController extends Controller
             'stay' => $request->validated(),
             'rooms' => app(AssignableRooms::class)->forStay($request->validated('room_type_id'), $request->validated('arrival'), $request->validated('departure')),
             'roomType' => $type->only(['id', 'name']),
-            'ratePlan' => $plan->only(['id', 'name']),
-            'restrictionWarnings' => $restrictions->warnings($plan, $type, $request->validated('arrival'), $request->validated('departure')),
-            'bookers' => Booker::query()->orderBy('name')->paginate(50)->withQueryString(),
+            'ratePlan' => $plan->only(['id', 'name', 'currency']),
+            'restrictionWarnings' => [...app(BookingRules::class)->warnings(Tenancy::property(), $request->validated('arrival'), $request->validated('departure')), ...$restrictions->warnings($plan, $type, $request->validated('arrival'), $request->validated('departure'))],
+            'nightlyRate' => app(StayPricing::class)->quote($plan, $type, $request->validated('arrival'), $request->validated('departure'), (int) $request->validated('adults'), (int) $request->validated('children'))->nights[0]['total'] ?? null,
+            'businessDate' => BusinessDate::current(),
         ]);
     }
 
@@ -51,6 +56,7 @@ class ReservationController extends Controller
     public function show(Reservation $reservation): Response
     {
         Gate::authorize('view', $reservation);
+        $property = Property::query()->findOrFail($reservation->property_id);
         $canMove = $reservation->status === ReservationStatus::CheckedIn && Gate::allows('moveRoom', $reservation);
         $folios = Folio::query()->where('reservation_id', $reservation->id)->withSum('postings as balance_amount', 'amount')
             ->orderBy('created_at')->orderBy('id')->paginate(50, ['*'], 'folios_page')->withQueryString();
@@ -94,8 +100,10 @@ class ReservationController extends Controller
             'canReverse' => $folios->isNotEmpty() && Gate::allows('reverse', $folios->first()),
             'canTransfer' => $folios->total() > 1 && $folios->isNotEmpty() && Gate::allows('transfer', $folios->first()),
             'canOpenFolio' => Gate::allows('create', [Folio::class, $reservation]),
-            'folioCurrencies' => array_map(fn (Currency $currency) => $currency->value, JurisdictionRules::allowedCurrencies(Property::query()->findOrFail($reservation->property_id))),
+            'folioCurrencies' => array_map(fn (Currency $currency) => $currency->value, JurisdictionRules::allowedCurrencies($property)),
             'canRecordPayment' => $folios->isNotEmpty() && Gate::allows('recordPayment', $folios->first()),
+            'acceptedPaymentMethods' => $property->settings()['payment_settings']['accepted_methods'],
+            'blockCheckoutIfUnpaid' => $property->settings()['payment_settings']['block_checkout_if_unpaid'],
             'canRefund' => $folios->isNotEmpty() && Gate::allows('refund', $folios->first()),
             'canWriteOff' => $folios->isNotEmpty() && Gate::allows('writeOff', $folios->first()),
             'reservation' => $reservation->load('priceLines'),
@@ -116,7 +124,8 @@ class ReservationController extends Controller
             'can' => ['cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation), 'moveRoom' => $canMove, 'changeStay' => Gate::allows('changeStay', $reservation),
                 'checkOut' => Gate::allows('checkOut', $reservation), 'overrideBalance' => Gate::allows('checkOutWithBalance', $reservation)],
             'moveRooms' => $canMove ? app(AssignableRooms::class)->forMove($reservation) : [],
-            'booker' => Booker::query()->findOrFail($reservation->getAttribute('booker_id'))->only(['id', 'name']),
+            'leadGuest' => $reservation->leadGuest()?->only(['id', 'name', 'email', 'phone', 'nationality']),
+            'booker' => Booker::query()->find($reservation->getAttribute('booker_id'))?->only(['id', 'name']),
             'roomType' => RoomType::query()->findOrFail($reservation->getAttribute('room_type_id'))->only(['id', 'name']),
             'ratePlan' => RatePlan::query()->findOrFail($reservation->getAttribute('rate_plan_id'))->only(['id', 'name']),
         ]);

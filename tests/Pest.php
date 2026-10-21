@@ -2,6 +2,7 @@
 
 use App\Domains\Platform\Actions\AssignPlatformRole;
 use App\Domains\Platform\Enums\PlatformRole;
+use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Tenancy\Actions\CreateOrganization;
 use App\Domains\Tenancy\Data\OrganizationSetup;
 use App\Domains\Tenancy\Enums\PropertyStatus;
@@ -11,6 +12,7 @@ use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\TwoTenants;
 use Tests\TestCase;
 
@@ -93,8 +95,18 @@ function organizationSetupPayload(array $overrides = []): array
 function organizationWithOwner(array $overrides = [], ?User $owner = null): array
 {
     $owner ??= User::factory()->withTwoFactor()->create();
-    $organization = app(CreateOrganization::class)->handle($owner, OrganizationSetup::fromArray(organizationSetupPayload($overrides)));
+    $organization = app(CreateOrganization::class)->handle($owner, OrganizationSetup::fromArray(organizationSetupPayload([
+        'star_rating' => 3,
+        'z_number' => 'Z-0042',
+        ...$overrides,
+    ])));
     $property = inTenant($organization, fn () => Property::query()->sole());
+    // Operational fixtures keep explicit tax arrangements; default seeding is tested through HTTP setup/creation.
+    inTenant($property, function (): void {
+        $rules = TaxRule::query()->pluck('id');
+        Activity::query()->where('subject_type', TaxRule::class)->whereIn('subject_id', $rules)->delete();
+        TaxRule::query()->delete();
+    });
     // An operating hotel: tests of setup and go-live start from setupProperty().
     $property->forceFill(['status' => PropertyStatus::Live])->save();
 

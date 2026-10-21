@@ -37,6 +37,8 @@ final readonly class PropertyDetails
         public ?string $receiptPrefix = null,
         /** Local wall-clock time night audit closes the business date, as H:i. */
         public ?string $closeTime = null,
+        /** @var array<string, mixed> */
+        public array $settings = [],
     ) {
         $this->zraHotelCode = JurisdictionRules::hasZraHotelCode($jurisdictionProfile) && filled($zraHotelCode)
             ? $zraHotelCode
@@ -48,7 +50,19 @@ final readonly class PropertyDetails
      */
     public static function fromArray(array $input, string $nameKey = 'name'): self
     {
+        $settings = array_intersect_key($input, array_flip(['star_rating', 'tin', 'z_number', 'vrn', ...array_keys(PropertySettings::DEFAULTS)]));
+        foreach (PropertySettings::DEFAULTS as $group => $fields) {
+            foreach ($settings[$group] ?? [] as $field => $value) {
+                if (is_bool($fields[$field])) {
+                    $settings[$group][$field] = (bool) $value;
+                } elseif (is_int($fields[$field])) {
+                    $settings[$group][$field] = str_contains($field, 'percentage') || str_ends_with($field, '_rate') ? (float) $value : (int) $value;
+                }
+            }
+        }
+
         return new self(
+            settings: $settings,
             name: self::string($input, $nameKey),
             type: PropertyType::from(self::string($input, 'property_type')),
             addressLine: self::string($input, 'address_line'),
@@ -75,6 +89,7 @@ final readonly class PropertyDetails
     public function toAttributes(): array
     {
         return [
+            ...$this->settings,
             'name' => $this->name,
             'property_type' => $this->type,
             'address_line' => $this->addressLine,
