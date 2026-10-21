@@ -34,6 +34,23 @@ function automaticCheckoutStay(TenantFixture $tenant): Reservation
     return $reservation;
 }
 
+test('automatic check-out waits for night audit before completing the local day', function () {
+    Mail::fake();
+    $t = twoTenants();
+    $stay = automaticCheckoutStay($t->a);
+    $t->a->property->update(['business_date' => '2026-12-11', 'front_desk_settings' => ['automatic_checkout_enabled' => true]]);
+    $this->travelTo(new DateTimeImmutable('2026-12-12 09:00:00 UTC'));
+    $this->artisan('front-desk:checkout-due')->assertSuccessful();
+    expect($t->a->property->fresh()->automatic_checkout_date)->toBeNull();
+    Mail::assertNothingOutgoing();
+    $this->artisan('night-audit:close-due')->assertSuccessful();
+    $this->artisan('front-desk:checkout-due')->assertSuccessful();
+    $this->artisan('front-desk:checkout-due')->assertSuccessful();
+    expect(inTenant($t->a->property, fn () => $stay->fresh()->status))->toBe(ReservationStatus::CheckedOut)
+        ->and($t->a->property->fresh()->automatic_checkout_date->toDateString())->toBe('2026-12-12');
+    Mail::assertQueued(AutomaticCheckoutSummary::class, 1);
+});
+
 test('automatic check-out runs once per local day after the configured time for each enabled property', function () {
     Mail::fake();
     $t = twoTenants();
@@ -63,6 +80,7 @@ test('automatic check-out runs once per local day after the configured time for 
     Mail::assertQueued(AutomaticCheckoutSummary::class, 2);
 
     $this->travelTo(new DateTimeImmutable('2026-12-13 08:59:00 UTC'));
+    $this->artisan('night-audit:close-due')->assertSuccessful();
     $this->artisan('front-desk:checkout-due')->assertSuccessful();
     Mail::assertQueued(AutomaticCheckoutSummary::class, 3);
 });
@@ -155,8 +173,7 @@ test('disabled and archived properties and future departures are not checked out
     expect(inTenant($t->a->property, fn () => $disabled->fresh()->status))->toBe(ReservationStatus::CheckedIn)
         ->and(inTenant($t->b->property, fn () => $archived->fresh()->status))->toBe(ReservationStatus::CheckedIn)
         ->and(inTenant($t->a->otherProperty, fn () => $future->fresh()->status))->toBe(ReservationStatus::CheckedIn);
-    Mail::assertQueued(AutomaticCheckoutSummary::class, 1);
-    Mail::assertQueued(AutomaticCheckoutSummary::class, fn ($mail) => $mail->hasTo($t->a->otherProperty->email) && $mail->checkedOut === [] && $mail->skipped === []);
+    Mail::assertNothingOutgoing();
 });
 
 test('night audit never checks out stays even when automatic check-out is enabled and due', function () {
@@ -177,6 +194,8 @@ test('custom check-out times use the property calendar date across the internati
     $t->a->property->update(['timezone' => 'Pacific/Auckland', 'front_desk_settings' => [
         'automatic_checkout_enabled' => true, 'automatic_checkout_time' => '12:15',
     ]]);
+    inTenant($t->a->property, fn () => $reservation->update(['departure' => '2026-12-13']));
+    $t->a->property->update(['business_date' => '2026-12-13']);
     $this->travelTo(new DateTimeImmutable('2026-12-12 23:14:00 UTC'));
     $this->artisan('front-desk:checkout-due')->assertSuccessful();
     Mail::assertNothingOutgoing();

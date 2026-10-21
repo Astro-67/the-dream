@@ -26,6 +26,7 @@ class RunAutomaticCheckout
             $date = $local->toDateString();
             if (! $settings['automatic_checkout_enabled']
                 || $local->format('H:i') < $settings['automatic_checkout_time']
+                || BusinessDate::of($locked) < $date
                 || $locked->automatic_checkout_date?->toDateString() === $date) {
                 return;
             }
