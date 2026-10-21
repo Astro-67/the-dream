@@ -35,7 +35,6 @@ import { index as cashierShifts } from '@/routes/cashier-shifts';
 import { index as approvals } from '@/routes/approvals';
 import { index as invitations } from '@/routes/invitations';
 import { index as guests } from '@/routes/guests';
-import { index as bookers } from '@/routes/bookers';
 import { index as members } from '@/routes/members';
 import { index as payments } from '@/routes/payments';
 import { index as nightAudit } from '@/routes/night-audit';
@@ -183,11 +182,9 @@ export function AppSidebar() {
                   },
               ]
             : []),
+        // Bookers are no longer created by staff (ADR 0015); their pages stay reachable from old reservations.
         ...(can('guests.view')
-            ? [
-                  { title: 'Guests', href: guests(), icon: Users },
-                  { title: 'Bookers', href: bookers(), icon: Users },
-              ]
+            ? [{ title: 'Guests', href: guests(), icon: Users }]
             : []),
         ...(can('members.view')
             ? [{ title: 'Members', href: members(), icon: Users }]
