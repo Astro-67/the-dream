@@ -5,7 +5,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
-function sidebar(platformRoles: string[]) {
+function sidebar(platformRoles: string[], permissions: string[] = []) {
     const component = () => (
         <TooltipProvider>
             <SidebarProvider>
@@ -31,7 +31,7 @@ function sidebar(platformRoles: string[]) {
                             email: 'administrator@example.test',
                         },
                         platformRoles,
-                        permissions: [],
+                        permissions,
                     },
                     tenant: {
                         organization: null,
@@ -61,3 +61,45 @@ for (const path of ['organizations', 'plans', 'invoices', 'staff']) {
 assert.ok(!sidebar([]).includes('href="/platform/'));
 assert.ok(!sidebar(['compliance_operator']).includes('href="/platform/'));
 console.log('Platform sidebar navigation: PASS');
+
+const restricted = sidebar([]);
+assert.match(restricted, />Today</);
+assert.doesNotMatch(restricted, />Dashboard</);
+for (const label of ['Money', 'Setup', 'More']) {
+    assert.ok(
+        !restricted.includes(`>${label}<`),
+        `${label} must hide when empty`,
+    );
+}
+
+const finance = sidebar([], ['finance.view']);
+assert.match(finance, />Money</);
+assert.match(finance, />Cashier shifts</);
+assert.match(finance, />Open balances</);
+assert.doesNotMatch(finance, />Payments</);
+assert.doesNotMatch(finance, />Reports</);
+assert.doesNotMatch(finance, />Setup</);
+
+const reservations = sidebar([], ['reservations.view']);
+assert.match(reservations, />Reservations</);
+assert.match(reservations, />Setup</);
+for (const label of [
+    'Rooms',
+    'Room types',
+    'Rate plans',
+    'Rate calendar',
+    'Taxes',
+]) {
+    assert.ok(reservations.includes(`>${label}<`));
+}
+assert.match(reservations, /aria-expanded="false"[^>]*>.*?<span>More<\/span>/);
+assert.doesNotMatch(reservations, />Availability</);
+assert.doesNotMatch(reservations, />Calendar</);
+assert.doesNotMatch(reservations, />Properties</);
+assert.doesNotMatch(reservations, />Members</);
+
+const housekeeper = sidebar([], ['housekeeping.manage']);
+assert.match(housekeeper, />My rooms</);
+assert.doesNotMatch(housekeeper, />Housekeeping</);
+assert.doesNotMatch(housekeeper, />Setup</);
+console.log('Grouped, permission-filtered sidebar: PASS');
