@@ -1,19 +1,21 @@
 import { useState } from 'react';
 import { Form, Head, router } from '@inertiajs/react';
+import { CountrySelect } from '@/components/shared/country-select';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MoneyInput } from '@/components/ui/money-input';
-import { formatMoney } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { NativeSelect } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
+import { formatMoney } from '@/lib/utils';
 import { create, store } from '@/routes/reservations';
 
 type Stay = {
-    room_type_id: string;
-    rate_plan_id: string;
+    room_id?: string;
+    room_type_id?: string;
+    rate_plan_id?: string;
     arrival: string;
     departure: string;
     adults: number;
@@ -27,15 +29,22 @@ export default function Create({
     stay,
     roomType,
     ratePlan,
+    ratePlans,
     rooms,
     restrictionWarnings,
     nightlyRate,
     businessDate,
 }: {
     stay: Stay;
-    roomType: Named;
-    ratePlan: Named & { currency: string };
-    rooms: { id: string; number: string; isReady: boolean }[];
+    roomType: Named | null;
+    ratePlan: (Named & { currency: string }) | null;
+    ratePlans: (Named & { currency: string; room_type_ids: string[] })[];
+    rooms: {
+        id: string;
+        number: string;
+        room_type_id: string;
+        isReady: boolean;
+    }[];
     restrictionWarnings: string[];
     nightlyRate: number | null;
     businessDate: string;
@@ -47,10 +56,17 @@ export default function Create({
         adults: stay.adults.toString(),
         children: stay.children.toString(),
     });
+    const [roomId, setRoomId] = useState(stay.room_id ?? '');
+    const [requiresRoom] = useState(!stay.room_type_id);
+    const [ownRate, setOwnRate] = useState(false);
+    const selectedType =
+        rooms.find((room) => room.id === roomId)?.room_type_id ??
+        stay.room_type_id ??
+        '';
     const [operator, setOperator] = useState(false);
     const [documentType, setDocumentType] = useState('');
     const [collector, setCollector] = useState('property');
-    function refreshStay(input: HTMLInputElement) {
+    function refreshStay(input: HTMLInputElement | HTMLSelectElement) {
         if (!input.form) return;
         const data = new FormData(input.form);
         const arrival = data.get('arrival');
@@ -69,15 +85,30 @@ export default function Create({
         router.get(
             create.url(),
             {
-                room_type_id: stay.room_type_id,
-                rate_plan_id: stay.rate_plan_id,
+                room_type_id:
+                    input.name === 'room_id'
+                        ? rooms.find((room) => room.id === input.value)
+                              ?.room_type_id
+                        : data.get('room_type_id'),
+                room_id: data.get('room_id'),
+                rate_plan_id:
+                    input.name === 'room_id'
+                        ? undefined
+                        : data.get('rate_plan_id'),
                 arrival,
                 departure,
                 adults,
                 children,
             },
             {
-                only: ['rooms', 'nightlyRate', 'restrictionWarnings'],
+                only: [
+                    'stay',
+                    'roomType',
+                    'ratePlan',
+                    'rooms',
+                    'nightlyRate',
+                    'restrictionWarnings',
+                ],
                 preserveState: true,
                 preserveScroll: true,
             },
@@ -90,7 +121,8 @@ export default function Create({
                 <header className="space-y-2">
                     <h1 className="text-2xl font-semibold">New reservation</h1>
                     <p className="text-sm text-muted-foreground">
-                        {roomType.name} · {ratePlan.name}. Prices and
+                        {roomType?.name ?? 'Choose a room'} ·{' '}
+                        {ratePlan?.name ?? 'No active rate plan'}. Prices and
                         availability are checked again when you confirm.
                     </p>
                 </header>
@@ -104,16 +136,32 @@ export default function Create({
                             <input
                                 type="hidden"
                                 name="room_type_id"
-                                value={stay.room_type_id}
-                            />
-                            <input
-                                type="hidden"
-                                name="rate_plan_id"
-                                value={stay.rate_plan_id}
+                                value={selectedType}
                             />
                             {Object.entries(errors).map(([name, message]) => (
                                 <InputError key={name} message={message} />
                             ))}
+                            <div className="flex items-center gap-2">
+                                <input
+                                    id="walk-in"
+                                    type="checkbox"
+                                    className="size-4 rounded-sm"
+                                    checked={source === 'walk-in'}
+                                    onChange={(event) => {
+                                        setSource(
+                                            event.target.checked
+                                                ? 'walk-in'
+                                                : 'direct',
+                                        );
+                                        if (event.target.checked)
+                                            setValues((values) => ({
+                                                ...values,
+                                                arrival: businessDate,
+                                            }));
+                                    }}
+                                />
+                                <Label htmlFor="walk-in">Walk-in</Label>
+                            </div>
                             <fieldset className="space-y-4">
                                 <legend className="font-medium">
                                     Lead guest
@@ -125,10 +173,6 @@ export default function Create({
                                             ['last_name', 'Last name'],
                                             ['email', 'Email'],
                                             ['phone', 'Phone'],
-                                            [
-                                                'nationality',
-                                                'Country (two-letter code)',
-                                            ],
                                         ] as const
                                     ).map(([name, label]) => (
                                         <div key={name} className="space-y-2">
@@ -138,37 +182,23 @@ export default function Create({
                                             <Input
                                                 id={`guest-${name}`}
                                                 name={`lead_guest[${name}]`}
-                                                type={
-                                                    name === 'email'
-                                                        ? 'email'
-                                                        : name === 'phone'
-                                                          ? 'tel'
-                                                          : 'text'
-                                                }
-                                                required={
-                                                    name === 'first_name' ||
-                                                    (name === 'last_name' &&
-                                                        source !== 'walk-in')
-                                                }
-                                                maxLength={
-                                                    name === 'nationality'
-                                                        ? 2
-                                                        : name === 'phone'
-                                                          ? 50
-                                                          : name.endsWith(
-                                                                  'name',
-                                                              )
-                                                            ? 120
-                                                            : 255
-                                                }
-                                                aria-invalid={
-                                                    !!errors[
-                                                        `lead_guest.${name}`
-                                                    ]
-                                                }
+                                                type="date"
+                                                required
                                             />
                                         </div>
                                     ))}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="guest-nationality">
+                                        Country
+                                    </Label>
+                                    <CountrySelect
+                                        id="guest-nationality"
+                                        name="lead_guest[nationality]"
+                                        aria-invalid={
+                                            !!errors['lead_guest.nationality']
+                                        }
+                                    />
                                 </div>
                                 <p className="text-sm text-muted-foreground">
                                     ID is needed at check-in. Add it now or
@@ -208,92 +238,45 @@ export default function Create({
                             </fieldset>
                             <fieldset className="space-y-4">
                                 <legend className="font-medium">Stay</legend>
-                                <Label htmlFor="source">Source</Label>
-                                <NativeSelect
-                                    id="source"
-                                    name="source"
-                                    value={source}
-                                    onChange={(event) => {
-                                        const source = event.target.value;
-                                        setSource(source);
-                                        if (source === 'walk-in')
-                                            setValues((values) => ({
-                                                ...values,
-                                                arrival: businessDate,
-                                            }));
-                                    }}
-                                >
-                                    <option value="direct">Direct</option>
-                                    <option value="walk-in">Walk-in</option>
-                                    <option value="phone">Phone</option>
-                                    <option value="whatsapp">WhatsApp</option>
-                                    <option value="email">Email</option>
-                                    <option value="website">Our website</option>
-                                    <option value="outside-integration">
-                                        Booking received outside integration
-                                    </option>
-                                </NativeSelect>
                                 <div className="grid gap-4 sm:grid-cols-2">
-                                    {(
-                                        [
-                                            'arrival',
-                                            'departure',
-                                            'adults',
-                                            'children',
-                                        ] as const
-                                    ).map((name) => (
-                                        <div key={name} className="space-y-2">
-                                            <Label htmlFor={name}>
-                                                {
+                                    {(['arrival', 'departure'] as const).map(
+                                        (name) => (
+                                            <div
+                                                key={name}
+                                                className="space-y-2"
+                                            >
+                                                <Label htmlFor={name}>
                                                     {
-                                                        arrival:
-                                                            'Check-in date',
-                                                        departure:
-                                                            'Check-out date',
-                                                        adults: 'Adults',
-                                                        children: 'Children',
-                                                    }[name]
-                                                }
-                                            </Label>
-                                            <Input
-                                                id={name}
-                                                name={name}
-                                                value={values[name]}
-                                                onChange={(event) =>
-                                                    setValues((values) => ({
-                                                        ...values,
-                                                        [name]: event.target
-                                                            .value,
-                                                    }))
-                                                }
-                                                onBlur={(event) =>
-                                                    refreshStay(
-                                                        event.currentTarget,
-                                                    )
-                                                }
-                                                type={
-                                                    name === 'arrival' ||
-                                                    name === 'departure'
-                                                        ? 'date'
-                                                        : 'number'
-                                                }
-                                                required
-                                                min={
-                                                    name === 'adults'
-                                                        ? 1
-                                                        : name === 'children'
-                                                          ? 0
-                                                          : undefined
-                                                }
-                                                max={
-                                                    name === 'adults' ||
-                                                    name === 'children'
-                                                        ? 20
-                                                        : undefined
-                                                }
-                                            />
-                                        </div>
-                                    ))}
+                                                        {
+                                                            arrival:
+                                                                'Check-in date',
+                                                            departure:
+                                                                'Check-out date',
+                                                        }[name]
+                                                    }
+                                                </Label>
+                                                <Input
+                                                    id={name}
+                                                    name={name}
+                                                    value={values[name]}
+                                                    onChange={(event) =>
+                                                        setValues((values) => ({
+                                                            ...values,
+                                                            [name]: event.target
+                                                                .value,
+                                                        }))
+                                                    }
+                                                    onBlur={(event) =>
+                                                        refreshStay(
+                                                            event.currentTarget,
+                                                        )
+                                                    }
+                                                    type="date"
+                                                    required
+                                                />
+                                            </div>
+                                        ),
+                                    )}
                                 </div>
                                 <Label htmlFor="rooms">Rooms</Label>
                                 <Input
@@ -311,11 +294,26 @@ export default function Create({
                                     assignment applies to the first. Free rooms
                                     refresh when you finish editing the stay.
                                 </p>
-                                <Label htmlFor="room_id">
-                                    Specific room (optional)
-                                </Label>
-                                <NativeSelect id="room_id" name="room_id">
-                                    <option value="">Leave unassigned</option>
+                                <Label htmlFor="room_id">Room</Label>
+                                <NativeSelect
+                                    id="room_id"
+                                    name="room_id"
+                                    value={
+                                        rooms.some((room) => room.id === roomId)
+                                            ? roomId
+                                            : ''
+                                    }
+                                    required={requiresRoom}
+                                    onChange={(event) => {
+                                        setRoomId(event.target.value);
+                                        refreshStay(event.currentTarget);
+                                    }}
+                                >
+                                    <option value="">
+                                        {roomType
+                                            ? 'Leave unassigned'
+                                            : 'Select a room'}
+                                    </option>
                                     {rooms.map((room) => (
                                         <option key={room.id} value={room.id}>
                                             {room.number} —{' '}
@@ -325,44 +323,121 @@ export default function Create({
                                         </option>
                                     ))}
                                 </NativeSelect>
-                                <Label htmlFor="nightly_rate">
-                                    Own nightly rate ({ratePlan.currency})
-                                </Label>
-                                <MoneyInput
-                                    id="nightly_rate"
-                                    name="nightly_rate"
-                                    currency={ratePlan.currency}
-                                    min={0}
-                                    max={1000000000000}
-                                    placeholder={nightlyRate ?? undefined}
-                                />
-                                <p className="text-sm text-muted-foreground">
-                                    Leave blank to use the rate plan's price for
-                                    each night. First night:{' '}
-                                    {nightlyRate === null
-                                        ? 'Unavailable'
-                                        : formatMoney(
-                                              nightlyRate,
-                                              ratePlan.currency,
-                                          )}
-                                    .
-                                </p>
-                                <Label htmlFor="meal_plan">Meal plan</Label>
-                                <NativeSelect id="meal_plan" name="meal_plan">
-                                    <option value="room-only">Room only</option>
-                                    <option value="bed-and-breakfast">
-                                        Bed and breakfast
-                                    </option>
-                                    <option value="half-board">
-                                        Half board
-                                    </option>
-                                    <option value="full-board">
-                                        Full board
-                                    </option>
-                                    <option value="all-inclusive">
-                                        All-inclusive
-                                    </option>
+                                {rooms.length === 0 && (
+                                    <p className="text-sm text-muted-foreground">
+                                        No rooms are free for these dates.
+                                        Change the stay dates.
+                                    </p>
+                                )}
+                                <Label htmlFor="rate_plan_id">Rate plan</Label>
+                                <NativeSelect
+                                    id="rate_plan_id"
+                                    name="rate_plan_id"
+                                    key={ratePlan?.id ?? 'none'}
+                                    defaultValue={ratePlan?.id ?? ''}
+                                    required
+                                    onChange={(event) =>
+                                        refreshStay(event.currentTarget)
+                                    }
+                                >
+                                    <option value="">Select rate plan</option>
+                                    {ratePlans
+                                        .filter(
+                                            (plan) =>
+                                                !selectedType ||
+                                                plan.room_type_ids.includes(
+                                                    selectedType,
+                                                ),
+                                        )
+                                        .map((plan) => (
+                                            <option
+                                                key={plan.id}
+                                                value={plan.id}
+                                            >
+                                                {plan.name} ({plan.currency})
+                                            </option>
+                                        ))}
                                 </NativeSelect>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        id="own-rate"
+                                        type="checkbox"
+                                        className="size-4 rounded-sm"
+                                        checked={ownRate}
+                                        onChange={(event) =>
+                                            setOwnRate(event.target.checked)
+                                        }
+                                    />
+                                    <Label htmlFor="own-rate">
+                                        Own nightly rate
+                                    </Label>
+                                </div>
+                                <fieldset hidden={!ownRate} disabled={!ownRate}>
+                                    <Label htmlFor="nightly_rate">
+                                        Own nightly rate (
+                                        {ratePlan?.currency ?? ''})
+                                    </Label>
+                                    <MoneyInput
+                                        id="nightly_rate"
+                                        name="nightly_rate"
+                                        currency={ratePlan?.currency ?? 'USD'}
+                                        min={0}
+                                        max={1000000000000}
+                                        placeholder={nightlyRate ?? undefined}
+                                    />
+                                    <p className="text-sm text-muted-foreground">
+                                        Leave blank to use the rate plan's price
+                                        for each night. First night:{' '}
+                                        {nightlyRate === null || !ratePlan
+                                            ? 'Unavailable'
+                                            : formatMoney(
+                                                  nightlyRate,
+                                                  ratePlan.currency,
+                                              )}
+                                        .
+                                    </p>
+                                </fieldset>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {(['adults', 'children'] as const).map(
+                                        (name) => (
+                                            <div
+                                                key={name}
+                                                className="space-y-2"
+                                            >
+                                                <Label htmlFor={name}>
+                                                    {name === 'adults'
+                                                        ? 'Adults'
+                                                        : 'Children'}
+                                                </Label>
+                                                <Input
+                                                    id={name}
+                                                    name={name}
+                                                    type="number"
+                                                    min={
+                                                        name === 'adults'
+                                                            ? 1
+                                                            : 0
+                                                    }
+                                                    max={20}
+                                                    required
+                                                    value={values[name]}
+                                                    onChange={(event) =>
+                                                        setValues((values) => ({
+                                                            ...values,
+                                                            [name]: event.target
+                                                                .value,
+                                                        }))
+                                                    }
+                                                    onBlur={(event) =>
+                                                        refreshStay(
+                                                            event.currentTarget,
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
                             </fieldset>
                             <fieldset className="space-y-4">
                                 <legend className="font-medium">
@@ -431,6 +506,47 @@ export default function Create({
                                         </NativeSelect>
                                     </>
                                 )}
+                                <Label htmlFor="meal_plan">Meal plan</Label>
+                                <NativeSelect id="meal_plan" name="meal_plan">
+                                    <option value="room-only">Room only</option>
+                                    <option value="bed-and-breakfast">
+                                        Bed and breakfast
+                                    </option>
+                                    <option value="half-board">
+                                        Half board
+                                    </option>
+                                    <option value="full-board">
+                                        Full board
+                                    </option>
+                                    <option value="all-inclusive">
+                                        All-inclusive
+                                    </option>
+                                </NativeSelect>
+                                <Label htmlFor="source">Source</Label>
+                                <NativeSelect
+                                    id="source"
+                                    name="source"
+                                    value={source}
+                                    onChange={(event) => {
+                                        const source = event.target.value;
+                                        setSource(source);
+                                        if (source === 'walk-in')
+                                            setValues((values) => ({
+                                                ...values,
+                                                arrival: businessDate,
+                                            }));
+                                    }}
+                                >
+                                    <option value="direct">Direct</option>
+                                    <option value="walk-in">Walk-in</option>
+                                    <option value="phone">Phone</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="email">Email</option>
+                                    <option value="website">Our website</option>
+                                    <option value="outside-integration">
+                                        Booking received outside integration
+                                    </option>
+                                </NativeSelect>
                                 <Label htmlFor="special_requests">
                                     Special requests
                                 </Label>
@@ -483,12 +599,12 @@ export default function Create({
                                 <>
                                     <Label htmlFor="channel_collected_amount">
                                         Channel-collected amount (
-                                        {ratePlan.currency})
+                                        {ratePlan?.currency ?? ''})
                                     </Label>
                                     <MoneyInput
                                         id="channel_collected_amount"
                                         name="channel_collected_amount"
-                                        currency={ratePlan.currency}
+                                        currency={ratePlan?.currency ?? 'USD'}
                                         min={0}
                                         max={1000000000000}
                                         required

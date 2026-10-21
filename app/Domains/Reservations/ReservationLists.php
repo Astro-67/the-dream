@@ -13,16 +13,18 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ReservationLists
 {
-    public const FILTERS = ['all', 'arrivals', 'departures', 'in-house', 'overstays', 'balance-owing', 'no-id-document'];
+    public const FILTERS = ['upcoming', 'today', 'in_house', 'past', 'all', 'arrivals', 'departures', 'in-house', 'overstays', 'balance-owing', 'no-id-document'];
 
     /** @return Builder<Reservation> */
     public function query(string $list, string $date, string $search): Builder
     {
         $query = Reservation::query();
         match ($list) {
-            'arrivals' => $query->whereDate('arrival', $date)->whereIn('status', ['confirmed', 'checked_in']),
+            'upcoming' => $query->where('status', 'confirmed')->whereDate('arrival', '>', $date),
+            'past' => $query->whereIn('status', ['checked_out', 'cancelled', 'no_show', 'void']),
+            'today', 'arrivals' => $query->whereDate('arrival', $date)->whereIn('status', ['confirmed', 'checked_in']),
             'departures' => $query->whereDate('departure', $date)->whereIn('status', ['confirmed', 'checked_in', 'checked_out']),
-            'in-house' => $query->where('status', 'checked_in')->whereDate('arrival', '<=', $date),
+            'in_house', 'in-house' => $query->where('status', 'checked_in')->whereDate('arrival', '<=', $date),
             'overstays' => $query->where('status', 'checked_in')->whereDate('departure', '<', BusinessDate::current()),
             'balance-owing' => $query->whereIn('id', Folio::query()->select('reservation_id')->whereIn('id', Posting::query()->select('folio_id')->groupBy('folio_id')->havingRaw('SUM(amount) > 0'))),
             'no-id-document' => $query->where(function ($query) {

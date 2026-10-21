@@ -7,7 +7,7 @@ import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { roomAssignment } from '@/routes/reservations';
+import { checkIn, roomAssignment } from '@/routes/reservations';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
@@ -108,6 +108,7 @@ export default function Show({
         void: boolean;
         moveRoom: boolean;
         changeStay: boolean;
+        checkIn: boolean;
         checkOut: boolean;
         overrideBalance: boolean;
     };
@@ -148,6 +149,28 @@ export default function Show({
                         <StatusChip tone="warning">
                             Requires reconciliation
                         </StatusChip>
+                    )}
+                    {can.checkIn && (
+                        <Form
+                            {...checkIn.form(reservation.reservation_number)}
+                            disableWhileProcessing
+                            errorBag={`check-in-${reservation.reservation_number}`}
+                            options={{ preserveScroll: true }}
+                            className="flex flex-col items-start gap-1"
+                        >
+                            {({ errors }) => (
+                                <>
+                                    <PropertyIntent />
+                                    <Button type="submit">Check in</Button>
+                                    {Object.values(errors).map((error) => (
+                                        <InputError
+                                            key={error}
+                                            message={error}
+                                        />
+                                    ))}
+                                </>
+                            )}
+                        </Form>
                     )}
                     {reservation.status === 'confirmed' && (
                         <TerminationActions

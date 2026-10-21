@@ -89,3 +89,57 @@ test('reservation list permission follows the role', function (OrganizationRole 
     [OrganizationRole::PropertyManager, true], [OrganizationRole::FrontDesk, true],
     [OrganizationRole::Housekeeping, false],
 ]);
+
+test('booking tabs use the selected business date and preserve search and property isolation', function () {
+    $t = twoTenants();
+    $records = inTenant($t->a->property, function () use ($t) {
+        $seed = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $records = [];
+        foreach ([
+            ['UPCOMING', '2026-12-12', '2026-12-14', ReservationStatus::Confirmed],
+            ['TODAY', '2026-12-11', '2026-12-13', ReservationStatus::Confirmed],
+            ['IN-HOUSE', '2026-12-11', '2026-12-13', ReservationStatus::CheckedIn],
+            ['OVERSTAY', '2026-12-08', '2026-12-10', ReservationStatus::CheckedIn],
+            ['MISSED', '2026-12-10', '2026-12-12', ReservationStatus::Confirmed],
+            ['CHECKED-OUT', '2026-12-09', '2026-12-11', ReservationStatus::CheckedOut],
+            ['CANCELLED', '2026-12-12', '2026-12-14', ReservationStatus::Cancelled],
+            ['NO-SHOW', '2026-12-10', '2026-12-12', ReservationStatus::NoShow],
+        ] as [$number, $arrival, $departure, $status]) {
+            $copy = $seed->replicate();
+            $copy->reservation_number = 'TABS-'.$number;
+            $copy->save();
+            $copy->update(compact('arrival', 'departure', 'status'));
+            $records[$number] = $copy->id;
+        }
+        $seed->update(['reservation_number' => 'TABS-VOID', 'status' => ReservationStatus::Void]);
+        $records['VOID'] = $seed->id;
+
+        return $records;
+    });
+    foreach ([$t->a->otherProperty, $t->b->property] as $property) {
+        $owner = $property->organization_id === $t->a->organization->id ? $t->a->owner : $t->b->owner;
+        inTenant($property, function () use ($owner) {
+            $foreign = app(CreateReservation::class)->handle($owner, BookingForm::details($owner));
+            $foreign->update(['reservation_number' => 'TABS-FOREIGN', 'arrival' => '2026-12-12', 'departure' => '2026-12-14']);
+        });
+    }
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+    $t->a->property->update(['business_date' => '2026-12-11']);
+    foreach ([
+        'upcoming' => ['UPCOMING'],
+        'today' => ['TODAY', 'IN-HOUSE'],
+        'in_house' => ['OVERSTAY', 'IN-HOUSE'],
+        'past' => ['CHECKED-OUT', 'CANCELLED', 'NO-SHOW', 'VOID'],
+        'all' => array_keys($records),
+    ] as $list => $keys) {
+        $expected = array_map(fn ($key) => $records[$key], $keys);
+        $this->get(route('reservations.index', ['list' => $list, 'search' => 'TABS-']))->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('filters.list', $list)->where('filters.date', '2026-12-11')
+            ->where('reservations.data', fn ($rows) => collect($rows)->pluck('id')->sort()->values()->all() === collect($expected)->sort()->values()->all()));
+    }
+    $this->get(route('reservations.index'))->assertInertia(fn (Assert $page) => $page->where('filters.list', 'upcoming')->where('canCreate', true));
+    $this->get(route('reservations.index', ['list' => 'upcoming', 'date' => '2026-12-10', 'search' => 'TABS-TODAY']))
+        ->assertInertia(fn (Assert $page) => $page->has('reservations.data', 1)->where('reservations.data.0.id', $records['TODAY']));
+    $this->actingAs($t->a->member(OrganizationRole::Finance))->get(route('reservations.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('canCreate', false));
+});
