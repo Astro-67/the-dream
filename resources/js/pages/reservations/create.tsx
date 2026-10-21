@@ -39,6 +39,12 @@ export default function Create({
     businessDate: string;
 }) {
     const [source, setSource] = useState(stay.source ?? 'direct');
+    const [values, setValues] = useState({
+        arrival: source === 'walk-in' ? businessDate : stay.arrival,
+        departure: stay.departure,
+        adults: stay.adults.toString(),
+        children: stay.children.toString(),
+    });
     const [operator, setOperator] = useState(false);
     const [documentType, setDocumentType] = useState('');
     const [collector, setCollector] = useState('property');
@@ -205,9 +211,15 @@ export default function Create({
                                     id="source"
                                     name="source"
                                     value={source}
-                                    onChange={(event) =>
-                                        setSource(event.target.value)
-                                    }
+                                    onChange={(event) => {
+                                        const source = event.target.value;
+                                        setSource(source);
+                                        if (source === 'walk-in')
+                                            setValues((values) => ({
+                                                ...values,
+                                                arrival: businessDate,
+                                            }));
+                                    }}
                                 >
                                     <option value="direct">Direct</option>
                                     <option value="walk-in">Walk-in</option>
@@ -242,13 +254,16 @@ export default function Create({
                                                 }
                                             </Label>
                                             <Input
-                                                key={
-                                                    name === 'arrival'
-                                                        ? source
-                                                        : name
-                                                }
                                                 id={name}
                                                 name={name}
+                                                value={values[name]}
+                                                onChange={(event) =>
+                                                    setValues((values) => ({
+                                                        ...values,
+                                                        [name]: event.target
+                                                            .value,
+                                                    }))
+                                                }
                                                 onBlur={(event) =>
                                                     refreshStay(
                                                         event.currentTarget,
@@ -259,12 +274,6 @@ export default function Create({
                                                     name === 'departure'
                                                         ? 'date'
                                                         : 'number'
-                                                }
-                                                defaultValue={
-                                                    name === 'arrival' &&
-                                                    source === 'walk-in'
-                                                        ? businessDate
-                                                        : stay[name]
                                                 }
                                                 required
                                                 min={
