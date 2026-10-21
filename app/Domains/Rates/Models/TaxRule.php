@@ -50,6 +50,12 @@ class TaxRule extends Model
         ];
     }
 
+    public function isInfrastructureLevy(): bool
+    {
+        return $this->name === 'Infrastructure levy' && $this->zra_tax_category === ZraTaxCategory::HotelLevy
+            && $this->kind === TaxKind::FlatPerPersonNight && $this->currency === Currency::USD;
+    }
+
     /** Whether the rule is in force on a Y-m-d date. */
     public function coversDate(string $date): bool
     {
