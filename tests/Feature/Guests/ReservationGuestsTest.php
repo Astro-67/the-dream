@@ -39,7 +39,8 @@ test('attachments reject another property guest and reservation and are idempote
     $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
     foreach ([$t->a->otherProperty, $t->b->property] as $property) {
         $foreignGuest = inTenant($property, fn () => app(CreateGuest::class)->handle($t->a->owner, ['name' => 'Foreign Guest']));
-        $foreignReservation = inTenant($property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+        // Numbers repeat across properties; a distinct one proves the lookup never crosses them.
+        $foreignReservation = inTenant($property, fn () => tap(app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)), fn ($r) => $r->update(['reservation_number' => 'FOREIGN-'.$property->id])));
         $this->postJson(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'guest_id' => $foreignGuest->id])->assertUnprocessable()->assertJsonValidationErrors('guest_id');
         $this->postJson(route('reservations.guests.store', $foreignReservation), ['_property' => $t->a->property->id, 'guest_id' => $guest->id])->assertNotFound();
     }
