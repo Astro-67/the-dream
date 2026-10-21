@@ -1,10 +1,32 @@
 <?php
 
+use App\Domains\Billing\Models\Posting;
+use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
+use App\Domains\Rates\Actions\SeedDefaultTaxRules;
+use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use Tests\Support\BookingForm;
+
+test('seeded Zanzibar levy never blocks night audit for an allowed folio currency', function (string $currency) {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->update(['business_date' => '2026-12-10', 'jurisdiction_profile' => 'zanzibar']);
+    inTenant($property, function () use ($t, $property, $currency) {
+        app(SeedDefaultTaxRules::class)->handle($t->a->owner, $property);
+        $details = BookingForm::details($t->a->owner);
+        RatePlan::query()->whereKey($details['rate_plan_id'])->update(['currency' => $currency]);
+        $stay = app(CreateReservation::class)->handle($t->a->owner, $details);
+        $stay->update(['status' => ReservationStatus::CheckedIn]);
+        app(CloseBusinessDate::class)->handle(null, $property, '2026-12-10');
+        $posting = Posting::query()->where('reservation_id', $stay->id)->sole();
+        expect($property->fresh()->business_date->toDateString())->toBe('2026-12-11')
+            ->and(array_column($posting->tax_lines, 'name'))->toBe($currency === 'USD' ? ['Infrastructure levy', 'VAT'] : ['VAT'])
+            ->and($posting->currency->value)->toBe($currency);
+    });
+})->with(['TZS', 'EUR', 'USD']);
 
 test('the scheduler closes each property whose local close time has passed, as automation', function () {
     $t = twoTenants();
