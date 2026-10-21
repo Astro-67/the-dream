@@ -23,7 +23,7 @@ class ReservationCalendar
         $businessDate = BusinessDate::current();
         $reservations = app(ReservationLists::class)->query($list, $businessDate, $search)->whereIn('room_type_id', $roomTypeIds)
             ->whereNotIn('status', [ReservationStatus::Cancelled, ReservationStatus::Void])
-            ->whereDate('arrival', '<=', $to)->where(fn ($query) => $query->whereDate('departure', '>', $from)
+            ->whereDate('arrival', '<=', $to)->where(fn ($query) => $query->whereDate('departure', '>=', $from)
             ->orWhere(fn ($overstays) => $overstays->where('status', ReservationStatus::CheckedIn)->whereDate('departure', '<', $businessDate)->whereRaw('? >= ?', [$businessDate, $from])))
             ->orderBy('arrival')->orderBy('reservation_number')->get();
         $links = ReservationGuest::query()->whereIn('reservation_id', $reservations->modelKeys())->orderBy('id')->get();
