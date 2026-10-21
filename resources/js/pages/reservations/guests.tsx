@@ -95,10 +95,6 @@ export default function Guests({
                 </header>
                 <section className="space-y-3">
                     <h2 className="text-lg font-semibold">Staying guests</h2>
-                    <p className="text-sm text-muted-foreground">
-                        The booker is separate and is not added as a staying
-                        guest automatically.
-                    </p>
                     {guests.data.length === 0 ? (
                         <EmptyState message="No guests attached yet." />
                     ) : (
