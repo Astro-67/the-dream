@@ -6,6 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Tag } from '@/components/ui/status-chip';
@@ -50,6 +51,7 @@ function PlanForm({
     currencies: string[];
     onDone?: () => void;
 }) {
+    const [currency, setCurrency] = useState(plan?.currency ?? 'USD');
     const action = plan ? update.form(plan.id) : store.form();
     const number = (
         name: keyof Plan,
@@ -76,6 +78,7 @@ function PlanForm({
             {...action}
             options={{ preserveScroll: true }}
             resetOnSuccess={!plan}
+            onReset={() => setCurrency(plan?.currency ?? 'USD')}
             onSuccess={onDone}
             className="grid gap-4 sm:grid-cols-2"
         >
@@ -133,12 +136,12 @@ function PlanForm({
                     <div className="grid grid-cols-[1fr_6rem] gap-2">
                         <div className="grid gap-2">
                             <Label htmlFor={`${plan?.id ?? 'new'}-price`}>
-                                Price per period (minor units)
+                                Price per period ({currency})
                             </Label>
-                            <Input
+                            <MoneyInput
                                 id={`${plan?.id ?? 'new'}-price`}
                                 name="price"
-                                type="number"
+                                currency={currency}
                                 min={0}
                                 required
                                 defaultValue={plan?.price}
@@ -154,6 +157,9 @@ function PlanForm({
                                 id={`${plan?.id ?? 'new'}-currency`}
                                 name="currency"
                                 defaultValue={plan?.currency ?? 'USD'}
+                                onChange={(event) =>
+                                    setCurrency(event.target.value)
+                                }
                                 className={selectClass}
                             >
                                 {currencies.map((currency) => (

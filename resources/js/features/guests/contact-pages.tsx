@@ -1,3 +1,4 @@
+import { CountrySelect } from '@/components/shared/country-select';
 import { Form, Head, Link } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -30,7 +31,7 @@ const fields = [
     ['name', 'Name'],
     ['email', 'Email'],
     ['phone', 'Phone'],
-    ['nationality', 'Nationality (two-letter country code)'],
+    ['nationality', 'Country'],
     ['preferences', 'Preferences'],
     ['notes', 'Notes'],
 ] as const;
@@ -148,8 +149,22 @@ export function ContactForm({
                             {fields.map(([field, label]) => (
                                 <div key={field} className="space-y-2">
                                     <Label htmlFor={field}>{label}</Label>
-                                    {field === 'preferences' ||
-                                    field === 'notes' ? (
+                                    {field === 'nationality' ? (
+                                        <CountrySelect
+                                            id={field}
+                                            name={field}
+                                            defaultValue={record?.[field] ?? ''}
+                                            aria-invalid={Boolean(
+                                                errors[field],
+                                            )}
+                                            aria-describedby={
+                                                errors[field]
+                                                    ? `${field}-error`
+                                                    : undefined
+                                            }
+                                        />
+                                    ) : field === 'preferences' ||
+                                      field === 'notes' ? (
                                         <textarea
                                             rows={3}
                                             className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-invalid:border-destructive"
@@ -180,11 +195,7 @@ export function ContactForm({
                                             defaultValue={record?.[field] ?? ''}
                                             required={field === 'name'}
                                             maxLength={
-                                                field === 'nationality'
-                                                    ? 2
-                                                    : field === 'phone'
-                                                      ? 50
-                                                      : 255
+                                                field === 'phone' ? 50 : 255
                                             }
                                             aria-invalid={Boolean(
                                                 errors[field],

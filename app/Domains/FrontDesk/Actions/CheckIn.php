@@ -19,8 +19,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Starts the stay (PMS-04): a confirmed reservation arriving on the business
- * date, in a ready room, with every guest registered as the jurisdiction requires.
+ * Starts a confirmed stay on or after arrival, in a ready room,
+ * with every guest registered as the jurisdiction requires.
  */
 class CheckIn
 {
@@ -36,8 +36,12 @@ class CheckIn
             if ($locked->status !== ReservationStatus::Confirmed) {
                 throw ValidationException::withMessages(['reservation' => __('Only confirmed reservations can be checked in.')]);
             }
-            if ($locked->arrival->toDateString() !== BusinessDate::of($property)) {
-                throw ValidationException::withMessages(['reservation' => __('Only reservations arriving on the current business date can be checked in.')]);
+            if ($locked->arrival->toDateString() > BusinessDate::of($property)) {
+                throw ValidationException::withMessages(['reservation' => __('Reservations cannot be checked in before their arrival business date.')]);
+            }
+            // A late arrival keeps only its remaining nights; once departure is reached nothing is held, so amend the dates first.
+            if ($locked->departure->toDateString() <= BusinessDate::of($property)) {
+                throw ValidationException::withMessages(['reservation' => __('This stay has already ended. Change its dates before checking in.')]);
             }
             $room = $locked->room_id === null ? null : Room::query()->whereKey($locked->room_id)->lockForUpdate()->firstOrFail();
             if ($room === null) {

@@ -1,8 +1,10 @@
 import { Table, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Form, Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { formatMoney, ruleSize } from '@/lib/utils';
 import { index, preview } from '@/routes/tax-rules';
@@ -37,6 +39,7 @@ export default function TaxPreview({
     breakdown: Breakdown | null;
     unpreviewable: string | null;
 }) {
+    const [currency, setCurrency] = useState(charge.currency ?? currencies[0]);
     const money = (amount: number) =>
         formatMoney(amount, breakdown?.currency ?? '');
 
@@ -61,13 +64,12 @@ export default function TaxPreview({
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label htmlFor="amount">
-                                        Price in minor units
+                                        Price in {currency}
                                     </Label>
-                                    <Input
+                                    <MoneyInput
                                         id="amount"
                                         name="amount"
-                                        type="number"
-                                        step={1}
+                                        currency={currency}
                                         min={0}
                                         required
                                         defaultValue={charge.amount}
@@ -82,6 +84,9 @@ export default function TaxPreview({
                                         id="currency"
                                         name="currency"
                                         defaultValue={charge.currency}
+                                        onChange={(event) =>
+                                            setCurrency(event.target.value)
+                                        }
                                         className="h-9 w-full rounded-md border border-input bg-background px-3"
                                     >
                                         {currencies.map((currency) => (

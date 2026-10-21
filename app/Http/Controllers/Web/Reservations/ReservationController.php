@@ -32,16 +32,20 @@ class ReservationController extends Controller
 {
     public function create(CreateReservationRequest $request, StayRestrictions $restrictions): Response
     {
-        $type = RoomType::query()->findOrFail($request->validated('room_type_id'));
-        $plan = RatePlan::query()->findOrFail($request->validated('rate_plan_id'));
+        $stay = $request->validated();
+        $type = RoomType::query()->find($stay['room_type_id'] ?? null);
+        $plans = RatePlan::query()->whereNull('deactivated_at')->with('roomTypes:id,name')->orderBy('name')->orderBy('id')->get();
+        $plan = isset($stay['rate_plan_id']) ? $plans->firstWhere('id', $stay['rate_plan_id']) : $plans->first(fn (RatePlan $plan) => $type === null || $plan->roomTypes->contains('id', $type->id));
+        $stay['rate_plan_id'] = $plan?->id;
 
         return Inertia::render('reservations/create', [
-            'stay' => $request->validated(),
-            'rooms' => app(AssignableRooms::class)->forStay($request->validated('room_type_id'), $request->validated('arrival'), $request->validated('departure')),
-            'roomType' => $type->only(['id', 'name']),
-            'ratePlan' => $plan->only(['id', 'name', 'currency']),
-            'restrictionWarnings' => [...app(BookingRules::class)->warnings(Tenancy::property(), $request->validated('arrival'), $request->validated('departure')), ...$restrictions->warnings($plan, $type, $request->validated('arrival'), $request->validated('departure'))],
-            'nightlyRate' => app(StayPricing::class)->quote($plan, $type, $request->validated('arrival'), $request->validated('departure'), (int) $request->validated('adults'), (int) $request->validated('children'))->nights[0]['total'] ?? null,
+            'stay' => $stay,
+            'rooms' => app(AssignableRooms::class)->forStay(null, $stay['arrival'], $stay['departure']),
+            'roomType' => $type?->only(['id', 'name']),
+            'ratePlan' => $plan?->only(['id', 'name', 'currency']),
+            'ratePlans' => $plans->map(fn (RatePlan $plan) => [...$plan->only(['id', 'name', 'currency']), 'room_type_ids' => $plan->roomTypes->modelKeys()]),
+            'restrictionWarnings' => [...app(BookingRules::class)->warnings(Tenancy::property(), $stay['arrival'], $stay['departure']), ...($plan && $type ? $restrictions->warnings($plan, $type, $stay['arrival'], $stay['departure']) : [])],
+            'nightlyRate' => $plan && $type ? (app(StayPricing::class)->quote($plan, $type, $stay['arrival'], $stay['departure'], (int) $stay['adults'], (int) $stay['children'])->nights[0]['total'] ?? null) : null,
             'businessDate' => BusinessDate::current(),
         ]);
     }
@@ -121,7 +125,8 @@ class ReservationController extends Controller
             ] : null,
             'canAmend' => Gate::allows('amend', $reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),
-            'can' => ['cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation), 'moveRoom' => $canMove, 'changeStay' => Gate::allows('changeStay', $reservation),
+            'can' => ['checkIn' => $reservation->status === ReservationStatus::Confirmed && $reservation->arrival->toDateString() <= BusinessDate::current() && $reservation->departure->toDateString() > BusinessDate::current() && Gate::allows('checkIn', $reservation),
+                'cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation), 'moveRoom' => $canMove, 'changeStay' => Gate::allows('changeStay', $reservation),
                 'checkOut' => Gate::allows('checkOut', $reservation), 'overrideBalance' => Gate::allows('checkOutWithBalance', $reservation)],
             'moveRooms' => $canMove ? app(AssignableRooms::class)->forMove($reservation) : [],
             'leadGuest' => $reservation->leadGuest()?->only(['id', 'name', 'email', 'phone', 'nationality']),

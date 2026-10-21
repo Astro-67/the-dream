@@ -5,6 +5,8 @@ import Create from '@/pages/reservations/create';
 
 type FieldProps = {
     name?: string;
+    type?: string;
+    required?: boolean;
     value?: string | number;
     defaultValue?: string | number;
     onChange?: (event: { target: { value: string } }) => void;
@@ -41,6 +43,14 @@ function formAfter(edits: [string, string][], source = 'direct') {
                 },
                 roomType: { id: 'type', name: 'Double' },
                 ratePlan: { id: 'plan', name: 'Standard', currency: 'USD' },
+                ratePlans: [
+                    {
+                        id: 'plan',
+                        name: 'Standard',
+                        currency: 'USD',
+                        room_type_ids: ['type'],
+                    },
+                ],
                 rooms: [],
                 restrictionWarnings: [],
                 nightlyRate: 10000,
@@ -58,6 +68,8 @@ function formAfter(edits: [string, string][], source = 'direct') {
             <input
                 key={field.name}
                 name={field.name}
+                type={field.type}
+                required={field.required}
                 value={field.value ?? field.defaultValue ?? ''}
                 readOnly
             />
@@ -92,3 +104,21 @@ assert.match(
 );
 assert.match(formAfter([], 'walk-in'), /name="arrival"[^>]*value="2026-12-01"/);
 console.log('Reservation stay edits and walk-in source changes: PASS');
+const guestForm = formAfter([]);
+for (const [name, type] of [
+    ['first_name', 'text'],
+    ['last_name', 'text'],
+    ['email', 'email'],
+    ['phone', 'tel'],
+]) {
+    assert.match(
+        guestForm,
+        new RegExp(`type="${type}"[^>]*name="lead_guest\\[${name}\\]"`),
+    );
+}
+assert.match(guestForm, /required=""[^>]*name="lead_guest\[first_name\]"/);
+assert.match(
+    guestForm,
+    /<input type="email" readOnly="" name="lead_guest\[email\]"/,
+);
+console.log('Lead guest fields take text, email and phone: PASS');

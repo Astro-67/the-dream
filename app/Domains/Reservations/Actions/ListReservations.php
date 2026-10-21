@@ -18,7 +18,7 @@ class ListReservations
         $businessDate = BusinessDate::current();
         $reservations = app(ReservationLists::class)->query($list, $date, $search)->paginate(50)->withQueryString();
         $reservations->getCollection()->each(fn (Reservation $reservation) => $reservation->setAttribute('is_overstay', $reservation->isOverstay($businessDate))->setAttribute('can_check_in', $reservation->status === ReservationStatus::Confirmed
-            && $reservation->arrival->toDateString() === $businessDate && Gate::allows('checkIn', $reservation))
+            && $reservation->arrival->toDateString() <= $businessDate && $reservation->departure->toDateString() > $businessDate && Gate::allows('checkIn', $reservation))
             ->setAttribute('can_check_out', $reservation->status === ReservationStatus::CheckedIn
                 && $reservation->departure->toDateString() <= $businessDate && Gate::allows('checkOut', $reservation)));
         $leaving = $reservations->getCollection()->filter(fn (Reservation $reservation) => $reservation->getAttribute('can_check_out'));

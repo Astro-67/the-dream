@@ -4,6 +4,7 @@ import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { index, store } from '@/routes/rate-plans';
@@ -124,19 +125,32 @@ export default function CreateRatePlan({
                                             <Label htmlFor="adjustment">
                                                 {kind === 'percent'
                                                     ? 'Percent (−10 is 10% off)'
-                                                    : `Minor units of ${base.currency} (negative is off)`}
+                                                    : `Amount in ${base.currency} (negative is off)`}
                                             </Label>
-                                            <Input
-                                                id="adjustment"
-                                                name="adjustment"
-                                                type="number"
-                                                step={1}
-                                                required
-                                                className="tabular-nums"
-                                                aria-invalid={
-                                                    !!errors.adjustment
-                                                }
-                                            />
+                                            {kind === 'percent' ? (
+                                                <Input
+                                                    id="adjustment"
+                                                    name="adjustment"
+                                                    type="number"
+                                                    step={1}
+                                                    required
+                                                    className="tabular-nums"
+                                                    aria-invalid={
+                                                        !!errors.adjustment
+                                                    }
+                                                />
+                                            ) : (
+                                                <MoneyInput
+                                                    id="adjustment"
+                                                    name="adjustment"
+                                                    currency={base.currency}
+                                                    required
+                                                    className="tabular-nums"
+                                                    aria-invalid={
+                                                        !!errors.adjustment
+                                                    }
+                                                />
+                                            )}
                                             <InputError
                                                 message={errors.adjustment}
                                             />
