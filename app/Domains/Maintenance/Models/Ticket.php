@@ -80,7 +80,12 @@ class Ticket extends Model
         return $this->room !== null ? __('Room :number', ['number' => $this->room->number]) : $this->location;
     }
 
-    /** Appends a history entry; called by the actions inside their transaction. */
+    /**
+     * Appends a history entry; called by the actions inside their transaction.
+     *
+     * @param  array<string, mixed>|null  $before
+     * @param  array<string, mixed>|null  $after
+     */
     public function recordEvent(?User $actor, string $event, ?array $before, ?array $after): void
     {
         $this->events()->create(['actor_id' => $actor?->id, 'event' => $event, 'before' => $before, 'after' => $after, 'recorded_at' => now()]);
