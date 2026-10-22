@@ -137,7 +137,11 @@ return [
 
         return $responses;
     }),
-    'members.index' => RouteCoverage::visit(),
+    'members.index' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoInvitation) {
+        $bravoInvitation($t);
+
+        return [$this->actingAs($t->a->owner)->get(route('members.index'))->assertOk(), $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get(route('members.index'))->assertOk()];
+    }),
     'members.edit' => RouteCoverage::attempt(fn (TwoTenants $t) => $this->actingAs($t->a->owner)->get(route('members.edit', $bravoMembership($t)->id))->assertNotFound()),
     'members.update' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoMembership, $bravoAccess) {
         $m = $bravoMembership($t);
@@ -165,11 +169,6 @@ return [
         $this->actingAs($t->a->owner)->post(route('members.transfer-ownership', $bravoMembership($t)), ['role' => 'owner', 'all_properties' => true, '_property' => $t->a->property->id])->assertNotFound(),
         $this->actingAs($t->a->owner)->post(route('members.transfer-ownership', $bravoMembership($t)), ['role' => 'owner', 'all_properties' => true, '_property' => $t->b->property->id])->assertForbidden(),
     ]),
-    'invitations.index' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoInvitation) {
-        $bravoInvitation($t);
-
-        return [$this->actingAs($t->a->owner)->get(route('invitations.index'))->assertOk(), $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get(route('invitations.index'))->assertOk()];
-    }),
     'invitations.create' => RouteCoverage::visit(),
     'invitations.store' => RouteCoverage::attempt(function (TwoTenants $t) {
         $invite = ['email' => 'spy@alpha.test', 'role' => 'front_desk', 'property_ids' => [$t->b->property->id]];

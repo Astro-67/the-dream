@@ -13,6 +13,18 @@ use App\Domains\Reservations\Models\NoShowProposal;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 
+test('shift exceptions are omitted only for opted-out properties', function (bool $enabled) {
+    [$owner, , $property] = organizationWithOwner();
+    $property->update(['business_date' => '2026-12-10']);
+    inTenant($property, function () use ($owner, $property, $enabled) {
+        app(OpenCashierShift::class)->handle($owner, ['USD' => 0]);
+        $property->update(['payment_settings' => ['use_cashier_shifts' => $enabled]]);
+        $close = app(CloseBusinessDate::class)->handle($owner, $property, '2026-12-10');
+        expect(ExceptionListItem::query()->where('business_date_close_id', $close->id)->where('kind', ExceptionKind::CashierShift)->count())
+            ->toBe($enabled ? 1 : 0);
+    });
+})->with([true, false]);
+
 test('closing carries open no-shows, departures not checked out and open shifts to the next date without stalling', function () {
     [$owner, , $property] = organizationWithOwner();
     $property->update(['business_date' => '2026-12-10']);

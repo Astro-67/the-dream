@@ -3,6 +3,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Link, usePage } from '@inertiajs/react';
+import { formatDate } from '@/features/platform/format';
+import { index as taxRules } from '@/routes/tax-rules';
 
 export type Settings = Record<
     string,
@@ -29,6 +32,7 @@ export function propertySettingsTabForErrors(
         const group = field.split('.')[0];
         if (group in propertySettingsTabs) return group;
         if (field === 'receipt_prefix') return 'payment_settings';
+        if (group === 'tax_inclusion') return 'tax_settings';
         if (
             [
                 'housekeeping_inspection_required',
@@ -48,6 +52,7 @@ export function propertySettingsTabForErrors(
 }
 
 const labels: Record<string, string> = {
+    use_cashier_shifts: 'Use cashier shifts',
     book_ahead_days: 'Book-ahead limit (days)',
     minimum_notice_hours: 'Minimum notice (hours)',
     same_day_cutoff_time: 'Same-day cutoff time (optional)',
@@ -70,7 +75,6 @@ const labels: Record<string, string> = {
         'Include overstays in automatic check-out',
     automatic_checkout_summary_email: 'Automatic check-out summary email',
     zra_tax_category: 'ZRA tax category',
-    tax_inclusive: 'Prices include tax',
     tax_label: 'Tax label',
     tax_rate: 'Tax rate (%)',
     service_charge_enabled: 'Add service charge',
@@ -78,7 +82,8 @@ const labels: Record<string, string> = {
     show_breakdown_on_bill: 'Show tax breakdown on bill',
     show_breakdown_on_receipt: 'Show tax breakdown on receipt',
     accepted_methods: 'Accepted payment methods',
-    block_checkout_if_unpaid: 'Block check-out if unpaid',
+    block_checkout_if_unpaid:
+        'Require credit balances to be settled before check-out',
     manager_override: 'Allow manager override for unpaid check-out',
     deposit_percentage: 'Deposit (%)',
     payment_due_days: 'Payment due (days)',
@@ -95,9 +100,11 @@ const methods: Record<string, string> = {
 export function PropertySettingsFields({
     values,
     errors,
+    canManageCashierShifts = false,
 }: {
     values: Partial<PropertySettings>;
     errors: Record<string, string | undefined>;
+    canManageCashierShifts?: boolean;
 }) {
     return (
         <>
@@ -157,6 +164,18 @@ export function PropertySettingsFields({
                                         name={name}
                                         defaultValue={value ? '1' : '0'}
                                         aria-invalid={!!error}
+                                        disabled={
+                                            field === 'use_cashier_shifts' &&
+                                            !canManageCashierShifts
+                                        }
+                                        aria-describedby={
+                                            field === 'use_cashier_shifts' ||
+                                            field ===
+                                                'automatic_checkout_include_unpaid' ||
+                                            field === 'block_checkout_if_unpaid'
+                                                ? `${key}-hint`
+                                                : undefined
+                                        }
                                     >
                                         <option value="1">Yes</option>
                                         <option value="0">No</option>
@@ -212,6 +231,39 @@ export function PropertySettingsFields({
                                         aria-invalid={!!error}
                                     />
                                 )}
+                                {field === 'use_cashier_shifts' && (
+                                    <p
+                                        id={`${key}-hint`}
+                                        className="text-sm text-muted-foreground"
+                                    >
+                                        Only an owner can change this setting.
+                                        Close all open shifts before turning it
+                                        off. Previous shifts and cash records
+                                        are kept.
+                                    </p>
+                                )}
+                                {field ===
+                                    'automatic_checkout_include_unpaid' && (
+                                    <p
+                                        id={`${key}-hint`}
+                                        className="text-sm text-status-warning"
+                                    >
+                                        If enabled, automatic check-out includes
+                                        unpaid stays. Their balances remain open
+                                        after departure for finance to collect;
+                                        check-out does not settle the debt.
+                                    </p>
+                                )}
+                                {field === 'block_checkout_if_unpaid' && (
+                                    <p
+                                        id={`${key}-hint`}
+                                        className="text-sm text-muted-foreground"
+                                    >
+                                        Outstanding debt always blocks ordinary
+                                        check-out. This setting applies only to
+                                        credit balances.
+                                    </p>
+                                )}
                                 <InputError message={error} />
                             </div>
                         );
@@ -219,5 +271,138 @@ export function PropertySettingsFields({
                 </fieldset>
             ))}
         </>
+    );
+}
+
+export type TaxInclusionControl = {
+    state: 'included' | 'added' | 'mixed' | 'none';
+    covers_extras: boolean;
+    earliest: string;
+    pending: { name: string; inclusive: boolean; effective_from: string }[];
+};
+
+const inclusionLabels: Record<string, string> = {
+    vat: 'VAT included in room rate',
+    levy: 'Infrastructure levy included in room rate',
+};
+
+/** Reads and changes the tax rules themselves; nothing here is stored as a property setting. */
+export function TaxInclusionFields({
+    propertyId,
+    controls,
+    canManage,
+    errors,
+}: {
+    propertyId: string;
+    controls: Record<string, TaxInclusionControl>;
+    canManage: boolean;
+    errors: Record<string, string | undefined>;
+}) {
+    // The taxes page works on the selected property, which may not be the one edited here.
+    const selected =
+        usePage<{ tenant: { property?: { id: string } | null } }>().props.tenant
+            .property?.id === propertyId;
+    const earliest = Object.values(controls)
+        .filter((control) => control.state !== 'none')
+        .map((control) => control.earliest)
+        .sort()
+        .at(-1);
+    return (
+        <fieldset className="grid gap-4 border-t pt-6 sm:grid-cols-2">
+            <legend className="px-1 text-lg font-semibold">
+                Taxes in the room rate
+            </legend>
+            <p className="text-sm text-muted-foreground sm:col-span-2">
+                These choices change the tax rules from a date. Earlier dates
+                and posted charges keep their tax.
+            </p>
+            {Object.entries(controls).map(([control, value]) => {
+                const key = `tax_inclusion.${control}`;
+                return (
+                    <div key={control} className="grid content-start gap-2">
+                        <Label htmlFor={key}>{inclusionLabels[control]}</Label>
+                        {value.state === 'none' ? (
+                            <p className="text-sm">
+                                No rule covers room charges.{' '}
+                                {selected ? (
+                                    <Link
+                                        href={taxRules()}
+                                        className="underline"
+                                    >
+                                        Configure taxes
+                                    </Link>
+                                ) : (
+                                    'Switch to this property to configure taxes.'
+                                )}
+                            </p>
+                        ) : (
+                            <NativeSelect
+                                id={key}
+                                name={`tax_inclusion[${control}]`}
+                                defaultValue={
+                                    value.state === 'mixed'
+                                        ? ''
+                                        : value.state === 'included'
+                                          ? '1'
+                                          : '0'
+                                }
+                                disabled={!canManage}
+                                aria-invalid={!!errors[key]}
+                            >
+                                {value.state === 'mixed' && (
+                                    <option value="">
+                                        Mixed: leave rules as they are
+                                    </option>
+                                )}
+                                <option value="1">Yes</option>
+                                <option value="0">No</option>
+                            </NativeSelect>
+                        )}
+                        {value.covers_extras && (
+                            <p className="text-sm text-muted-foreground">
+                                This rule also covers extras. An extra entered
+                                as a VAT-inclusive price stays inclusive.
+                            </p>
+                        )}
+                        {value.pending.map((rule) => (
+                            <p
+                                key={`${rule.name}-${rule.effective_from}`}
+                                className="text-sm text-muted-foreground"
+                            >
+                                From {formatDate(rule.effective_from)}:{' '}
+                                {rule.name}{' '}
+                                {rule.inclusive ? 'included' : 'added'}
+                            </p>
+                        ))}
+                        <InputError message={errors[key]} />
+                    </div>
+                );
+            })}
+            {earliest && canManage && (
+                <div className="grid content-start gap-2">
+                    <Label htmlFor="tax_inclusion.effective_from">
+                        Change takes effect from
+                    </Label>
+                    <Input
+                        id="tax_inclusion.effective_from"
+                        name="tax_inclusion[effective_from]"
+                        type="date"
+                        min={earliest}
+                        defaultValue={earliest}
+                        aria-describedby="tax_inclusion_earliest"
+                        aria-invalid={!!errors['tax_inclusion.effective_from']}
+                    />
+                    <p
+                        id="tax_inclusion_earliest"
+                        className="text-sm text-muted-foreground"
+                    >
+                        Earliest: {formatDate(earliest)}
+                    </p>
+                    <InputError
+                        message={errors['tax_inclusion.effective_from']}
+                    />
+                </div>
+            )}
+        </fieldset>
     );
 }

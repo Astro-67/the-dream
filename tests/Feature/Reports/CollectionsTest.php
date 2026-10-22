@@ -11,6 +11,7 @@ use App\Domains\Billing\Models\Folio;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Enums\PropertyStatus;
+use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
@@ -102,4 +103,66 @@ test('collections validates dates periods and views and preserves report permiss
     }
     $this->actingAs($t->a->member(OrganizationRole::Housekeeping))->get(route('payments.index'))->assertForbidden();
     $this->get(route('dashboard'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('collections', null));
+});
+
+// protects=each payment is listed once with who, where and how; fails_when=a correction reads as a new payment or another tenant's payment appears.
+test('received lists each payment newest first with guest, room and receipt, and corrections stay distinct', function () {
+    $t = twoTenants();
+    $folio = collectionsFolio($t->a);
+    collectionsFolio($t->b);
+    inTenant($t->a->property, function () use ($t, $folio) {
+        $payment = app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'card', 'amount' => 30, 'currency' => 'USD', 'reference' => 'POS-77']);
+        app(ReversePosting::class)->handle($t->a->owner, $payment, 'Not received');
+    });
+    $this->actingAs($t->a->member(OrganizationRole::Finance))
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('payments.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('payments.total', 5)->where('payments.data.0.type', 'reversal')->where('payments.data.0.amount', -30)
+        ->where('payments.data.1.type', 'payment')->where('payments.data.1.reference', 'POS-77')->where('payments.data.1.amount', 30)
+        ->where('payments.data.1.guest', 'Travel Booker')->where('payments.data.1.room', null)->where('payments.data.1.processed_by', $t->a->owner->name)
+        ->where('payments.data.1.receipt.number', fn (string $number) => str_starts_with($number, 'RCT-'))
+        ->where('payments.data', fn ($rows) => collect($rows)->every(fn ($row) => $row['business_date'] === '2026-12-10')));
+});
+
+test('the payments list keeps fifty rows a page and the outstanding view has none', function () {
+    $t = twoTenants();
+    $folio = collectionsFolio($t->a);
+    inTenant($t->a->property, function () use ($t, $folio) {
+        foreach (range(1, 50) as $index) {
+            app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'bank_transfer', 'amount' => $index, 'currency' => 'USD']);
+        }
+    });
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $this->get(route('payments.index', ['payments_page' => 2]))->assertInertia(fn (Assert $page) => $page
+        ->where('payments.total', 53)->has('payments.data', 3)->where('payments.next_page_url', null));
+    $this->get(route('payments.index', ['view' => 'outstanding']))->assertInertia(fn (Assert $page) => $page->where('payments', null));
+});
+
+// protects=the date range follows the property's own business dates; fails_when=a payment just after UTC midnight lands on the wrong day.
+test('payments are listed on the property business date, not the UTC date they were posted', function () {
+    $t = twoTenants();
+    $t->a->property->update(['timezone' => 'Africa/Dar_es_Salaam']);
+    $folio = collectionsFolio($t->a);
+    // 22:30 UTC on 9 Dec is already 10 Dec in Dar es Salaam, and the business date is 10 Dec.
+    $this->travelTo(CarbonImmutable::parse('2026-12-09 22:30:00', 'UTC'));
+    inTenant($t->a->property, fn () => app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'mobile_money', 'amount' => 11, 'currency' => 'USD']));
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+
+    $this->get(route('payments.index', ['period' => 'custom', 'from' => '2026-12-10', 'to' => '2026-12-10']))->assertInertia(fn (Assert $page) => $page
+        ->where('payments.data', fn ($rows) => collect($rows)->contains(fn ($row) => $row['amount'] === 11 && $row['business_date'] === '2026-12-10')));
+    $this->get(route('payments.index', ['period' => 'custom', 'from' => '2026-12-09', 'to' => '2026-12-09']))->assertInertia(fn (Assert $page) => $page
+        ->where('payments.data', fn ($rows) => collect($rows)->doesntContain(fn ($row) => $row['amount'] === 11)));
+});
+
+test('outstanding shows settled folios departing in the period only when asked', function () {
+    $t = twoTenants();
+    $folio = collectionsFolio($t->a);
+    inTenant($t->a->property, fn () => app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'card', 'amount' => $folio->balance()->amount, 'currency' => 'USD']));
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $query = ['view' => 'outstanding', 'period' => 'custom', 'from' => '2026-12-12', 'to' => '2026-12-12'];
+
+    $this->get(route('payments.index', $query))->assertInertia(fn (Assert $page) => $page
+        ->where('folios.data', fn ($rows) => collect($rows)->pluck('id')->doesntContain($folio->id)));
+    $this->get(route('payments.index', [...$query, 'settled' => 1]))->assertInertia(fn (Assert $page) => $page
+        ->where('filters.settled', true)->where('folios.data', fn ($rows) => collect($rows)->contains(fn ($row) => $row['id'] === $folio->id && $row['balance'] === 0)));
 });

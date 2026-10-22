@@ -94,10 +94,13 @@ function organizationSetupPayload(array $overrides = []): array
  */
 function organizationWithOwner(array $overrides = [], ?User $owner = null): array
 {
+    $overrides += ['payment_settings' => ['use_cashier_shifts' => true]];
     $owner ??= User::factory()->withTwoFactor()->create();
     $organization = app(CreateOrganization::class)->handle($owner, OrganizationSetup::fromArray(organizationSetupPayload([
         'star_rating' => 3,
+        'tin' => 'TIN-0042',
         'z_number' => 'Z-0042',
+        'vrn' => 'VRN-0042',
         ...$overrides,
     ])));
     $property = inTenant($organization, fn () => Property::query()->sole());

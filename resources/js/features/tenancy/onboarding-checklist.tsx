@@ -16,7 +16,12 @@ export type Checklist = {
         completed: boolean;
         href: string | null;
     }[];
-    gates: { key: string; label: string; passed: boolean }[];
+    gates: {
+        key: string;
+        label: string;
+        passed: boolean;
+        href: string | null;
+    }[];
     canGoLive: boolean;
     canReviewTaxes: boolean;
     receiptNotice: string | null;
@@ -169,7 +174,16 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                             key={gate.key}
                             className="flex flex-wrap items-center justify-between gap-3"
                         >
-                            <span className="text-sm">{gate.label}</span>
+                            {!gate.passed && gate.href ? (
+                                <Link
+                                    href={gate.href}
+                                    className="inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                >
+                                    {gate.label}
+                                </Link>
+                            ) : (
+                                <span className="text-sm">{gate.label}</span>
+                            )}
                             <StatusChip
                                 tone={gate.passed ? 'success' : 'warning'}
                             >

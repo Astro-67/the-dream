@@ -9,6 +9,7 @@ use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Housekeeping\Models\Assignment;
+use App\Domains\Maintenance\Models\Ticket;
 use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Subscriptions\Models\Plan;
@@ -33,12 +34,13 @@ trait AuditsRefusals
 
     private function auditRefusal(string $stage): void
     {
-        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment') ?? $this->route('folio') ?? $this->route('posting') ?? $this->route('feeProposal') ?? $this->route('cashierShift') ?? $this->route('approval') ?? $this->route('noShowProposal') ?? $this->route('importJob') ?? $this->route('property') ?? $this->route('plan');
+        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment') ?? $this->route('ticket') ?? $this->route('folio') ?? $this->route('posting') ?? $this->route('feeProposal') ?? $this->route('cashierShift') ?? $this->route('approval') ?? $this->route('noShowProposal') ?? $this->route('importJob') ?? $this->route('property') ?? $this->route('plan');
         if (! $subject instanceof Model) {
             $subject = match (true) {
                 $this->routeIs('guests.*') => new Guest,
                 $this->routeIs('bookers.*') => new Booker,
                 $this->routeIs('housekeeping.*') => new Assignment,
+                $this->routeIs('maintenance.*') => new Ticket,
                 $this->routeIs('cashier-shifts.*') => new CashierShift,
                 $this->routeIs('approvals.*') => new PostingApproval,
                 $this->routeIs('approval-thresholds.*') => new ApprovalThreshold,

@@ -23,6 +23,7 @@ type Breakdown = {
     tax: number;
     gross: number;
     lines: Line[];
+    unavailable: string[];
 };
 type Charge = Partial<
     Record<'amount' | 'currency' | 'date' | 'guests' | 'charge', string>
@@ -176,17 +177,29 @@ export default function TaxPreview({
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                                {breakdown.lines.length === 0 && (
-                                    <TableRow>
+                                {breakdown.unavailable.map((name) => (
+                                    <TableRow key={name}>
+                                        <TableCell>{name}</TableCell>
                                         <TableCell
                                             className="text-muted-foreground"
-                                            colSpan={3}
+                                            colSpan={2}
                                         >
-                                            No tax rule applies to this charge
-                                            on this date.
+                                            Not available in this currency
                                         </TableCell>
                                     </TableRow>
-                                )}
+                                ))}
+                                {breakdown.lines.length === 0 &&
+                                    breakdown.unavailable.length === 0 && (
+                                        <TableRow>
+                                            <TableCell
+                                                className="text-muted-foreground"
+                                                colSpan={3}
+                                            >
+                                                No tax rule applies to this
+                                                charge on this date.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
                             </TableBody>
                             <tfoot>
                                 <TableRow className="font-semibold">

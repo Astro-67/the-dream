@@ -2,28 +2,42 @@ import { Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import {
     CollectionsTable,
+    PaymentsTable,
     periodLabels,
+    type PaymentRow,
     type Received,
 } from '@/features/reports/collections-table';
 import {
     FolioBalances,
+    ShowSettledField,
     type PropertyFinance,
 } from '@/features/reports/finance-report';
 import ReportLayout from '@/features/reports/report-layout';
 import { index } from '@/routes/payments';
+import type { Paginated } from '@/types';
 
-type Filters = { from: string; to: string; period: string; view: string };
+type Filters = {
+    from: string;
+    to: string;
+    period: string;
+    view: string;
+    settled: boolean;
+};
 
 export default function Payments({
     filters,
     received,
+    payments,
     folios,
     refreshedAt,
+    cashierShiftHistoryUrl,
 }: {
     filters: Filters;
     received: Received | null;
+    payments: Paginated<PaymentRow> | null;
     folios: PropertyFinance['folios'] | null;
     refreshedAt: string;
+    cashierShiftHistoryUrl: string | null;
 }) {
     return (
         <ReportLayout
@@ -32,11 +46,14 @@ export default function Payments({
             filters={filters}
             refreshedAt={refreshedAt}
             action={index.url()}
-            description="Money received by method and currency on the selected business dates. Use the date fields for a custom range. Outstanding shows current folio balances, regardless of those dates."
+            description="Money received by method and currency on the selected business dates. Use the date fields for a custom range. Outstanding shows current folio balances, regardless of those dates; Show settled adds settled folios departing in them."
             fields={
                 <>
                     <input type="hidden" name="view" value={filters.view} />
                     <input type="hidden" name="period" value="custom" />
+                    {filters.view === 'outstanding' && (
+                        <ShowSettledField checked={filters.settled} />
+                    )}
                 </>
             }
         >
@@ -74,6 +91,17 @@ export default function Payments({
                     </span>
                 )}
             </nav>
+            {cashierShiftHistoryUrl && (
+                <Button
+                    variant="outline"
+                    className="min-h-11 self-start"
+                    asChild
+                >
+                    <Link href={cashierShiftHistoryUrl}>
+                        Cashier shift history
+                    </Link>
+                </Button>
+            )}
             <nav aria-label="Payment views" className="flex gap-2">
                 {['received', 'outstanding'].map((view) => (
                     <Button
@@ -107,6 +135,12 @@ export default function Payments({
                             posted. Currencies are never combined.
                         </p>
                         <CollectionsTable received={received} />
+                    </>
+                )}
+                {payments && payments.total > 0 && (
+                    <>
+                        <h3 className="font-semibold">Individual payments</h3>
+                        <PaymentsTable payments={payments} />
                     </>
                 )}
                 {folios && <FolioBalances folios={folios} />}

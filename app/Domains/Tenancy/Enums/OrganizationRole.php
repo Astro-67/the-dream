@@ -25,10 +25,24 @@ enum OrganizationRole: string
             self::Owner => 'Owner',
             self::GroupOperationsManager => 'Group operations manager',
             self::PropertyManager => 'Property manager',
-            self::FrontDesk => 'Front desk',
+            self::FrontDesk => 'Reception',
             self::Finance => 'Finance',
             self::Housekeeping => 'Housekeeping',
             self::Auditor => 'Auditor',
+        };
+    }
+
+    /** What the role may do, shown when choosing it. Keep in step with permissions(). */
+    public function summary(): string
+    {
+        return match ($this) {
+            self::Owner => 'Everything, in every property, including staff, billing settings and the subscription.',
+            self::GroupOperationsManager => 'Operations across properties: reservations, rooms, rates, housekeeping, maintenance and reports. Does not take payments or manage staff.',
+            self::PropertyManager => 'Runs their properties: reservations, rooms, rates, housekeeping, maintenance, reports, inviting staff and taking payments. Refunds and corrections stay with Finance.',
+            self::FrontDesk => 'Reservations, check-in and check-out, guest registration, taking payments and reporting maintenance problems in their properties.',
+            self::Finance => 'Payments, corrections, refunds, write-offs and reports in their properties.',
+            self::Housekeeping => 'Room cleaning status, their assigned rooms and reporting maintenance problems. No guests, payments or reports.',
+            self::Auditor => 'Views reservations, finance and reports in their properties without changing anything.',
         };
     }
 
@@ -52,13 +66,17 @@ enum OrganizationRole: string
                 P::MembersView, P::InventoryManage, P::RatesManage,
                 P::ReservationsView, P::ReservationsManage, P::ReservationsVoid, P::RoomsAssign, P::GuestsView, P::GuestsRegister, P::GuestsMerge,
                 P::HousekeepingView, P::HousekeepingManage, P::HousekeepingSupervise,
+                P::MaintenanceView, P::MaintenanceReport, P::MaintenanceManage,
                 P::FinanceView, P::ReportsView, P::NightAuditView, P::NightAuditClose,
             ],
             self::PropertyManager => [
                 P::PropertiesView, P::PropertiesUpdate,
                 P::MembersView, P::MembersInvite, P::OutboxRecover, P::InventoryManage, P::RatesManage, P::TaxManage,
                 P::ReservationsView, P::ReservationsManage, P::ReservationsVoid, P::RoomsAssign, P::GuestsView, P::GuestsRegister, P::GuestsMerge, P::CheckoutOverrideBalance,
+                // #144, following ADR 0015: covers the desk and takes payments, as Uhuru's manager does; corrections stay with Finance.
+                P::ChargesPost,
                 P::HousekeepingView, P::HousekeepingManage, P::HousekeepingSupervise, P::HousekeepingOverrideReady,
+                P::MaintenanceView, P::MaintenanceReport, P::MaintenanceManage,
                 P::FiscalExceptionsReview, P::ReportsView,
                 P::ChannelsManage, P::ApprovalsManage, P::NightAuditView, P::NightAuditClose,
             ],
@@ -66,12 +84,13 @@ enum OrganizationRole: string
                 P::ReservationsView, P::ReservationsManage, P::RoomsAssign,
                 P::GuestsView, P::GuestsRegister, P::GuestIdentityView,
                 P::ChargesPost, P::HousekeepingView, P::NightAuditView,
+                P::MaintenanceView, P::MaintenanceReport,
             ],
             self::Finance => [
                 P::ReservationsView, P::GuestsView, P::ChargesPost, P::TaxManage,
                 P::FinanceView, P::FinanceCorrect, P::PaymentsRefund, P::FoliosWriteOff, P::FiscalExceptionsReview, P::ReportsView, P::NightAuditView,
             ],
-            self::Housekeeping => [P::HousekeepingView, P::HousekeepingManage],
+            self::Housekeeping => [P::HousekeepingView, P::HousekeepingManage, P::MaintenanceView, P::MaintenanceReport],
             self::Auditor => [
                 P::PropertiesView, P::MembersView,
                 P::ReservationsView, P::GuestsView, P::HousekeepingView,

@@ -45,7 +45,6 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     });
 
     Route::middleware(['two-factor:owner'])->group(function () {
-        Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
         Route::get('invitations/create', [InvitationController::class, 'create'])->name('invitations.create');
         Route::post('invitations', [InvitationController::class, 'store'])->middleware('property.intent')->name('invitations.store');
         Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy'])->middleware('property.intent')->name('invitations.destroy');

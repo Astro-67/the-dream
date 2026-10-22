@@ -1,10 +1,17 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenFolio;
+use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\Posting;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 
@@ -142,4 +149,65 @@ test('booking tabs use the selected business date and preserve search and proper
         ->assertInertia(fn (Assert $page) => $page->has('reservations.data', 1)->where('reservations.data.0.id', $records['TODAY']));
     $this->actingAs($t->a->member(OrganizationRole::Finance))->get(route('reservations.index'))
         ->assertInertia(fn (Assert $page) => $page->where('canCreate', false));
+});
+
+// protects=front desk identifies the guest, room and payment truthfully; fails_when=an uncharged stay reads as paid or currencies are combined.
+test('rows lead with the guest and room and show each currency balance with unposted nights flagged', function () {
+    $t = twoTenants();
+    $roomNumber = inTenant($t->a->property, function () use ($t) {
+        $seed = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $room = Room::query()->sole();
+        $copy = function (string $number, array $attributes = []) use ($seed) {
+            $reservation = $seed->replicate();
+            $reservation->forceFill(['reservation_number' => $number, ...$attributes])->save();
+            foreach ($seed->priceLines as $line) {
+                $reservation->priceLines()->create($line->only(['date', 'amount', 'currency', 'rate_plan_id']));
+            }
+
+            return $reservation;
+        };
+        // Booker only, nothing posted yet: not paid.
+        $copy('ROWS-BOOKER');
+        // Lead guest and room, owing in USD and in credit in TZS, every night charged.
+        $owing = $copy('ROWS-OWING', ['room_id' => $room->id, 'status' => ReservationStatus::CheckedIn]);
+        ReservationGuest::query()->create(['reservation_id' => $owing->id, 'guest_id' => Guest::query()->create(['name' => 'Amina Lead'])->id]);
+        $usd = Folio::query()->where('reservation_id', $owing->id)->firstOr(fn () => app(OpenFolio::class)->handle($t->a->owner, $owing, 'USD'));
+        foreach ($owing->priceLines()->get() as $line) {
+            Posting::query()->create(['folio_id' => $usd->id, 'reservation_id' => $owing->id, 'price_line_id' => $line->id, 'type' => 'charge', 'category' => 'room',
+                'quantity' => 1, 'unit_price' => 100, 'net' => 100, 'amount' => 100, 'currency' => 'USD', 'tax_lines' => [], 'tax_rule_ids' => [],
+                'idempotency_key' => 'rows:'.$line->id, 'business_date' => $line->date, 'posted_at' => now()]);
+        }
+        app(RecordPayment::class)->handle($t->a->owner, app(OpenFolio::class)->handle($t->a->owner, $owing, 'TZS'), ['method' => 'bank_transfer', 'amount' => 5000, 'currency' => 'TZS']);
+        // Pointing at another property's room and booker shows neither.
+        $foreign = inTenant($t->a->otherProperty, fn () => BookingForm::details($t->a->owner));
+        $copy('ROWS-FOREIGN', ['room_id' => inTenant($t->a->otherProperty, fn () => Room::query()->sole()->id), 'booker_id' => $foreign['booker_id']]);
+        $seed->update(['status' => ReservationStatus::Void, 'reservation_number' => 'ROWS-VOID']);
+
+        return $room->number;
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+
+    DB::enableQueryLog();
+    $this->get(route('reservations.index', ['list' => 'all', 'search' => 'ROWS-']))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('reservations.data.0.reservation_number', 'ROWS-BOOKER')->where('reservations.data.0.guest_name', 'Travel Booker')->where('reservations.data.0.room_number', null)
+        ->where('reservations.data.0.balances', [['currency' => 'USD', 'balance' => 0, 'unposted' => true]])
+        ->where('reservations.data.1.reservation_number', 'ROWS-FOREIGN')->where('reservations.data.1.guest_name', null)->where('reservations.data.1.room_number', null)
+        ->where('reservations.data.2.guest_name', 'Amina Lead')->where('reservations.data.2.room_number', $roomNumber)
+        ->where('reservations.data.2.balances', [['currency' => 'TZS', 'balance' => -5000, 'unposted' => false], ['currency' => 'USD', 'balance' => 200, 'unposted' => false]])
+        ->where('reservations.data.3.guest_name', 'Travel Booker')->where('reservations.data.3.balances', [['currency' => 'USD', 'balance' => 0, 'unposted' => false]]));
+    // Measured on a second request, once the permission cache is warm.
+    DB::flushQueryLog();
+    $this->get(route('reservations.index', ['list' => 'all', 'search' => 'ROWS-']))->assertOk();
+    $baselineQueries = count(DB::getQueryLog());
+
+    // More rows on the page do not add queries.
+    inTenant($t->a->property, function () {
+        $seed = Reservation::query()->where('reservation_number', 'ROWS-BOOKER')->sole();
+        foreach (range(1, 5) as $index) {
+            $seed->replicate()->forceFill(['reservation_number' => 'ROWS-MORE-'.$index])->save();
+        }
+    });
+    DB::flushQueryLog();
+    $this->get(route('reservations.index', ['list' => 'all', 'search' => 'ROWS-']))->assertOk();
+    expect(count(DB::getQueryLog()))->toBe($baselineQueries);
 });

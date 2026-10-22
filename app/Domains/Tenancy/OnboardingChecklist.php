@@ -49,7 +49,12 @@ final class OnboardingChecklist
                 ['key' => 'import_reservations', 'label' => __('Import future reservations'), 'completed' => $this->hasImportedReservations($property), 'href' => Route::has('imports.index') ? route('imports.index') : null, 'allowed' => $actor->can('create', ImportJob::class)],
                 ['key' => 'sample_reservation', 'label' => __('Make a sample reservation'), 'completed' => ReservationLifecycleEvent::query()->where('property_id', $property->id)->where('test', true)->where('type', 'created')->exists(), 'href' => route('reservations.create'), 'allowed' => $actor->can('create', Reservation::class)],
             ]),
-            'gates' => $gates,
+            'gates' => array_map(fn (GoLiveGate $gate) => [
+                'key' => $gate->key,
+                'label' => $gate->label,
+                'passed' => $gate->passed,
+                'href' => $gate->onPropertyForm && $actor->can('update', $property) ? route('properties.edit', $property).'#'.$gate->key : null,
+            ], $gates),
             'canGoLive' => $actor->can('goLive', $property) && collect($gates)->every(fn (GoLiveGate $gate) => $gate->passed),
             'canReviewTaxes' => $actor->can('reviewTaxes', $property),
             'receiptNotice' => JurisdictionRules::onboardingReceiptNotice($property),

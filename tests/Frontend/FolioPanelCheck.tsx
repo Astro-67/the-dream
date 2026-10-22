@@ -7,6 +7,7 @@ import {
     type Folio,
     type Posting,
 } from '@/features/billing/folio-panel';
+import type { FolioSummary } from '@/features/billing/folio-summary';
 import type { Paginated } from '@/types';
 
 const posting: Posting = {
@@ -31,6 +32,22 @@ const posting: Posting = {
     actor: null,
 };
 
+const emptySummary: FolioSummary = {
+    room: 0,
+    extras: 0,
+    vat: 0,
+    levy: 0,
+    other_taxes: 0,
+    unclassified_taxes: 0,
+    charges: 0,
+    paid: 0,
+    refunded: 0,
+    written_off: 0,
+    net_payments: 0,
+    balance: 0,
+    levy_unavailable: false,
+};
+
 const incoming = renderToStaticMarkup(<PostingLink posting={posting} />);
 assert.match(incoming, /off-page-source/);
 assert.match(incoming, /Copy off-page-source/);
@@ -52,6 +69,24 @@ const outgoing = renderToStaticMarkup(
 assert.match(outgoing, /off-page-destination/);
 assert.match(outgoing, /Copy off-page-destination/);
 assert.doesNotMatch(outgoing, /original-source/);
+const refunded = renderToStaticMarkup(
+    <PostingLink
+        posting={{
+            ...posting,
+            type: 'payment',
+            related: null,
+            reason: null,
+            cancelled_by: {
+                id: 'refund',
+                type: 'refund',
+                folio_id: 'f',
+                destination_folio_id: null,
+            },
+        }}
+    />,
+);
+assert.match(refunded, /Refunded/);
+assert.doesNotMatch(refunded, /Moved out/);
 console.log('Off-page transfer identity: PASS');
 
 function pageOf<Item>(data: Item[]): Paginated<Item> {
@@ -128,8 +163,15 @@ const panel = renderToStaticMarkup(
         }}
         initialComponent={() => (
             <FolioPanel
+                reservationNumber="R-1042"
                 folios={folioPage}
-                totals={[{ currency: 'USD', balance: 0, charges: 0 }]}
+                totals={[
+                    {
+                        currency: 'USD',
+                        ...emptySummary,
+                        estimate: { nights: 2, amount: 20000 },
+                    },
+                ]}
                 canPostCharge
                 canRecordPayment
                 acceptedPaymentMethods={['card']}
@@ -138,6 +180,11 @@ const panel = renderToStaticMarkup(
     />,
 );
 assert.equal((panel.match(/<form\b/g) ?? []).length, 2);
+// A zero balance with nights still to charge is not called settled.
+assert.match(panel, /Balance of posted charges/);
+assert.doesNotMatch(panel, /Settled/);
+assert.match(panel, /Not yet charged: 2 nights/);
+assert.match(panel, /reservations\/R-1042\/statement/);
 assert.equal((panel.match(/aria-label="View folio /g) ?? []).length, 50);
 assert.match(panel, /folios_page=2/);
 assert.match(panel, /Sunset boat trip/);

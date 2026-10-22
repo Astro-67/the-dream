@@ -64,7 +64,7 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
     $intent = ['_property' => $property->id];
 
     return match ($routeName) {
-        'properties.index', 'properties.create', 'invitations.index', 'invitations.create' => ['GET', route($routeName)],
+        'properties.index', 'properties.create', 'invitations.create' => ['GET', route($routeName)],
         'properties.store' => ['POST', route($routeName), PropertyForm::payload($intent)],
         'properties.edit' => ['GET', route($routeName, $property)],
         'properties.update' => ['PUT', route($routeName, $property), PropertyForm::payload($intent)],
@@ -155,12 +155,12 @@ test('an owner who turns two-factor authentication off loses owner-only access u
     $this->delete(route('two-factor.disable'))->assertSessionHasNoErrors();
 
     $this->get(route('properties.index'))->assertRedirect(route('security.edit'));
-    $this->get(route('invitations.index'))->assertRedirect(route('security.edit'));
+    $this->get(route('members.index'))->assertRedirect(route('security.edit'));
 
     turnOnTwoFactor($t->a->owner);
 
     $this->get(route('properties.index'))->assertOk();
-    $this->get(route('invitations.index'))->assertOk();
+    $this->get(route('members.index'))->assertOk();
 });
 
 test('other roles use the same pages without two-factor authentication', function () {
@@ -194,7 +194,7 @@ test('a JSON request from an owner without it is refused', function () {
     [$owner] = organizationWithOwner(owner: User::factory()->create());
 
     $this->actingAs($owner)
-        ->getJson(route('invitations.index'))
+        ->getJson(route('members.index'))
         ->assertForbidden();
 });
 

@@ -13,7 +13,7 @@ use Tests\Support\BookingForm;
 /** @return array{name: string, kind: string, rate: int|null, amount: int|null, currency: string|null, inclusive: bool, applies_to: string, rounding: string, effective_from: string, effective_to: string|null} */
 function extrasVat(array $terms = []): array
 {
-    return ['name' => 'VAT', 'kind' => 'percentage', 'rate' => 1800, 'amount' => null, 'currency' => null, 'inclusive' => false, 'applies_to' => 'extras', 'rounding' => 'half_up', 'effective_from' => '2026-01-01', 'effective_to' => null, ...$terms];
+    return ['name' => 'VAT', 'category' => null, 'kind' => 'percentage', 'rate' => 1800, 'amount' => null, 'currency' => null, 'inclusive' => false, 'applies_to' => 'extras', 'rounding' => 'half_up', 'effective_from' => '2026-01-01', 'effective_to' => null, ...$terms];
 }
 
 test('an extra charge stores quantity, unit price, amount, tax lines and the rule versions used', function () {
@@ -28,7 +28,7 @@ test('an extra charge stores quantity, unit price, amount, tax lines and the rul
         expect($posting->only(['type', 'category', 'description', 'quantity', 'unit_price', 'net', 'amount']))
             ->toBe(['type' => 'charge', 'category' => 'minibar', 'description' => 'Two sodas', 'quantity' => 2, 'unit_price' => 250, 'net' => 424, 'amount' => 500])
             ->and($posting->currency)->toBe(Currency::USD)
-            ->and($posting->tax_lines)->toEqual([['name' => 'VAT', 'kind' => 'percentage', 'inclusive' => true, 'rate' => 1800, 'per_person_night' => null, 'amount' => 76]])
+            ->and($posting->tax_lines)->toEqual([['name' => 'VAT', 'category' => null, 'kind' => 'percentage', 'inclusive' => true, 'rate' => 1800, 'per_person_night' => null, 'amount' => 76]])
             ->and($posting->tax_rule_ids)->toEqual([$vat->id])
             ->and($posting->actor_id)->toBe($owner->id);
     });

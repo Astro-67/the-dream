@@ -162,6 +162,9 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - **REG-01:** Account registration with name, email, password, business name, country and acceptance of terms. Verify email before live operation. Existing users accept invitations without duplicate identities.
 - **REG-02:** A resumable onboarding flow creates the organization, owner membership, trial subscription and first property. Repeated submissions never create duplicates.
 - **REG-03:** Collect property name, address, contact details, type, timezone, operational currency, room inventory, tax configuration, branding and **jurisdiction profile**. Never force Zanzibar fields on other properties.
+    - Organization setup and property create/edit show an expanded **Tax & regulatory information** section. Keep TIN, VRN and the full Z-number, including any location suffix, distinct from the ZRA hotel code; never infer a suffix's legal meaning.
+    - Registration can remain incomplete when saving a setup property. Zanzibar go-live requires TIN, Z-number, ZRA hotel code and a star rating from 1 to 5; VRN is required only when the configured ZRA tax category is VAT, regardless of the property's tax rules. Exempt and other non-VAT categories do not need a VRN.
+    - Required-at-go-live hints and permission-aware checklist links lead to the exact editable field. Subsequent gate checks use the saved tax category. Mainland requirements are unchanged, and existing live properties are not retroactively blocked or returned to setup.
 - **REG-04:** An onboarding checklist covers:
     - verify email;
     - complete the property profile;
@@ -217,6 +220,8 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - **PMS-04:** Check-in requires an eligible reservation, a ready room, and the registration fields set by the jurisdiction profile.
     - **Zanzibar:** document type, document number and nationality are required for every guest before check-in completes.
 - **PMS-05:** Checkout shows open balances and uses a manager-controlled exception policy. Balances are never silently ignored.
+    - Ordinary staff cannot check out while any folio has positive posted debt, even if another folio has credit. Show the disabled action with “Check-out is not allowed. All outstanding balances must be paid before check-out.” Server checks repeat under the transaction locks; only a permitted manager with an explicit reason may override. Credit-resolution preferences remain separate.
+    - Automatic check-out defaults to excluding unpaid stays. Backfill only missing preferences; preserve explicitly saved choices and leave automatic check-out off when disabled. Unpaid inclusion shows that balances remain open after departure, is audited, and skipped stays appear in the summary email. A tour-operator promise or an unposted channel-collected amount is not payment.
 - **PMS-06:** Night audit closes the business date with exception review and repeat-safe posting. Running the same close twice never duplicates charges.
     - At close, reservations not arrived by end of arrival date are proposed as no-shows for confirmation.
     - **Zanzibar:** the night audit sends VFMS price changes for the next night (FSC-04).
@@ -243,6 +248,8 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - **FIN-01:** One folio per reservation and currency. Show accommodation, taxes, extras, deposits, **channel-collected amounts** and balances clearly. Never add unlike currencies or convert silently.
 - **FIN-02:** Posted entries stay traceable. Mistakes are corrected with linked reversals and adjustments with approval reasons.
 - **FIN-03:** Cashier reconciliation, receipts, balance reporting and controlled refunds, with configurable permissions and thresholds. Retries never duplicate postings.
+    - **Use cashier shifts** defaults off for new properties and those without shift history. Initialize existing properties with any shift history to on, unless a preference was explicitly saved. Only an owner may change the setting, and all open shifts must be closed before turning it off.
+    - With shifts off, cash payments and refunds retain their cashier, method, idempotency and audit without a shift link. Existing shift-linked postings, frozen counts and closed-shift reversal/approval protections remain intact. Hide everyday opening/menu and irrelevant night-audit expectations while off; authorized history stays reachable and reports keep recorded shift references.
 - **FIN-04:** Every reservation records its **payment collector**: the property (hotel-collect) or the channel (for example Payments by Booking.com).
     - When the channel collected, the reservation also records the **channel-collected amount**, including any per-person fees the channel took.
 - **FIN-05:** The channel-collected amount is posted as a payment from the channel against the folio.

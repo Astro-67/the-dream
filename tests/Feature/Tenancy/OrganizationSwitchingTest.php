@@ -61,7 +61,8 @@ test('switching organization makes it and one of its permitted properties curren
             ->where('tenant.organization.id', $t->a->organization->id)
             ->where('properties', fn ($properties) => collect($properties)->pluck('id')->sort()->values()->all()
                 === collect([$t->a->property->id, $t->a->otherProperty->id])->sort()->values()->all()));
-    $this->get(route('invitations.index'))->assertForbidden();
+    // A group operations manager sees the staff list, but not invitations they could not send.
+    $this->get(route('members.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
 
     $this->put(route('current-organization.update'), ['organization_id' => $t->b->organization->id])
         ->assertRedirect(route('dashboard'));
@@ -75,7 +76,7 @@ test('switching organization makes it and one of its permitted properties curren
             ->where('auth.permissions', fn ($permissions) => collect($permissions)->contains('members.invite')
                 && ! collect($permissions)->contains('properties.manage')));
 
-    $this->get(route('invitations.index'))
+    $this->get(route('members.index'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('invitations', fn ($invitations) => collect($invitations)->pluck('email')->all() === ['newcomer@bravo.test']));
     $this->get(route('properties.index'))
@@ -95,7 +96,7 @@ test('switching organization makes it and one of its permitted properties curren
             ->has('tenant.properties', 2)
             ->where('auth.permissions', fn ($permissions) => collect($permissions)->contains('properties.manage')
                 && ! collect($permissions)->contains('members.invite')));
-    $this->get(route('invitations.index'))->assertForbidden();
+    $this->get(route('members.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
 });
 
 test('switching rechecks membership, so an organization the user was removed from cannot be switched back to', function () {

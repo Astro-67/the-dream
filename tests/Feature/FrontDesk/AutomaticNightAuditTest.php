@@ -23,7 +23,8 @@ test('seeded Zanzibar levy never blocks night audit for an allowed folio currenc
         app(CloseBusinessDate::class)->handle(null, $property, '2026-12-10');
         $posting = Posting::query()->where('reservation_id', $stay->id)->sole();
         expect($property->fresh()->business_date->toDateString())->toBe('2026-12-11')
-            ->and(array_column($posting->tax_lines, 'name'))->toBe($currency === 'USD' ? ['Infrastructure levy', 'VAT'] : ['VAT'])
+            ->and(array_column($posting->tax_lines, 'name'))->toBe($currency === 'USD' ? ['Infrastructure levy', 'VAT'] : ['VAT', 'Infrastructure levy'])
+            ->and(array_column($posting->tax_lines, 'unavailable'))->toBe($currency === 'USD' ? [] : [true])
             ->and($posting->currency->value)->toBe($currency);
     });
 })->with(['TZS', 'EUR', 'USD']);

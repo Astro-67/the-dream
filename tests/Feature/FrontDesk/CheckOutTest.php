@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
@@ -12,6 +13,7 @@ use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Illuminate\Validation\ValidationException;
@@ -81,14 +83,75 @@ test('check-out is refused while any folio balance is not zero', function () {
     });
 });
 
-test('a credit balance also refuses check-out', function () {
+test('credit balances follow the existing property resolution policy', function (bool $blockCredit) {
     $t = twoTenants();
     $reservation = departingGuestForCheckOut($t->a);
+    $t->a->property->update(['payment_settings' => ['block_checkout_if_unpaid' => $blockCredit]]);
     inTenant($t->a->property, fn () => app(RecordPayment::class)->handle($t->a->owner, Folio::query()->where('reservation_id', $reservation->id)->sole(), ['method' => 'bank_transfer', 'amount' => 500, 'currency' => 'USD']));
 
-    $this->actingAs($t->a->owner)->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
-        ->assertUnprocessable()->assertJsonValidationErrors('balance');
+    $response = $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
+        ->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id]);
+    $blockCredit ? $response->assertUnprocessable()->assertJsonValidationErrors('balance') : $response->assertRedirect();
+    expect(inTenant($t->a->property, fn () => $reservation->fresh()->status))
+        ->toBe($blockCredit ? ReservationStatus::CheckedIn : ReservationStatus::CheckedOut);
+})->with([true, false]);
+
+test('a tour operator promise never clears posted debt', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    inTenant($t->a->property, fn () => $reservation->update([
+        'booked_through' => 'tour_operator', 'tour_operator_name' => 'Test operator',
+        'tour_operator_registration' => 'TEST-REG', 'tour_operator_pays_for' => TourOperatorPaysFor::RoomLevyAndOtherServices,
+    ]));
+    chargeBeforeCheckOut($t->a, $reservation, 1500);
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
+        ->assertUnprocessable()->assertJsonPath('errors.balance.0', 'Check-out is not allowed. All outstanding balances must be paid before check-out.');
+    expect(inTenant($t->a->property, fn () => $reservation->fresh()->status))->toBe(ReservationStatus::CheckedIn);
 });
+
+test('channel collection settles debt only after the payment is actually posted', function () {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    $folio = chargeBeforeCheckOut($t->a, $reservation, 1500);
+    inTenant($t->a->property, fn () => $reservation->update(['payment_collector' => 'channel', 'channel_collected_amount' => 1500]));
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
+    $this->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('balance');
+
+    inTenant($t->a->property, fn () => app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'channel_collected', 'currency' => 'USD']));
+    $this->post(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
+    expect(inTenant($t->a->property, fn () => $reservation->fresh()->status))->toBe(ReservationStatus::CheckedOut);
+});
+
+test('check-out reads every folio without offsetting debt against another folio credit', function (string $currency) {
+    $t = twoTenants();
+    $reservation = departingGuestForCheckOut($t->a);
+    $due = chargeBeforeCheckOut($t->a, $reservation, 1500);
+    $credit = inTenant($t->a->property, function () use ($t, $reservation, $currency) {
+        $folio = app(OpenFolio::class)->handle($t->a->owner, $reservation, $currency);
+        app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'bank_transfer', 'amount' => 1500, 'currency' => $currency]);
+
+        return $folio;
+    });
+    $expected = [
+        ['id' => $due->id, 'currency' => 'USD', 'balance' => 1500],
+        ['id' => $credit->id, 'currency' => $currency, 'balance' => -1500],
+    ];
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('checkoutBalances', $expected));
+    $this->get(route('reservations.index', ['list' => 'departures']))->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('reservations.data.0.checkout_balances', $expected));
+    $this->postJson(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
+        ->assertUnprocessable()->assertJsonPath('errors.balance.0', 'Check-out is not allowed. All outstanding balances must be paid before check-out.');
+    inTenant($t->a->property, function () use ($reservation, $due, $credit) {
+        expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn)
+            ->and($due->balance()->amount)->toBe(1500)
+            ->and($credit->balance()->amount)->toBe(-1500);
+    });
+})->with(['USD', 'EUR']);
 
 test('only managers and owners may override an open balance, with a reason, and the override is audited', function (OrganizationRole $role, bool $allowed) {
     $t = twoTenants();
@@ -120,7 +183,7 @@ test('an override needs a reason', function () {
         ->assertUnprocessable()->assertJsonValidationErrors('balance');
 });
 
-test('turning off the unpaid check-out block leaves the debt open without an override', function () {
+test('turning off the legacy unpaid block cannot let ordinary staff check out debt', function () {
     $t = twoTenants();
     $reservation = departingGuestForCheckOut($t->a);
     $folio = chargeBeforeCheckOut($t->a, $reservation, 1500);
@@ -131,13 +194,13 @@ test('turning off the unpaid check-out block leaves the debt open without an ove
     $this->get(route('reservations.show', $reservation))->assertInertia(fn (AssertableInertia $page) => $page->where('blockCheckoutIfUnpaid', false));
     $this->get(route('reservations.index', ['list' => 'departures']))->assertInertia(fn (AssertableInertia $page) => $page->where('blockCheckoutIfUnpaid', false));
     $this->post(route('reservations.check-out', $reservation), ['_property' => $t->a->property->id])
-        ->assertRedirect(route('reservations.show', $reservation))->assertSessionHasNoErrors();
+        ->assertSessionHasErrors(['balance' => 'Check-out is not allowed. All outstanding balances must be paid before check-out.']);
 
     inTenant($t->a->property, function () use ($reservation, $folio) {
-        expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedOut)
-            ->and($folio->balance()->amount)->toBe(1500);
-        expect($reservation->lifecycleEvents()->where('type', 'checked_out')->sole()->snapshot['open_balances'])
-            ->toBe([['amount' => 1500, 'currency' => 'USD']]);
+        expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn)
+            ->and($folio->balance()->amount)->toBe(1500)
+            ->and(RoomStatus::query()->where('room_id', $reservation->room_id)->sole()->status)->toBe(HousekeepingStatus::Occupied)
+            ->and($reservation->lifecycleEvents()->where('type', 'checked_out')->exists())->toBeFalse();
     });
 });
 
@@ -179,7 +242,7 @@ test('today\'s departures list offers check-out to those who may check out', fun
 
     $this->actingAs($t->a->member($role))->get(route('reservations.index', ['list' => 'departures']))->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.reservation_number', $reservation->reservation_number)->where('reservations.data.0.can_check_out', $offered)
-            ->when($offered, fn (AssertableInertia $page) => $page->where('reservations.data.0.balances', [['currency' => 'USD', 'balance' => 1500]])
+            ->when($offered, fn (AssertableInertia $page) => $page->where('reservations.data.0.balances', [['currency' => 'USD', 'balance' => 1500, 'unposted' => true]])
                 ->where('reservations.data.0.can_override_balance', $role === OrganizationRole::PropertyManager)));
 })->with([[OrganizationRole::FrontDesk, true], [OrganizationRole::PropertyManager, true], [OrganizationRole::Finance, false], [OrganizationRole::Auditor, false]]);
 

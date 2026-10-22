@@ -106,18 +106,19 @@ test('reversing a cash payment corrects its drawer before the shift closes', fun
     });
 });
 
-test('cash reversals cannot alter a closed drawer count', function () {
+test('cash reversals cannot alter a closed drawer count regardless of the current shift preference', function (bool $enabled) {
     [$owner, , $property] = organizationWithOwner();
-    inTenant($property, function () use ($owner) {
+    inTenant($property, function () use ($owner, $property, $enabled) {
         $shift = app(OpenCashierShift::class)->handle($owner, ['USD' => 0]);
         $payment = app(RecordPayment::class)->handle($owner, cashierShiftFolio($owner), ['method' => 'cash', 'amount' => 1000, 'currency' => 'USD']);
         app(CloseCashierShift::class)->handle($owner, $shift, ['USD' => 1000], null);
+        $property->update(['payment_settings' => ['use_cashier_shifts' => $enabled]]);
 
         expect(fn () => app(ReversePosting::class)->handle($owner, $payment, 'Wrong entry'))
             ->toThrow(ValidationException::class);
         expect($shift->fresh()->expectedCash())->toEqual(['USD' => 1000])->and(Posting::query()->count())->toBe(1);
     });
-});
+})->with([true, false]);
 
 test('approved cash corrections retain the original cashier drawer even when requested by finance', function () {
     $t = twoTenants();

@@ -1,11 +1,46 @@
 <?php
 
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Property;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\PropertyForm;
 use Tests\Support\TwoTenants;
+
+test('registration remains optional on setup and existing live property edits', function (PropertyStatus $status) {
+    [$owner, , $property] = organizationWithOwner();
+    $property->forceFill(['status' => $status])->save();
+    $payload = PropertyForm::payload([
+        '_property' => $property->id,
+        'jurisdiction_profile' => 'zanzibar',
+        'tin' => null,
+        'z_number' => null,
+        'vrn' => null,
+        'zra_hotel_code' => null,
+        'star_rating' => null,
+    ]);
+
+    $this->actingAs($owner)->put(route('properties.update', $property), $payload)->assertSessionHasNoErrors();
+    $this->get(route('properties.edit', $property))->assertInertia(fn (Assert $page) => $page
+        ->where('property.tin', null)->where('property.z_number', null)->where('property.vrn', null)
+        ->where('property.zra_hotel_code', null)->where('property.star_rating', null));
+    expect($property->fresh()->status)->toBe($status);
+})->with([PropertyStatus::Setup, PropertyStatus::Live]);
+
+test('a new Zanzibar property can be saved without registration', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $this->actingAs($owner)->post(route('properties.store'), PropertyForm::payload([
+        '_property' => $property->id, 'jurisdiction_profile' => 'zanzibar',
+    ]))->assertSessionHasNoErrors()->assertRedirect(route('properties.index'));
+
+    $this->get(route('properties.index'))->assertInertia(fn (Assert $page) => $page->has('properties', 2));
+    $created = inTenant($property, fn () => Property::query()->where('name', 'Serengeti Gate Lodge')->sole());
+    expect($created->status)->toBe(PropertyStatus::Setup);
+    $this->get(route('properties.edit', $created))->assertInertia(fn (Assert $page) => $page
+        ->where('property.tin', null)->where('property.z_number', null)->where('property.vrn', null)
+        ->where('property.zra_hotel_code', null)->where('property.star_rating', null));
+});
 
 test('an owner adds a property that keeps its own timezone, currency and jurisdiction profile', function () {
     [$owner, , $first] = organizationWithOwner();

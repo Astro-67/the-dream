@@ -5,6 +5,7 @@ namespace App\Domains\Billing\Actions;
 use App\Domains\Billing\Enums\CashierShiftStatus;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
+use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use App\Support\Tenancy\Tenancy;
@@ -21,6 +22,10 @@ class OpenCashierShift
         $property = Tenancy::property() ?? throw new \LogicException('A cashier shift needs a property in context.');
 
         return Audit::validationRefusal($actor, $property, 'Cashier shift open refused', fn () => DB::transaction(function () use ($actor, $floats, $property) {
+            $property = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
+            if (! $property->settings()['payment_settings']['use_cashier_shifts']) {
+                throw ValidationException::withMessages(['shift' => __('Cashier shifts are turned off for this property.')]);
+            }
             $allowed = array_map(fn ($currency) => $currency->value, JurisdictionRules::allowedCurrencies($property));
             foreach ($floats as $currency => $amount) {
                 if (! in_array($currency, $allowed, true) || $amount < 0) {

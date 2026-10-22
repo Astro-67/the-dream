@@ -82,7 +82,7 @@ A payment posted to a folio before the guest arrives.
 _Avoid_: Prepayment (when a channel collected it, that is a channel-collected amount)
 
 **Cashier shift**:
-One user's period of handling cash at one property, closed by counting the cash in each currency against what Thedream expects.
+One user's period of handling cash at one property, closed by counting the cash in each currency against what Thedream expects. Optional: a property uses shifts only if it turns them on.
 _Avoid_: Till, session
 
 **Cancellation policy**:
@@ -132,6 +132,10 @@ _Avoid_: Activation, launch
 **Reservation lifecycle event**:
 A record that something happened to a reservation that authorities may need to know about: created, modified, cancelled, no-show confirmed, checked in, room moved, guest added, nightly price changed, checked out.
 _Avoid_: Booking report (that is ZAN Gateway's message, derived from the event)
+
+**Maintenance ticket**:
+A reported fault or planned job (repair, preventive or corrective) at a room or common area of one property, open until marked done. It never changes room status or availability; blocking a room is an out-of-service period.
+_Avoid_: Work order (in UI copy), issue
 
 ## Subscriptions
 
@@ -186,7 +190,11 @@ ZRA's flat charge per guest per night, set by star rating and assessed by VFMS. 
 _Avoid_: Infrastructure tax, tourism levy
 
 **ZRA tax registration**:
-A property's registration numbers with ZRA: ZRA number, TIN, VRN and Z-number. Optional at sign-up, required before go-live in Zanzibar.
+A property's tax identifiers: TIN, VRN (when VAT-registered) and Z-number. The full Z-number is kept, including any suffix. A ZRA hotel code separately identifies the property with ZRA. Registration details may be completed during setup, before go-live in Zanzibar.
+_Avoid_: ZTN, ZTN number location (the owner's labels for the full Z-number)
+
+**ZRA hotel code**:
+The authority's identifier for a property, separate from its TIN, VRN and full Z-number.
 
 **Fiscal receipt**:
 A receipt or check-out report issued through VFMS, carrying a VFMS QR code.

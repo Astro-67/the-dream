@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web\Tenancy;
 
 use App\Domains\Guests\Models\IdentityDocument;
+use App\Domains\Rates\Models\TaxRule;
+use App\Domains\Rates\TaxInclusion;
 use App\Domains\Tenancy\Actions\CreateProperty;
 use App\Domains\Tenancy\Actions\UpdateProperty;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -122,6 +124,9 @@ class PropertyController extends Controller
                 ...(JurisdictionRules::configuresRegistrationFields($property->jurisdiction_profile) ? ['registration_fields' => $property->registration_fields ?? []] : []),
             ],
             'registrationFieldOptions' => IdentityDocument::FIELDS,
+            'taxInclusion' => TaxInclusion::of($property),
+            'canManageTaxes' => Gate::allows('manageInclusion', [TaxRule::class, $property]),
+            'canManageCashierShifts' => Gate::allows('manageCashierShifts', $property),
         ]);
     }
 
@@ -130,7 +135,7 @@ class PropertyController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $updateProperty->handle($user, $property, $request->details());
+        $updateProperty->handle($user, $property, $request->details(), $request->taxInclusion());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __(':name saved.', ['name' => $property->name])]);
 

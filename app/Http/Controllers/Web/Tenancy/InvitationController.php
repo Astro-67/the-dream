@@ -22,44 +22,10 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Inviting people to the current organization, and the pending invitations (PRD ORG-02).
+ * Inviting people to the current organization (PRD ORG-02). Pending invitations are listed with the staff.
  */
 class InvitationController extends Controller
 {
-    public function index(Request $request): Response
-    {
-        Gate::authorize('viewAny', Invitation::class);
-
-        /** @var User $user */
-        $user = $request->user();
-        $propertyNames = Property::query()->get()
-            ->mapWithKeys(fn (Property $property) => [$property->id => $property->displayName()]);
-
-        $invitations = Invitation::query()
-            ->pending()
-            ->with('inviter')
-            ->latest()
-            ->get()
-            ->filter(fn (Invitation $invitation) => $user->can('view', $invitation))
-            ->map(fn (Invitation $invitation) => [
-                'id' => $invitation->id,
-                'email' => $invitation->email,
-                'role' => $invitation->role->value,
-                'roleLabel' => $invitation->role->label(),
-                'allProperties' => $invitation->all_properties,
-                'properties' => collect($invitation->property_ids)->map(fn (string $id) => $propertyNames[$id] ?? null)->filter()->values()->all(),
-                'invitedBy' => $invitation->inviter?->name,
-                'expiresAt' => $invitation->expires_at->toIso8601String(),
-                'canRevoke' => $user->can('revoke', $invitation),
-            ])
-            ->values();
-
-        return Inertia::render('invitations/index', [
-            'invitations' => $invitations,
-            'canInvite' => $user->can('create', Invitation::class),
-        ]);
-    }
-
     public function create(Request $request): Response
     {
         Gate::authorize('create', Invitation::class);
@@ -80,6 +46,7 @@ class InvitationController extends Controller
             'roles' => array_map(fn (OrganizationRole $role) => [
                 'value' => $role->value,
                 'label' => $role->label(),
+                'summary' => __($role->summary()),
                 'mayHaveAllProperties' => $managesMembers && $role->mayHaveAllProperties(),
             ], $roles),
             'properties' => $properties->map(fn (Property $p) => ['value' => $p->id, 'label' => $p->displayName()])->values(),
@@ -98,7 +65,7 @@ class InvitationController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Invitation sent to :email.', ['email' => $details->email])]);
 
-        return redirect()->route('invitations.index');
+        return redirect()->route('members.index');
     }
 
     public function destroy(Request $request, Invitation $invitation, RevokeInvitation $revokeInvitation): RedirectResponse
@@ -115,6 +82,6 @@ class InvitationController extends Controller
             Inertia::flash('toast', ['type' => 'error', 'message' => __('The invitation for :email is no longer pending.', ['email' => $invitation->email])]);
         }
 
-        return redirect()->route('invitations.index');
+        return redirect()->route('members.index');
     }
 }

@@ -42,6 +42,11 @@ class PropertyPolicy
         return Access::allows($user, OrganizationPermission::PropertiesUpdate, $property);
     }
 
+    public function manageCashierShifts(User $user, ?Property $property = null): bool
+    {
+        return Access::isOwner($user) && ($property === null ? $this->create($user) : $this->update($user, $property));
+    }
+
     public function archive(User $user, Property $property): bool
     {
         return Access::allows($user, OrganizationPermission::PropertiesArchive, $property);

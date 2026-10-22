@@ -44,7 +44,27 @@ test('the members list shows each member\'s role and properties, or all properti
             ->where('members', fn ($members) => collect($members)->contains(fn ($m) => $m['email'] === 'owner@alpha.test'
                 && $m['roleLabel'] === 'Owner' && $m['allProperties'] === true))
             ->where('members', fn ($members) => collect($members)->contains(fn ($m) => $m['email'] === 'front_desk@alpha.test'
-                && $m['roleLabel'] === 'Front desk' && $m['allProperties'] === false && $m['properties'] === ['Alpha Stone Town Inn'])));
+                && $m['roleLabel'] === 'Reception' && $m['allProperties'] === false && $m['properties'] === ['Alpha Stone Town Inn'])));
+});
+
+test('the staff list shows pending invitations next to members, each inviter seeing only those they could send', function () {
+    $t = twoTenants();
+    $this->actingAs($t->a->owner)->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'here@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->property->id]])
+        ->assertRedirect(route('members.index'));
+    $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'there@example.test', 'role' => 'housekeeping', 'property_ids' => [$t->a->otherProperty->id]])
+        ->assertRedirect(route('members.index'));
+
+    $this->get(route('members.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('canInvite', true)
+        ->where('invitations', fn ($invitations) => collect($invitations)->pluck('email')->sort()->values()->all() === ['here@example.test', 'there@example.test']));
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get(route('members.index'))->assertInertia(fn (Assert $page) => $page
+        ->has('invitations', 1)
+        ->where('invitations.0.email', 'here@example.test')
+        ->where('invitations.0.roleLabel', 'Reception')
+        ->where('invitations.0.canRevoke', true));
+    $this->actingAs($t->a->member(OrganizationRole::Auditor))->get(route('members.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('canInvite', false)
+        ->has('invitations', 0));
 });
 
 test('an owner opens a member\'s access form with their current role and properties', function () {

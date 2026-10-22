@@ -18,6 +18,7 @@ export type TenantProperty = {
     businessDate: string;
     /** A demo property: sample data only, never live. */
     demo: boolean;
+    paymentSettings?: { use_cashier_shifts?: boolean };
     /** Present only for Zanzibar properties. */
     zraHotelCode?: string | null;
 };

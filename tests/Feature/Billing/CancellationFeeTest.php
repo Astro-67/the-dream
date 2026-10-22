@@ -93,7 +93,7 @@ test('only roles with charges.post post or waive a proposed fee over HTTP', func
 
     $allowed ? $response->assertSessionHasNoErrors()->assertRedirect(route('reservations.show', $reservation)) : $response->assertForbidden();
     expect(inTenant($t->a->property, fn () => $proposal->fresh()->status))->toBe($allowed ? ($decision === 'post' ? 'posted' : 'waived') : 'proposed');
-})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()))
+})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::PropertyManager, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()))
     ->with(['post', 'waive']);
 
 test('the fee form requires a decision and a reason, and the refusal is audited', function () {
@@ -157,7 +157,7 @@ test('fees freeze applicable tax lines and rule versions when posted', function 
     $property = Property::query()->withoutGlobalScopes()->findOrFail($reservation->property_id);
     $this->travelTo(CarbonImmutable::parse('2026-12-09 10:00', $property->timezone));
     inTenant($property, function () use ($owner, $reservation, $kind) {
-        $terms = ['name' => 'VAT', 'kind' => 'percentage', 'rate' => 1800, 'amount' => null, 'currency' => null, 'inclusive' => false, 'applies_to' => 'both', 'rounding' => 'half_up', 'effective_from' => '2026-01-01', 'effective_to' => null];
+        $terms = ['name' => 'VAT', 'category' => null, 'kind' => 'percentage', 'rate' => 1800, 'amount' => null, 'currency' => null, 'inclusive' => false, 'applies_to' => 'both', 'rounding' => 'half_up', 'effective_from' => '2026-01-01', 'effective_to' => null];
         $rule = app(CreateTaxRule::class)->handle($owner, $terms);
         $proposal = app(ProposeFee::class)->handle($owner, $reservation, $kind);
         $resolved = app(ResolveFee::class)->handle($owner, $proposal, 'post', 'Policy');
@@ -165,7 +165,7 @@ test('fees freeze applicable tax lines and rule versions when posted', function 
         app(ChangeTaxRule::class)->handle($owner, $rule, [...$terms, 'rate' => 2000, 'effective_from' => '2026-12-01']);
         $posting = Posting::query()->findOrFail($resolved->posting_id);
         expect($posting->net)->toBe(22000)->and($posting->amount)->toBe(25960)
-            ->and($posting->tax_lines)->toEqual([['name' => 'VAT', 'kind' => 'percentage', 'inclusive' => false, 'rate' => 1800, 'per_person_night' => null, 'amount' => 3960]])
+            ->and($posting->tax_lines)->toEqual([['name' => 'VAT', 'category' => null, 'kind' => 'percentage', 'inclusive' => false, 'rate' => 1800, 'per_person_night' => null, 'amount' => 3960]])
             ->and($posting->tax_rule_ids)->toEqual([$rule->id]);
     });
 })->with(['cancellation', 'no_show']);

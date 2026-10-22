@@ -18,3 +18,4 @@ For Zanzibar properties, the tax and infrastructure levy VFMS returns are what t
 
 - When a front-desk or VFMS question is open, check how Uhuru does it before designing.
 - Where Uhuru is wrong, we do not copy it: its bill left out a filed extra charge that VFMS still taxed.
+- Property managers take payments, as Uhuru's manager does (#144): they hold `charges.post` in their own properties, which also lets them post charges, open folios and transfer charges. Refunds, corrections, write-offs, guest identity and staff administration stay with the roles that already hold them.

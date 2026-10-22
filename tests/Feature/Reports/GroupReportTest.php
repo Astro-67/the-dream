@@ -39,7 +39,7 @@ test('a group manager reads every authorized real property with totals per curre
 
     groupReportAs($t, OrganizationRole::GroupOperationsManager)->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('reports/group')
-        ->where('filters', ['from' => '2026-12-10', 'to' => '2026-12-11', 'properties' => []])
+        ->where('filters', ['from' => '2026-12-10', 'to' => '2026-12-11', 'properties' => [], 'settled' => false])
         ->where('properties', fn ($properties) => collect($properties)->pluck('id')->sort()->values()->all()
             === collect([$t->a->property->id, $t->a->otherProperty->id])->sort()->values()->all())
         ->where('kpis.soldRoomNights', 4)
@@ -148,4 +148,23 @@ test('group folio balances paginate while keeping the selected properties and da
             ->where('finance.folios.total', 51)->where('finance.folios.current_page', 2)->has('finance.folios.data', 1)
             ->where('finance.folios.prev_page_url', fn ($url) => str_contains(urldecode($url), 'properties[0]='.$t->a->otherProperty->id)
                 && str_contains($url, 'from=2026-12-10') && str_contains($url, 'to=2026-12-11')));
+});
+
+// protects=group reconciliation lists only permitted properties, settled only on request; fails_when=a settled folio is omitted or another organization appears.
+test('group folio balances add guest and charges per row and include settled folios departing in range when asked', function () {
+    $t = twoTenants();
+    groupReportBookings($t);
+    foreach ([$t->a->property, $t->a->otherProperty, $t->b->property] as $property) {
+        $owner = $property->organization_id === $t->a->organization->id ? $t->a->owner : $t->b->owner;
+        inTenant($property, function () use ($owner) {
+            app(PostExtraCharge::class)->handle($owner, Folio::query()->sole(), ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 1500]);
+            app(RecordPayment::class)->handle($owner, Folio::query()->sole(), ['method' => 'card', 'amount' => 1500, 'currency' => 'USD']);
+        });
+    }
+
+    groupReportAs($t, OrganizationRole::Owner)->assertOk()->assertInertia(fn (Assert $page) => $page->where('finance.folios.total', 0));
+    groupReportAs($t, OrganizationRole::Owner, ['from' => '2026-12-12', 'to' => '2026-12-12', 'settled' => 1])->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('filters.settled', true)->where('finance.folios.total', 2)
+        ->where('finance.folios.data', fn ($rows) => collect($rows)->every(fn ($row) => $row['balance'] === 0 && $row['charges'] === 1500 && $row['netPayments'] === 1500 && $row['guest'] === 'Travel Booker')
+            && collect($rows)->pluck('propertyName')->sort()->values()->all() === collect([$t->a->property->name, $t->a->otherProperty->name])->sort()->values()->all()));
 });

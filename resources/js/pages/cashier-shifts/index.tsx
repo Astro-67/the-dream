@@ -167,11 +167,15 @@ function Amount({
 
 export default function CashierShifts({
     canOpenShift,
+    canCloseShift,
+    usesCashierShifts,
     openShift,
     shifts,
     currencies,
 }: {
     canOpenShift: boolean;
+    canCloseShift: boolean;
+    usesCashierShifts: boolean;
     openShift: Shift | null;
     shifts: Paginated<Shift> | null;
     currencies: string[];
@@ -185,9 +189,13 @@ export default function CashierShifts({
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <Heading
                     title="Cashier shifts"
-                    description={`Cash taken and paid out is counted against the cashier's open shift. Times in ${timezone}.`}
+                    description={
+                        usesCashierShifts
+                            ? `Cash taken and paid out is counted against the cashier's open shift. Times in ${timezone}.`
+                            : `Cashier shifts are turned off. Previous shifts and their counts are retained. Times in ${timezone}.`
+                    }
                 />
-                {canOpenShift &&
+                {(canOpenShift || (canCloseShift && openShift !== null)) &&
                     (openShift ? (
                         <section className="flex flex-col gap-4">
                             <h2 className="font-semibold">
@@ -219,7 +227,9 @@ export default function CashierShifts({
                     ))}
                 {shifts &&
                     (shifts.data.length === 0 ? (
-                        <EmptyState message="No cashier shifts yet." />
+                        usesCashierShifts ? (
+                            <EmptyState message="No cashier shifts yet." />
+                        ) : null
                     ) : (
                         <div>
                             <Table>

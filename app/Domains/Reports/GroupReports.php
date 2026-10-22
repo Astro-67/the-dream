@@ -26,17 +26,17 @@ final class GroupReports
      * @param  Collection<int, Property>  $properties
      * @return array<string, mixed>
      */
-    public function forProperties(Collection $properties, string $from, string $to): array
+    public function forProperties(Collection $properties, string $from, string $to, bool $settled = false): array
     {
         $properties = Property::query()->real()->whereKey($properties->pluck('id'))->orderBy('name')->orderBy('id')->get();
         ['folios' => $folios, 'reports' => $reports] = $properties->isEmpty() ? ['folios' => null, 'reports' => collect()] : Tenancy::within(
             TenantContext::forOrganization($properties->first()->organization_id),
-            function () use ($properties, $from, $to): array {
+            function () use ($properties, $from, $to, $settled): array {
                 $kpis = $this->kpis->forProperties($properties, $from, $to);
                 $operations = $this->operations->forProperties($properties, $from, $to);
                 $finance = $this->finance->summariesForProperties($properties, $from, $to);
                 $names = $properties->pluck('name', 'id');
-                $folios = $this->finance->folios($properties, array_sum(array_column($finance, 'unsettledFolios')))->through(fn (array $folio): array => [...$folio, 'propertyName' => $names[$folio['propertyId']]]);
+                $folios = $this->finance->folios($properties, array_sum(array_column($finance, 'unsettledFolios')), $settled, $from, $to)->through(fn (array $folio): array => [...$folio, 'propertyName' => $names[$folio['propertyId']]]);
 
                 return ['folios' => $folios, 'reports' => $properties->map(fn (Property $property): array => [
                     'property' => $property,

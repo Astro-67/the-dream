@@ -12,11 +12,11 @@ import {
     Layers,
     ReceiptText,
     Wallet,
-    MailPlus,
     Percent,
     ShieldCheck,
     Tags,
     Users,
+    Wrench,
 } from 'lucide-react';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -33,7 +33,6 @@ import { useCan } from '@/hooks/use-can';
 import { dashboard, rateCalendar } from '@/routes';
 import { index as cashierShifts } from '@/routes/cashier-shifts';
 import { index as approvals } from '@/routes/approvals';
-import { index as invitations } from '@/routes/invitations';
 import { index as guests } from '@/routes/guests';
 import { index as members } from '@/routes/members';
 import { index as payments } from '@/routes/payments';
@@ -53,6 +52,7 @@ import { index as taxRules } from '@/routes/tax-rules';
 import { index as rooms } from '@/routes/rooms';
 import { index as housekeeping, myRooms } from '@/routes/housekeeping';
 import { index as assignments } from '@/routes/housekeeping/assignments';
+import { index as maintenance } from '@/routes/maintenance';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -62,12 +62,6 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
 ];
-
-const invitationsNavItem: NavItem = {
-    title: 'Invitations',
-    href: invitations(),
-    icon: MailPlus,
-};
 
 const platformNavItems: NavItem[] = [
     {
@@ -93,7 +87,10 @@ const platformNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { platformRoles } = usePage().props.auth;
+    const {
+        auth: { platformRoles },
+        tenant,
+    } = usePage().props;
     // Hidden from members who can't use them; the server still checks.
     const can = useCan();
     const frontDeskItems: NavItem[] = [
@@ -119,6 +116,9 @@ export function AppSidebar() {
         ...(can('housekeeping.manage')
             ? [{ title: 'My rooms', href: myRooms(), icon: DoorOpen }]
             : []),
+        ...(can('maintenance.view')
+            ? [{ title: 'Maintenance', href: maintenance(), icon: Wrench }]
+            : []),
     ];
     const moneyItems: NavItem[] = [
         ...(can('reports.view')
@@ -130,7 +130,8 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        ...(can('charges.post', 'finance.view')
+        ...(can('charges.post', 'finance.view') &&
+        tenant.property?.paymentSettings?.use_cashier_shifts
             ? [
                   {
                       title: 'Cashier shifts',
@@ -159,7 +160,7 @@ export function AppSidebar() {
             ? [{ title: 'Properties', href: properties(), icon: Hotel }]
             : []),
         ...(can('members.view')
-            ? [{ title: 'Members', href: members(), icon: Users }]
+            ? [{ title: 'Staff', href: members(), icon: Users }]
             : []),
     ];
     const moreItems: NavItem[] = [
@@ -200,9 +201,6 @@ export function AppSidebar() {
         ...(can('guests.view')
             ? [{ title: 'Guests', href: guests(), icon: Users }]
             : []),
-        ...(can('members.manage', 'members.invite')
-            ? [invitationsNavItem]
-            : []),
         ...(can('organization.manage')
             ? [
                   {
@@ -218,7 +216,7 @@ export function AppSidebar() {
     );
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="sidebar">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>

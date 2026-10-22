@@ -16,15 +16,16 @@ final class PropertySettings
             'walk_ins_enabled' => true, 'walk_in_requires_id' => true, 'maximum_overbooking_percentage' => 0,
             'minimum_stay' => 1, 'maximum_stay' => 90, 'passport_required_for_foreign_guests' => true,
             'automatic_checkout_enabled' => false, 'automatic_checkout_time' => '11:59',
-            'automatic_checkout_include_unpaid' => true, 'automatic_checkout_include_overstays' => false,
+            'automatic_checkout_include_unpaid' => false, 'automatic_checkout_include_overstays' => false,
             'automatic_checkout_summary_email' => null,
         ],
         'tax_settings' => [
-            'zra_tax_category' => 'vat', 'tax_inclusive' => true, 'tax_label' => 'VAT', 'tax_rate' => 15,
+            'zra_tax_category' => 'vat', 'tax_label' => 'VAT', 'tax_rate' => 15,
             'service_charge_enabled' => false, 'service_charge_rate' => 10,
             'show_breakdown_on_bill' => true, 'show_breakdown_on_receipt' => true,
         ],
         'payment_settings' => [
+            'use_cashier_shifts' => false,
             'accepted_methods' => RecordPayment::METHODS, 'block_checkout_if_unpaid' => true,
             'manager_override' => true, 'deposit_percentage' => 0, 'payment_due_days' => 0,
         ],

@@ -22,7 +22,7 @@ test('an auditor reads property KPIs with business dates currency and computatio
         ->get(route('reports.index'))
         ->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('reports/index')
-        ->where('filters', ['from' => '2026-12-10', 'to' => '2026-12-10'])
+        ->where('filters', ['from' => '2026-12-10', 'to' => '2026-12-10', 'settled' => false])
         ->where('kpis.soldRoomNights', 1)->where('kpis.sellableRoomNights', 1)
         ->where('kpis.occupancy', 1)
         ->where('kpis.currencies.0.currency', 'USD')

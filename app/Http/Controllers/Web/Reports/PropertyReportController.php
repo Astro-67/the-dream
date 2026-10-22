@@ -15,15 +15,16 @@ class PropertyReportController extends Controller
 {
     public function __invoke(ReportRequest $request, PropertyKpis $kpis, PropertyOperations $operations, PropertyFinance $finance): Response
     {
-        /** @var array{from: string, to: string} $range */
+        /** @var array{from: string, to: string, settled?: bool} $range */
         $range = $request->validated();
+        $settled = (bool) ($range['settled'] ?? false);
         $property = Tenancy::property() ?? abort(404);
 
         return Inertia::render('reports/index', [
-            'filters' => $range,
+            'filters' => ['from' => $range['from'], 'to' => $range['to'], 'settled' => $settled],
             'kpis' => $kpis->forProperty($property, $range['from'], $range['to']),
             'operations' => $operations->forProperty($property, $range['from'], $range['to']),
-            'finance' => $finance->forProperty($property, $range['from'], $range['to']),
+            'finance' => $finance->forProperty($property, $range['from'], $range['to'], $settled),
             'refreshedAt' => now()->toIso8601String(),
         ]);
     }

@@ -27,10 +27,10 @@ test('each new organization is seeded with the seven roles and their permission 
     $roles = seededRoles($organization);
 
     expect(array_keys($roles))->toEqualCanonicalizing(array_map(fn (OrganizationRole $r) => $r->value, OrganizationRole::cases()))
-        ->and($roles['housekeeping'])->toBe(['housekeeping.manage', 'housekeeping.view'])
+        ->and($roles['housekeeping'])->toBe(['housekeeping.manage', 'housekeeping.view', 'maintenance.report', 'maintenance.view'])
         ->and($roles['front_desk'])->toBe([
             'charges.post', 'guests.identity.view', 'guests.register', 'guests.view',
-            'housekeeping.view', 'night_audit.view', 'reservations.manage', 'reservations.view', 'rooms.assign',
+            'housekeeping.view', 'maintenance.report', 'maintenance.view', 'night_audit.view', 'reservations.manage', 'reservations.view', 'rooms.assign',
         ]);
 
     foreach (OrganizationRole::cases() as $role) {

@@ -55,6 +55,8 @@ export function PostingLink({ posting }: { posting: Posting }) {
                     {linkLabels.transfer_in} folio{' '}
                     <Identifier value={posting.related.folio_id} copyable />
                 </>
+            ) : posting.type === 'refund' ? (
+                `Refund of the ${posting.related.category}`
             ) : (
                 `${linkLabels[posting.type] ?? 'Linked to'} the ${posting.related.category} charge`
             ),
@@ -64,6 +66,8 @@ export function PostingLink({ posting }: { posting: Posting }) {
         lines.push(
             posting.cancelled_by.type === 'reversal' ? (
                 'Reversed'
+            ) : posting.cancelled_by.type === 'refund' ? (
+                'Refunded'
             ) : posting.cancelled_by.destination_folio_id === null ? (
                 linkLabels.transfer_out
             ) : (

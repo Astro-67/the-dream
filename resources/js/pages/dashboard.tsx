@@ -1,6 +1,17 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Identifier } from '@/components/ui/identifier';
+import { Pagination } from '@/components/ui/pagination';
+import { StatusChip, type StatusTone } from '@/components/ui/status-chip';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import {
     OnboardingChecklist,
     type Checklist,
@@ -15,10 +26,27 @@ import { formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { create as createProperty } from '@/routes/properties';
 import { create as createReservation } from '@/routes/reservations';
+import type { Paginated } from '@/types';
 
 type Today = {
     businessDate: string;
     lists: { key: string; count: number; href: string }[];
+};
+
+type RoomBoard = {
+    businessDate: string;
+    housekeepingHref: string | null;
+    calendarHref: string;
+    rooms: Paginated<{
+        id: string;
+        number: string;
+        roomType: string;
+        status: string;
+        statusLabel: string;
+        tone: StatusTone;
+        readinessLabel: string | null;
+        readinessTone: StatusTone;
+    }>;
 };
 
 const listLabels: Record<string, string> = {
@@ -31,9 +59,11 @@ export default function Dashboard({
     onboarding,
     today,
     collections,
+    roomBoard,
 }: {
     onboarding: Checklist | null;
     today: Today | null;
+    roomBoard: RoomBoard | null;
     collections: {
         period: string;
         from: string;
@@ -88,7 +118,7 @@ export default function Dashboard({
     return (
         <>
             <Head title="Dashboard" />
-            <div className="flex max-w-[960px] flex-col gap-6 p-4 md:p-6">
+            <div className="flex flex-col gap-6 p-4 md:p-6">
                 <header className="flex flex-wrap items-end justify-between gap-4">
                     <div className="space-y-1">
                         <h1 className="text-2xl font-semibold tracking-tight">
@@ -191,10 +221,101 @@ export default function Dashboard({
                             ))}
                         </ul>
                     </section>
-                ) : (
+                ) : !roomBoard ? (
                     <div className="rounded-xl border">
                         <EmptyState message="Use the menu to open the parts of the system you work in." />
                     </div>
+                ) : null}
+
+                {roomBoard && (
+                    <section
+                        aria-labelledby="room-status"
+                        className="space-y-3"
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2
+                                    id="room-status"
+                                    className="text-lg font-semibold"
+                                >
+                                    Room status
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Business date{' '}
+                                    {formatDate(roomBoard.businessDate)}
+                                </p>
+                            </div>
+                            <nav
+                                aria-label="Room operations"
+                                className="flex flex-wrap gap-2"
+                            >
+                                {roomBoard.housekeepingHref && (
+                                    <Button variant="outline" size="lg" asChild>
+                                        <Link href={roomBoard.housekeepingHref}>
+                                            Housekeeping
+                                        </Link>
+                                    </Button>
+                                )}
+                                <Button variant="outline" size="lg" asChild>
+                                    <Link href={roomBoard.calendarHref}>
+                                        Calendar
+                                    </Link>
+                                </Button>
+                            </nav>
+                        </div>
+                        {roomBoard.rooms.data.length === 0 ? (
+                            <div className="rounded-xl border">
+                                <EmptyState message="No active rooms. Ask a property manager to add rooms." />
+                            </div>
+                        ) : (
+                            <>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Room</TableHead>
+                                            <TableHead>Type</TableHead>
+                                            <TableHead>Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {roomBoard.rooms.data.map((room) => (
+                                            <TableRow key={room.id}>
+                                                <TableCell>
+                                                    <Identifier
+                                                        value={room.number}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    {room.roomType}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <StatusChip
+                                                            tone={room.tone}
+                                                        >
+                                                            {room.statusLabel}
+                                                        </StatusChip>
+                                                        {room.readinessLabel && (
+                                                            <StatusChip
+                                                                tone={
+                                                                    room.readinessTone
+                                                                }
+                                                            >
+                                                                {
+                                                                    room.readinessLabel
+                                                                }
+                                                            </StatusChip>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                <Pagination page={roomBoard.rooms} />
+                            </>
+                        )}
+                    </section>
                 )}
             </div>
         </>

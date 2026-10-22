@@ -25,7 +25,7 @@ use LogicException;
  * @property string $folio_id
  * @property string|null $reservation_id
  * @property string|null $price_line_id
- * @property string|null $related_posting_id the posting this one reverses or transfers
+ * @property string|null $related_posting_id the posting this one reverses or transfers, or the payment a refund returns
  * @property string $type
  * @property string $category
  * @property string|null $description
@@ -35,7 +35,7 @@ use LogicException;
  * @property int $net
  * @property int $amount gross: net plus exclusive tax lines
  * @property Currency $currency
- * @property list<array{name: string, kind: string, inclusive: bool, rate: int|null, per_person_night: int|null, amount: int}> $tax_lines
+ * @property list<array{name: string, category?: string|null, kind: string, inclusive: bool, rate: int|null, per_person_night: int|null, amount: int, unavailable?: bool}> $tax_lines an unavailable line records a tax left out in this currency
  * @property list<string> $tax_rule_ids
  * @property string $idempotency_key
  * @property string|null $actor_id

@@ -32,7 +32,7 @@ test('only roles with charges.post open and close their own shift', function (Or
             ->assertRedirect(route('cashier-shifts.index'))->assertSessionHasNoErrors();
         expect(inTenant($t->a->property, fn () => $shift->fresh()->status))->toBe(CashierShiftStatus::Closed);
     }
-})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()));
+})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::PropertyManager, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()));
 
 test('a cashier cannot close another cashier\'s shift', function () {
     $t = twoTenants();
@@ -104,7 +104,7 @@ test('finance sees the shift list with expected, counted and variance per curren
         ->when($access === 'own', fn (Assert $page) => $page->where('shifts', null)));
 })->with(array_map(fn (OrganizationRole $role) => [$role, match ($role) {
     OrganizationRole::Owner, OrganizationRole::GroupOperationsManager, OrganizationRole::Finance, OrganizationRole::Auditor => 'list',
-    OrganizationRole::FrontDesk => 'own',
+    OrganizationRole::FrontDesk, OrganizationRole::PropertyManager => 'own',
     default => 'forbidden',
 }], OrganizationRole::cases()));
 

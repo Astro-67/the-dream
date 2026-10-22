@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
     PropertySettingsFields,
+    TaxInclusionFields,
     propertySettingsTabs,
     propertySettingsTabForErrors,
 } from '@/features/tenancy/property-settings-fields';
-import type { PropertySettings } from '@/features/tenancy/property-settings-fields';
+import type {
+    PropertySettings,
+    TaxInclusionControl,
+} from '@/features/tenancy/property-settings-fields';
 import { Form, Head, Link } from '@inertiajs/react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -31,6 +35,9 @@ type Props = PropertyFormOptions & {
             stayover_service_on_close: boolean;
         };
     registrationFieldOptions: string[];
+    taxInclusion: Record<string, TaxInclusionControl>;
+    canManageTaxes: boolean;
+    canManageCashierShifts: boolean;
 };
 
 const registrationFieldLabels: Record<string, string> = {
@@ -44,6 +51,9 @@ const registrationFieldLabels: Record<string, string> = {
 export default function EditProperty({
     property,
     registrationFieldOptions,
+    taxInclusion,
+    canManageTaxes,
+    canManageCashierShifts,
     ...options
 }: Props) {
     const configuresRegistration = property.registration_fields !== undefined;
@@ -51,6 +61,9 @@ export default function EditProperty({
     const tabs = Object.entries(propertySettingsTabs).filter(
         ([tab]) => tab !== 'registration_fields' || configuresRegistration,
     );
+    useEffect(() => {
+        document.getElementById(window.location.hash.slice(1))?.focus();
+    }, []);
 
     return (
         <>
@@ -286,6 +299,12 @@ export default function EditProperty({
                                     }}
                                     errors={errors}
                                 />
+                                <TaxInclusionFields
+                                    propertyId={property.id}
+                                    controls={taxInclusion}
+                                    canManage={canManageTaxes}
+                                    errors={errors}
+                                />
                             </div>
                             <div
                                 id="payment_settings"
@@ -317,6 +336,9 @@ export default function EditProperty({
                                             property.payment_settings,
                                     }}
                                     errors={errors}
+                                    canManageCashierShifts={
+                                        canManageCashierShifts
+                                    }
                                 />
                             </div>
                             {configuresRegistration && (

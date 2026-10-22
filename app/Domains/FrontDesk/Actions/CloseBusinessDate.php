@@ -84,8 +84,10 @@ class CloseBusinessDate
                 ->map(fn (NoShowProposal $p) => ['kind' => ExceptionKind::NoShow, 'subject_id' => $p->id, 'reference' => $p->reservation->reservation_number]),
             ...Reservation::query()->where('property_id', $property->id)->where('status', ReservationStatus::CheckedIn)->whereDate('departure', '<', $nextDate)->get()
                 ->map(fn (Reservation $r) => ['kind' => ExceptionKind::Departure, 'subject_id' => $r->id, 'reference' => $r->reservation_number]),
-            ...CashierShift::query()->where('property_id', $property->id)->where('status', CashierShiftStatus::Open)->with('user:id,name')->get()
-                ->map(fn (CashierShift $s) => ['kind' => ExceptionKind::CashierShift, 'subject_id' => $s->id, 'reference' => $s->user->name]),
+            ...($property->settings()['payment_settings']['use_cashier_shifts']
+                ? CashierShift::query()->where('property_id', $property->id)->where('status', CashierShiftStatus::Open)->with('user:id,name')->get()
+                    ->map(fn (CashierShift $s) => ['kind' => ExceptionKind::CashierShift, 'subject_id' => $s->id, 'reference' => $s->user->name])->all()
+                : []),
         ];
         foreach ($items as $item) {
             ExceptionListItem::query()->create(['business_date_close_id' => $close->id, 'business_date' => $nextDate, ...$item]);

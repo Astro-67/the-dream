@@ -1,5 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Label } from '@/components/ui/label';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusChip } from '@/components/ui/status-chip';
@@ -33,6 +35,11 @@ type FolioBalance = {
     departed: boolean;
     currency: string;
     balance: number;
+    guest: string | null;
+    room: string | null;
+    charges: number;
+    netPayments: number;
+    notYetCharged: boolean;
 };
 
 export type GroupFolios = Paginated<FolioBalance & { propertyName: string }>;
@@ -95,6 +102,43 @@ function SectionTitle({
 }
 
 /**
+ * A folio's state: owed, owed to the guest, or settled. A zero balance with nights
+ * still to charge is Not yet charged, never Settled.
+ */
+function BalanceChip({
+    balance,
+    notYetCharged,
+}: {
+    balance: number;
+    notYetCharged: boolean;
+}) {
+    if (balance > 0) return <StatusChip tone="error">Due</StatusChip>;
+    if (balance < 0) return <StatusChip tone="info">Credit</StatusChip>;
+    return notYetCharged ? (
+        <StatusChip tone="warning">Not yet charged</StatusChip>
+    ) : (
+        <StatusChip tone="success">Settled</StatusChip>
+    );
+}
+
+/** The "Show settled" switch: zero-balance folios departing in the selected dates join the list. */
+export function ShowSettledField({ checked }: { checked: boolean }) {
+    return (
+        <div className="flex min-h-11 items-center gap-2 md:min-h-9">
+            <Checkbox
+                id="settled"
+                name="settled"
+                value="1"
+                defaultChecked={checked}
+            />
+            <Label htmlFor="settled">
+                Show settled folios departing in these dates
+            </Label>
+        </div>
+    );
+}
+
+/**
  * Unsettled folios, 50 to a page. Group rows name their property and are not linked:
  * a reservation opens only in its own property's context.
  */
@@ -106,16 +150,20 @@ export function FolioBalances({
     const group = folios.data.some((folio) => 'propertyName' in folio);
 
     return folios.data.length === 0 ? (
-        <EmptyState message="Every folio is settled." />
+        <EmptyState message="No folios to show. Every folio is settled, or none departs in these dates." />
     ) : (
         <div className="grid gap-2">
             <Table>
                 <TableHeader>
                     <TableRow>
                         {group && <TableHead>Property</TableHead>}
-                        <TableHead>Reservation number</TableHead>
+                        <TableHead>Guest</TableHead>
+                        <TableHead>Reservation</TableHead>
+                        <TableHead>Room</TableHead>
                         <TableHead>Stay</TableHead>
                         <TableHead>Departure</TableHead>
+                        <TableHead numeric>Posted charges</TableHead>
+                        <TableHead numeric>Net payments</TableHead>
                         <TableHead numeric>Balance</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -125,6 +173,9 @@ export function FolioBalances({
                             {'propertyName' in folio && (
                                 <TableCell>{folio.propertyName}</TableCell>
                             )}
+                            <TableCell className="font-semibold">
+                                {folio.guest ?? 'No guest added'}
+                            </TableCell>
                             <TableCell>
                                 {'propertyName' in folio ? (
                                     <Identifier
@@ -141,20 +192,36 @@ export function FolioBalances({
                                     </Link>
                                 )}
                             </TableCell>
+                            <TableCell>{folio.room ?? 'Unassigned'}</TableCell>
                             <TableCell>
-                                {folio.departed ? (
+                                {folio.departed && folio.balance !== 0 ? (
                                     <StatusChip tone="warning">
                                         Departed, balance open
                                     </StatusChip>
+                                ) : folio.departed ? (
+                                    'Departed'
                                 ) : (
                                     (stays[folio.status] ?? folio.status)
                                 )}
                             </TableCell>
                             <TableCell>{formatDate(folio.departure)}</TableCell>
                             <AmountCell
-                                amount={folio.balance}
+                                amount={folio.charges}
                                 currency={folio.currency}
                             />
+                            <AmountCell
+                                amount={folio.netPayments}
+                                currency={folio.currency}
+                            />
+                            <TableCell numeric className="whitespace-nowrap">
+                                {formatMoney(folio.balance, folio.currency)}
+                                <div className="mt-1 flex flex-col items-end gap-1">
+                                    <BalanceChip
+                                        balance={folio.balance}
+                                        notYetCharged={folio.notYetCharged}
+                                    />
+                                </div>
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -172,15 +239,17 @@ export default function FinanceReport({
 }) {
     const timezone = usePage().props.tenant.property?.timezone ?? 'UTC';
     const { folios, openAfterDeparture, payments } = finance;
+    const hasShifts = payments.rows.some((row) => row.shiftId !== null);
 
     return (
         <>
             <section aria-labelledby="balances-title" className="grid gap-4">
                 <SectionTitle id="balances-title" title="Folio balances">
-                    A snapshot at the refresh time, not limited to the selected
-                    dates. Charges less payments and credits on each folio with
-                    a balance that is not zero. A negative balance is owed to
-                    the guest.
+                    Posted charges and net payments at the refresh time: each
+                    folio with a balance that is not zero, whatever its dates.
+                    Show settled adds folios whose stay departs in the selected
+                    dates. A credit balance is owed to the guest, not a debt.
+                    Nights not yet charged are not in these totals.
                 </SectionTitle>
                 <div className="grid gap-2">
                     <h3 className="font-medium">
@@ -211,11 +280,11 @@ export default function FinanceReport({
             <section aria-labelledby="payments-title" className="grid gap-4">
                 <SectionTitle id="payments-title" title="Payments">
                     Money received on the selected business dates, by method,
-                    currency and cashier shift. Refunds are money paid back. A
-                    reversal cancels an earlier payment or refund and counts on
-                    the business date it was posted. Net is payments less
-                    refunds plus reversals. Transfers and write-offs are not
-                    payments.
+                    currency, with cashier shifts where recorded. Refunds are
+                    money paid back. A reversal cancels an earlier payment or
+                    refund and counts on the business date it was posted. Net is
+                    payments less refunds plus reversals. Transfers and
+                    write-offs are not payments.
                 </SectionTitle>
                 {payments.rows.length === 0 ? (
                     <EmptyState message="No payments, refunds or reversals on these dates." />
@@ -224,7 +293,9 @@ export default function FinanceReport({
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Method</TableHead>
-                                <TableHead>Cashier shift</TableHead>
+                                {hasShifts && (
+                                    <TableHead>Cashier shift</TableHead>
+                                )}
                                 <TableHead>Currency</TableHead>
                                 <TableHead numeric>Payments</TableHead>
                                 <TableHead numeric>Refunds</TableHead>
@@ -240,11 +311,13 @@ export default function FinanceReport({
                                     <TableCell>
                                         {paymentMethodLabel(row.method)}
                                     </TableCell>
-                                    <TableCell>
-                                        {row.shiftOpenedAt === null
-                                            ? 'No shift'
-                                            : `${row.cashier}, opened ${formatDate(row.shiftOpenedAt, timezone)} ${formatTime(row.shiftOpenedAt, timezone)}`}
-                                    </TableCell>
+                                    {hasShifts && (
+                                        <TableCell>
+                                            {row.shiftOpenedAt === null
+                                                ? 'No shift'
+                                                : `${row.cashier}, opened ${formatDate(row.shiftOpenedAt, timezone)} ${formatTime(row.shiftOpenedAt, timezone)}`}
+                                        </TableCell>
+                                    )}
                                     <TableCell>{row.currency}</TableCell>
                                     <AmountCell
                                         amount={row.payments}
@@ -269,7 +342,7 @@ export default function FinanceReport({
                                     key={`total-${total.currency}`}
                                     className="font-medium"
                                 >
-                                    <TableCell colSpan={2}>
+                                    <TableCell colSpan={hasShifts ? 2 : 1}>
                                         Total in {total.currency}
                                     </TableCell>
                                     <TableCell>{total.currency}</TableCell>

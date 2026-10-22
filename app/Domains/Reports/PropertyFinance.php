@@ -2,9 +2,12 @@
 
 namespace App\Domains\Reports;
 
+use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,36 +22,51 @@ final class PropertyFinance
 {
     /**
      * @return array{
-     *     folios: LengthAwarePaginator<int, array{id: string, propertyId: string, reservationNumber: string, status: string, departure: string, departed: bool, currency: string, balance: int}>,
+     *     folios: LengthAwarePaginator<int, array{id: string, propertyId: string, reservationNumber: string, status: string, departure: string, departed: bool, currency: string, balance: int, guest: string|null, room: string|null, charges: int, netPayments: int, notYetCharged: bool}>,
      *     openAfterDeparture: list<array{currency: string, folios: int, balance: int}>,
      *     payments: array{rows: list<array{method: string, currency: string, shiftId: string|null, cashier: string|null, shiftOpenedAt: string|null, payments: int, refunds: int, reversals: int, net: int}>, totals: list<array{currency: string, payments: int, refunds: int, reversals: int, net: int}>},
      * }
      */
-    public function forProperty(Property $property, string $from, string $to): array
+    public function forProperty(Property $property, string $from, string $to, bool $settled = false): array
     {
         $property = Property::query()->real()->findOrFail($property->id);
         $properties = collect([$property]);
         $summary = $this->summariesForProperties($properties, $from, $to)[$property->id];
 
-        return ['folios' => $this->folios($properties, $summary['unsettledFolios']), 'openAfterDeparture' => $summary['openAfterDeparture'], 'payments' => $summary['payments']];
+        return ['folios' => $this->folios($properties, $summary['unsettledFolios'], $settled, $from, $to), 'openAfterDeparture' => $summary['openAfterDeparture'], 'payments' => $summary['payments']];
     }
 
     /**
-     * Every folio of the given real properties whose balance is not zero, 50 to a page.
-     * A caller that already counted them passes $total, saving the count query.
+     * Every folio of the given real properties whose balance is not zero, 50 to a page, with its
+     * guest, room and posted charges and net payments from the shared folio summary. With
+     * $settled, folios whose stay departs from $from to $to are listed too, however settled.
+     * A caller that already counted the unsettled folios passes $total, saving the count query;
+     * a settled list counts afresh, since it holds rows that count doesn't.
      *
      * @param  Collection<int, Property>  $properties
-     * @return LengthAwarePaginator<int, array{id: string, propertyId: string, reservationNumber: string, status: string, departure: string, departed: bool, currency: string, balance: int}>
+     * @return LengthAwarePaginator<int, array{id: string, propertyId: string, reservationNumber: string, status: string, departure: string, departed: bool, currency: string, balance: int, guest: string|null, room: string|null, charges: int, netPayments: int, notYetCharged: bool}>
      */
-    public function folios(Collection $properties, ?int $total = null): LengthAwarePaginator
+    public function folios(Collection $properties, ?int $total = null, bool $settled = false, ?string $from = null, ?string $to = null): LengthAwarePaginator
     {
+        $settledDeparting = $settled && $from !== null && $to !== null ? ['from' => $from, 'to' => $to] : null;
         $ids = Property::query()->real()->whereKey($properties->pluck('id'))->pluck('id');
-
-        return self::unsettled($ids)
-            ->select(['folios.id', 'folios.property_id', 'folios.currency', 'reservations.reservation_number', 'reservations.status', 'reservations.departure', 'balances.balance'])
+        $page = self::unsettled($ids, $settledDeparting)
+            ->select(['folios.id', 'folios.property_id', 'folios.currency', 'folios.reservation_id', 'reservations.reservation_number', 'reservations.status', 'reservations.departure'])
+            ->selectRaw('COALESCE(balances.balance, 0) as balance')
             ->orderBy('reservations.departure')->orderBy('reservations.reservation_number')->orderBy('folios.currency')->orderBy('folios.id')
-            ->paginate(50, pageName: 'folios', total: $total)->withQueryString()
-            ->through(fn (Folio $folio): array => [
+            ->paginate(50, pageName: 'folios', total: $settledDeparting === null ? $total : null)->withQueryString();
+        // This page's lookups in bulk, so a page costs the same queries however many rows it has.
+        $postings = Posting::query()->whereIn('folio_id', $page->pluck('id'))->get()->groupBy('folio_id');
+        $reservations = Reservation::query()->whereIn('id', $page->pluck('reservation_id'))->get();
+        $guests = Reservation::guestNames($reservations);
+        $rooms = Room::query()->whereIn('id', $reservations->pluck('room_id')->filter())->get(['id', 'number'])->keyBy('id');
+        $estimates = collect(FolioSummary::balances($reservations));
+        $roomOf = $reservations->keyBy('id')->map(fn (Reservation $reservation) => $reservation->room_id === null ? null : $rooms->get($reservation->room_id)?->number);
+
+        return $page->through(function (Folio $folio) use ($postings, $guests, $roomOf, $estimates): array {
+            $summary = FolioSummary::of($postings->get($folio->id, []));
+
+            return [
                 'id' => $folio->id,
                 'propertyId' => $folio->property_id,
                 'reservationNumber' => (string) $folio->getAttribute('reservation_number'),
@@ -57,25 +75,38 @@ final class PropertyFinance
                 'departed' => $folio->getAttribute('status') === ReservationStatus::CheckedOut->value,
                 'currency' => $folio->currency->value,
                 'balance' => (int) $folio->getAttribute('balance'),
-            ]);
+                'guest' => $guests->get($folio->reservation_id),
+                'room' => $roomOf->get($folio->reservation_id),
+                'charges' => $summary['charges'],
+                'netPayments' => $summary['net_payments'],
+                // Nights still to charge are only flagged, never counted as charges here.
+                'notYetCharged' => collect($estimates->get($folio->reservation_id, []))->contains(fn (array $row) => $row['currency'] === $folio->currency->value && $row['unposted']),
+            ];
+        });
     }
 
     /**
-     * Folios of the property IDs with a balance that is not zero, joined to their reservation.
+     * Folios of the property IDs joined to their posted balance and reservation: those whose
+     * balance is not zero, plus, with $settledDeparting, every folio whose stay departs in that
+     * range, settled or never posted to.
      *
      * @param  Collection<int, string>  $ids
+     * @param  array{from: string, to: string}|null  $settledDeparting
      * @return Builder<Folio>
      */
-    private static function unsettled(Collection $ids): Builder
+    private static function unsettled(Collection $ids, ?array $settledDeparting = null): Builder
     {
         $balances = Posting::query()->whereIn('postings.property_id', $ids)
-            ->selectRaw('property_id, folio_id, SUM(amount) as balance')->groupBy('property_id', 'folio_id')->havingRaw('SUM(amount) <> 0');
+            ->selectRaw('property_id, folio_id, SUM(amount) as balance')->groupBy('property_id', 'folio_id');
+        $on = function ($join): void {
+            $join->on('balances.folio_id', '=', 'folios.id')->on('balances.property_id', '=', 'folios.property_id');
+        };
+        $query = Folio::query()->whereIn('folios.property_id', $ids)->join('reservations', 'reservations.id', '=', 'folios.reservation_id');
 
-        return Folio::query()->whereIn('folios.property_id', $ids)
-            ->joinSub($balances, 'balances', function ($join): void {
-                $join->on('balances.folio_id', '=', 'folios.id')->on('balances.property_id', '=', 'folios.property_id');
-            })
-            ->join('reservations', 'reservations.id', '=', 'folios.reservation_id');
+        return $settledDeparting === null
+            ? $query->joinSub($balances->havingRaw('SUM(amount) <> 0'), 'balances', $on)
+            : $query->leftJoinSub($balances, 'balances', $on)->where(fn (Builder $listed) => $listed->whereRaw('COALESCE(balances.balance, 0) <> 0')
+                ->orWhere(fn (Builder $settled) => $settled->whereDate('reservations.departure', '>=', $settledDeparting['from'])->whereDate('reservations.departure', '<=', $settledDeparting['to'])));
     }
 
     /**

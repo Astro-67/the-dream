@@ -4,8 +4,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import CashierShifts from '@/pages/cashier-shifts/index';
 
-function sidebar(platformRoles: string[], permissions: string[] = []) {
+function sidebar(
+    platformRoles: string[],
+    permissions: string[] = [],
+    useShifts = true,
+) {
     const component = () => (
         <TooltipProvider>
             <SidebarProvider>
@@ -35,7 +40,9 @@ function sidebar(platformRoles: string[], permissions: string[] = []) {
                     },
                     tenant: {
                         organization: null,
-                        property: null,
+                        property: {
+                            paymentSettings: { use_cashier_shifts: useShifts },
+                        },
                         organizations: [],
                         properties: [],
                     },
@@ -90,10 +97,73 @@ assert.match(reservations, /aria-expanded="false"[^>]*>.*?<span>More<\/span>/);
 assert.doesNotMatch(reservations, />Availability</);
 assert.match(reservations, />Calendar</);
 assert.doesNotMatch(reservations, />Properties</);
-assert.doesNotMatch(reservations, />Members</);
+assert.doesNotMatch(reservations, />Staff</);
+const manager = sidebar([], ['members.view', 'members.invite']);
+assert.match(manager, /href="\/members"/);
+assert.match(manager, />Staff</);
+assert.doesNotMatch(manager, />Invitations</);
 
-const housekeeper = sidebar([], ['housekeeping.manage']);
+const housekeeper = sidebar([], ['housekeeping.manage', 'maintenance.view']);
 assert.match(housekeeper, />My rooms</);
+assert.match(housekeeper, />Maintenance</);
+assert.doesNotMatch(finance, />Maintenance</);
 assert.doesNotMatch(housekeeper, />Housekeeping</);
 assert.doesNotMatch(housekeeper, />Setup</);
 console.log('Grouped, permission-filtered sidebar: PASS');
+assert.doesNotMatch(sidebar([], ['finance.view'], false), />Cashier shifts</);
+const historyComponent = () => (
+    <CashierShifts
+        canOpenShift={false}
+        canCloseShift={false}
+        usesCashierShifts={false}
+        openShift={null}
+        currencies={['USD']}
+        shifts={{
+            data: [
+                {
+                    id: 'closed-shift',
+                    cashier: 'Historical cashier',
+                    status: 'closed',
+                    opened_at: '2026-12-12T10:00:00Z',
+                    closed_at: '2026-12-12T12:00:00Z',
+                    variance_reason: null,
+                    currencies: [
+                        {
+                            currency: 'USD',
+                            float: 0,
+                            expected: 1500,
+                            counted: 1500,
+                            variance: 0,
+                        },
+                    ],
+                },
+            ],
+            current_page: 1,
+            last_page: 1,
+            per_page: 50,
+            total: 1,
+            from: 1,
+            to: 1,
+            links: [],
+            prev_page_url: null,
+            next_page_url: null,
+        }}
+    />
+);
+const history = renderToStaticMarkup(
+    <App
+        initialPage={{
+            component: 'cashier-shifts/index',
+            url: '/cashier-shifts',
+            version: null,
+            clearHistory: false,
+            encryptHistory: false,
+            props: { errors: {}, tenant: { property: null } },
+        }}
+        initialComponent={historyComponent}
+    />,
+);
+assert.match(history, /Cashier shifts are turned off/);
+assert.match(history, /Historical cashier/);
+assert.match(history, /USD 15\.00/);
+assert.doesNotMatch(history, /Open a shift/);

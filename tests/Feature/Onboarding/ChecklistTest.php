@@ -38,7 +38,7 @@ test('the selected setup property shows a checklist derived from its data', func
             ->where('onboarding.items.6.completed', false)
             ->where('onboarding.items.7.key', 'sample_reservation')
             ->where('onboarding.items.7.completed', false)
-            ->has('onboarding.gates', 6)
+            ->has('onboarding.gates', 9)
             ->where('onboarding.canGoLive', false));
 });
 
@@ -103,6 +103,35 @@ test('checklist links lead to the existing setup screens', function () {
         ->where('onboarding.items.5.href', route('invitations.create'))
         ->where('onboarding.items.7.href', route('reservations.create')));
 });
+
+test('missing registration gates link to the exact editable field only for authorized staff', function (OrganizationRole $role, bool $canEdit) {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->forceFill([
+        'status' => PropertyStatus::Setup,
+        'tin' => null,
+        'z_number' => null,
+        'vrn' => null,
+        'zra_hotel_code' => null,
+        'star_rating' => null,
+    ])->save();
+
+    $this->actingAs($t->a->member($role))->put(route('current-property.update'), ['property_id' => $property->id])->assertRedirect();
+    $this->get(route('dashboard'))
+        ->assertInertia(function (Assert $page) use ($property, $canEdit) {
+            foreach ([4 => 'tin', 5 => 'z_number', 6 => 'zra_hotel_code', 7 => 'star_rating', 8 => 'vrn'] as $index => $field) {
+                $page->where("onboarding.gates.{$index}.passed", false)
+                    ->where("onboarding.gates.{$index}.href", $canEdit ? route('properties.edit', $property).'#'.$field : null);
+            }
+            foreach ([0, 1, 2, 3] as $index) {
+                $page->where("onboarding.gates.{$index}.href", null);
+            }
+        });
+})->with([
+    [OrganizationRole::Owner, true],
+    [OrganizationRole::PropertyManager, true],
+    [OrganizationRole::FrontDesk, false],
+]);
 
 test('an empty profile and another property data cannot complete the selected property checklist', function () {
     $t = twoTenants();

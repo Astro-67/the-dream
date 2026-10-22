@@ -33,7 +33,9 @@ class CashierShiftController extends Controller
         $property = Tenancy::property();
 
         return Inertia::render('cashier-shifts/index', [
-            'canOpenShift' => $canOpen,
+            'canOpenShift' => $canOpen && ($property?->settings()['payment_settings']['use_cashier_shifts'] ?? false),
+            'canCloseShift' => $own !== null && Gate::allows('close', $own),
+            'usesCashierShifts' => $property?->settings()['payment_settings']['use_cashier_shifts'] ?? false,
             'openShift' => $own === null ? null : $this->row($own),
             'shifts' => $shifts,
             'currencies' => $property === null ? [] : array_map(fn ($currency) => $currency->value, JurisdictionRules::allowedCurrencies($property)),

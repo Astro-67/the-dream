@@ -63,7 +63,7 @@ test('only roles with charges.post open a folio or transfer a charge', function 
         $allowed ? $response->assertRedirect(route('reservations.show', $reservation)) : $response->assertForbidden();
     }
     expect(inTenant($t->a->property, fn () => [Folio::query()->count(), Folio::query()->findOrFail($folio->id)->balance()->amount]))->toBe($allowed ? [3, 0] : [2, 400]);
-})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()));
+})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::PropertyManager, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()));
 
 test('opening a folio refuses a currency the jurisdiction does not allow, and a transfer refuses another currency', function () {
     $t = twoTenants();

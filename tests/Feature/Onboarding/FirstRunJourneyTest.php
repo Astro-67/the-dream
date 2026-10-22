@@ -43,6 +43,7 @@ test('a new account walks register, verify, organization setup and lands on the 
 
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('onboarding.propertyName', 'Stone Town Inn')
+        ->where('tenant.property.paymentSettings.use_cashier_shifts', false)
         ->where('today', null));
 
     $property = Tenancy::within(Tenancy::defaultContextFor($user), fn () => Property::query()->sole());
@@ -55,7 +56,7 @@ test('a new account walks register, verify, organization setup and lands on the 
 })->with([
     'registration omitted' => [[]],
     'not yet classified and empty registration' => [['star_rating' => null, 'tin' => null, 'z_number' => null, 'vrn' => null]],
-    'classified and registered' => [['star_rating' => 2, 'tin' => 'TIN-122', 'z_number' => 'Z-122', 'vrn' => 'VRN-122']],
+    'classified and registered' => [['star_rating' => 2, 'tin' => 'TIN-122', 'z_number' => 'Z-122/LOCATION', 'vrn' => 'VRN-122']],
 ]);
 
 test('registering with an email that already has an account is refused with a field error', function () {

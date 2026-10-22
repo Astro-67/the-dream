@@ -28,6 +28,7 @@ class ReportRequest extends FormRequest
         return [
             'from' => ['bail', 'required', 'date_format:Y-m-d'],
             'to' => ['bail', 'required', 'date_format:Y-m-d', Rule::when(is_string($this->input('from')), 'after_or_equal:from')],
+            'settled' => ['sometimes', 'boolean'],
         ];
     }
 }

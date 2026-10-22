@@ -10,7 +10,11 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { paymentMethodLabel } from '@/features/billing/payment-form';
-import { AmountCell, FolioBalances } from '@/features/reports/finance-report';
+import {
+    AmountCell,
+    FolioBalances,
+    ShowSettledField,
+} from '@/features/reports/finance-report';
 import type { GroupFolios } from '@/features/reports/finance-report';
 import KpiReport from '@/features/reports/kpi-report';
 import type { Kpis } from '@/features/reports/kpi-report';
@@ -55,7 +59,7 @@ export default function GroupReport({
     finance,
     refreshedAt,
 }: {
-    filters: ReportFilters & { properties: string[] };
+    filters: ReportFilters & { properties: string[]; settled: boolean };
     available: { id: string; name: string }[];
     properties: {
         id: string;
@@ -109,6 +113,7 @@ export default function GroupReport({
                             </div>
                         ))}
                     </div>
+                    <ShowSettledField checked={filters.settled} />
                 </fieldset>
             }
         >
@@ -154,11 +159,13 @@ export default function GroupReport({
                         Folio balances
                     </h2>
                     <p className="max-w-prose text-sm text-muted-foreground">
-                        A snapshot at the refresh time, not limited to the
-                        selected dates. Charges less payments and credits on
-                        each folio with a balance that is not zero, in every
-                        included property. A negative balance is owed to the
-                        guest. Switch to a property to open its reservations.
+                        Posted charges and net payments at the refresh time, in
+                        every included property: each folio with a balance that
+                        is not zero, whatever its dates. Show settled adds
+                        folios whose stay departs in the selected dates. A
+                        credit balance is owed to the guest, not a debt. Nights
+                        not yet charged are not in these totals. Switch to a
+                        property to open its reservations.
                     </p>
                 </div>
                 <h3 className="font-medium">Open balances after departure</h3>

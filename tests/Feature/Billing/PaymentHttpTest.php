@@ -55,7 +55,7 @@ test('only roles with charges.post record a payment', function (OrganizationRole
         $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
             ->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page->where('canRecordPayment', $allowed));
     }
-})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()));
+})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::PropertyManager, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()));
 
 test('a recorded payment redirects to its receipt, labelled non-fiscal', function () {
     [$t, $folio] = folioForPayments();
@@ -117,7 +117,7 @@ test('the reservation shows payments, deposits, receipts and the payment collect
         ->where('folios.data.0.balance', -24000)
         ->where('folios.data.0.postings.data.0.type', 'payment')->where('folios.data.0.postings.data.0.category', 'deposit')
         ->where('folios.data.0.postings.data.0.method', 'channel_collected')->where('folios.data.0.postings.data.0.receipt.number', 'RCT-000001')
-        ->where('totals', [['currency' => 'USD', 'charges' => 0, 'balance' => -24000]]));
+        ->where('totals.0.currency', 'USD')->where('totals.0.charges', 0)->where('totals.0.net_payments', 24000)->where('totals.0.balance', -24000));
 });
 
 test('front desk records the channel-collected amount when booking', function () {

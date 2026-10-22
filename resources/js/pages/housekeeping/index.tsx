@@ -16,6 +16,8 @@ import {
     TableCell,
 } from '@/components/ui/table';
 import { history, index, status, overrideReady } from '@/routes/housekeeping';
+import { index as maintenance } from '@/routes/maintenance';
+import { useCan } from '@/hooks/use-can';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Input } from '@/components/ui/input';
@@ -202,6 +204,8 @@ export default function HousekeepingBoard({
     stayoverServiceLabel: string;
     canOverrideReady: boolean;
 }) {
+    const can = useCan();
+
     return (
         <>
             <Head title="Housekeeping" />
@@ -336,6 +340,24 @@ export default function HousekeepingBoard({
                                                     History
                                                 </Link>
                                             </Button>
+                                            {can('maintenance.report') && (
+                                                <Button
+                                                    variant="ghost"
+                                                    asChild
+                                                    className="pointer-coarse:min-h-11"
+                                                >
+                                                    <Link
+                                                        href={maintenance({
+                                                            query: {
+                                                                room: room.id,
+                                                            },
+                                                        })}
+                                                        aria-label={`Report a problem in room ${room.number}`}
+                                                    >
+                                                        Report a problem
+                                                    </Link>
+                                                </Button>
+                                            )}
                                             {canOverrideReady &&
                                                 !room.isReady && (
                                                     <ReadyOverride

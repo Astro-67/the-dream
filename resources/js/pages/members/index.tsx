@@ -13,7 +13,10 @@ import Heading from '@/components/heading';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RemoveMember } from '@/features/tenancy/remove-member';
-import { useCan } from '@/hooks/use-can';
+import {
+    PendingInvitations,
+    type PendingInvitation,
+} from '@/features/tenancy/pending-invitations';
 import { create as invite } from '@/routes/invitations';
 import { edit, index } from '@/routes/members';
 
@@ -31,25 +34,25 @@ type MemberRow = {
 
 type Props = {
     members: MemberRow[];
+    invitations: PendingInvitation[];
+    canInvite: boolean;
 };
 
-export default function Members({ members }: Props) {
-    const can = useCan();
-
+export default function Members({ members, invitations, canInvite }: Props) {
     return (
         <>
-            <Head title="Members" />
+            <Head title="Staff" />
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <Heading
-                        title="Members"
+                        title="Staff"
                         description="The people in your organization, their roles and the properties they work in."
                     />
-                    {can('members.manage', 'members.invite') && (
+                    {canInvite && (
                         <Button asChild>
                             <Link href={invite()}>
                                 <MailPlus aria-hidden />
-                                Invite person
+                                Add staff
                             </Link>
                         </Button>
                     )}
@@ -130,6 +133,17 @@ export default function Members({ members }: Props) {
                         </TableBody>
                     </Table>
                 )}
+                {(canInvite || invitations.length > 0) && (
+                    <section
+                        className="grid gap-4"
+                        aria-labelledby="pending-invitations"
+                    >
+                        <h2 id="pending-invitations" className="text-lg">
+                            Pending invitations
+                        </h2>
+                        <PendingInvitations invitations={invitations} />
+                    </section>
+                )}
             </div>
         </>
     );
@@ -138,7 +152,7 @@ export default function Members({ members }: Props) {
 Members.layout = {
     breadcrumbs: [
         {
-            title: 'Members',
+            title: 'Staff',
             href: index(),
         },
     ],

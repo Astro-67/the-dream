@@ -31,5 +31,6 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::post('reservations/{reservation:reservation_number}/add-guest', AddGuestController::class)->middleware('property.intent')->name('reservations.add-guest');
     Route::post('reservations/{reservation:reservation_number}/extend', ExtendStayController::class)->middleware('property.intent')->name('reservations.extend');
     Route::post('reservations/{reservation:reservation_number}/depart-early', DepartEarlyController::class)->middleware('property.intent')->name('reservations.depart-early');
+    Route::get('reservations/{reservation:reservation_number}/statement', [ReservationController::class, 'statement'])->name('reservations.statement');
     Route::get('reservations/{reservation:reservation_number}', [ReservationController::class, 'show'])->name('reservations.show');
 });

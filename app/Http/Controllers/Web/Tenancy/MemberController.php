@@ -7,6 +7,7 @@ use App\Domains\Tenancy\Actions\RemoveMember;
 use App\Domains\Tenancy\Actions\TransferOwnership;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Exceptions\MembershipChangeRefused;
+use App\Domains\Tenancy\Models\Invitation;
 use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
@@ -20,7 +21,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The people in the current organization, with their roles and properties (PRD ORG-02).
+ * Staff: the people in the current organization, with their roles and properties,
+ * and the invitations still pending (PRD ORG-02).
  */
 class MemberController extends Controller
 {
@@ -55,8 +57,29 @@ class MemberController extends Controller
             ->sortBy([['name', 'asc'], ['email', 'asc']])
             ->values();
 
+        $invitations = Invitation::query()
+            ->pending()
+            ->with('inviter')
+            ->latest()
+            ->get()
+            ->filter(fn (Invitation $invitation) => $user->can('view', $invitation))
+            ->map(fn (Invitation $invitation) => [
+                'id' => $invitation->id,
+                'email' => $invitation->email,
+                'role' => $invitation->role->value,
+                'roleLabel' => $invitation->role->label(),
+                'allProperties' => $invitation->all_properties,
+                'properties' => $propertyNames->only($invitation->property_ids)->values()->all(),
+                'invitedBy' => $invitation->inviter?->name,
+                'expiresAt' => $invitation->expires_at->toIso8601String(),
+                'canRevoke' => $user->can('revoke', $invitation),
+            ])
+            ->values();
+
         return Inertia::render('members/index', [
             'members' => $members,
+            'invitations' => $invitations,
+            'canInvite' => $user->can('create', Invitation::class),
         ]);
     }
 
