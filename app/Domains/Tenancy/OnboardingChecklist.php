@@ -53,10 +53,7 @@ final class OnboardingChecklist
                 'key' => $gate->key,
                 'label' => $gate->label,
                 'passed' => $gate->passed,
-                'href' => match ($gate->key) {
-                    'room_type', 'room', 'rate_plan', 'taxes_reviewed' => null,
-                    default => $actor->can('update', $property) ? route('properties.edit', $property).'#'.$gate->key : null,
-                },
+                'href' => $gate->onPropertyForm && $actor->can('update', $property) ? route('properties.edit', $property).'#'.$gate->key : null,
             ], $gates),
             'canGoLive' => $actor->can('goLive', $property) && collect($gates)->every(fn (GoLiveGate $gate) => $gate->passed),
             'canReviewTaxes' => $actor->can('reviewTaxes', $property),

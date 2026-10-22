@@ -123,6 +123,9 @@ test('missing registration gates link to the exact editable field only for autho
                 $page->where("onboarding.gates.{$index}.passed", false)
                     ->where("onboarding.gates.{$index}.href", $canEdit ? route('properties.edit', $property).'#'.$field : null);
             }
+            foreach ([0, 1, 2, 3] as $index) {
+                $page->where("onboarding.gates.{$index}.href", null);
+            }
         });
 })->with([
     [OrganizationRole::Owner, true],

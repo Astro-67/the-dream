@@ -109,12 +109,12 @@ final class JurisdictionRules
             new GoLiveGate('rate_plan', __('At least one rate plan'), RatePlan::query()->where('property_id', $id)->whereNull('deactivated_at')->exists()),
             new GoLiveGate('taxes_reviewed', __('Taxes reviewed'), $property->taxes_reviewed_at !== null),
             ...($property->jurisdiction_profile === JurisdictionProfile::Zanzibar ? [
-                new GoLiveGate('tin', __('TIN'), filled($property->tin)),
-                new GoLiveGate('z_number', __('Z-number'), filled($property->z_number)),
-                new GoLiveGate('zra_hotel_code', __('ZRA hotel code'), filled($property->zra_hotel_code)),
-                new GoLiveGate('star_rating', __('Star rating'), in_array($property->star_rating, [1, 2, 3, 4, 5], true)),
+                new GoLiveGate('tin', __('TIN'), filled($property->tin), onPropertyForm: true),
+                new GoLiveGate('z_number', __('Z-number'), filled($property->z_number), onPropertyForm: true),
+                new GoLiveGate('zra_hotel_code', __('ZRA hotel code'), filled($property->zra_hotel_code), onPropertyForm: true),
+                new GoLiveGate('star_rating', __('Star rating'), in_array($property->star_rating, [1, 2, 3, 4, 5], true), onPropertyForm: true),
                 ...($property->settings()['tax_settings']['zra_tax_category'] === ZraTaxCategory::Vat->value ? [
-                    new GoLiveGate('vrn', __('VRN'), filled($property->vrn)),
+                    new GoLiveGate('vrn', __('VRN'), filled($property->vrn), onPropertyForm: true),
                 ] : []),
             ] : []),
         ];
