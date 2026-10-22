@@ -7,7 +7,11 @@ import { NativeSelect } from '@/components/ui/select';
 import { paymentMethods } from '@/features/billing/payment-form';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
-import { show as showReservation } from '@/routes/reservations';
+import {
+    FolioSummaryList,
+    type FolioSummary,
+} from '@/features/billing/folio-summary';
+import { show as showReservation, statement } from '@/routes/reservations';
 
 type Receipt = {
     id: string;
@@ -22,6 +26,18 @@ type Receipt = {
     reference: string | null;
     card_last_four: string | null;
     card_brand: string | null;
+    cashier: string | null;
+};
+type Stay = {
+    reservation_number: string;
+    guest: string;
+    room: string | null;
+    room_type: string | null;
+    arrival: string;
+    departure: string;
+};
+const corrections: Record<string, string> = {
+    reversal: 'Reversed',
 };
 
 export default function Show({
@@ -29,8 +45,19 @@ export default function Show({
     reservation,
     booker,
     property,
+    summary,
+    stay,
+    corrections: later,
 }: {
     receipt: Receipt;
+    summary: (FolioSummary & { currency: string }) | null;
+    stay: Stay;
+    corrections: {
+        id: string;
+        type: string;
+        amount: number;
+        business_date: string;
+    }[];
     reservation: { reservation_number: string; payment_collector: string };
     booker: { name: string };
     property: {
@@ -80,6 +107,7 @@ export default function Show({
                                 `${formatDate(receipt.issued_at, timezone)} ${formatTime(receipt.issued_at, timezone)}`,
                             ],
                             ['Received from', booker.name],
+                            ['Guest', stay.guest],
                             [
                                 'Reservation',
                                 <Link
@@ -104,6 +132,17 @@ export default function Show({
                                 </span>,
                             ],
                             ['Method', method],
+                            ...(receipt.cashier
+                                ? [['Processed by', receipt.cashier]]
+                                : []),
+                            [
+                                'Room',
+                                `${stay.room ?? 'Not assigned'}${stay.room_type ? `, ${stay.room_type}` : ''}`,
+                            ],
+                            [
+                                'Stay',
+                                `${formatDate(stay.arrival, 'UTC')} to ${formatDate(stay.departure, 'UTC')}`,
+                            ],
                             ...(receipt.reference
                                 ? [['Reference', receipt.reference]]
                                 : []),
@@ -147,6 +186,57 @@ export default function Show({
                         </div>
                     ))}
                 </dl>
+                <section className="space-y-2">
+                    <h2 className="font-semibold">
+                        Folio summary at payment time
+                    </h2>
+                    {summary ? (
+                        <>
+                            <p className="text-sm text-muted-foreground">
+                                The folio this payment went to, right after it
+                                was taken. Not a receipt of tax and not a
+                                further payment.
+                            </p>
+                            <FolioSummaryList
+                                summary={summary}
+                                currency={summary.currency}
+                            />
+                        </>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            Historical folio summary unavailable.
+                        </p>
+                    )}
+                </section>
+                {later.length > 0 && (
+                    <section className="space-y-1">
+                        <h2 className="font-semibold">Later corrections</h2>
+                        {later.map((correction) => (
+                            <p
+                                key={`${correction.type}-${correction.business_date}`}
+                                className="text-sm"
+                            >
+                                {corrections[correction.type] ??
+                                    correction.type}{' '}
+                                {formatDate(correction.business_date, 'UTC')}:{' '}
+                                {formatMoney(
+                                    correction.amount,
+                                    receipt.currency,
+                                )}
+                            </p>
+                        ))}
+                        <p className="text-sm text-muted-foreground">
+                            This receipt is unchanged; see the folio statement
+                            for the current balance.
+                        </p>
+                    </section>
+                )}
+                <Link
+                    href={statement(stay.reservation_number)}
+                    className="underline underline-offset-4 print:hidden"
+                >
+                    Folio statement
+                </Link>
                 <div className="flex flex-wrap items-end gap-3 print:hidden">
                     <div className="space-y-2">
                         <Label htmlFor="receipt-paper">Paper size</Label>

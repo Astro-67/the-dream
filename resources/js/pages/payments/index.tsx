@@ -2,7 +2,9 @@ import { Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import {
     CollectionsTable,
+    PaymentsTable,
     periodLabels,
+    type PaymentRow,
     type Received,
 } from '@/features/reports/collections-table';
 import {
@@ -11,17 +13,20 @@ import {
 } from '@/features/reports/finance-report';
 import ReportLayout from '@/features/reports/report-layout';
 import { index } from '@/routes/payments';
+import type { Paginated } from '@/types';
 
 type Filters = { from: string; to: string; period: string; view: string };
 
 export default function Payments({
     filters,
     received,
+    payments,
     folios,
     refreshedAt,
 }: {
     filters: Filters;
     received: Received | null;
+    payments: Paginated<PaymentRow> | null;
     folios: PropertyFinance['folios'] | null;
     refreshedAt: string;
 }) {
@@ -107,6 +112,12 @@ export default function Payments({
                             posted. Currencies are never combined.
                         </p>
                         <CollectionsTable received={received} />
+                    </>
+                )}
+                {payments && payments.total > 0 && (
+                    <>
+                        <h3 className="font-semibold">Individual payments</h3>
+                        <PaymentsTable payments={payments} />
                     </>
                 )}
                 {folios && <FolioBalances folios={folios} />}

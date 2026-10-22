@@ -2,6 +2,7 @@
 
 namespace App\Domains\Billing\Actions;
 
+use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
@@ -113,10 +114,17 @@ class RecordPayment
         }
         $sequence->increment('last_number');
 
+        // Taken under the folio lock, so it holds this payment and every posting committed before it.
+        $summary = [
+            'payment_posting_id' => $posting->id, 'currency' => $posting->currency->value, ...FolioSummary::of(Posting::query()->where('folio_id', $posting->folio_id)->get()),
+            // The stay as it was then, so a later room move or date change does not rewrite this receipt.
+            'stay' => Reservation::query()->findOrFail(Folio::query()->findOrFail($posting->folio_id)->reservation_id)->stay(),
+        ];
+
         return Receipt::query()->create([
             'posting_id' => $posting->id, 'sequence' => $sequence->last_number,
             'number' => $property->receipt_prefix.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT),
-            'issued_at' => now(),
+            'issued_at' => now(), 'summary' => $summary,
         ]);
     }
 }

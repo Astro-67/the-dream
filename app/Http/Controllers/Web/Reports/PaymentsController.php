@@ -21,6 +21,7 @@ class PaymentsController extends Controller
         return Inertia::render('payments/index', [
             'filters' => $filters,
             'received' => $filters['view'] === 'received' ? $collections->received($property, $filters['from'], $filters['to']) : null,
+            'payments' => $filters['view'] === 'received' ? $collections->payments($property, $filters['from'], $filters['to']) : null,
             'folios' => $filters['view'] === 'outstanding' ? $finance->folios(collect([$property])) : null,
             'refreshedAt' => now()->toIso8601String(),
         ]);

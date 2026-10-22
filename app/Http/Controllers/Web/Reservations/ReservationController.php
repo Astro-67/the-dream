@@ -135,14 +135,9 @@ class ReservationController extends Controller
     {
         Gate::authorize('view', $reservation);
         $folios = FolioSummary::folios($reservation);
-        $guest = $reservation->leadGuest()->name ?? Booker::query()->find($reservation->getAttribute('booker_id'))?->getAttribute('name');
 
         return Inertia::render('reservations/statement', [
-            'reservation' => [
-                ...$reservation->only(['reservation_number', 'adults', 'children']), 'arrival' => $reservation->arrival->toDateString(), 'departure' => $reservation->departure->toDateString(),
-                'nights' => (int) $reservation->arrival->diffInDays($reservation->departure), 'guest' => $guest ?? __('Guest'),
-                'room' => Room::query()->find($reservation->room_id)?->number, 'room_type' => RoomType::query()->findOrFail($reservation->getAttribute('room_type_id'))->name,
-            ],
+            'reservation' => [...$reservation->stay(), ...$reservation->only(['adults', 'children'])],
             'folios' => $folios->map(fn (array $folio, int $index) => [
                 'number' => $index + 1, 'currency' => $folio['folio']->currency->value, 'summary' => $folio['summary'],
                 'postings' => $folio['postings']->map(fn (Posting $posting) => [
