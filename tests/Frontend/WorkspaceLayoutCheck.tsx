@@ -87,7 +87,12 @@ for (const sidebarOpen of [true, false]) {
                     },
                     tenant: {
                         organization: null,
-                        property: null,
+                        property: {
+                            name: 'Stone Town Waterfront Hotel with a long property name',
+                            businessDate: '2026-12-10',
+                            jurisdictionLabel: 'Zanzibar',
+                            paymentSettings: { use_cashier_shifts: false },
+                        },
                         organizations: [],
                         properties: [],
                     },
@@ -114,6 +119,16 @@ for (const sidebarOpen of [true, false]) {
     assert.match(shell, /href="\/settings\/profile"/);
     assert.match(shell, /<section[^>]*max-w-\[720px\]/);
     assert.doesNotMatch(shell, /lg:space-x-12|md:max-w-2xl/);
+    assert.match(
+        shell,
+        /Stone Town Waterfront Hotel with a long property name/,
+    );
+    assert.match(shell, /10 Dec 2026/);
+    assert.match(
+        shell,
+        /<header[^>]*flex-wrap/,
+        'The sticky header must reflow rather than squeeze property context out',
+    );
 }
 
 const headerWorkspace = renderToStaticMarkup(

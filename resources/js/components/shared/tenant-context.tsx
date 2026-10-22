@@ -83,14 +83,16 @@ export function CurrentProperty() {
 
     return (
         <div
-            className="flex min-w-0 items-center gap-2 text-sm"
+            className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-sm md:flex-initial md:flex-nowrap"
             data-test="current-property"
         >
             <MapPin
                 className="size-4 shrink-0 text-muted-foreground"
                 aria-hidden
             />
-            <span className="truncate font-medium">{tenant.property.name}</span>
+            <span className="min-w-0 flex-1 truncate font-medium md:flex-initial">
+                {tenant.property.name}
+            </span>
             <Tag className="shrink-0">{tenant.property.jurisdictionLabel}</Tag>
             {tenant.property.demo && (
                 <StatusChip tone="info" className="shrink-0">
