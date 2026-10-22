@@ -46,6 +46,7 @@ class InvitationController extends Controller
             'roles' => array_map(fn (OrganizationRole $role) => [
                 'value' => $role->value,
                 'label' => $role->label(),
+                'summary' => __($role->summary()),
                 'mayHaveAllProperties' => $managesMembers && $role->mayHaveAllProperties(),
             ], $roles),
             'properties' => $properties->map(fn (Property $p) => ['value' => $p->id, 'label' => $p->displayName()])->values(),

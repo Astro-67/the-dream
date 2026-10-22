@@ -1,10 +1,14 @@
 <?php
 
+use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\Posting;
+use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Models\User;
 use App\Support\Tenancy\Access;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\BookingForm;
 use Tests\Support\TwoTenants;
 
 /*
@@ -137,3 +141,40 @@ test('nothing is allowed outside a tenant context', function () {
     expect(Access::allows($t->a->owner, OrganizationPermission::PropertiesView, $t->a->property))->toBeFalse()
         ->and(Access::permissionsFor($t->a->owner, $t->a->property))->toBe([]);
 });
+
+test('the common staff roles reach exactly their routes, in their own property only', function (OrganizationRole $role, array $allowed) {
+    $t = twoTenants();
+    [$here, $there, $foreign] = [[$t->a, $t->a->property], [$t->a, $t->a->otherProperty], [$t->b, $t->b->property]];
+    $folios = array_map(fn (array $at) => inTenant($at[1], fn () => Folio::query()->where('reservation_id', app(CreateReservation::class)->handle($at[0]->owner, BookingForm::details($at[0]->owner))->id)->sole()), [$here, $there, $foreign]);
+    $this->actingAs($t->a->member($role))->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $range = ['from' => '2026-12-01', 'to' => '2026-12-31'];
+    $pages = [
+        'reservations' => route('reservations.index'),
+        'housekeeping' => route('housekeeping.index'),
+        'payments' => route('payments.index', $range),
+        'reports' => route('reports.index', $range),
+        'guests' => route('guests.index'),
+        'staff' => route('members.index'),
+        'add staff' => route('invitations.create'),
+    ];
+
+    foreach ($pages as $page => $url) {
+        expect($this->get($url)->status())->toBe(in_array($page, $allowed, true) ? 200 : 403, "{$role->value}: {$page}");
+    }
+    foreach ($folios as $i => $folio) {
+        $status = $this->post(route('folios.payments.store', $folio), ['_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 100, 'idempotency_key' => "k-{$i}"])->status();
+        expect($status)->toBe(match (true) {
+            // Folios of another property, even in the same organization, are not found from this one.
+            $i > 0 => 404,
+            in_array('take payment', $allowed, true) => 302,
+            default => 403,
+        }, "{$role->value}: payment {$i}");
+    }
+    expect(inTenant($t->a->otherProperty, fn () => Posting::query()->count()))->toBe(0)
+        ->and(inTenant($t->b->property, fn () => Posting::query()->count()))->toBe(0);
+})->with([
+    // Payments here is the read-only report; a property manager still may not take a payment.
+    'property manager' => [OrganizationRole::PropertyManager, ['reservations', 'housekeeping', 'payments', 'reports', 'guests', 'staff', 'add staff']],
+    'reception' => [OrganizationRole::FrontDesk, ['reservations', 'housekeeping', 'guests', 'take payment']],
+    'housekeeping' => [OrganizationRole::Housekeeping, ['housekeeping']],
+]);

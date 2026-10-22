@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Tenancy\Actions\SendInvitation;
+use App\Domains\Tenancy\Data\InvitationDetails;
 use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Invitation;
@@ -285,6 +287,22 @@ test('a property manager invites staff to their own property', function () {
         ->where('invitations.0.canRevoke', true));
 });
 
+test('add staff explains what each common role may do, matching its permissions', function () {
+    $t = twoTenants();
+
+    $this->actingAs($t->a->owner)->get(route('invitations.create'))->assertInertia(fn (Assert $page) => $page
+        ->has('roles', count(OrganizationRole::cases()))
+        ->where('roles', fn ($roles) => collect($roles)->pluck('summary', 'value')->only(['property_manager', 'front_desk', 'housekeeping'])->all() === [
+            'property_manager' => 'Runs their properties: reservations, rooms, rates, housekeeping, reports and inviting staff. Does not take payments.',
+            'front_desk' => 'Reservations, check-in and check-out, guest registration and taking payments in their properties.',
+            'housekeeping' => 'Room cleaning status and their assigned rooms. No guests, payments or reports.',
+        ]));
+
+    expect(OrganizationRole::PropertyManager->permissions())->not->toContain('charges.post')
+        ->and(OrganizationRole::FrontDesk->permissions())->toContain('charges.post', 'reservations.manage')
+        ->and(OrganizationRole::Housekeeping->permissions())->toBe(['housekeeping.view', 'housekeeping.manage']);
+});
+
 test('a property manager can\'t invite to another property, grant all properties or invite organization-level roles', function () {
     $t = twoTenants();
     $manager = $t->a->member(OrganizationRole::PropertyManager);
@@ -319,7 +337,7 @@ test('members without the invite permission can\'t see or send invitations', fun
     $t = twoTenants();
     $this->actingAs($t->a->member($role));
 
-    pendingInvitationIn($t->a, 'pending@example.test');
+    inTenant($t->a->organization, fn () => app(SendInvitation::class)->handle($t->a->owner, InvitationDetails::fromArray(['email' => 'pending@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->property->id]])));
     $staff = $this->get(route('members.index'));
     in_array('members.view', $role->permissions(), true)
         ? $staff->assertInertia(fn (Assert $page) => $page->where('canInvite', false)->has('invitations', 0))

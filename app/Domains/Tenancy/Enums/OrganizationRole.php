@@ -32,6 +32,20 @@ enum OrganizationRole: string
         };
     }
 
+    /** What the role may do, shown when choosing it. Keep in step with permissions(). */
+    public function summary(): string
+    {
+        return match ($this) {
+            self::Owner => 'Everything, in every property, including staff, billing settings and the subscription.',
+            self::GroupOperationsManager => 'Operations across properties: reservations, rooms, rates, housekeeping and reports. Does not take payments or manage staff.',
+            self::PropertyManager => 'Runs their properties: reservations, rooms, rates, housekeeping, reports and inviting staff. Does not take payments.',
+            self::FrontDesk => 'Reservations, check-in and check-out, guest registration and taking payments in their properties.',
+            self::Finance => 'Payments, corrections, refunds, write-offs and reports in their properties.',
+            self::Housekeeping => 'Room cleaning status and their assigned rooms. No guests, payments or reports.',
+            self::Auditor => 'Views reservations, finance and reports in their properties without changing anything.',
+        };
+    }
+
     public function mayHaveAllProperties(): bool
     {
         return in_array($this, [self::Owner, self::GroupOperationsManager], true);
