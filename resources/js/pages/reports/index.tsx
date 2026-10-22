@@ -1,4 +1,6 @@
-import FinanceReport from '@/features/reports/finance-report';
+import FinanceReport, {
+    ShowSettledField,
+} from '@/features/reports/finance-report';
 import KpiReport from '@/features/reports/kpi-report';
 import type { Kpis } from '@/features/reports/kpi-report';
 import type { PropertyFinance } from '@/features/reports/finance-report';
@@ -15,7 +17,7 @@ export default function PropertyReport({
     finance,
     refreshedAt,
 }: {
-    filters: ReportFilters;
+    filters: ReportFilters & { settled: boolean };
     kpis: Kpis;
     operations: PropertyOperationsData;
     finance: PropertyFinance;
@@ -27,6 +29,7 @@ export default function PropertyReport({
             filters={filters}
             refreshedAt={refreshedAt}
             action={index.url()}
+            fields={<ShowSettledField checked={filters.settled} />}
         >
             <KpiReport kpis={kpis} />
             <PropertyOperations operations={operations} />

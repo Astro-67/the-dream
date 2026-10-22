@@ -9,13 +9,20 @@ import {
 } from '@/features/reports/collections-table';
 import {
     FolioBalances,
+    ShowSettledField,
     type PropertyFinance,
 } from '@/features/reports/finance-report';
 import ReportLayout from '@/features/reports/report-layout';
 import { index } from '@/routes/payments';
 import type { Paginated } from '@/types';
 
-type Filters = { from: string; to: string; period: string; view: string };
+type Filters = {
+    from: string;
+    to: string;
+    period: string;
+    view: string;
+    settled: boolean;
+};
 
 export default function Payments({
     filters,
@@ -37,11 +44,14 @@ export default function Payments({
             filters={filters}
             refreshedAt={refreshedAt}
             action={index.url()}
-            description="Money received by method and currency on the selected business dates. Use the date fields for a custom range. Outstanding shows current folio balances, regardless of those dates."
+            description="Money received by method and currency on the selected business dates. Use the date fields for a custom range. Outstanding shows current folio balances, regardless of those dates; Show settled adds settled folios departing in them."
             fields={
                 <>
                     <input type="hidden" name="view" value={filters.view} />
                     <input type="hidden" name="period" value="custom" />
+                    {filters.view === 'outstanding' && (
+                        <ShowSettledField checked={filters.settled} />
+                    )}
                 </>
             }
         >

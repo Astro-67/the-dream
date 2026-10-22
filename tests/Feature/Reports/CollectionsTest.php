@@ -153,3 +153,16 @@ test('payments are listed on the property business date, not the UTC date they w
     $this->get(route('payments.index', ['period' => 'custom', 'from' => '2026-12-09', 'to' => '2026-12-09']))->assertInertia(fn (Assert $page) => $page
         ->where('payments.data', fn ($rows) => collect($rows)->doesntContain(fn ($row) => $row['amount'] === 11)));
 });
+
+test('outstanding shows settled folios departing in the period only when asked', function () {
+    $t = twoTenants();
+    $folio = collectionsFolio($t->a);
+    inTenant($t->a->property, fn () => app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'card', 'amount' => $folio->balance()->amount, 'currency' => 'USD']));
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $query = ['view' => 'outstanding', 'period' => 'custom', 'from' => '2026-12-12', 'to' => '2026-12-12'];
+
+    $this->get(route('payments.index', $query))->assertInertia(fn (Assert $page) => $page
+        ->where('folios.data', fn ($rows) => collect($rows)->pluck('id')->doesntContain($folio->id)));
+    $this->get(route('payments.index', [...$query, 'settled' => 1]))->assertInertia(fn (Assert $page) => $page
+        ->where('filters.settled', true)->where('folios.data', fn ($rows) => collect($rows)->contains(fn ($row) => $row['id'] === $folio->id && $row['balance'] === 0)));
+});

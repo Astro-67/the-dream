@@ -12,6 +12,11 @@ const folio = {
     departed: true,
     currency: 'TZS',
     balance: 15000,
+    guest: 'Amina Report',
+    room: '101',
+    charges: 40000,
+    netPayments: 25000,
+    notYetCharged: false,
 };
 const page = {
     current_page: 1,
@@ -40,6 +45,49 @@ const property = renderToStaticMarkup(
     <FolioBalances folios={{ ...page, data: [folio] }} />,
 );
 assert.doesNotMatch(property, />Property</);
+for (const column of [
+    'Guest',
+    'Reservation',
+    'Room',
+    'Posted charges',
+    'Net payments',
+    'Balance',
+])
+    assert.match(property, new RegExp(`>${column}<`));
+assert.match(property, /Amina Report/);
+assert.match(property, /TZS 40,000/);
+assert.match(property, /TZS 25,000/);
+assert.match(property, />Due</);
+
+// A credit is not a debt, and a settled folio with nights left says so.
+const credit = renderToStaticMarkup(
+    <FolioBalances
+        folios={{
+            ...page,
+            data: [{ ...folio, balance: -5000, guest: null, room: null }],
+        }}
+    />,
+);
+assert.match(credit, /TZS -5,000/);
+assert.match(credit, />Credit</);
+assert.match(credit, /No guest added/);
+assert.match(credit, /Unassigned/);
+const settled = renderToStaticMarkup(
+    <FolioBalances
+        folios={{
+            ...page,
+            data: [{ ...folio, balance: 0, notYetCharged: true }],
+        }}
+    />,
+);
+assert.match(settled, /Not yet charged/);
+assert.doesNotMatch(settled, />Settled</);
+// A settled departed stay is not called open.
+const departedSettled = renderToStaticMarkup(
+    <FolioBalances folios={{ ...page, data: [{ ...folio, balance: 0 }] }} />,
+);
+assert.doesNotMatch(departedSettled, /balance open/);
+assert.match(departedSettled, />Settled</);
 assert.match(property, /href="[^"]*R-1001"/);
 
 // An instant late on 14 Oct UTC is already 15 Oct in Dar es Salaam (UTC+3).
