@@ -11,7 +11,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class DashboardRooms
 {
-    /** @return LengthAwarePaginator<int, array<string, mixed>> */
+    /** @return LengthAwarePaginator<int, array{id: string, number: string, roomType: string, status: string, statusLabel: array<array-key, mixed>|string, tone: string, readinessLabel: string|null, readinessTone: string}> */
     public function forDate(string $date): LengthAwarePaginator
     {
         return Room::query()->active()->with('roomType')->addSelect([
@@ -20,7 +20,7 @@ class DashboardRooms
             'reserved' => Reservation::query()->select('id')->whereColumn('room_id', 'rooms.id')->where('status', 'confirmed')->whereDate('arrival', $date)->limit(1),
         ])->withExists(['outOfServicePeriods as out_of_order' => fn (Builder $query) => $query
             ->whereDate('starts_on', '<=', $date)->whereDate('returns_on', '>', $date),
-        ])->orderBy('number')->orderBy('id')->paginate(50)->withQueryString()->through(function (Room $room) {
+        ])->orderBy('number')->orderBy('id')->paginate(50)->withQueryString()->through(function (Room $room): array {
             $housekeeping = HousekeepingStatus::tryFrom($room->getAttribute('housekeeping_status') ?? '') ?? HousekeepingStatus::Dirty;
             [$status, $label, $tone] = match (true) {
                 $room->getAttribute('out_of_order') || $housekeeping === HousekeepingStatus::Unavailable => ['out_of_order', __('Out of order'), 'unavailable'],
