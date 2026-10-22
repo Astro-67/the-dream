@@ -1,16 +1,20 @@
 <?php
 
+use App\Domains\Billing\Models\Folio;
+use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Actions\SendInvitation;
 use App\Domains\Tenancy\Data\InvitationDetails;
 use App\Domains\Tenancy\Data\MembershipGrant;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Invitation;
+use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Domains\Tenancy\Notifications\InvitationSent;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\BookingForm;
 
 /**
  * Sends an invitation through the invite form as $inviter, signs them out, and
@@ -113,6 +117,49 @@ test('an existing user who accepts keeps one account, gains the membership and l
 
     inTenant($t->a->organization, fn () => expect($bravoClerk->fresh()->hasRole('housekeeping'))->toBeTrue());
     inTenant($t->b->organization, fn () => expect($bravoClerk->fresh()->hasRole('front_desk'))->toBeTrue());
+});
+
+test('removed staff retain receipt attribution and rejoin only with newly invited scopes; protects=actors and explicit grants; fails_when=old access returns; no_claim=account-wide disable', function () {
+    $t = twoTenants();
+    $clerk = $t->memberOfBoth(OrganizationRole::FrontDesk, OrganizationRole::FrontDesk);
+    $password = $clerk->getRawOriginal('password');
+    $folio = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+
+        return Folio::query()->where('reservation_id', $reservation->id)->sole();
+    });
+    $this->actingAs($clerk)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $receiptUrl = $this->post(route('folios.payments.store', $folio), [
+        '_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 100, 'idempotency_key' => 'staff-retention',
+    ])->assertSessionHasNoErrors()->assertRedirect()->headers->get('Location');
+    $this->get($receiptUrl)->assertInertia(fn (Assert $page) => $page->where('receipt.cashier', $clerk->name)->where('receipt.amount', 100));
+
+    $membership = inTenant($t->a->organization, fn () => OrganizationMembership::query()->where('user_id', $clerk->id)->sole());
+    $this->actingAs($t->a->owner)->delete(route('members.destroy', $membership), ['_property' => $t->a->property->id])
+        ->assertSessionHasNoErrors()->assertRedirect(route('members.index'));
+    $this->get($receiptUrl)->assertInertia(fn (Assert $page) => $page->where('receipt.cashier', $clerk->name)->where('receipt.amount', 100));
+    $this->get(route('members.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('members', fn ($members) => ! collect($members)->contains('email', $clerk->email)));
+
+    $this->actingAs($clerk)->get($receiptUrl)->assertNotFound();
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('tenant.organization.id', $t->b->organization->id));
+
+    $link = invitationLink($t->a->owner, [
+        'email' => $clerk->email, 'role' => 'housekeeping', 'property_ids' => [$t->a->otherProperty->id],
+    ]);
+    $this->actingAs($clerk)->post($link)->assertRedirect(route('dashboard'));
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('tenant.organization.id', $t->a->organization->id)
+        ->where('tenant.property.id', $t->a->otherProperty->id)
+        ->has('tenant.properties', 1)
+        ->where('auth.permissions', ['housekeeping.manage', 'housekeeping.view']));
+    $this->get(route('payments.index'))->assertForbidden();
+    $this->put(route('current-property.update'), ['property_id' => $t->a->property->id])->assertForbidden();
+
+    expect($clerk->fresh()->getRawOriginal('password'))->toBe($password)
+        ->and(Activity::query()->where('event', 'member_removed')->sole()->getExtraProperty('old')['user_id'])->toBe($clerk->id);
+    inTenant($t->b->organization, fn () => expect($clerk->fresh()->hasRole('front_desk'))->toBeTrue());
 });
 
 test('accepting with a different email address is refused', function () {
