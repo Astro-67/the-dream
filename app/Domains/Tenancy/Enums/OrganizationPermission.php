@@ -58,6 +58,11 @@ enum OrganizationPermission: string
     case HousekeepingSupervise = 'housekeeping.supervise';
     case HousekeepingOverrideReady = 'housekeeping.override_ready';
 
+    // Maintenance
+    case MaintenanceView = 'maintenance.view';
+    case MaintenanceReport = 'maintenance.report';
+    case MaintenanceManage = 'maintenance.manage';
+
     // Finance and reports
     case FinanceView = 'finance.view';
     case FinanceCorrect = 'finance.correct';

@@ -52,6 +52,7 @@ enum OrganizationRole: string
                 P::MembersView, P::InventoryManage, P::RatesManage,
                 P::ReservationsView, P::ReservationsManage, P::ReservationsVoid, P::RoomsAssign, P::GuestsView, P::GuestsRegister, P::GuestsMerge,
                 P::HousekeepingView, P::HousekeepingManage, P::HousekeepingSupervise,
+                P::MaintenanceView, P::MaintenanceReport, P::MaintenanceManage,
                 P::FinanceView, P::ReportsView, P::NightAuditView, P::NightAuditClose,
             ],
             self::PropertyManager => [
@@ -59,6 +60,7 @@ enum OrganizationRole: string
                 P::MembersView, P::MembersInvite, P::OutboxRecover, P::InventoryManage, P::RatesManage, P::TaxManage,
                 P::ReservationsView, P::ReservationsManage, P::ReservationsVoid, P::RoomsAssign, P::GuestsView, P::GuestsRegister, P::GuestsMerge, P::CheckoutOverrideBalance,
                 P::HousekeepingView, P::HousekeepingManage, P::HousekeepingSupervise, P::HousekeepingOverrideReady,
+                P::MaintenanceView, P::MaintenanceReport, P::MaintenanceManage,
                 P::FiscalExceptionsReview, P::ReportsView,
                 P::ChannelsManage, P::ApprovalsManage, P::NightAuditView, P::NightAuditClose,
             ],
@@ -66,12 +68,13 @@ enum OrganizationRole: string
                 P::ReservationsView, P::ReservationsManage, P::RoomsAssign,
                 P::GuestsView, P::GuestsRegister, P::GuestIdentityView,
                 P::ChargesPost, P::HousekeepingView, P::NightAuditView,
+                P::MaintenanceView, P::MaintenanceReport,
             ],
             self::Finance => [
                 P::ReservationsView, P::GuestsView, P::ChargesPost, P::TaxManage,
                 P::FinanceView, P::FinanceCorrect, P::PaymentsRefund, P::FoliosWriteOff, P::FiscalExceptionsReview, P::ReportsView, P::NightAuditView,
             ],
-            self::Housekeeping => [P::HousekeepingView, P::HousekeepingManage],
+            self::Housekeeping => [P::HousekeepingView, P::HousekeepingManage, P::MaintenanceView, P::MaintenanceReport],
             self::Auditor => [
                 P::PropertiesView, P::MembersView,
                 P::ReservationsView, P::GuestsView, P::HousekeepingView,
