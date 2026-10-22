@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/table';
 import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
 import { formatDate } from '@/features/platform/format';
+import { formatMoney } from '@/lib/utils';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import {
     availability,
@@ -40,8 +41,25 @@ type Reservation = {
     can_check_in: boolean;
     can_check_out: boolean;
     can_override_balance?: boolean;
-    balances?: { currency: string; balance: number }[];
+    guest_name: string | null;
+    room_number: string | null;
+    balances: { currency: string; balance: number; unposted: boolean }[];
 };
+
+/** One currency's payment state; a zero posted balance with nights still to charge is not paid. */
+export function paymentState({
+    balance,
+    unposted,
+}: Reservation['balances'][number]): {
+    label: string;
+    tone: 'error' | 'success' | 'info' | 'warning';
+} {
+    if (balance > 0) return { label: 'Due', tone: 'error' };
+    if (balance < 0) return { label: 'Credit', tone: 'info' };
+    return unposted
+        ? { label: 'Not yet charged', tone: 'warning' }
+        : { label: 'Settled', tone: 'success' };
+}
 type Filters = { date: string; list: string; search: string };
 
 export default function Index({
@@ -196,10 +214,12 @@ export default function Index({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Reservation number</TableHead>
-                                    <TableHead>Arrival</TableHead>
-                                    <TableHead>Departure</TableHead>
-                                    <TableHead>Channel reference</TableHead>
+                                    <TableHead>Guest</TableHead>
+                                    <TableHead>Reservation</TableHead>
+                                    <TableHead>Room</TableHead>
+                                    <TableHead>Check-in</TableHead>
+                                    <TableHead>Check-out</TableHead>
+                                    <TableHead numeric>Payment</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>
                                         <span className="sr-only">Actions</span>
@@ -209,6 +229,10 @@ export default function Index({
                             <TableBody>
                                 {reservations.data.map((reservation) => (
                                     <TableRow key={reservation.id}>
+                                        <TableCell className="font-semibold">
+                                            {reservation.guest_name ??
+                                                'No guest added'}
+                                        </TableCell>
                                         <TableCell>
                                             <Link
                                                 href={show(
@@ -222,6 +246,19 @@ export default function Index({
                                                     }
                                                 />
                                             </Link>
+                                            {reservation.channel_reference && (
+                                                <div className="text-sm text-muted-foreground">
+                                                    <Identifier
+                                                        value={
+                                                            reservation.channel_reference
+                                                        }
+                                                    />
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {reservation.room_number ??
+                                                'Unassigned'}
                                         </TableCell>
                                         <TableCell>
                                             {formatDate(
@@ -235,16 +272,43 @@ export default function Index({
                                                 'UTC',
                                             )}
                                         </TableCell>
-                                        <TableCell>
-                                            {reservation.channel_reference ? (
-                                                <Identifier
-                                                    value={
-                                                        reservation.channel_reference
-                                                    }
-                                                />
-                                            ) : (
-                                                '—'
-                                            )}
+                                        <TableCell numeric>
+                                            {reservation.balances.length === 0
+                                                ? '—'
+                                                : reservation.balances.map(
+                                                      (balance) => {
+                                                          const state =
+                                                              paymentState(
+                                                                  balance,
+                                                              );
+
+                                                          return (
+                                                              <div
+                                                                  key={
+                                                                      balance.currency
+                                                                  }
+                                                                  className="flex items-center justify-end gap-2 tabular-nums"
+                                                              >
+                                                                  <StatusChip
+                                                                      tone={
+                                                                          state.tone
+                                                                      }
+                                                                  >
+                                                                      {
+                                                                          state.label
+                                                                      }
+                                                                  </StatusChip>
+                                                                  {balance.balance ===
+                                                                  0
+                                                                      ? balance.currency
+                                                                      : formatMoney(
+                                                                            balance.balance,
+                                                                            balance.currency,
+                                                                        )}
+                                                              </div>
+                                                          );
+                                                      },
+                                                  )}
                                         </TableCell>
                                         <TableCell>
                                             <StatusChip tone="info">
@@ -306,8 +370,7 @@ export default function Index({
                                                         reservation.reservation_number
                                                     }
                                                     balances={
-                                                        reservation.balances ??
-                                                        []
+                                                        reservation.balances
                                                     }
                                                     canOverride={
                                                         reservation.can_override_balance ??

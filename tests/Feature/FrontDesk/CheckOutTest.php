@@ -179,7 +179,7 @@ test('today\'s departures list offers check-out to those who may check out', fun
 
     $this->actingAs($t->a->member($role))->get(route('reservations.index', ['list' => 'departures']))->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->where('reservations.data.0.reservation_number', $reservation->reservation_number)->where('reservations.data.0.can_check_out', $offered)
-            ->when($offered, fn (AssertableInertia $page) => $page->where('reservations.data.0.balances', [['currency' => 'USD', 'balance' => 1500]])
+            ->when($offered, fn (AssertableInertia $page) => $page->where('reservations.data.0.balances', [['currency' => 'USD', 'balance' => 1500, 'unposted' => true]])
                 ->where('reservations.data.0.can_override_balance', $role === OrganizationRole::PropertyManager)));
 })->with([[OrganizationRole::FrontDesk, true], [OrganizationRole::PropertyManager, true], [OrganizationRole::Finance, false], [OrganizationRole::Auditor, false]]);
 

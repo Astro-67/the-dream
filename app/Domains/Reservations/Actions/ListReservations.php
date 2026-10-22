@@ -2,8 +2,12 @@
 
 namespace App\Domains\Reservations\Actions;
 
-use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\FolioSummary;
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\Guests\Models\Booker;
+use App\Domains\Guests\Models\Guest;
+use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\ReservationLists;
@@ -21,11 +25,19 @@ class ListReservations
             && $reservation->arrival->toDateString() <= $businessDate && $reservation->departure->toDateString() > $businessDate && Gate::allows('checkIn', $reservation))
             ->setAttribute('can_check_out', $reservation->status === ReservationStatus::CheckedIn
                 && $reservation->departure->toDateString() <= $businessDate && Gate::allows('checkOut', $reservation)));
-        $leaving = $reservations->getCollection()->filter(fn (Reservation $reservation) => $reservation->getAttribute('can_check_out'));
-        $folios = Folio::query()->whereIn('reservation_id', $leaving->modelKeys())->withSum('postings as balance_amount', 'amount')->get()->groupBy('reservation_id');
-        $leaving->each(fn (Reservation $reservation) => $reservation->setAttribute('can_override_balance', Gate::allows('checkOutWithBalance', $reservation))
-            ->setAttribute('balances', $folios->get($reservation->id, collect())->groupBy(fn (Folio $folio) => $folio->currency->value)
-                ->map(fn ($group, string $currency) => ['currency' => $currency, 'balance' => (int) $group->sum('balance_amount')])->values()->all()));
+        $page = $reservations->getCollection();
+        $balances = FolioSummary::balances($page);
+        $guests = ReservationGuest::query()->whereIn('reservation_id', $page->modelKeys())->orderBy('id')->get(['reservation_id', 'guest_id'])->unique('reservation_id');
+        $names = Guest::query()->whereIn('id', $guests->pluck('guest_id'))->pluck('name', 'id');
+        $bookers = Booker::query()->whereIn('id', $page->pluck('booker_id')->filter())->pluck('name', 'id');
+        $rooms = Room::query()->whereIn('id', $page->pluck('room_id')->filter())->pluck('number', 'id');
+        $leads = $guests->mapWithKeys(fn (ReservationGuest $link) => [$link->getAttribute('reservation_id') => $names->get($link->getAttribute('guest_id'))]);
+        $page->each(fn (Reservation $reservation) => $reservation->setAttribute('balances', $balances[$reservation->id])
+            // The booker is only a fallback for stays booked before the lead guest was taken inline.
+            ->setAttribute('guest_name', $leads->get($reservation->id) ?? $bookers->get($reservation->getAttribute('booker_id')))
+            ->setAttribute('room_number', $rooms->get($reservation->room_id)));
+        $page->filter(fn (Reservation $reservation) => $reservation->getAttribute('can_check_out'))
+            ->each(fn (Reservation $reservation) => $reservation->setAttribute('can_override_balance', Gate::allows('checkOutWithBalance', $reservation)));
 
         return $reservations;
     }

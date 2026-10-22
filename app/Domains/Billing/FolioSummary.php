@@ -6,6 +6,7 @@ use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Reservations\Models\ReservationPriceLine;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 
@@ -86,21 +87,51 @@ final class FolioSummary
     {
         $byCurrency = ($folios ?? self::folios($reservation))->groupBy(fn (array $folio) => $folio['folio']->currency->value)
             ->map(fn (Collection $folios) => self::of($folios->flatMap(fn (array $folio) => $folio['postings'])));
-        $estimates = self::unposted($reservation);
+        $estimates = self::unposted(collect([$reservation]))->get($reservation->id, collect());
 
         return $byCurrency->keys()->merge($estimates->keys())->unique()->sort()->values()
             ->map(fn (string $currency) => ['currency' => $currency, ...($byCurrency->get($currency) ?? self::of([])), 'estimate' => $estimates->get($currency)])->all();
     }
 
-    /** @return Collection<int|string, array{nights: int<0, max>, amount: int}> keyed by currency */
-    private static function unposted(Reservation $reservation): Collection
+    /**
+     * For a page of reservations, in two queries: each one's posted balance per currency,
+     * and whether nights are still to be charged in it, so a zero balance is not read as paid.
+     *
+     * @param  Collection<int, Reservation>  $reservations
+     * @return array<string, list<array{currency: string, balance: int, unposted: bool}>> keyed by reservation id
+     */
+    public static function balances(Collection $reservations): array
     {
-        if (! in_array($reservation->status, [ReservationStatus::Confirmed, ReservationStatus::CheckedIn], true)) {
-            return collect();
-        }
-        $posted = Posting::query()->where('reservation_id', $reservation->id)->where('category', 'room')->where('type', 'charge')->whereNotNull('price_line_id')->select('price_line_id');
+        // withSum goes through the postings relation, so the tenant scope applies to the postings too.
+        $posted = Folio::query()->whereIn('reservation_id', $reservations->pluck('id'))->withSum('postings as balance', 'amount')->get()
+            ->groupBy('reservation_id')->map(fn (Collection $folios) => $folios->groupBy(fn (Folio $folio) => $folio->currency->value)
+            ->map(fn (Collection $same) => (int) $same->sum('balance')));
+        $unposted = self::unposted($reservations);
 
-        return $reservation->priceLines()->whereNotIn('id', $posted)->whereDate('date', '<', $reservation->departure->toDateString())->get(['amount', 'currency'])
-            ->groupBy('currency')->map(fn (Collection $lines) => ['nights' => $lines->count(), 'amount' => (int) $lines->sum('amount')]);
+        return $reservations->mapWithKeys(function (Reservation $reservation) use ($posted, $unposted) {
+            $balances = $posted->get($reservation->id, collect());
+            $estimates = $unposted->get($reservation->id, collect());
+
+            return [$reservation->id => $balances->keys()->merge($estimates->keys())->unique()->sort()->values()
+                ->map(fn (string $currency) => ['currency' => $currency, 'balance' => $balances->get($currency, 0), 'unposted' => $estimates->has($currency)])->all()];
+        })->all();
+    }
+
+    /**
+     * Booked nights before departure with no room charge yet, per reservation and currency.
+     * Only stays still to come or in house have nights left to charge.
+     *
+     * @param  Collection<int, Reservation>  $reservations
+     * @return Collection<int|string, Collection<int|string, array{nights: int<0, max>, amount: int}>> by reservation id, then currency
+     */
+    private static function unposted(Collection $reservations): Collection
+    {
+        $open = $reservations->filter(fn (Reservation $reservation) => in_array($reservation->status, [ReservationStatus::Confirmed, ReservationStatus::CheckedIn], true))->keyBy('id');
+        $posted = Posting::query()->whereIn('reservation_id', $open->keys())->where('category', 'room')->where('type', 'charge')->whereNotNull('price_line_id')->select('price_line_id');
+
+        return ReservationPriceLine::query()->whereIn('reservation_id', $open->keys())->whereNotIn('id', $posted)->get(['reservation_id', 'date', 'amount', 'currency'])
+            ->filter(fn (ReservationPriceLine $line) => $line->getAttribute('date')->toDateString() < $open->get($line->getAttribute('reservation_id'))->departure->toDateString())
+            ->groupBy('reservation_id')->map(fn (Collection $lines) => $lines->groupBy('currency')
+            ->map(fn (Collection $nights) => ['nights' => $nights->count(), 'amount' => (int) $nights->sum('amount')]));
     }
 }
