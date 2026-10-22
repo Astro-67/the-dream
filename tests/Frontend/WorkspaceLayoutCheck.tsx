@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { AppContent } from '@/components/app-content';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import SettingsLayout from '@/layouts/settings/layout';
 import Dashboard from '@/pages/dashboard';
 
 function dashboard(property: boolean) {
@@ -56,7 +57,11 @@ for (const sidebarOpen of [true, false]) {
     const component = () => (
         <TooltipProvider>
             <AppSidebarLayout>
-                <div>Workspace content</div>
+                <SettingsLayout>
+                    <form aria-label="Workspace content">
+                        <input aria-label="Name" />
+                    </form>
+                </SettingsLayout>
             </AppSidebarLayout>
         </TooltipProvider>
     );
@@ -105,6 +110,10 @@ for (const sidebarOpen of [true, false]) {
     assert.doesNotMatch(shell, /overflow-x-clip/);
     assert.match(shell, /href="\/reservations"/);
     assert.match(shell, /Toggle sidebar/);
+    assert.match(shell, /aria-label="Settings"/);
+    assert.match(shell, /href="\/settings\/profile"/);
+    assert.match(shell, /<section[^>]*max-w-\[720px\]/);
+    assert.doesNotMatch(shell, /lg:space-x-12|md:max-w-2xl/);
 }
 
 const headerWorkspace = renderToStaticMarkup(
