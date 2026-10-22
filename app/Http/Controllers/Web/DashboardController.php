@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Housekeeping\DashboardRooms;
+use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Reports\Collections;
 use App\Domains\Reports\PropertyKpis;
 use App\Domains\Reservations\Models\Reservation;
@@ -33,6 +34,8 @@ class DashboardController extends Controller
             'roomBoard' => $date === null || $onboarding !== null || ! $actor->can('viewAny', Reservation::class) ? null : [
                 'businessDate' => $date,
                 'rooms' => app(DashboardRooms::class)->forDate($date),
+                'calendarHref' => route('rate-calendar'),
+                'housekeepingHref' => $actor->can('viewAny', RoomStatus::class) ? route('housekeeping.index') : null,
             ],
             'collections' => $property === null || $property->isDemo() || $onboarding !== null || ! $actor->can('view', PropertyKpis::class)
                 ? null : app(Collections::class)->card($property, $period),

@@ -6,6 +6,7 @@ use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Enums\PropertyStatus;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
@@ -91,4 +92,58 @@ test('same day turnover stays occupied until checkout then shows the assigned ar
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('roomBoard.rooms.data.0.status', 'reserved')
         ->where('roomBoard.rooms.data.0.readinessLabel', 'Dirty'));
+});
+
+test('dashboard rooms paginate active inventory and exclude other properties and organizations', function () {
+    $tenants = twoTenants();
+    $tenants->a->property->update(['status' => PropertyStatus::Live]);
+    foreach ([$tenants->a->property, $tenants->a->otherProperty, $tenants->b->property] as $property) {
+        inTenant($property, function () use ($property, $tenants) {
+            $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+            $count = $property->is($tenants->a->property) ? 51 : 1;
+            for ($number = 101; $number < 101 + $count; $number++) {
+                app(CreateRoom::class)->handle(null, InventoryForm::room($type->id, ['number' => (string) $number]));
+            }
+            $inactive = app(CreateRoom::class)->handle(null, InventoryForm::room($type->id, ['number' => '999']));
+            $inactive->forceFill(['deactivated_at' => now()])->save();
+        });
+    }
+    $this->actingAs($tenants->a->owner)->withSession(['tenancy.organization_id' => $tenants->a->organization->id, 'tenancy.property_id' => $tenants->a->property->id]);
+    $this->get(route('dashboard', ['period' => 'this-month']))->assertInertia(fn (Assert $page) => $page
+        ->has('roomBoard.rooms.data', 50)
+        ->where('roomBoard.rooms.total', 51)
+        ->where('roomBoard.rooms.data.0.number', '101')
+        ->where('roomBoard.rooms.next_page_url', route('dashboard', ['period' => 'this-month', 'page' => 2])));
+    $this->get(route('dashboard', ['page' => 2]))->assertInertia(fn (Assert $page) => $page
+        ->has('roomBoard.rooms.data', 1)
+        ->where('roomBoard.rooms.data.0.number', '151'));
+});
+
+test('dashboard keeps housekeeping payload limited and filters room board links by permissions', function (OrganizationRole $role) {
+    $tenants = twoTenants();
+    $tenants->a->property->update(['status' => PropertyStatus::Live]);
+    inTenant($tenants->a->property, fn () => app(CreateReservation::class)->handle($tenants->a->owner, BookingForm::details($tenants->a->owner)));
+    $this->actingAs($tenants->a->member($role))->withSession(['tenancy.organization_id' => $tenants->a->organization->id, 'tenancy.property_id' => $tenants->a->property->id]);
+    $response = $this->get(route('dashboard'))->assertOk();
+    if ($role === OrganizationRole::Housekeeping) {
+        $response->assertDontSee('Travel Booker')->assertInertia(fn (Assert $page) => $page
+            ->where('roomBoard', null)->where('today', null)->where('collections', null)
+            ->missing('guests')->missing('reservations')->missing('payments')->missing('folios'));
+
+        return;
+    }
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('roomBoard.rooms.data', 1)
+        ->where('roomBoard.calendarHref', route('rate-calendar'))
+        ->where('roomBoard.housekeepingHref', $role === OrganizationRole::Finance ? null : route('housekeeping.index')));
+})->with(OrganizationRole::cases());
+
+test('dashboard room board handles empty inventory without replacing onboarding', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $property->forceFill(['status' => PropertyStatus::Setup])->save();
+    $this->actingAs($owner)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('roomBoard', null)->has('onboarding'));
+    $property->forceFill(['status' => PropertyStatus::Live])->save();
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('onboarding', null)->has('roomBoard.rooms.data', 0)->where('roomBoard.rooms.total', 0));
 });
