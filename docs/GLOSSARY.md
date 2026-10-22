@@ -133,6 +133,10 @@ _Avoid_: Activation, launch
 A record that something happened to a reservation that authorities may need to know about: created, modified, cancelled, no-show confirmed, checked in, room moved, guest added, nightly price changed, checked out.
 _Avoid_: Booking report (that is ZAN Gateway's message, derived from the event)
 
+**Maintenance ticket**:
+A reported fault or planned job (repair, preventive or corrective) at a room or common area of one property, open until marked done. It never changes room status or availability; blocking a room is an out-of-service period.
+_Avoid_: Work order (in UI copy), issue
+
 ## Subscriptions
 
 **Plan**:

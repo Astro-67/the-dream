@@ -16,6 +16,7 @@ import {
     ShieldCheck,
     Tags,
     Users,
+    Wrench,
 } from 'lucide-react';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -51,6 +52,7 @@ import { index as taxRules } from '@/routes/tax-rules';
 import { index as rooms } from '@/routes/rooms';
 import { index as housekeeping, myRooms } from '@/routes/housekeeping';
 import { index as assignments } from '@/routes/housekeeping/assignments';
+import { index as maintenance } from '@/routes/maintenance';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -113,6 +115,9 @@ export function AppSidebar() {
             : []),
         ...(can('housekeeping.manage')
             ? [{ title: 'My rooms', href: myRooms(), icon: DoorOpen }]
+            : []),
+        ...(can('maintenance.view')
+            ? [{ title: 'Maintenance', href: maintenance(), icon: Wrench }]
             : []),
     ];
     const moneyItems: NavItem[] = [

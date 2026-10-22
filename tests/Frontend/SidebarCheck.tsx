@@ -103,8 +103,10 @@ assert.match(manager, /href="\/members"/);
 assert.match(manager, />Staff</);
 assert.doesNotMatch(manager, />Invitations</);
 
-const housekeeper = sidebar([], ['housekeeping.manage']);
+const housekeeper = sidebar([], ['housekeeping.manage', 'maintenance.view']);
 assert.match(housekeeper, />My rooms</);
+assert.match(housekeeper, />Maintenance</);
+assert.doesNotMatch(finance, />Maintenance</);
 assert.doesNotMatch(housekeeper, />Housekeeping</);
 assert.doesNotMatch(housekeeper, />Setup</);
 console.log('Grouped, permission-filtered sidebar: PASS');

@@ -64,6 +64,7 @@ The application is one Laravel app divided into domains under `app/Domains/<Doma
 | **FrontDesk**        | Check-in, check-out, room moves, night audit                                                                                                       | §7.4 (PMS-04–06) |
 | **Billing**          | Folios, charges, payments, adjustments, receipts, channel-collected amounts, fiscal exceptions                                                     | §7.6             |
 | **Housekeeping**     | Room status and tasks                                                                                                                              | §7.7             |
+| **Maintenance**      | Maintenance tickets and their history; never room status or availability                                                                           | #143             |
 | **Subscriptions**    | Plans, organization subscriptions, state history, usage and entitlements                                                                           | §7.3, §13        |
 | **Distribution**     | Channel connections, mappings, inbound and outbound channel messages, reconciliation. Interface: `ChannelConnector`                                | §7.8             |
 | **ZanReporting**     | Booking reports and hotel-info sync. Interface: `ZanReporter`                                                                                      | §7.9             |
