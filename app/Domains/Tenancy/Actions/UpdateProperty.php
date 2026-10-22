@@ -28,7 +28,7 @@ class UpdateProperty
         return Audit::validationRefusal($actor, $property, 'Property update refused', fn () => DB::transaction(function () use ($actor, $property, $details, $taxInclusion) {
             $property = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
             if ($taxInclusion !== []) {
-                app(SetTaxInclusion::class)->handle($actor, $property, $taxInclusion, $taxInclusion['effective_from'] ?? null);
+                app(SetTaxInclusion::class)->handle($actor, $property, $taxInclusion);
             }
             if ($details->jurisdictionProfile !== $property->jurisdiction_profile) {
                 JurisdictionRules::ensureProfileCanChange($property, $details->jurisdictionProfile);

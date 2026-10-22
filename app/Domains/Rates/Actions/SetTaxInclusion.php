@@ -19,9 +19,10 @@ use Illuminate\Validation\ValidationException;
  */
 class SetTaxInclusion
 {
-    /** @param array<string, bool|string|null> $choices  by TaxInclusion control; a missing or null control stays as it is */
-    public function handle(?User $actor, Property $property, array $choices, ?string $from): void
+    /** @param array<string, bool|string|null> $choices  by TaxInclusion control, a missing or null control staying as it is, plus an optional effective_from */
+    public function handle(?User $actor, Property $property, array $choices): void
     {
+        $from = is_string($choices['effective_from'] ?? null) ? $choices['effective_from'] : null;
         Tenancy::within(TenantContext::forProperty($property), function () use ($actor, $property, $choices, $from): void {
             DB::transaction(function () use ($actor, $property, $choices, $from): void {
                 Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
