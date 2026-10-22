@@ -162,6 +162,9 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - **REG-01:** Account registration with name, email, password, business name, country and acceptance of terms. Verify email before live operation. Existing users accept invitations without duplicate identities.
 - **REG-02:** A resumable onboarding flow creates the organization, owner membership, trial subscription and first property. Repeated submissions never create duplicates.
 - **REG-03:** Collect property name, address, contact details, type, timezone, operational currency, room inventory, tax configuration, branding and **jurisdiction profile**. Never force Zanzibar fields on other properties.
+    - Organization setup and property create/edit show an expanded **Tax & regulatory information** section. Keep TIN, VRN and the full Z-number, including any location suffix, distinct from the ZRA hotel code; never infer a suffix's legal meaning.
+    - Registration can remain incomplete when saving a setup property. Zanzibar go-live requires TIN, Z-number, ZRA hotel code and a star rating from 1 to 5; VRN is required only when the configured ZRA tax category is VAT, regardless of the property's tax rules. Exempt and other non-VAT categories do not need a VRN.
+    - Required-at-go-live hints and permission-aware checklist links lead to the exact editable field. Subsequent gate checks use the saved tax category. Mainland requirements are unchanged, and existing live properties are not retroactively blocked or returned to setup.
 - **REG-04:** An onboarding checklist covers:
     - verify email;
     - complete the property profile;

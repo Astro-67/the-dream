@@ -70,7 +70,11 @@ function Field({
         <div className={cn('grid content-start gap-2', className)}>
             <Label htmlFor={id}>{label}</Label>
             {children}
-            {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+            {hint && (
+                <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+                    {hint}
+                </p>
+            )}
             <InputError message={error} />
         </div>
     );
@@ -130,6 +134,10 @@ export function PropertyFields({
             values?.jurisdiction_profile ?? defaultJurisdiction,
         );
     const propertyNameField = nameField;
+    const registrationHint =
+        jurisdiction === 'mainland_tanzania'
+            ? 'Optional for mainland properties.'
+            : 'Optional during setup. Required before go-live in Zanzibar.';
 
     return (
         <div className="grid gap-6 sm:grid-cols-2">
@@ -205,13 +213,14 @@ export function PropertyFields({
                 id="star_rating"
                 label="Star rating"
                 error={errors.star_rating}
-                hint="Zanzibar infrastructure levy: not yet classified or 1 star $2, 2–3 stars $4, 4–5 stars $5 per guest per night. Assessed by ZRA at check-out."
+                hint={`${registrationHint} Zanzibar infrastructure levy: not yet classified or 1 star $2, 2–3 stars $4, 4–5 stars $5 per guest per night. Assessed by ZRA at check-out.`}
             >
                 <NativeSelect
                     id="star_rating"
                     name="star_rating"
                     defaultValue={values?.star_rating ?? ''}
                     aria-invalid={!!errors.star_rating}
+                    aria-describedby="star_rating-hint"
                 >
                     <option value="">Not yet classified</option>
                     {[1, 2, 3, 4, 5].map((stars) => (
@@ -221,15 +230,10 @@ export function PropertyFields({
                     ))}
                 </NativeSelect>
             </Field>
-            <details
-                className="sm:col-span-2"
-                open={
-                    !!(errors.tin || errors.z_number || errors.vrn) || undefined
-                }
-            >
-                <summary className="cursor-pointer text-sm font-medium">
-                    ZRA tax registration (optional)
-                </summary>
+            <fieldset className="sm:col-span-2">
+                <legend className="text-sm font-medium">
+                    Tax &amp; regulatory information
+                </legend>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     {(['tin', 'z_number', 'vrn'] as const).map((field) => (
                         <Field
@@ -238,11 +242,18 @@ export function PropertyFields({
                             label={
                                 {
                                     tin: 'TIN',
-                                    z_number: 'Z-number',
+                                    z_number:
+                                        'Z-number (ZTN, including any location suffix)',
                                     vrn: 'VRN',
                                 }[field]
                             }
                             error={errors[field]}
+                            hint={
+                                field === 'vrn' &&
+                                jurisdiction !== 'mainland_tanzania'
+                                    ? 'Optional during setup. Required before go-live in Zanzibar for VAT-category properties only. Not required for exempt or non-VAT properties.'
+                                    : registrationHint
+                            }
                         >
                             <Input
                                 id={field}
@@ -250,28 +261,30 @@ export function PropertyFields({
                                 defaultValue={values?.[field] ?? ''}
                                 maxLength={64}
                                 aria-invalid={!!errors[field]}
+                                aria-describedby={`${field}-hint`}
                             />
                         </Field>
                     ))}
+                    {jurisdiction === 'zanzibar' && (
+                        <Field
+                            id="zra_hotel_code"
+                            label="ZRA hotel code"
+                            hint={`${registrationHint} Issued by ZRA to identify the property, separate from its tax registration numbers.`}
+                            error={errors.zra_hotel_code}
+                        >
+                            <Input
+                                id="zra_hotel_code"
+                                name="zra_hotel_code"
+                                className="font-mono"
+                                defaultValue={values?.zra_hotel_code ?? ''}
+                                maxLength={64}
+                                aria-invalid={!!errors.zra_hotel_code}
+                                aria-describedby="zra_hotel_code-hint"
+                            />
+                        </Field>
+                    )}
                 </div>
-            </details>
-
-            {jurisdiction === 'zanzibar' && (
-                <Field
-                    id="zra_hotel_code"
-                    label="ZRA hotel code (optional)"
-                    hint="Issued when ZRA registers the property. You can add it later."
-                    error={errors.zra_hotel_code}
-                    className="sm:col-span-2"
-                >
-                    <Input
-                        id="zra_hotel_code"
-                        name="zra_hotel_code"
-                        className="font-mono"
-                        defaultValue={values?.zra_hotel_code ?? undefined}
-                    />
-                </Field>
-            )}
+            </fieldset>
 
             <Field
                 id="address_line"

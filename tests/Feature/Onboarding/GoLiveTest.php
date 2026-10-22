@@ -2,6 +2,7 @@
 
 use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Rates\Actions\SeedDefaultTaxRules;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Actions\CreateProperty;
@@ -15,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
+use Tests\Support\PropertyForm;
 use Tests\Support\TenantFixture;
 
 /** A new property in setup, added to Alpha by its owner. */
@@ -32,13 +34,47 @@ test('a new property starts in setup', function () {
     expect(setupProperty($t->a)->fresh()->status)->toBe(PropertyStatus::Setup);
 });
 
+test('Zanzibar go-live refuses each missing applicable registration value', function (string $field, mixed $value, string $label) {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->forceFill([
+        'status' => PropertyStatus::Setup,
+        'taxes_reviewed_at' => now(),
+        'tin' => 'TIN-TEST',
+        'z_number' => 'Z-TEST/LOCATION',
+        'vrn' => 'VRN-TEST',
+        'zra_hotel_code' => 'HOTEL-TEST',
+        'star_rating' => 3,
+        $field => $value,
+    ])->save();
+    inTenant($property, fn () => BookingForm::details($t->a->owner));
+
+    $this->actingAs($t->a->owner)
+        ->post(route('properties.go-live', $property), ['_property' => $property->id])
+        ->assertSessionHasErrors(['go_live' => "Not ready to go live. Still to do: {$label}."]);
+
+    expect($property->fresh()->status)->toBe(PropertyStatus::Setup)
+        ->and(Activity::query()->where('event', 'refused')->where('subject_id', $property->id)->exists())->toBeTrue();
+})->with([
+    ['tin', null, 'TIN'],
+    ['tin', '   ', 'TIN'],
+    ['z_number', null, 'Z-number'],
+    ['vrn', null, 'VRN'],
+    ['vrn', '   ', 'VRN'],
+    ['zra_hotel_code', null, 'ZRA hotel code'],
+    ['zra_hotel_code', '   ', 'ZRA hotel code'],
+    ['star_rating', null, 'Star rating'],
+    ['star_rating', 0, 'Star rating'],
+    ['star_rating', 6, 'Star rating'],
+]);
+
 test('go-live is refused while gates fail, naming each failing gate', function () {
     $t = twoTenants();
     $property = setupProperty($t->a);
 
     $this->actingAs($t->a->owner)
         ->post(route('properties.go-live', $property), ['_property' => $property->id])
-        ->assertSessionHasErrors(['go_live' => 'Not ready to go live. Still to do: At least one room type, At least one room, At least one rate plan, Taxes reviewed, Z-number, Star rating.']);
+        ->assertSessionHasErrors(['go_live' => 'Not ready to go live. Still to do: At least one room type, At least one room, At least one rate plan, Taxes reviewed, TIN, Z-number, Star rating, VRN.']);
 
     expect($property->fresh()->status)->toBe(PropertyStatus::Setup)
         ->and(Activity::query()->where('event', 'refused')->where('subject_id', $property->id)->exists())->toBeTrue();
@@ -77,11 +113,11 @@ test('Zanzibar go-live refuses missing registration and shows the failing gates 
 
     $this->actingAs($t->a->owner)->put(route('current-property.update'), ['property_id' => $property->id])->assertRedirect();
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
-        ->has('onboarding.gates', 6)
-        ->where('onboarding.gates.4.key', 'z_number')
-        ->where('onboarding.gates.4.passed', filled($zNumber))
-        ->where('onboarding.gates.5.key', 'star_rating')
-        ->where('onboarding.gates.5.passed', $stars !== null)
+        ->has('onboarding.gates', 9)
+        ->where('onboarding.gates.5.key', 'z_number')
+        ->where('onboarding.gates.5.passed', filled($zNumber))
+        ->where('onboarding.gates.7.key', 'star_rating')
+        ->where('onboarding.gates.7.passed', $stars !== null)
         ->where('onboarding.canGoLive', false));
 
     $this->post(route('properties.go-live', $property), ['_property' => $property->id])
@@ -105,8 +141,9 @@ test('registration gates allow classified Zanzibar properties and leave mainland
         'jurisdiction_profile' => $profile,
         'star_rating' => $stars,
         'z_number' => $zNumber,
-        'tin' => null,
-        'vrn' => null,
+        'tin' => $profile === JurisdictionProfile::Zanzibar ? 'TIN-TEST' : null,
+        'vrn' => $profile === JurisdictionProfile::Zanzibar ? 'VRN-TEST' : null,
+        'zra_hotel_code' => $profile === JurisdictionProfile::Zanzibar ? 'HOTEL-TEST' : null,
         'taxes_reviewed_at' => now(),
     ])->save();
     inTenant($property, fn () => BookingForm::details($t->a->owner));
@@ -119,9 +156,35 @@ test('registration gates allow classified Zanzibar properties and leave mainland
 
     expect($property->fresh()->status)->toBe(PropertyStatus::Live);
 })->with([
-    'Zanzibar' => [JurisdictionProfile::Zanzibar, 1, 'Z-122', 6],
+    'Zanzibar' => [JurisdictionProfile::Zanzibar, 1, 'Z-122', 9],
     'mainland without ZRA registration' => [JurisdictionProfile::MainlandTanzania, null, null, 4],
 ]);
+
+test('saved tax category decides whether Zanzibar go-live needs a VRN, not tax rules', function (string $category, bool $hasTaxRules) {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->forceFill(['status' => PropertyStatus::Setup, 'vrn' => null, 'taxes_reviewed_at' => now()])->save();
+    if ($hasTaxRules) {
+        inTenant($property, fn () => app(SeedDefaultTaxRules::class)->handle($t->a->owner, $property));
+    }
+    inTenant($property, fn () => BookingForm::details($t->a->owner));
+    $this->actingAs($t->a->owner)->put(route('current-property.update'), ['property_id' => $property->id])->assertRedirect();
+
+    foreach (['vat', $category, 'vat', $category] as $selected) {
+        $this->put(route('properties.update', $property), PropertyForm::payload([
+            '_property' => $property->id,
+            'jurisdiction_profile' => 'zanzibar',
+            'zra_hotel_code' => $property->zra_hotel_code,
+            'tax_settings' => ['zra_tax_category' => $selected],
+        ]))->assertSessionHasNoErrors();
+        $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+            ->has('onboarding.gates', $selected === 'vat' ? 9 : 8)
+            ->where('onboarding.canGoLive', $selected !== 'vat'));
+    }
+
+    $this->post(route('properties.go-live', $property), ['_property' => $property->id])->assertSessionHasNoErrors();
+    expect($property->fresh()->status)->toBe(PropertyStatus::Live);
+})->with(['hotel_levy', 'tour_operator', 'exempt'])->with([true, false]);
 
 test('go-live gates do not borrow rooms rates or tax review from another property in the organization', function () {
     $t = twoTenants();

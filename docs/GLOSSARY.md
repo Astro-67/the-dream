@@ -188,6 +188,9 @@ _Avoid_: Infrastructure tax, tourism levy
 **ZRA tax registration**:
 A property's registration numbers with ZRA: ZRA number, TIN, VRN and Z-number. Optional at sign-up, required before go-live in Zanzibar.
 
+**ZRA hotel code**:
+The authority's identifier for a property, separate from its TIN, VRN and full Z-number.
+
 **Fiscal receipt**:
 A receipt or check-out report issued through VFMS, carrying a VFMS QR code.
 _Avoid_: Invoice, bill, folio

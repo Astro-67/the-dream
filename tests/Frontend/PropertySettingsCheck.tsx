@@ -3,6 +3,10 @@ import { App, Form } from '@inertiajs/react';
 import { isValidElement, useState, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import EditProperty from '@/pages/properties/edit';
+import CreateProperty from '@/pages/properties/create';
+import CreateOrganization from '@/pages/organizations/create';
+import { PropertyFields } from '@/features/tenancy/property-fields';
+import { OnboardingChecklist } from '@/features/tenancy/onboarding-checklist';
 import {
     propertySettingsTabForErrors,
     propertySettingsTabs,
@@ -51,6 +55,10 @@ function settings(
                 timezone: 'Africa/Dar_es_Salaam',
                 currency: 'USD',
                 jurisdiction_profile: 'zanzibar',
+                tin: 'TIN-TEST',
+                z_number: 'Z-TEST/LOCATION',
+                vrn: 'VRN-TEST',
+                zra_hotel_code: 'HOTEL-TEST',
                 housekeeping_inspection_required: true,
                 stayover_service_on_close: true,
                 receipt_prefix: 'RC',
@@ -110,6 +118,118 @@ function settings(
 }
 
 const html = settings();
+assert.match(html, /<legend[^>]*>Tax &amp; regulatory information<\/legend>/);
+assert.doesNotMatch(html, /<details|ZRA tax registration \(optional\)/);
+for (const [field, value] of [
+    ['tin', 'TIN-TEST'],
+    ['z_number', 'Z-TEST/LOCATION'],
+    ['vrn', 'VRN-TEST'],
+    ['zra_hotel_code', 'HOTEL-TEST'],
+]) {
+    assert.match(html, new RegExp(`id="${field}"[^>]*value="${value}"`));
+}
+const options = {
+    propertyTypes: [{ value: 'hotel', label: 'Hotel' }],
+    currencies: [{ value: 'USD', label: 'USD' }],
+    jurisdictionProfiles: [{ value: 'zanzibar', label: 'Zanzibar' }],
+    timezones: ['Africa/Dar_es_Salaam'],
+};
+for (const component of [
+    () => (
+        <CreateProperty
+            {...options}
+            defaults={{ timezone: 'Africa/Dar_es_Salaam', currency: 'USD' }}
+        />
+    ),
+    () => (
+        <CreateOrganization
+            {...options}
+            countries={[{ value: 'TZ', label: 'Tanzania' }]}
+            defaults={{
+                country: 'TZ',
+                timezone: 'Africa/Dar_es_Salaam',
+                currency: 'USD',
+            }}
+        />
+    ),
+]) {
+    const page = renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'setup',
+                url: '/setup',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: { errors: {}, tenant: { property: { id: 'hotel' } } },
+            }}
+            initialComponent={component}
+            resolveComponent={async () => component}
+        />,
+    );
+    assert.match(page, /Tax &amp; regulatory information/);
+    assert.doesNotMatch(page, /<details/);
+    for (const field of ['tin', 'vrn', 'z_number']) {
+        assert.match(page, new RegExp(`name="${field}"`));
+        assert.doesNotMatch(
+            page,
+            new RegExp(`<input[^>]*name="${field}"[^>]*required`),
+        );
+    }
+}
+const mainland = renderToStaticMarkup(
+    <PropertyFields
+        options={options}
+        values={{ jurisdiction_profile: 'mainland_tanzania' }}
+        errors={{}}
+    />,
+);
+assert.doesNotMatch(mainland, /name="zra_hotel_code"/);
+assert.match(mainland, /Optional for mainland properties/);
+assert.match(html, /Required before go-live in Zanzibar/);
+assert.match(html, /VAT-category properties only/);
+
+const checklist = {
+    propertyId: 'hotel',
+    propertyName: 'Sample hotel',
+    items: [
+        {
+            key: 'profile',
+            label: 'Property profile',
+            completed: false,
+            href: null,
+        },
+    ],
+    gates: [
+        {
+            key: 'tin',
+            label: 'TIN',
+            passed: false,
+            href: '/properties/hotel/edit#tin',
+        },
+    ],
+    canGoLive: false,
+    canReviewTaxes: false,
+    receiptNotice: null,
+};
+const checklistHtml = renderToStaticMarkup(
+    <OnboardingChecklist checklist={checklist} />,
+);
+assert.match(
+    checklistHtml,
+    /href="\/properties\/hotel\/edit#tin"[^>]*>TIN<\/a>/,
+);
+assert.doesNotMatch(
+    renderToStaticMarkup(
+        <OnboardingChecklist
+            checklist={{
+                ...checklist,
+                gates: [{ ...checklist.gates[0], href: null }],
+            }}
+        />,
+    ),
+    /href=/,
+);
 assert.equal((html.match(/<form\b/g) ?? []).length, 1);
 assert.equal((html.match(/role="tab"/g) ?? []).length, 5);
 assert.equal((html.match(/role="tabpanel"/g) ?? []).length, 5);
