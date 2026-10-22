@@ -50,7 +50,7 @@ test('the spec example: an inclusive room, an added levy and an inclusive extra 
 
     expect($summary)->toBe([
         'room' => 8696, 'extras' => 870, 'vat' => 1434, 'levy' => 500, 'other_taxes' => 0, 'unclassified_taxes' => 0,
-        'charges' => 11500, 'paid' => 10000, 'refunded' => 0, 'written_off' => 0, 'net_payments' => 10000, 'balance' => 1500,
+        'charges' => 11500, 'paid' => 10000, 'refunded' => 0, 'written_off' => 0, 'net_payments' => 10000, 'balance' => 1500, 'levy_unavailable' => false,
     ])->and(reconciles($summary))->toBeTrue();
 });
 

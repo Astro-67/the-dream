@@ -13,6 +13,7 @@ export type FolioSummary = {
     written_off: number;
     net_payments: number;
     balance: number;
+    levy_unavailable: boolean;
 };
 export type FolioTotal = FolioSummary & {
     currency: string;
@@ -39,11 +40,17 @@ export function FolioSummaryList({
     currency: string;
     estimate?: FolioTotal['estimate'];
 }) {
-    const rows: [string, number, boolean?][] = [
+    const rows: [string, number | string, boolean?][] = [
         ['Room charges, net of tax', summary.room],
         ['Other charges, net of tax', summary.extras],
         ['VAT', summary.vat],
-        ['Infrastructure levy', summary.levy],
+        [
+            'Infrastructure levy',
+            // A levy left out in this currency is never shown as a zero charge.
+            summary.levy_unavailable && !summary.levy
+                ? 'Not available in this currency'
+                : summary.levy,
+        ],
         ...(summary.other_taxes
             ? [
                   ['Other taxes and service charges', summary.other_taxes] as [
@@ -93,7 +100,9 @@ export function FolioSummaryList({
                         <dd
                             className={`text-right tabular-nums ${strong ? 'font-semibold' : ''}`}
                         >
-                            {formatMoney(amount, currency)}
+                            {typeof amount === 'number'
+                                ? formatMoney(amount, currency)
+                                : amount}
                         </dd>
                     </div>
                 ))}

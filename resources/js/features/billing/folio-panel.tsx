@@ -55,7 +55,7 @@ export type Posting = {
     unit_price: number;
     net: number;
     amount: number;
-    tax_lines: { name: string; amount: number }[];
+    tax_lines: { name: string; amount: number; unavailable?: boolean }[];
     posted_at: string;
     actor: string | null;
     method?: string | null;
@@ -281,10 +281,12 @@ export function FolioPanel({
                                             {posting.tax_lines.map((line) => (
                                                 <div key={line.name}>
                                                     {line.name}{' '}
-                                                    {formatMoney(
-                                                        line.amount,
-                                                        folio.currency,
-                                                    )}
+                                                    {line.unavailable
+                                                        ? 'not available in this currency'
+                                                        : formatMoney(
+                                                              line.amount,
+                                                              folio.currency,
+                                                          )}
                                                 </div>
                                             ))}
                                         </TableCell>

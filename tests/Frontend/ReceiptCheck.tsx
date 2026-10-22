@@ -57,6 +57,7 @@ const base = {
         written_off: 0,
         net_payments: 2000,
         balance: 3000,
+        levy_unavailable: false,
     },
 };
 const render = (
@@ -85,6 +86,13 @@ assert.match(html, /101, Deluxe Double/);
 assert.match(html, /Later corrections/);
 assert.match(html, /reservations\/R-1042\/statement/);
 assert.doesNotMatch(html, /Historical folio summary unavailable/);
+
+const noLevy = render({
+    ...base,
+    summary: { ...base.summary, levy_unavailable: true },
+});
+assert.match(noLevy, /Infrastructure levy.*?Not available in this currency/);
+assert.doesNotMatch(html, /Not available in this currency/);
 
 const old = render({ ...base, summary: null, corrections: [] });
 assert.match(old, /Historical folio summary unavailable/);

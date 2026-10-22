@@ -45,7 +45,7 @@ class PostRoomCharge
                 'folio_id' => $folio->id, 'reservation_id' => $reservation->id, 'price_line_id' => $line->getKey(),
                 'type' => 'charge', 'category' => 'room', 'quantity' => 1, 'unit_price' => $line->getAttribute('amount'),
                 'net' => $tax->net, 'amount' => $tax->gross(), 'currency' => $currency,
-                'tax_lines' => $tax->lines, 'tax_rule_ids' => $tax->ruleIds,
+                'tax_lines' => $tax->postedLines(), 'tax_rule_ids' => $tax->ruleIds,
                 'idempotency_key' => "room:{$reservation->id}:{$date}", 'actor_id' => $actor?->id,
                 'business_date' => $date, 'posted_at' => now(),
             ]);

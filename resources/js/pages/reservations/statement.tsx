@@ -34,7 +34,12 @@ type StatementPosting = {
     amount: number;
     method: string | null;
     business_date: string;
-    tax_lines: { name: string; inclusive: boolean; amount: number }[];
+    tax_lines: {
+        name: string;
+        inclusive: boolean;
+        amount: number;
+        unavailable: boolean;
+    }[];
 };
 
 const corrections: Record<string, string> = {
@@ -193,10 +198,12 @@ export default function Statement({
                                                             {line.inclusive
                                                                 ? ', of which'
                                                                 : ''}{' '}
-                                                            {formatMoney(
-                                                                line.amount,
-                                                                folio.currency,
-                                                            )}
+                                                            {line.unavailable
+                                                                ? 'not available in this currency'
+                                                                : formatMoney(
+                                                                      line.amount,
+                                                                      folio.currency,
+                                                                  )}
                                                         </div>
                                                     ),
                                                 )}

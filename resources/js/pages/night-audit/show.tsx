@@ -29,7 +29,7 @@ type Charge = {
     unit_price: number;
     amount: number;
     currency: string;
-    tax_lines: { name: string; amount: number }[];
+    tax_lines: { name: string; amount: number; unavailable?: boolean }[];
 };
 
 type NoShow = {
@@ -125,10 +125,12 @@ export default function Show({
                                                 (tax, taxIndex) => (
                                                     <div key={taxIndex}>
                                                         {tax.name}:{' '}
-                                                        {formatMoney(
-                                                            tax.amount,
-                                                            charge.currency,
-                                                        )}
+                                                        {tax.unavailable
+                                                            ? 'not available in this currency'
+                                                            : formatMoney(
+                                                                  tax.amount,
+                                                                  charge.currency,
+                                                              )}
                                                     </div>
                                                 ),
                                             )}

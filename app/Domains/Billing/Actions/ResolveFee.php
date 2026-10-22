@@ -49,7 +49,7 @@ class ResolveFee
                 $posting = Posting::query()->create([
                     'folio_id' => $folio->id, 'type' => 'charge', 'category' => $proposal->kind.'_fee', 'description' => $reason,
                     'quantity' => 1, 'unit_price' => $proposal->amount, 'net' => $breakdown->net, 'amount' => $breakdown->gross(), 'currency' => $folio->currency,
-                    'tax_lines' => $breakdown->lines, 'tax_rule_ids' => $breakdown->ruleIds, 'idempotency_key' => 'fee:'.$proposal->id,
+                    'tax_lines' => $breakdown->postedLines(), 'tax_rule_ids' => $breakdown->ruleIds, 'idempotency_key' => 'fee:'.$proposal->id,
                     'actor_id' => $actor?->id, 'business_date' => $date, 'posted_at' => now(),
                 ]);
                 $resolution += ['posting_id' => $posting->id, 'fiscal_exception_candidate' => JurisdictionRules::marksFeesAsFiscalExceptions($property)];

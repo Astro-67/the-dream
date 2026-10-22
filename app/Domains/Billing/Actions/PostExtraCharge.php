@@ -47,7 +47,7 @@ class PostExtraCharge
                 'folio_id' => $folio->id, 'type' => 'charge', 'category' => $details['category'] ?? 'other', 'description' => $details['description'] ?? null,
                 'quantity' => $details['quantity'], 'unit_price' => $details['unit_price'],
                 'net' => $breakdown->net, 'amount' => $breakdown->gross(), 'currency' => $folio->currency,
-                'tax_lines' => $breakdown->lines, 'tax_rule_ids' => $breakdown->ruleIds,
+                'tax_lines' => $breakdown->postedLines(), 'tax_rule_ids' => $breakdown->ruleIds,
                 'idempotency_key' => $key, 'actor_id' => $actor?->id, 'business_date' => $date, 'posted_at' => now(),
             ]);
             Audit::record($actor, 'created', $posting, 'Extra charge posted', ['folio_id' => $folio->id, 'amount' => $posting->amount, 'currency' => $folio->currency->value]);

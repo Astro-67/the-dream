@@ -15,7 +15,7 @@ use Illuminate\Support\Collection;
  * and their frozen tax lines, never today's rates. A reversal or transfer keeps the
  * category of what it cancels, so it nets against it instead of counting again.
  *
- * @phpstan-type Summary array{room: int, extras: int, vat: int, levy: int, other_taxes: int, unclassified_taxes: int, charges: int, paid: int, refunded: int, written_off: int, net_payments: int, balance: int}
+ * @phpstan-type Summary array{room: int, extras: int, vat: int, levy: int, other_taxes: int, unclassified_taxes: int, charges: int, paid: int, refunded: int, written_off: int, net_payments: int, balance: int, levy_unavailable: bool}
  */
 final class FolioSummary
 {
@@ -24,12 +24,14 @@ final class FolioSummary
     /**
      * Minor units of the postings' one currency. charges = room + extras + every tax;
      * balance = charges - net_payments - written_off, which is the sum of the postings.
+     * levy_unavailable: a charge left the levy out because it is not available in this currency.
      *
      * @param  iterable<Posting>  $postings
      * @return Summary
      */
     public static function of(iterable $postings): array
     {
+        $levyUnavailable = false;
         $sum = ['room' => 0, 'extras' => 0, 'vat' => 0, 'levy' => 0, 'other_taxes' => 0, 'unclassified_taxes' => 0, 'charges' => 0, 'paid' => 0, 'refunded' => 0, 'written_off' => 0, 'balance' => 0];
         foreach ($postings as $posting) {
             $sum['balance'] += $posting->amount;
@@ -43,6 +45,7 @@ final class FolioSummary
             $sum['charges'] += $posting->amount;
             $sum[$posting->category === 'room' ? 'room' : 'extras'] += $posting->net;
             foreach ($posting->tax_lines as $line) {
+                $levyUnavailable = $levyUnavailable || ($line['unavailable'] ?? false);
                 // Lines stored before categories have no key: kept apart rather than guessed from a translated name.
                 $sum[match (true) {
                     ! array_key_exists('category', $line) => 'unclassified_taxes',
@@ -55,7 +58,7 @@ final class FolioSummary
 
         $balance = array_pop($sum);
 
-        return [...$sum, 'net_payments' => $sum['paid'] - $sum['refunded'], 'balance' => $balance];
+        return [...$sum, 'net_payments' => $sum['paid'] - $sum['refunded'], 'balance' => $balance, 'levy_unavailable' => $levyUnavailable];
     }
 
     /**

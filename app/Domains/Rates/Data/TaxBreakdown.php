@@ -23,6 +23,20 @@ final readonly class TaxBreakdown
         public array $unavailable = [],
     ) {}
 
+    /**
+     * The lines a posting stores: the tax lines plus a zero line marked unavailable for each tax
+     * left out, so the record itself says the tax was not charged (only the levy is ever left out).
+     *
+     * @return list<array{name: string, category?: string|null, kind: string, inclusive: bool, rate: int|null, per_person_night: int|null, amount: int, unavailable?: bool}>
+     */
+    public function postedLines(): array
+    {
+        return [...$this->lines, ...array_map(fn (string $name) => [
+            'name' => $name, 'category' => 'hotel_levy', 'kind' => 'flat_per_person_night', 'inclusive' => false,
+            'rate' => null, 'per_person_night' => null, 'amount' => 0, 'unavailable' => true,
+        ], $this->unavailable)];
+    }
+
     public function tax(): int
     {
         return array_sum(array_column($this->lines, 'amount'));

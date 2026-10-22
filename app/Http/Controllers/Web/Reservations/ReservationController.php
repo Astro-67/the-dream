@@ -144,7 +144,7 @@ class ReservationController extends Controller
                 'postings' => $folio['postings']->map(fn (Posting $posting) => [
                     ...$posting->only(['id', 'type', 'category', 'description', 'quantity', 'unit_price', 'amount', 'method']),
                     'business_date' => $posting->business_date->toDateString(),
-                    'tax_lines' => array_map(fn (array $line) => ['name' => $line['name'], 'inclusive' => $line['inclusive'], 'amount' => $line['amount']], $posting->tax_lines),
+                    'tax_lines' => array_map(fn (array $line) => ['name' => $line['name'], 'inclusive' => $line['inclusive'], 'amount' => $line['amount'], 'unavailable' => $line['unavailable'] ?? false], $posting->tax_lines),
                 ])->values(),
             ])->values(),
             'totals' => FolioSummary::totals($reservation, $folios),

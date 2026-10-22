@@ -35,7 +35,7 @@ use LogicException;
  * @property int $net
  * @property int $amount gross: net plus exclusive tax lines
  * @property Currency $currency
- * @property list<array{name: string, category?: string|null, kind: string, inclusive: bool, rate: int|null, per_person_night: int|null, amount: int}> $tax_lines
+ * @property list<array{name: string, category?: string|null, kind: string, inclusive: bool, rate: int|null, per_person_night: int|null, amount: int, unavailable?: bool}> $tax_lines an unavailable line records a tax left out in this currency
  * @property list<string> $tax_rule_ids
  * @property string $idempotency_key
  * @property string|null $actor_id

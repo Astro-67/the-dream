@@ -45,6 +45,7 @@ const emptySummary: FolioSummary = {
     written_off: 0,
     net_payments: 0,
     balance: 0,
+    levy_unavailable: false,
 };
 
 const incoming = renderToStaticMarkup(<PostingLink posting={posting} />);

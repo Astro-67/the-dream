@@ -11,6 +11,7 @@ use App\Domains\Guests\Actions\ReplaceIdentityDocuments;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Rates\Actions\ChangeTaxRule;
 use App\Domains\Rates\Actions\SeedDefaultTaxRules;
+use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
@@ -52,7 +53,7 @@ test('the reservation and its statement reconcile the posted example and keep th
         app(ChangeTaxRule::class)->handle($t->a->owner, $vat, [...$vat->terms(), 'rate' => 1800, 'effective_from' => '2026-12-11']);
     });
     $expected = ['currency' => 'USD', 'room' => 8696, 'extras' => 870, 'vat' => 1434, 'levy' => 500, 'other_taxes' => 0, 'unclassified_taxes' => 0,
-        'charges' => 11500, 'paid' => 10000, 'refunded' => 0, 'written_off' => 0, 'net_payments' => 10000, 'balance' => 1500, 'estimate' => ['nights' => 1, 'amount' => 10000]];
+        'charges' => 11500, 'paid' => 10000, 'refunded' => 0, 'written_off' => 0, 'net_payments' => 10000, 'balance' => 1500, 'levy_unavailable' => false, 'estimate' => ['nights' => 1, 'amount' => 10000]];
 
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
         ->where('totals', [$expected])->where('assignedRoom', null));
@@ -60,7 +61,7 @@ test('the reservation and its statement reconcile the posted example and keep th
         ->where('totals', [$expected])
         ->where('reservation.guest', 'Amina Statement')->where('reservation.nights', 2)->where('reservation.room_type', 'Deluxe Double')
         ->has('folios', 1)->where('folios.0.summary.balance', 1500)->has('folios.0.postings', 3)
-        ->where('folios.0.postings.0.tax_lines', [['name' => 'Infrastructure levy', 'inclusive' => false, 'amount' => 500], ['name' => 'VAT', 'inclusive' => true, 'amount' => 1304]]))
+        ->where('folios.0.postings.0.tax_lines', [['name' => 'Infrastructure levy', 'inclusive' => false, 'amount' => 500, 'unavailable' => false], ['name' => 'VAT', 'inclusive' => true, 'amount' => 1304, 'unavailable' => false]]))
         ->assertDontSee('P9988776')->assertDontSee('Private staff note');
 });
 
@@ -104,4 +105,26 @@ test('a statement of a sibling property reservation is not shown from another pr
     $reservation = inTenant($t->a->otherProperty, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
 
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.statement', $reservation))->assertNotFound();
+});
+
+// protects=a USD levy on a TZS stay is shown as unavailable from the posting itself; fails_when=it is converted, dropped silently or shown as zero.
+test('a foreign-currency levy is posted as unavailable and shown so, not as zero', function () {
+    $t = twoTenants();
+    $t->a->property->update(['business_date' => '2026-12-10', 'jurisdiction_profile' => 'zanzibar', 'star_rating' => 4]);
+    $reservation = inTenant($t->a->property, function () use ($t) {
+        app(SeedDefaultTaxRules::class)->handle($t->a->owner, $t->a->property);
+        $details = BookingForm::details($t->a->owner);
+        RatePlan::query()->whereKey($details['rate_plan_id'])->update(['currency' => 'TZS']);
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, [...$details, 'adults' => 1, 'children' => 0]);
+        $reservation->update(['status' => ReservationStatus::CheckedIn]);
+        app(PostRoomCharge::class)->handle($t->a->owner, $reservation, '2026-12-10');
+
+        return $reservation;
+    });
+
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('reservations.statement', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('totals.0.currency', 'TZS')->where('totals.0.levy', 0)->where('totals.0.levy_unavailable', true)
+        ->where('folios.0.summary.levy_unavailable', true)
+        ->where('folios.0.postings.0.tax_lines', [['name' => 'VAT', 'inclusive' => true, 'amount' => 1304, 'unavailable' => false], ['name' => 'Infrastructure levy', 'inclusive' => false, 'amount' => 0, 'unavailable' => true]]));
 });
