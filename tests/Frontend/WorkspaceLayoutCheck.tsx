@@ -9,7 +9,12 @@ import Dashboard from '@/pages/dashboard';
 
 function dashboard(property: boolean) {
     const component = () => (
-        <Dashboard onboarding={null} today={null} collections={null} />
+        <Dashboard
+            onboarding={null}
+            today={null}
+            collections={null}
+            roomBoard={null}
+        />
     );
 
     return renderToStaticMarkup(
