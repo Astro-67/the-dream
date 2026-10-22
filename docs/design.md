@@ -135,6 +135,8 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 - Page padding: 16px on mobile, 24px on tablet and desktop
 - Section spacing: 24px on mobile, 32px on desktop
 - Content width: full width for calendars and tables. Forms and settings stay at most 720px wide.
+- The operational shell fills the viewport remaining after the visible sidebar (256px expanded, 48px rail); the sidebar owns that gap. No extra page offset or viewport-centred cap. The header and page share the 16px/24px horizontal gutter and a single token border marks each navigation boundary.
+- Dashboard grids, report filters and tables use that full work area, including sparse states. Reading/print surfaces and forms keep their bounds inside it. Account settings use a 192px navigation column, a 32px gap and a form column capped at 720px; navigation stacks above the form below `lg`.
 - Card grid gap: 16–24px
 
 ## Border Radius
