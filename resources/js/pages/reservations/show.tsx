@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/table';
 import { TerminationActions } from '@/features/reservations/termination-actions';
 import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
+import type { CheckoutBalance } from '@/features/front-desk/check-out-dialog';
 import { StayLengthActions } from '@/features/front-desk/stay-length-actions';
 import { formatDate } from '@/features/platform/format';
 import {
@@ -89,6 +90,7 @@ export default function Show({
     groupMembers,
     folios,
     totals,
+    checkoutBalances,
     canPostCharge,
     feeProposals,
     canRecordPayment,
@@ -121,6 +123,7 @@ export default function Show({
     >[];
     folios: Paginated<Folio>;
     totals: FolioTotal[];
+    checkoutBalances: CheckoutBalance[];
     canPostCharge: boolean;
     feeProposals: FeeProposal[];
     canRecordPayment: boolean;
@@ -183,7 +186,7 @@ export default function Show({
                     {reservation.status === 'checked_in' && can.checkOut && (
                         <CheckOutDialog
                             number={reservation.reservation_number}
-                            balances={totals}
+                            balances={checkoutBalances}
                             canOverride={can.overrideBalance}
                         />
                     )}

@@ -2,6 +2,50 @@ import assert from 'node:assert/strict';
 import { App } from '@inertiajs/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import Index, { paymentState } from '@/pages/reservations/index';
+import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
+
+function checkout(
+    balances: { id: string; currency: string; balance: number }[],
+    canOverride = false,
+    blockCheckoutIfUnpaid = true,
+) {
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'checkout',
+                props: { blockCheckoutIfUnpaid },
+                url: '/reservations',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+            }}
+            initialComponent={() => (
+                <CheckOutDialog
+                    number="R-1042"
+                    balances={balances}
+                    canOverride={canOverride}
+                />
+            )}
+        />,
+    );
+}
+
+const debt = { id: 'due', currency: 'USD', balance: 1500 };
+const credit = { id: 'credit', currency: 'EUR', balance: -1500 };
+for (const block of [true, false]) {
+    const blocked = checkout([debt, credit], false, block);
+    assert.match(blocked, /<button[^>]*disabled=""[^>]*>Check out<\/button>/);
+    assert.match(
+        blocked,
+        /Check-out is not allowed\. All outstanding balances must be paid before check-out\./,
+    );
+    assert.match(blocked, /aria-describedby="check-out-blocked-R-1042"/);
+}
+assert.match(checkout([debt, { ...credit, currency: 'USD' }]), /disabled=""/);
+assert.doesNotMatch(checkout([debt], true), /disabled=""/);
+assert.doesNotMatch(checkout([{ ...debt, balance: 0 }]), /disabled=""/);
+assert.match(checkout([credit]), /Settle every folio balance before check-out/);
+assert.doesNotMatch(checkout([credit], false, false), /disabled=""/);
 
 assert.deepEqual(
     paymentState({ currency: 'USD', balance: 0, unposted: true }),
@@ -34,6 +78,7 @@ const row = {
     requires_reconciliation: false,
     can_check_in: false,
     can_check_out: false,
+    checkout_balances: [],
     guest_name: 'Amina Lead',
     room_number: '101',
     balances: [

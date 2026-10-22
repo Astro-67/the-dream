@@ -35,6 +35,27 @@ function automaticCheckoutStay(TenantFixture $tenant): Reservation
     return $reservation;
 }
 
+test('automatic check-out skips unpaid stays when the preference is missing', function () {
+    Mail::fake();
+    $t = twoTenants();
+    $stay = automaticCheckoutStay($t->a);
+    inTenant($t->a->property, fn () => app(PostExtraCharge::class)->handle($t->a->owner, Folio::query()->sole(), [
+        'category' => 'laundry', 'quantity' => 1, 'unit_price' => 1500,
+    ]));
+    $t->a->property->update(['front_desk_settings' => ['automatic_checkout_enabled' => true]]);
+    $this->travelTo(new DateTimeImmutable('2026-12-12 09:00:00 UTC'));
+
+    $this->artisan('front-desk:checkout-due')->assertSuccessful();
+
+    expect(inTenant($t->a->property, fn () => $stay->fresh()->status))->toBe(ReservationStatus::CheckedIn);
+    Mail::assertQueued(AutomaticCheckoutSummary::class, function ($mail) use ($stay) {
+        expect($mail->checkedOut)->toBe([])
+            ->and($mail->render())->toContain($stay->reservation_number, 'Check-out is not allowed. All outstanding balances must be paid before check-out.');
+
+        return true;
+    });
+});
+
 test('automatic check-out sends the summary to the property email when no recipient is configured', function (array $recipient) {
     Mail::fake();
     $t = twoTenants();
@@ -55,7 +76,7 @@ test('automatic check-out waits for night audit before completing the local day'
     Mail::fake();
     $t = twoTenants();
     $stay = automaticCheckoutStay($t->a);
-    $t->a->property->update(['business_date' => '2026-12-11', 'front_desk_settings' => ['automatic_checkout_enabled' => true]]);
+    $t->a->property->update(['business_date' => '2026-12-11', 'front_desk_settings' => ['automatic_checkout_enabled' => true, 'automatic_checkout_include_unpaid' => true]]);
     $this->travelTo(new DateTimeImmutable('2026-12-12 09:00:00 UTC'));
     $this->artisan('front-desk:checkout-due')->assertSuccessful();
     expect($t->a->property->fresh()->automatic_checkout_date)->toBeNull();
@@ -134,7 +155,7 @@ test('automatic unpaid check-outs follow their own switch and preserve open bala
             expect($mail->checkedOut)->toBe([$reservation->reservation_number])->and($mail->skipped)->toBe([]);
         } else {
             expect($mail->checkedOut)->toBe([])
-                ->and($mail->render())->toContain($reservation->reservation_number, 'Settle every folio balance before check-out.');
+                ->and($mail->render())->toContain($reservation->reservation_number, 'Check-out is not allowed. All outstanding balances must be paid before check-out.');
         }
 
         return true;

@@ -24,9 +24,11 @@ class ListReservations
                 && $reservation->departure->toDateString() <= $businessDate && Gate::allows('checkOut', $reservation)));
         $page = $reservations->getCollection();
         $balances = FolioSummary::balances($page);
+        $checkoutBalances = FolioSummary::checkoutBalances($page);
         $guests = Reservation::guestNames($page);
         $rooms = Room::query()->whereIn('id', $page->pluck('room_id')->filter())->pluck('number', 'id');
         $page->each(fn (Reservation $reservation) => $reservation->setAttribute('balances', $balances[$reservation->id])
+            ->setAttribute('checkout_balances', $checkoutBalances[$reservation->id] ?? [])
             ->setAttribute('guest_name', $guests->get($reservation->id))
             ->setAttribute('room_number', $rooms->get($reservation->room_id)));
         $page->filter(fn (Reservation $reservation) => $reservation->getAttribute('can_check_out'))

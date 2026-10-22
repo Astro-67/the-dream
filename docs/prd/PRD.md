@@ -220,6 +220,8 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - **PMS-04:** Check-in requires an eligible reservation, a ready room, and the registration fields set by the jurisdiction profile.
     - **Zanzibar:** document type, document number and nationality are required for every guest before check-in completes.
 - **PMS-05:** Checkout shows open balances and uses a manager-controlled exception policy. Balances are never silently ignored.
+    - Ordinary staff cannot check out while any folio has positive posted debt, even if another folio has credit. Show the disabled action with “Check-out is not allowed. All outstanding balances must be paid before check-out.” Server checks repeat under the transaction locks; only a permitted manager with an explicit reason may override. Credit-resolution preferences remain separate.
+    - Automatic check-out defaults to excluding unpaid stays. Backfill only missing preferences; preserve explicitly saved choices and leave automatic check-out off when disabled. Unpaid inclusion shows that balances remain open after departure, is audited, and skipped stays appear in the summary email. A tour-operator promise or an unposted channel-collected amount is not payment.
 - **PMS-06:** Night audit closes the business date with exception review and repeat-safe posting. Running the same close twice never duplicates charges.
     - At close, reservations not arrived by end of arrival date are proposed as no-shows for confirmation.
     - **Zanzibar:** the night audit sends VFMS price changes for the next night (FSC-04).

@@ -16,7 +16,7 @@ final class PropertySettings
             'walk_ins_enabled' => true, 'walk_in_requires_id' => true, 'maximum_overbooking_percentage' => 0,
             'minimum_stay' => 1, 'maximum_stay' => 90, 'passport_required_for_foreign_guests' => true,
             'automatic_checkout_enabled' => false, 'automatic_checkout_time' => '11:59',
-            'automatic_checkout_include_unpaid' => true, 'automatic_checkout_include_overstays' => false,
+            'automatic_checkout_include_unpaid' => false, 'automatic_checkout_include_overstays' => false,
             'automatic_checkout_summary_email' => null,
         ],
         'tax_settings' => [

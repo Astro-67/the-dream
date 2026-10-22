@@ -118,6 +118,19 @@ final class FolioSummary
     }
 
     /**
+     * @param  Collection<int, Reservation>  $reservations
+     * @return array<string, list<array{id: string, currency: string, balance: int}>>
+     */
+    public static function checkoutBalances(Collection $reservations): array
+    {
+        return Folio::query()->whereIn('reservation_id', $reservations->pluck('id'))
+            ->withSum('postings as balance_amount', 'amount')->orderBy('created_at')->orderBy('id')->get()
+            ->groupBy('reservation_id')->map(fn (Collection $folios) => $folios->map(fn (Folio $folio) => [
+                'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => (int) $folio->getAttribute('balance_amount'),
+            ])->values()->all())->all();
+    }
+
+    /**
      * Booked nights before departure with no room charge yet, per reservation and currency.
      * Only stays still to come or in house have nights left to charge.
      *

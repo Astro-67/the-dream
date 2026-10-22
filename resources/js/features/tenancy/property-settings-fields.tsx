@@ -81,7 +81,8 @@ const labels: Record<string, string> = {
     show_breakdown_on_bill: 'Show tax breakdown on bill',
     show_breakdown_on_receipt: 'Show tax breakdown on receipt',
     accepted_methods: 'Accepted payment methods',
-    block_checkout_if_unpaid: 'Block check-out if unpaid',
+    block_checkout_if_unpaid:
+        'Require credit balances to be settled before check-out',
     manager_override: 'Allow manager override for unpaid check-out',
     deposit_percentage: 'Deposit (%)',
     payment_due_days: 'Payment due (days)',
@@ -160,6 +161,13 @@ export function PropertySettingsFields({
                                         name={name}
                                         defaultValue={value ? '1' : '0'}
                                         aria-invalid={!!error}
+                                        aria-describedby={
+                                            field ===
+                                                'automatic_checkout_include_unpaid' ||
+                                            field === 'block_checkout_if_unpaid'
+                                                ? `${key}-hint`
+                                                : undefined
+                                        }
                                     >
                                         <option value="1">Yes</option>
                                         <option value="0">No</option>
@@ -214,6 +222,28 @@ export function PropertySettingsFields({
                                         }
                                         aria-invalid={!!error}
                                     />
+                                )}
+                                {field ===
+                                    'automatic_checkout_include_unpaid' && (
+                                    <p
+                                        id={`${key}-hint`}
+                                        className="text-sm text-status-warning"
+                                    >
+                                        If enabled, automatic check-out includes
+                                        unpaid stays. Their balances remain open
+                                        after departure for finance to collect;
+                                        check-out does not settle the debt.
+                                    </p>
+                                )}
+                                {field === 'block_checkout_if_unpaid' && (
+                                    <p
+                                        id={`${key}-hint`}
+                                        className="text-sm text-muted-foreground"
+                                    >
+                                        Outstanding debt always blocks ordinary
+                                        check-out. This setting applies only to
+                                        credit balances.
+                                    </p>
                                 )}
                                 <InputError message={error} />
                             </div>

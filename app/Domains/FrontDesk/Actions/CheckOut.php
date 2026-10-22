@@ -17,10 +17,11 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Ends the stay (PMS-05) and hands the room to housekeeping as dirty. Refused
- * while any folio balance isn't zero when the property blocks it, unless a
- * permitted override reason is given. An override leaves an open balance
+ * for debt, or for credit when the property blocks it, unless a permitted
+ * override reason is given. An override leaves an open balance
  * after departure. Automation uses the property's include-unpaid switch instead
- * of a manager override.
+ * of a manager override. Locking posting reads see payments committed after an
+ * outer transaction's snapshot began.
  */
 class CheckOut
 {
@@ -35,17 +36,23 @@ class CheckOut
             if ($locked->departure->toDateString() > BusinessDate::forPropertyId($locked->property_id)) {
                 throw ValidationException::withMessages(['reservation' => __('This stay departs later. Record an early departure first.')]);
             }
-            $open = Folio::query()->where('reservation_id', $locked->id)->orderBy('created_at')->lockForUpdate()->get()
-                ->map(fn (Folio $folio) => $folio->balance())->filter(fn ($balance) => $balance->amount !== 0)
-                ->map(fn ($balance) => ['amount' => $balance->amount, 'currency' => $balance->currency->value])->values()->all();
+            $open = Folio::query()->where('reservation_id', $locked->id)->orderBy('created_at')->orderBy('id')->lockForUpdate()->get()
+                ->map(fn (Folio $folio) => [
+                    'amount' => (int) $folio->postings()->lockForUpdate()->get(['amount'])->sum('amount'),
+                    'currency' => $folio->currency->value,
+                ])->filter(fn (array $balance) => $balance['amount'] !== 0)->values()->all();
             $overrideReason = trim((string) $overrideReason);
             $propertySettings = Property::query()->findOrFail($locked->property_id)->settings();
             $settings = $propertySettings['payment_settings'];
+            $hasDebt = collect($open)->contains(fn (array $balance) => $balance['amount'] > 0);
             $blocksUnpaid = $actor === null
                 ? ! $propertySettings['front_desk_settings']['automatic_checkout_include_unpaid']
-                : $settings['block_checkout_if_unpaid'] && ($overrideReason === '' || ! $settings['manager_override']);
+                : ($hasDebt || $settings['block_checkout_if_unpaid'])
+                    && ($overrideReason === '' || ! $actor->can('checkOutWithBalance', $locked));
             if ($open !== [] && $blocksUnpaid) {
-                throw ValidationException::withMessages(['balance' => __('Settle every folio balance before check-out.')]);
+                throw ValidationException::withMessages(['balance' => $hasDebt
+                    ? __('Check-out is not allowed. All outstanding balances must be paid before check-out.')
+                    : __('Settle every folio balance before check-out.')]);
             }
             $details = $open === [] ? [] : ['open_balances' => $open, 'override_reason' => $overrideReason === '' ? null : $overrideReason];
 

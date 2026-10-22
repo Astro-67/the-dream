@@ -66,6 +66,7 @@ function settings(
                 front_desk_settings: {
                     minimum_stay: 2,
                     walk_ins_enabled: true,
+                    automatic_checkout_include_unpaid: true,
                 },
                 tax_settings: { tax_rate: 15 },
                 payment_settings: {
@@ -118,6 +119,13 @@ function settings(
 }
 
 const html = settings();
+assert.match(html, /If enabled, automatic check-out includes unpaid stays/);
+assert.match(html, /Their balances remain open after departure/);
+assert.match(
+    html,
+    /name="front_desk_settings\[automatic_checkout_include_unpaid\]"[^>]*aria-describedby="front_desk_settings.automatic_checkout_include_unpaid-hint"/,
+);
+assert.match(html, /<option value="1" selected="">Yes<\/option>/);
 assert.match(html, /<legend[^>]*>Tax &amp; regulatory information<\/legend>/);
 assert.doesNotMatch(html, /<details|ZRA tax registration \(optional\)/);
 for (const [field, value] of [

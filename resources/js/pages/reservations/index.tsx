@@ -16,6 +16,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
+import type { CheckoutBalance } from '@/features/front-desk/check-out-dialog';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney } from '@/lib/utils';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -40,6 +41,7 @@ type Reservation = {
     requires_reconciliation: boolean;
     can_check_in: boolean;
     can_check_out: boolean;
+    checkout_balances: CheckoutBalance[];
     can_override_balance?: boolean;
     guest_name: string | null;
     room_number: string | null;
@@ -370,7 +372,7 @@ export default function Index({
                                                         reservation.reservation_number
                                                     }
                                                     balances={
-                                                        reservation.balances
+                                                        reservation.checkout_balances
                                                     }
                                                     canOverride={
                                                         reservation.can_override_balance ??
