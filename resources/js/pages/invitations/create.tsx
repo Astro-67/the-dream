@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -15,10 +15,14 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
-import { create, index, store } from '@/routes/invitations';
+import { create, store } from '@/routes/invitations';
+import { index } from '@/routes/members';
 import type { SelectOption } from '@/types';
 
-type RoleOption = SelectOption & { mayHaveAllProperties: boolean };
+type RoleOption = SelectOption & {
+    summary: string;
+    mayHaveAllProperties: boolean;
+};
 
 type Props = {
     roles: RoleOption[];
@@ -33,17 +37,18 @@ export default function CreateInvitation({
     properties,
     defaultExpiryDays,
 }: Props) {
+    const { tenant } = usePage().props;
     const [role, setRole] = useState<RoleOption | null>(null);
     const [allProperties, setAllProperties] = useState(false);
     const grantsAll = allProperties && (role?.mayHaveAllProperties ?? false);
 
     return (
         <>
-            <Head title="Invite a person" />
+            <Head title="Add staff" />
             <div className="w-full max-w-[720px] p-4 md:p-6">
                 <Heading
-                    title="Invite a person"
-                    description="They'll get an email with a link. They accept by signing in or registering with this email address."
+                    title="Add staff"
+                    description="They'll get an expiring invitation by email and accept by signing in or setting their own password. You never see or set their password."
                 />
 
                 <Form
@@ -105,6 +110,16 @@ export default function CreateInvitation({
                                     </SelectContent>
                                 </Select>
                                 <InputError message={errors.role} />
+                                <div className="grid gap-2 text-sm text-muted-foreground">
+                                    {roles.map((option) => (
+                                        <p key={option.value}>
+                                            <span className="font-medium">
+                                                {option.label}:{' '}
+                                            </span>
+                                            {option.summary}
+                                        </p>
+                                    ))}
+                                </div>
                             </div>
 
                             <fieldset className="grid gap-3">
@@ -139,7 +154,9 @@ export default function CreateInvitation({
                                                 name="property_ids[]"
                                                 value={property.value}
                                                 defaultChecked={
-                                                    properties.length === 1
+                                                    properties.length === 1 ||
+                                                    property.value ===
+                                                        tenant.property?.id
                                                 }
                                             />
                                             <Label
@@ -157,35 +174,45 @@ export default function CreateInvitation({
                                 />
                             </fieldset>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="expires_in_days">
-                                    Expires after
-                                </Label>
-                                <Select
-                                    name="expires_in_days"
-                                    defaultValue={String(defaultExpiryDays)}
-                                >
-                                    <SelectTrigger
-                                        id="expires_in_days"
-                                        className="w-full sm:w-48"
+                            <details
+                                className="grid gap-2"
+                                open={!!errors.expires_in_days}
+                            >
+                                <summary className="cursor-pointer text-sm font-medium">
+                                    Advanced invitation options
+                                </summary>
+                                <div className="mt-3 grid gap-2">
+                                    <Label htmlFor="expires_in_days">
+                                        Expires after
+                                    </Label>
+                                    <Select
+                                        name="expires_in_days"
+                                        defaultValue={String(defaultExpiryDays)}
                                     >
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {expiryChoices.map((days) => (
-                                            <SelectItem
-                                                key={days}
-                                                value={String(days)}
-                                            >
-                                                {days === 1
-                                                    ? '1 day'
-                                                    : `${days} days`}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <InputError message={errors.expires_in_days} />
-                            </div>
+                                        <SelectTrigger
+                                            id="expires_in_days"
+                                            className="w-full sm:w-48"
+                                        >
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {expiryChoices.map((days) => (
+                                                <SelectItem
+                                                    key={days}
+                                                    value={String(days)}
+                                                >
+                                                    {days === 1
+                                                        ? '1 day'
+                                                        : `${days} days`}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError
+                                        message={errors.expires_in_days}
+                                    />
+                                </div>
+                            </details>
 
                             <div>
                                 <Button type="submit" disabled={processing}>
@@ -203,7 +230,7 @@ export default function CreateInvitation({
 
 CreateInvitation.layout = {
     breadcrumbs: [
-        { title: 'Invitations', href: index() },
-        { title: 'Invite a person', href: create() },
+        { title: 'Staff', href: index() },
+        { title: 'Add staff', href: create() },
     ],
 };

@@ -12,7 +12,6 @@ import {
     Layers,
     ReceiptText,
     Wallet,
-    MailPlus,
     Percent,
     ShieldCheck,
     Tags,
@@ -33,7 +32,6 @@ import { useCan } from '@/hooks/use-can';
 import { dashboard, rateCalendar } from '@/routes';
 import { index as cashierShifts } from '@/routes/cashier-shifts';
 import { index as approvals } from '@/routes/approvals';
-import { index as invitations } from '@/routes/invitations';
 import { index as guests } from '@/routes/guests';
 import { index as members } from '@/routes/members';
 import { index as payments } from '@/routes/payments';
@@ -62,12 +60,6 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
 ];
-
-const invitationsNavItem: NavItem = {
-    title: 'Invitations',
-    href: invitations(),
-    icon: MailPlus,
-};
 
 const platformNavItems: NavItem[] = [
     {
@@ -163,7 +155,7 @@ export function AppSidebar() {
             ? [{ title: 'Properties', href: properties(), icon: Hotel }]
             : []),
         ...(can('members.view')
-            ? [{ title: 'Members', href: members(), icon: Users }]
+            ? [{ title: 'Staff', href: members(), icon: Users }]
             : []),
     ];
     const moreItems: NavItem[] = [
@@ -203,9 +195,6 @@ export function AppSidebar() {
         // Bookers are no longer created by staff (ADR 0015); their pages stay reachable from old reservations.
         ...(can('guests.view')
             ? [{ title: 'Guests', href: guests(), icon: Users }]
-            : []),
-        ...(can('members.manage', 'members.invite')
-            ? [invitationsNavItem]
             : []),
         ...(can('organization.manage')
             ? [

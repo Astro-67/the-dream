@@ -207,7 +207,7 @@ export default function EditMember({
 
 EditMember.layout = {
     breadcrumbs: [
-        { title: 'Members', href: index() },
+        { title: 'Staff', href: index() },
         { title: 'Edit access', href: index() },
     ],
 };
