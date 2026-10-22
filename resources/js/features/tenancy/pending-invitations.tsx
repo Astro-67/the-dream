@@ -1,4 +1,6 @@
 import { Form } from '@inertiajs/react';
+import InputError from '@/components/input-error';
+import { PropertyIntent } from '@/components/shared/property-intent';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -59,22 +61,26 @@ function RevokeInvitation({ invitation }: { invitation: PendingInvitation }) {
                     {...destroy.form(invitation.id)}
                     options={{ preserveScroll: true }}
                 >
-                    {({ processing }) => (
-                        <DialogFooter className="gap-2">
-                            <DialogClose asChild>
-                                <Button variant="secondary">Keep it</Button>
-                            </DialogClose>
-                            <Button
-                                variant="destructive"
-                                disabled={processing}
-                                type="submit"
-                            >
-                                <span className="size-4">
-                                    {processing && <Spinner />}
-                                </span>
-                                Revoke invitation
-                            </Button>
-                        </DialogFooter>
+                    {({ processing, errors }) => (
+                        <>
+                            <PropertyIntent />
+                            <InputError message={errors._property} />
+                            <DialogFooter className="gap-2">
+                                <DialogClose asChild>
+                                    <Button variant="secondary">Keep it</Button>
+                                </DialogClose>
+                                <Button
+                                    variant="destructive"
+                                    disabled={processing}
+                                    type="submit"
+                                >
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
+                                    Revoke invitation
+                                </Button>
+                            </DialogFooter>
+                        </>
                     )}
                 </Form>
             </DialogContent>
