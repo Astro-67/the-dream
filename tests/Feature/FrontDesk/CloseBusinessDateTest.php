@@ -14,6 +14,7 @@ use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Support\Money\Currency;
 use Illuminate\Validation\ValidationException;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 
@@ -153,7 +154,7 @@ test('closing requires the named property context even within the same organizat
     });
 });
 
-test('room charging refuses a reservation that is not in house', function (ReservationStatus $status) {
+test('room charging refuses, and audits refusing, a reservation that is not in house', function (ReservationStatus $status) {
     [$owner, , $property] = organizationWithOwner();
     $property->update(['business_date' => '2026-12-10']);
     inTenant($property, function () use ($owner, $status) {
@@ -161,6 +162,7 @@ test('room charging refuses a reservation that is not in house', function (Reser
         $reservation->update(['status' => $status]);
         expect(fn () => app(PostRoomCharge::class)->handle($owner, $reservation, '2026-12-10'))
             ->toThrow(ValidationException::class);
-        expect(Posting::query()->count())->toBe(0);
+        expect(Posting::query()->count())->toBe(0)
+            ->and(Activity::query()->where('event', 'refused')->where('subject_id', $reservation->id)->sole()->description)->toBe('Room charge refused');
     });
 })->with([ReservationStatus::Confirmed, ReservationStatus::CheckedOut, ReservationStatus::Cancelled]);

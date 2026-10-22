@@ -20,7 +20,7 @@ class PostRoomCharge
 {
     public function handle(?User $actor, Reservation $reservation, string $date): Posting
     {
-        return DB::transaction(function () use ($actor, $reservation, $date) {
+        $post = fn () => DB::transaction(function () use ($actor, $reservation, $date) {
             $reservation = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();
             $existing = Posting::query()->where('reservation_id', $reservation->id)->whereDate('business_date', $date)->where('category', 'room')->first();
             if ($existing !== null) {
@@ -53,5 +53,8 @@ class PostRoomCharge
 
             return $posting;
         });
+
+        // A system run (no actor) is audited by the night audit that called it.
+        return $actor === null ? $post() : Audit::validationRefusal($actor, $reservation, 'Room charge refused', $post);
     }
 }
