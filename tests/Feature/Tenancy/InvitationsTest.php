@@ -153,7 +153,7 @@ test('removed staff retain receipt attribution and rejoin only with newly invite
         ->where('tenant.organization.id', $t->a->organization->id)
         ->where('tenant.property.id', $t->a->otherProperty->id)
         ->has('tenant.properties', 1)
-        ->where('auth.permissions', ['housekeeping.manage', 'housekeeping.view']));
+        ->where('auth.permissions', ['housekeeping.manage', 'housekeeping.view', 'maintenance.report', 'maintenance.view']));
     $this->get(route('payments.index'))->assertForbidden();
     $this->put(route('current-property.update'), ['property_id' => $t->a->property->id])->assertForbidden();
 
@@ -340,14 +340,14 @@ test('add staff explains what each common role may do, matching its permissions'
     $this->actingAs($t->a->owner)->get(route('invitations.create'))->assertInertia(fn (Assert $page) => $page
         ->has('roles', count(OrganizationRole::cases()))
         ->where('roles', fn ($roles) => collect($roles)->pluck('summary', 'value')->only(['property_manager', 'front_desk', 'housekeeping'])->all() === [
-            'property_manager' => 'Runs their properties: reservations, rooms, rates, housekeeping, reports and inviting staff. Does not take payments.',
-            'front_desk' => 'Reservations, check-in and check-out, guest registration and taking payments in their properties.',
-            'housekeeping' => 'Room cleaning status and their assigned rooms. No guests, payments or reports.',
+            'property_manager' => 'Runs their properties: reservations, rooms, rates, housekeeping, maintenance, reports and inviting staff. Does not take payments.',
+            'front_desk' => 'Reservations, check-in and check-out, guest registration, taking payments and reporting maintenance problems in their properties.',
+            'housekeeping' => 'Room cleaning status, their assigned rooms and reporting maintenance problems. No guests, payments or reports.',
         ]));
 
     expect(OrganizationRole::PropertyManager->permissions())->not->toContain('charges.post')
         ->and(OrganizationRole::FrontDesk->permissions())->toContain('charges.post', 'reservations.manage')
-        ->and(OrganizationRole::Housekeeping->permissions())->toBe(['housekeeping.view', 'housekeeping.manage']);
+        ->and(OrganizationRole::Housekeeping->permissions())->toBe(['housekeeping.view', 'housekeeping.manage', 'maintenance.view', 'maintenance.report']);
 });
 
 test('a property manager can\'t invite to another property, grant all properties or invite organization-level roles', function () {
