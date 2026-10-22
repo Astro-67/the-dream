@@ -39,13 +39,19 @@ class ResolvePostingApproval
                 if ($approval->original_posting_id !== null) {
                     ReversePosting::ensureCancellable(Posting::query()->findOrFail($approval->original_posting_id), exceptApproval: $approval->id);
                 }
+                $property = Property::query()->whereKey($folio->property_id)
+                    ->when(($attributes['method'] ?? null) === 'cash', fn ($query) => $query->lockForUpdate())->firstOrFail();
+                if (($attributes['method'] ?? null) === 'cash' && $attributes['type'] !== 'reversal'
+                    && ($attributes['cashier_shift_id'] ?? null) === null
+                    && $property->settings()['payment_settings']['use_cashier_shifts']) {
+                    throw ValidationException::withMessages(['approval' => __('Cashier shifts are now required. Reject this request and submit it in an open shift.')]);
+                }
                 if (($attributes['cashier_shift_id'] ?? null) !== null) {
                     $shift = CashierShift::query()->whereKey($attributes['cashier_shift_id'])->lockForUpdate()->firstOrFail();
                     if ($shift->status !== CashierShiftStatus::Open || ($attributes['type'] !== 'reversal' && $shift->open_user_id !== $approval->requested_by)) {
                         throw ValidationException::withMessages(['approval' => __('The requesting cashier shift is closed. Reject this request and submit it in an open shift.')]);
                     }
                 }
-                $property = Property::query()->findOrFail($folio->property_id);
                 $posting = Posting::query()->create([...$attributes, 'posted_at' => now(), 'business_date' => BusinessDate::of($property)]);
             }
             $approval->update([

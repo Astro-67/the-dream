@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Web\Reports;
 
+use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Reports\Collections;
 use App\Domains\Reports\PropertyFinance;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reports\PaymentsRequest;
 use App\Support\Tenancy\Tenancy;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -24,6 +26,10 @@ class PaymentsController extends Controller
             'payments' => $filters['view'] === 'received' ? $collections->payments($property, $filters['from'], $filters['to']) : null,
             'folios' => $filters['view'] === 'outstanding' ? $finance->folios(collect([$property]), settled: $filters['settled'], from: $filters['from'], to: $filters['to']) : null,
             'refreshedAt' => now()->toIso8601String(),
+            'cashierShiftHistoryUrl' => ! $property->settings()['payment_settings']['use_cashier_shifts']
+                && Gate::allows('viewAny', CashierShift::class)
+                && CashierShift::query()->where('property_id', $property->id)->exists()
+                    ? route('cashier-shifts.index') : null,
         ]);
     }
 }

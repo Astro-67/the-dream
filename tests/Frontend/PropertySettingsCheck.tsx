@@ -38,6 +38,7 @@ function settings(
     registration = true,
     errors?: Record<string, string>,
     vatState: 'included' | 'mixed' | 'none' = 'included',
+    canManageCashierShifts = true,
 ) {
     const component = () => {
         const [returnedErrors, setReturnedErrors] = useState(false);
@@ -70,6 +71,7 @@ function settings(
                 },
                 tax_settings: { tax_rate: 15 },
                 payment_settings: {
+                    use_cashier_shifts: true,
                     accepted_methods: ['cash'],
                     deposit_percentage: 20,
                 },
@@ -95,6 +97,7 @@ function settings(
                 },
             },
             canManageTaxes: true,
+            canManageCashierShifts,
         });
         if (errors && !returnedErrors) {
             assert.ok(returnValidationErrors(page, errors));
@@ -119,6 +122,11 @@ function settings(
 }
 
 const html = settings();
+assert.match(html, />Use cashier shifts</);
+assert.match(
+    settings(true, undefined, 'included', false),
+    /name="payment_settings\[use_cashier_shifts\]"[^>]*disabled=""/,
+);
 assert.match(html, /If enabled, automatic check-out includes unpaid stays/);
 assert.match(html, /Their balances remain open after departure/);
 assert.match(

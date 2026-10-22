@@ -52,6 +52,7 @@ export function propertySettingsTabForErrors(
 }
 
 const labels: Record<string, string> = {
+    use_cashier_shifts: 'Use cashier shifts',
     book_ahead_days: 'Book-ahead limit (days)',
     minimum_notice_hours: 'Minimum notice (hours)',
     same_day_cutoff_time: 'Same-day cutoff time (optional)',
@@ -99,9 +100,11 @@ const methods: Record<string, string> = {
 export function PropertySettingsFields({
     values,
     errors,
+    canManageCashierShifts = false,
 }: {
     values: Partial<PropertySettings>;
     errors: Record<string, string | undefined>;
+    canManageCashierShifts?: boolean;
 }) {
     return (
         <>
@@ -161,7 +164,12 @@ export function PropertySettingsFields({
                                         name={name}
                                         defaultValue={value ? '1' : '0'}
                                         aria-invalid={!!error}
+                                        disabled={
+                                            field === 'use_cashier_shifts' &&
+                                            !canManageCashierShifts
+                                        }
                                         aria-describedby={
+                                            field === 'use_cashier_shifts' ||
                                             field ===
                                                 'automatic_checkout_include_unpaid' ||
                                             field === 'block_checkout_if_unpaid'
@@ -222,6 +230,17 @@ export function PropertySettingsFields({
                                         }
                                         aria-invalid={!!error}
                                     />
+                                )}
+                                {field === 'use_cashier_shifts' && (
+                                    <p
+                                        id={`${key}-hint`}
+                                        className="text-sm text-muted-foreground"
+                                    >
+                                        Only an owner can change this setting.
+                                        Close all open shifts before turning it
+                                        off. Previous shifts and cash records
+                                        are kept.
+                                    </p>
                                 )}
                                 {field ===
                                     'automatic_checkout_include_unpaid' && (

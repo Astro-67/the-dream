@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { FolioBalances } from '@/features/reports/finance-report';
+import FinanceReport, {
+    FolioBalances,
+} from '@/features/reports/finance-report';
+import { App } from '@inertiajs/react';
 import { formatDate } from '@/lib/utils';
 
 const folio = {
@@ -29,6 +32,51 @@ const page = {
     prev_page_url: null,
     next_page_url: null,
 };
+
+function financeReport(shiftId: string | null) {
+    const component = () => (
+        <FinanceReport
+            finance={{
+                folios: { ...page, data: [] },
+                openAfterDeparture: [],
+                payments: {
+                    rows: [
+                        {
+                            method: 'cash',
+                            currency: 'USD',
+                            shiftId,
+                            cashier: 'Test cashier',
+                            shiftOpenedAt: shiftId
+                                ? '2026-12-12T10:00:00Z'
+                                : null,
+                            payments: 1000,
+                            refunds: 0,
+                            reversals: 0,
+                            net: 1000,
+                        },
+                    ],
+                    totals: [],
+                },
+            }}
+        />
+    );
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'finance',
+                url: '/reports',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: { tenant: { property: null } },
+            }}
+            initialComponent={component}
+        />,
+    );
+}
+assert.doesNotMatch(financeReport(null), />Cashier shift</);
+assert.match(financeReport('shift-1'), />Cashier shift</);
+assert.match(financeReport('shift-1'), /Test cashier, opened/);
 
 const group = renderToStaticMarkup(
     <FolioBalances

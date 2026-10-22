@@ -25,6 +25,7 @@ final class PropertySettings
             'show_breakdown_on_bill' => true, 'show_breakdown_on_receipt' => true,
         ],
         'payment_settings' => [
+            'use_cashier_shifts' => false,
             'accepted_methods' => RecordPayment::METHODS, 'block_checkout_if_unpaid' => true,
             'manager_override' => true, 'deposit_percentage' => 0, 'payment_due_days' => 0,
         ],

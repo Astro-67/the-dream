@@ -126,6 +126,7 @@ class PropertyController extends Controller
             'registrationFieldOptions' => IdentityDocument::FIELDS,
             'taxInclusion' => TaxInclusion::of($property),
             'canManageTaxes' => Gate::allows('manageInclusion', [TaxRule::class, $property]),
+            'canManageCashierShifts' => Gate::allows('manageCashierShifts', $property),
         ]);
     }
 

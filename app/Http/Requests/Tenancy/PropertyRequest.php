@@ -25,6 +25,12 @@ class PropertyRequest extends FormRequest
     {
         $property = $this->route('property');
 
+        if ($this->has('payment_settings.use_cashier_shifts')
+            && ! ($this->user()?->can('manageCashierShifts', $property instanceof Property ? $property : Property::class) ?? false)) {
+            Audit::record($this->user(), 'refused', $property instanceof Property ? $property : new Property, 'Cashier shift preference change refused', ['result' => 'refused', 'stage' => 'authorization']);
+
+            return false;
+        }
         if (! $property instanceof Property) {
             return $this->user()?->can('create', Property::class) ?? false;
         }

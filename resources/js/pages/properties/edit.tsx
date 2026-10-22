@@ -37,6 +37,7 @@ type Props = PropertyFormOptions & {
     registrationFieldOptions: string[];
     taxInclusion: Record<string, TaxInclusionControl>;
     canManageTaxes: boolean;
+    canManageCashierShifts: boolean;
 };
 
 const registrationFieldLabels: Record<string, string> = {
@@ -52,6 +53,7 @@ export default function EditProperty({
     registrationFieldOptions,
     taxInclusion,
     canManageTaxes,
+    canManageCashierShifts,
     ...options
 }: Props) {
     const configuresRegistration = property.registration_fields !== undefined;
@@ -334,6 +336,9 @@ export default function EditProperty({
                                             property.payment_settings,
                                     }}
                                     errors={errors}
+                                    canManageCashierShifts={
+                                        canManageCashierShifts
+                                    }
                                 />
                             </div>
                             {configuresRegistration && (

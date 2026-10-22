@@ -30,12 +30,14 @@ export default function Payments({
     payments,
     folios,
     refreshedAt,
+    cashierShiftHistoryUrl,
 }: {
     filters: Filters;
     received: Received | null;
     payments: Paginated<PaymentRow> | null;
     folios: PropertyFinance['folios'] | null;
     refreshedAt: string;
+    cashierShiftHistoryUrl: string | null;
 }) {
     return (
         <ReportLayout
@@ -89,6 +91,17 @@ export default function Payments({
                     </span>
                 )}
             </nav>
+            {cashierShiftHistoryUrl && (
+                <Button
+                    variant="outline"
+                    className="min-h-11 self-start"
+                    asChild
+                >
+                    <Link href={cashierShiftHistoryUrl}>
+                        Cashier shift history
+                    </Link>
+                </Button>
+            )}
             <nav aria-label="Payment views" className="flex gap-2">
                 {['received', 'outstanding'].map((view) => (
                     <Button

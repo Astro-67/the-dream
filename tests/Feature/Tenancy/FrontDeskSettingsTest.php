@@ -55,6 +55,7 @@ test('property settings reject invalid values', function (string $field, mixed $
     ['tax_settings.service_charge_enabled', 'yes'], ['tax_settings.service_charge_rate', -1], ['tax_settings.show_breakdown_on_bill', 'yes'],
     ['tax_settings.show_breakdown_on_receipt', 'yes'], ['payment_settings.accepted_methods.0', 'bitcoin'],
     ['payment_settings.block_checkout_if_unpaid', 'yes'], ['payment_settings.manager_override', 'yes'],
+    ['payment_settings.use_cashier_shifts', 'yes'],
     ['payment_settings.deposit_percentage', 101], ['payment_settings.payment_due_days', -1],
 ]);
 

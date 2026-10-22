@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * Records money received on a folio and issues its non-fiscal receipt. A payment
  * is stored with a negative amount, so it reduces the folio balance; one taken
- * before arrival is a deposit. Cash needs the recording cashier's open shift, and counts towards it.
+ * before arrival is a deposit. When enabled, cash needs the recording cashier's open shift and counts towards it.
  * The same idempotency key on the same folio posts once and issues one receipt (FIN-03).
  */
 class RecordPayment
@@ -42,7 +42,8 @@ class RecordPayment
                 return $existing;
             }
             $method = $details['method'];
-            $property = Property::query()->findOrFail($folio->property_id);
+            $property = Property::query()->whereKey($folio->property_id)
+                ->when($method === 'cash', fn ($query) => $query->lockForUpdate())->firstOrFail();
             if (! in_array($method, self::METHODS, true) || ! in_array($method, $property->settings()['payment_settings']['accepted_methods'], true)) {
                 throw ValidationException::withMessages(['method' => __('Choose a payment method accepted by this property.')]);
             }
@@ -59,7 +60,11 @@ class RecordPayment
             if ($card !== [] && $card['card_last_four'] !== null && preg_match('/^\d{4}$/', $card['card_last_four']) !== 1) {
                 throw ValidationException::withMessages(['card_last_four' => __('Enter only the last four digits of the card.')]);
             }
-            $shift = $method === 'cash' ? $this->openShift($actor) : null;
+            if ($method === 'cash' && $actor === null) {
+                throw ValidationException::withMessages(['method' => __('A cashier must record a cash payment.')]);
+            }
+            $shift = $method === 'cash' && $property->settings()['payment_settings']['use_cashier_shifts']
+                ? $this->openShift($actor, $property) : null;
             $date = BusinessDate::of($property);
             $posting = Posting::query()->create([
                 'folio_id' => $folio->id, 'type' => 'payment',
@@ -77,10 +82,10 @@ class RecordPayment
     }
 
     /** The cashier's open shift, locked so a closing count cannot miss this cash. */
-    private function openShift(?User $actor): CashierShift
+    private function openShift(?User $actor, Property $property): CashierShift
     {
         // where(..., null) would match closed shifts, so a system actor never takes cash.
-        return ($actor === null ? null : CashierShift::query()->where('open_user_id', $actor->id)->lockForUpdate()->first())
+        return ($actor === null ? null : CashierShift::query()->where('property_id', $property->id)->where('open_user_id', $actor->id)->lockForUpdate()->first())
             ?? throw ValidationException::withMessages(['method' => __('Open a cashier shift before taking cash.')]);
     }
 

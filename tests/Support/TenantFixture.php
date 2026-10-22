@@ -62,6 +62,7 @@ final class TenantFixture
                 'email' => "arusha@{$slug}.test",
                 'jurisdiction_profile' => 'mainland_tanzania',
                 'zra_hotel_code' => null,
+                'payment_settings' => ['use_cashier_shifts' => true],
             ]),
             'property_name',
         )));

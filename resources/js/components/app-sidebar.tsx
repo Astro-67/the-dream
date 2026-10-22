@@ -93,7 +93,10 @@ const platformNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
-    const { platformRoles } = usePage().props.auth;
+    const {
+        auth: { platformRoles },
+        tenant,
+    } = usePage().props;
     // Hidden from members who can't use them; the server still checks.
     const can = useCan();
     const frontDeskItems: NavItem[] = [
@@ -130,7 +133,8 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        ...(can('charges.post', 'finance.view')
+        ...(can('charges.post', 'finance.view') &&
+        tenant.property?.paymentSettings?.use_cashier_shifts
             ? [
                   {
                       title: 'Cashier shifts',

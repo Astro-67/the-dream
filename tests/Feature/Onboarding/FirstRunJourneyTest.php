@@ -43,6 +43,7 @@ test('a new account walks register, verify, organization setup and lands on the 
 
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('onboarding.propertyName', 'Stone Town Inn')
+        ->where('tenant.property.paymentSettings.use_cashier_shifts', false)
         ->where('today', null));
 
     $property = Tenancy::within(Tenancy::defaultContextFor($user), fn () => Property::query()->sole());

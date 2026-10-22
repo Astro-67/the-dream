@@ -248,6 +248,8 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - **FIN-01:** One folio per reservation and currency. Show accommodation, taxes, extras, deposits, **channel-collected amounts** and balances clearly. Never add unlike currencies or convert silently.
 - **FIN-02:** Posted entries stay traceable. Mistakes are corrected with linked reversals and adjustments with approval reasons.
 - **FIN-03:** Cashier reconciliation, receipts, balance reporting and controlled refunds, with configurable permissions and thresholds. Retries never duplicate postings.
+    - **Use cashier shifts** defaults off for new properties and those without shift history. Initialize existing properties with any shift history to on, unless a preference was explicitly saved. Only an owner may change the setting, and all open shifts must be closed before turning it off.
+    - With shifts off, cash payments and refunds retain their cashier, method, idempotency and audit without a shift link. Existing shift-linked postings, frozen counts and closed-shift reversal/approval protections remain intact. Hide everyday opening/menu and irrelevant night-audit expectations while off; authorized history stays reachable and reports keep recorded shift references.
 - **FIN-04:** Every reservation records its **payment collector**: the property (hotel-collect) or the channel (for example Payments by Booking.com).
     - When the channel collected, the reservation also records the **channel-collected amount**, including any per-person fees the channel took.
 - **FIN-05:** The channel-collected amount is posted as a payment from the channel against the folio.

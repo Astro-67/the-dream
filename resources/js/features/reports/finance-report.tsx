@@ -239,6 +239,7 @@ export default function FinanceReport({
 }) {
     const timezone = usePage().props.tenant.property?.timezone ?? 'UTC';
     const { folios, openAfterDeparture, payments } = finance;
+    const hasShifts = payments.rows.some((row) => row.shiftId !== null);
 
     return (
         <>
@@ -279,11 +280,11 @@ export default function FinanceReport({
             <section aria-labelledby="payments-title" className="grid gap-4">
                 <SectionTitle id="payments-title" title="Payments">
                     Money received on the selected business dates, by method,
-                    currency and cashier shift. Refunds are money paid back. A
-                    reversal cancels an earlier payment or refund and counts on
-                    the business date it was posted. Net is payments less
-                    refunds plus reversals. Transfers and write-offs are not
-                    payments.
+                    currency, with cashier shifts where recorded. Refunds are
+                    money paid back. A reversal cancels an earlier payment or
+                    refund and counts on the business date it was posted. Net is
+                    payments less refunds plus reversals. Transfers and
+                    write-offs are not payments.
                 </SectionTitle>
                 {payments.rows.length === 0 ? (
                     <EmptyState message="No payments, refunds or reversals on these dates." />
@@ -292,7 +293,9 @@ export default function FinanceReport({
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Method</TableHead>
-                                <TableHead>Cashier shift</TableHead>
+                                {hasShifts && (
+                                    <TableHead>Cashier shift</TableHead>
+                                )}
                                 <TableHead>Currency</TableHead>
                                 <TableHead numeric>Payments</TableHead>
                                 <TableHead numeric>Refunds</TableHead>
@@ -308,11 +311,13 @@ export default function FinanceReport({
                                     <TableCell>
                                         {paymentMethodLabel(row.method)}
                                     </TableCell>
-                                    <TableCell>
-                                        {row.shiftOpenedAt === null
-                                            ? 'No shift'
-                                            : `${row.cashier}, opened ${formatDate(row.shiftOpenedAt, timezone)} ${formatTime(row.shiftOpenedAt, timezone)}`}
-                                    </TableCell>
+                                    {hasShifts && (
+                                        <TableCell>
+                                            {row.shiftOpenedAt === null
+                                                ? 'No shift'
+                                                : `${row.cashier}, opened ${formatDate(row.shiftOpenedAt, timezone)} ${formatTime(row.shiftOpenedAt, timezone)}`}
+                                        </TableCell>
+                                    )}
                                     <TableCell>{row.currency}</TableCell>
                                     <AmountCell
                                         amount={row.payments}
@@ -337,7 +342,7 @@ export default function FinanceReport({
                                     key={`total-${total.currency}`}
                                     className="font-medium"
                                 >
-                                    <TableCell colSpan={2}>
+                                    <TableCell colSpan={hasShifts ? 2 : 1}>
                                         Total in {total.currency}
                                     </TableCell>
                                     <TableCell>{total.currency}</TableCell>

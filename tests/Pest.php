@@ -94,6 +94,7 @@ function organizationSetupPayload(array $overrides = []): array
  */
 function organizationWithOwner(array $overrides = [], ?User $owner = null): array
 {
+    $overrides += ['payment_settings' => ['use_cashier_shifts' => true]];
     $owner ??= User::factory()->withTwoFactor()->create();
     $organization = app(CreateOrganization::class)->handle($owner, OrganizationSetup::fromArray(organizationSetupPayload([
         'star_rating' => 3,

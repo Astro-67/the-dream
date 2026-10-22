@@ -40,12 +40,17 @@ class RecordAdjustment
             if ($type === 'refund' && ! in_array($method, RecordPayment::METHODS, true)) {
                 throw ValidationException::withMessages(['method' => __('Choose a refund method.')]);
             }
-            $shift = $method === 'cash' && $actor !== null
-                ? CashierShift::query()->where('open_user_id', $actor->id)->lockForUpdate()->first() : null;
-            if ($method === 'cash' && $shift === null) {
+            $property = Property::query()->whereKey($folio->property_id)
+                ->when($method === 'cash', fn ($query) => $query->lockForUpdate())->firstOrFail();
+            if ($method === 'cash' && $actor === null) {
+                throw ValidationException::withMessages(['method' => __('A cashier must record a cash refund.')]);
+            }
+            $requiresShift = $method === 'cash' && $property->settings()['payment_settings']['use_cashier_shifts'];
+            $shift = $requiresShift
+                ? CashierShift::query()->where('property_id', $property->id)->where('open_user_id', $actor->id)->lockForUpdate()->first() : null;
+            if ($requiresShift && $shift === null) {
                 throw ValidationException::withMessages(['method' => __('Open a cashier shift before refunding cash.')]);
             }
-            $property = Property::query()->findOrFail($folio->property_id);
 
             return app(SubmitControlledPosting::class)->handle($actor, $folio, [
                 'folio_id' => $folio->id, 'type' => $type, 'category' => $type, 'reason' => $reason,

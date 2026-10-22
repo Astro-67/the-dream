@@ -82,7 +82,7 @@ A payment posted to a folio before the guest arrives.
 _Avoid_: Prepayment (when a channel collected it, that is a channel-collected amount)
 
 **Cashier shift**:
-One user's period of handling cash at one property, closed by counting the cash in each currency against what Thedream expects.
+One user's period of handling cash at one property, closed by counting the cash in each currency against what Thedream expects. Optional: a property uses shifts only if it turns them on.
 _Avoid_: Till, session
 
 **Cancellation policy**:
