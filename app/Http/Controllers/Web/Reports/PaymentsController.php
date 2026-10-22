@@ -26,9 +26,8 @@ class PaymentsController extends Controller
             'payments' => $filters['view'] === 'received' ? $collections->payments($property, $filters['from'], $filters['to']) : null,
             'folios' => $filters['view'] === 'outstanding' ? $finance->folios(collect([$property]), settled: $filters['settled'], from: $filters['from'], to: $filters['to']) : null,
             'refreshedAt' => now()->toIso8601String(),
-            'cashierShiftHistoryUrl' => ! $property->settings()['payment_settings']['use_cashier_shifts']
-                && Gate::allows('viewAny', CashierShift::class)
-                && CashierShift::query()->where('property_id', $property->id)->exists()
+            'cashierShiftHistoryUrl' => Gate::allows('viewAny', CashierShift::class)
+                && $collections->cashierShiftHistoryAvailable($property)
                     ? route('cashier-shifts.index') : null,
         ]);
     }

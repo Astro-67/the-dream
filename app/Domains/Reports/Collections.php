@@ -2,6 +2,7 @@
 
 namespace App\Domains\Reports;
 
+use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\Receipt;
@@ -18,6 +19,12 @@ use Illuminate\Pagination\LengthAwarePaginator;
  */
 final class Collections
 {
+    public function cashierShiftHistoryAvailable(Property $property): bool
+    {
+        return ! $property->settings()['payment_settings']['use_cashier_shifts']
+            && CashierShift::query()->where('property_id', $property->id)->exists();
+    }
+
     /** @return array{from: string, to: string} */
     public function range(Property $property, string $period): array
     {
