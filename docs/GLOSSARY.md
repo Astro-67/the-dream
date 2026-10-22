@@ -186,7 +186,8 @@ ZRA's flat charge per guest per night, set by star rating and assessed by VFMS. 
 _Avoid_: Infrastructure tax, tourism levy
 
 **ZRA tax registration**:
-A property's registration numbers with ZRA: ZRA number, TIN, VRN and Z-number. Optional at sign-up, required before go-live in Zanzibar.
+A property's tax identifiers: TIN, VRN (when VAT-registered) and Z-number. The full Z-number is kept, including any suffix. A ZRA hotel code separately identifies the property with ZRA. Registration details may be completed during setup, before go-live in Zanzibar.
+_Avoid_: ZTN, ZTN number location (the owner's labels for the full Z-number)
 
 **ZRA hotel code**:
 The authority's identifier for a property, separate from its TIN, VRN and full Z-number.

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
     PropertySettingsFields,
@@ -59,6 +59,9 @@ export default function EditProperty({
     const tabs = Object.entries(propertySettingsTabs).filter(
         ([tab]) => tab !== 'registration_fields' || configuresRegistration,
     );
+    useEffect(() => {
+        document.getElementById(window.location.hash.slice(1))?.focus();
+    }, []);
 
     return (
         <>

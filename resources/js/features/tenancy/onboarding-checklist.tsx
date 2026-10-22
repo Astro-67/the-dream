@@ -177,7 +177,7 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                             {!gate.passed && gate.href ? (
                                 <Link
                                     href={gate.href}
-                                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                    className="inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
                                 >
                                     {gate.label}
                                 </Link>
