@@ -340,12 +340,12 @@ test('add staff explains what each common role may do, matching its permissions'
     $this->actingAs($t->a->owner)->get(route('invitations.create'))->assertInertia(fn (Assert $page) => $page
         ->has('roles', count(OrganizationRole::cases()))
         ->where('roles', fn ($roles) => collect($roles)->pluck('summary', 'value')->only(['property_manager', 'front_desk', 'housekeeping'])->all() === [
-            'property_manager' => 'Runs their properties: reservations, rooms, rates, housekeeping, maintenance, reports and inviting staff. Does not take payments.',
+            'property_manager' => 'Runs their properties: reservations, rooms, rates, housekeeping, maintenance, reports, inviting staff and taking payments. Refunds and corrections stay with Finance.',
             'front_desk' => 'Reservations, check-in and check-out, guest registration, taking payments and reporting maintenance problems in their properties.',
             'housekeeping' => 'Room cleaning status, their assigned rooms and reporting maintenance problems. No guests, payments or reports.',
         ]));
 
-    expect(OrganizationRole::PropertyManager->permissions())->not->toContain('charges.post')
+    expect(OrganizationRole::PropertyManager->permissions())->toContain('charges.post')->not->toContain('finance.correct', 'payments.refund')
         ->and(OrganizationRole::FrontDesk->permissions())->toContain('charges.post', 'reservations.manage')
         ->and(OrganizationRole::Housekeeping->permissions())->toBe(['housekeeping.view', 'housekeeping.manage', 'maintenance.view', 'maintenance.report']);
 });

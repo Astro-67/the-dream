@@ -173,8 +173,21 @@ test('the common staff roles reach exactly their routes, in their own property o
     expect(inTenant($t->a->otherProperty, fn () => Posting::query()->count()))->toBe(0)
         ->and(inTenant($t->b->property, fn () => Posting::query()->count()))->toBe(0);
 })->with([
-    // Payments here is the read-only report; a property manager still may not take a payment.
-    'property manager' => [OrganizationRole::PropertyManager, ['reservations', 'housekeeping', 'payments', 'reports', 'guests', 'staff', 'add staff']],
+    // Payments here is the read-only report; taking one is the folio action (#144).
+    'property manager' => [OrganizationRole::PropertyManager, ['reservations', 'housekeeping', 'payments', 'reports', 'guests', 'staff', 'add staff', 'take payment']],
     'reception' => [OrganizationRole::FrontDesk, ['reservations', 'housekeeping', 'guests', 'take payment']],
     'housekeeping' => [OrganizationRole::Housekeeping, ['housekeeping']],
 ]);
+
+// protects=#144 payment parity with Uhuru's manager; fails_when=a manager loses payments or gains Finance, identity, staff or platform rights.
+test('a property manager takes payments in their own property, and is still refused corrections, identity and staff administration', function () {
+    $t = twoTenants();
+    $manager = $t->a->member(OrganizationRole::PropertyManager);
+
+    expect(accessAcrossTenants($t, $manager, OrganizationPermission::ChargesPost))->toBe(onlyIn('a.property'));
+    // Listed by hand, not derived from the enum, so a role change cannot quietly redefine these denies.
+    foreach ([OrganizationPermission::FinanceCorrect, OrganizationPermission::PaymentsRefund, OrganizationPermission::FoliosWriteOff, OrganizationPermission::FinanceView,
+        OrganizationPermission::GuestIdentityView, OrganizationPermission::MembersManage, OrganizationPermission::OrganizationManage, OrganizationPermission::OutboxRawRead] as $permission) {
+        expect(accessAcrossTenants($t, $manager, $permission))->toBe(onlyIn(), $permission->value);
+    }
+});

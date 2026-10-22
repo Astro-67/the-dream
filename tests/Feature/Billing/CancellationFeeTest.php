@@ -93,7 +93,7 @@ test('only roles with charges.post post or waive a proposed fee over HTTP', func
 
     $allowed ? $response->assertSessionHasNoErrors()->assertRedirect(route('reservations.show', $reservation)) : $response->assertForbidden();
     expect(inTenant($t->a->property, fn () => $proposal->fresh()->status))->toBe($allowed ? ($decision === 'post' ? 'posted' : 'waived') : 'proposed');
-})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()))
+})->with(array_map(fn (OrganizationRole $role) => [$role, in_array($role, [OrganizationRole::Owner, OrganizationRole::PropertyManager, OrganizationRole::FrontDesk, OrganizationRole::Finance], true)], OrganizationRole::cases()))
     ->with(['post', 'waive']);
 
 test('the fee form requires a decision and a reason, and the refusal is audited', function () {
