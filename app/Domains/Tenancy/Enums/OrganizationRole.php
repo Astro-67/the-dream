@@ -25,7 +25,7 @@ enum OrganizationRole: string
             self::Owner => 'Owner',
             self::GroupOperationsManager => 'Group operations manager',
             self::PropertyManager => 'Property manager',
-            self::FrontDesk => 'Front desk',
+            self::FrontDesk => 'Reception',
             self::Finance => 'Finance',
             self::Housekeeping => 'Housekeeping',
             self::Auditor => 'Auditor',

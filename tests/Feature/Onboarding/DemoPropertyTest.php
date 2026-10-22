@@ -133,7 +133,7 @@ test('renamed demo properties stay marked in membership and invitation lists and
         'property_ids' => [$demo->id],
         'expires_in_days' => 7,
     ])->assertSessionHasNoErrors();
-    $this->get(route('invitations.index'))
+    $this->get(route('members.index'))
         ->assertInertia(fn (Assert $page) => $page->where('invitations.0.properties', [$label]));
 });
 

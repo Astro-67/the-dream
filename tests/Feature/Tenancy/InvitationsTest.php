@@ -67,12 +67,12 @@ test('an owner invites a person with a role, properties and an expiry, and the i
             'expires_in_days' => 3,
         ])
         ->assertSessionHasNoErrors()
-        ->assertRedirect(route('invitations.index'));
+        ->assertRedirect(route('members.index'));
 
-    $this->get(route('invitations.index'))
+    $this->get(route('members.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('invitations/index')
+            ->component('members/index')
             ->has('invitations', 1)
             ->where('invitations.0.email', 'amina@example.test')
             ->where('invitations.0.role', 'front_desk')
@@ -200,8 +200,8 @@ test('an owner revokes a pending invitation, which leaves the list and can\'t be
 
     $this->actingAs($owner)
         ->delete(route('invitations.destroy', $invitation), ['_property' => $property->id])
-        ->assertRedirect(route('invitations.index'));
-    $this->get(route('invitations.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
+        ->assertRedirect(route('members.index'));
+    $this->get(route('members.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
 
     auth()->logout();
     $amina = User::factory()->create(['email' => 'amina@example.test']);
@@ -278,9 +278,9 @@ test('a property manager invites staff to their own property', function () {
 
     $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'amina@example.test', 'role' => 'housekeeping', 'property_ids' => [$t->a->property->id]])
         ->assertSessionHasNoErrors()
-        ->assertRedirect(route('invitations.index'));
+        ->assertRedirect(route('members.index'));
 
-    $this->get(route('invitations.index'))->assertInertia(fn (Assert $page) => $page
+    $this->get(route('members.index'))->assertInertia(fn (Assert $page) => $page
         ->has('invitations', 1)
         ->where('invitations.0.canRevoke', true));
 });
@@ -299,7 +299,7 @@ test('a property manager can\'t invite to another property, grant all properties
     $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'd@example.test', 'role' => 'owner', 'all_properties' => true])
         ->assertForbidden();
 
-    $this->get(route('invitations.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
+    $this->get(route('members.index'))->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
 });
 
 test('a property manager neither sees nor revokes invitations beyond their own property', function () {
@@ -308,7 +308,7 @@ test('a property manager neither sees nor revokes invitations beyond their own p
     $invitation = inTenant($t->a->organization, fn () => Invitation::query()->sole());
 
     $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
-        ->get(route('invitations.index'))
+        ->get(route('members.index'))
         ->assertInertia(fn (Assert $page) => $page->has('invitations', 0));
     $this->delete(route('invitations.destroy', $invitation), ['_property' => $t->a->property->id])->assertForbidden();
 
@@ -319,7 +319,11 @@ test('members without the invite permission can\'t see or send invitations', fun
     $t = twoTenants();
     $this->actingAs($t->a->member($role));
 
-    $this->get(route('invitations.index'))->assertForbidden();
+    pendingInvitationIn($t->a, 'pending@example.test');
+    $staff = $this->get(route('members.index'));
+    in_array('members.view', $role->permissions(), true)
+        ? $staff->assertInertia(fn (Assert $page) => $page->where('canInvite', false)->has('invitations', 0))
+        : $staff->assertForbidden();
     $this->get(route('invitations.create'))->assertForbidden();
     $this->post(route('invitations.store'), ['_property' => $t->a->property->id, 'email' => 'a@example.test', 'role' => 'front_desk', 'property_ids' => [$t->a->property->id]])
         ->assertForbidden();
