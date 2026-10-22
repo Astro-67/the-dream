@@ -9,6 +9,7 @@ use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\OutOfServicePeriod;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Maintenance\Actions\AssignTicket;
+use App\Domains\Maintenance\Actions\CompleteTicket;
 use App\Domains\Maintenance\Actions\ReportTicket;
 use App\Domains\Maintenance\Models\Ticket;
 use App\Domains\Maintenance\Models\TicketEvent;
@@ -19,6 +20,7 @@ use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
@@ -106,6 +108,22 @@ test('an assigned staff member completes their own ticket but not someone else\'
 
     $this->get(route('maintenance.index', ['view' => 'done']))->assertInertia(fn (Assert $page) => $page->has('tickets.data', 1)->where('tickets.data.0.id', $mine->id)->where('tickets.data.0.done', true));
     $this->get(route('maintenance.index'))->assertInertia(fn (Assert $page) => $page->has('tickets.data', 1)->where('tickets.data.0.id', $theirs->id));
+});
+
+test('a former assignee holding a stale ticket cannot complete it after reassignment', function () {
+    $t = twoTenants();
+    $housekeeper = $t->a->member(OrganizationRole::Housekeeping);
+    $frontDesk = $t->a->member(OrganizationRole::FrontDesk);
+    $ticket = maintenanceTicket($t->a->property, $t->a->owner);
+
+    inTenant($t->a->property, function () use ($t, $ticket, $housekeeper, $frontDesk) {
+        app(AssignTicket::class)->handle($t->a->owner, $ticket, $housekeeper->id);
+        $stale = $ticket->fresh();
+        app(AssignTicket::class)->handle($t->a->owner, $ticket, $frontDesk->id);
+
+        expect(fn () => app(CompleteTicket::class)->handle($housekeeper, $stale))->toThrow(ValidationException::class);
+        expect($ticket->fresh()->completed_at)->toBeNull();
+    });
 });
 
 test('rooms and assignees from another property or organization are refused without a partial write', function () {
