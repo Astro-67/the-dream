@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -10,6 +10,8 @@ import { StatusChip } from '@/components/ui/status-chip';
 import { formatDate } from '@/lib/utils';
 import { myRooms } from '@/routes/housekeeping';
 import { complete } from '@/routes/housekeeping/assignments';
+import { index as maintenance } from '@/routes/maintenance';
+import { useCan } from '@/hooks/use-can';
 import { Spinner } from '@/components/ui/spinner';
 
 export default function MyRooms({
@@ -19,10 +21,12 @@ export default function MyRooms({
     date: string;
     assignments: {
         id: string;
-        room: { number: string; floor: string | null };
+        room: { id: string; number: string; floor: string | null };
         completed: boolean;
     }[];
 }) {
+    const can = useCan();
+
     return (
         <>
             <Head title="My rooms" />
@@ -81,6 +85,25 @@ export default function MyRooms({
                                             : 'Assigned'}
                                     </StatusChip>
                                 </div>
+                                {can('maintenance.report') && (
+                                    <Button
+                                        asChild
+                                        variant="secondary"
+                                        size="lg"
+                                        className="w-full whitespace-normal"
+                                    >
+                                        <Link
+                                            href={maintenance({
+                                                query: {
+                                                    room: assignment.room.id,
+                                                },
+                                            })}
+                                            aria-label={`Report a problem in room ${assignment.room.number}`}
+                                        >
+                                            Report a problem
+                                        </Link>
+                                    </Button>
+                                )}
                                 {!assignment.completed && (
                                     <Form
                                         {...complete.form(assignment.id)}

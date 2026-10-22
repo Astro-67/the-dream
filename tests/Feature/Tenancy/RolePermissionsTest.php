@@ -121,7 +121,7 @@ test('the page data carries the member\'s permissions for the current property',
         ->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('tenant.property.id', $t->a->property->id)
-            ->where('auth.permissions', ['housekeeping.manage', 'housekeeping.view']));
+            ->where('auth.permissions', ['housekeeping.manage', 'housekeeping.view', 'maintenance.report', 'maintenance.view']));
 
     $this->actingAs($t->a->member(OrganizationRole::Auditor))
         ->get(route('dashboard'))

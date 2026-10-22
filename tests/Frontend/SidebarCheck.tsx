@@ -99,8 +99,10 @@ assert.match(reservations, />Calendar</);
 assert.doesNotMatch(reservations, />Properties</);
 assert.doesNotMatch(reservations, />Members</);
 
-const housekeeper = sidebar([], ['housekeeping.manage']);
+const housekeeper = sidebar([], ['housekeeping.manage', 'maintenance.view']);
 assert.match(housekeeper, />My rooms</);
+assert.match(housekeeper, />Maintenance</);
+assert.doesNotMatch(finance, />Maintenance</);
 assert.doesNotMatch(housekeeper, />Housekeeping</);
 assert.doesNotMatch(housekeeper, />Setup</);
 console.log('Grouped, permission-filtered sidebar: PASS');

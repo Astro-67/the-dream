@@ -45,7 +45,8 @@ test('a housekeeper reports a problem for a room and sees it on the open board',
 
     $this->actingAs($housekeeper)->post(route('maintenance.store'), maintenanceReport($t->a->property, ['room_id' => $room->id]))->assertRedirect()->assertSessionHasNoErrors();
 
-    $this->get(route('maintenance.index'))->assertInertia(fn (Assert $page) => $page->component('maintenance/index')
+    $this->get(route('maintenance.index', ['room' => $room->id]))->assertInertia(fn (Assert $page) => $page->component('maintenance/index')
+        ->where('room', $room->id)
         ->has('tickets.data', 1)
         ->where('tickets.data.0.title', 'Leaking tap')
         ->where('tickets.data.0.category', 'Repair')
