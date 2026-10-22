@@ -15,7 +15,7 @@ export default function AppSidebarLayout({
     return (
         <AppShell variant="sidebar">
             <AppSidebar />
-            <AppContent variant="sidebar" className="min-w-0 overflow-x-clip">
+            <AppContent variant="sidebar">
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
                 {/* Remount the page on a switch: no list or filter from the previous property survives. */}
                 <Fragment key={tenantKey}>{children}</Fragment>
