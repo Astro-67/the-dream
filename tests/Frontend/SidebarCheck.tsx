@@ -97,7 +97,11 @@ assert.match(reservations, /aria-expanded="false"[^>]*>.*?<span>More<\/span>/);
 assert.doesNotMatch(reservations, />Availability</);
 assert.match(reservations, />Calendar</);
 assert.doesNotMatch(reservations, />Properties</);
-assert.doesNotMatch(reservations, />Members</);
+assert.doesNotMatch(reservations, />Staff</);
+const manager = sidebar([], ['members.view', 'members.invite']);
+assert.match(manager, /href="\/members"/);
+assert.match(manager, />Staff</);
+assert.doesNotMatch(manager, />Invitations</);
 
 const housekeeper = sidebar([], ['housekeeping.manage']);
 assert.match(housekeeper, />My rooms</);

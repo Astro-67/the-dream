@@ -65,7 +65,10 @@ const form = render(() => (
                 mayHaveAllProperties: false,
             },
         ]}
-        properties={[{ value: 'p-1', label: 'Stone Town Inn' }]}
+        properties={[
+            { value: 'p-1', label: 'Stone Town Inn' },
+            { value: 'p-2', label: 'Arusha Lodge' },
+        ]}
         defaultExpiryDays={7}
     />
 ));
@@ -75,4 +78,14 @@ assert.match(
     /Reception: Reservations and taking payments\./,
 );
 assert.match(form, /never see or set their password/);
+assert.match(
+    form.match(/<button[^>]*id="invite-property-p-1"[^>]*>/)?.[0] ?? '',
+    /aria-checked="true"/,
+);
+assert.match(
+    form.match(/<button[^>]*id="invite-property-p-2"[^>]*>/)?.[0] ?? '',
+    /aria-checked="false"/,
+);
+assert.match(form, /name="all_properties" value="0"/);
+assert.doesNotMatch(form, /type="password"/);
 console.log('Add staff form explains roles: PASS');
