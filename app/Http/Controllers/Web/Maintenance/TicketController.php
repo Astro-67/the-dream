@@ -9,15 +9,12 @@ use App\Domains\Maintenance\Actions\ReportTicket;
 use App\Domains\Maintenance\Enums\TicketCategory;
 use App\Domains\Maintenance\Enums\TicketPriority;
 use App\Domains\Maintenance\Models\Ticket;
-use App\Domains\Maintenance\Models\TicketEvent;
-use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Maintenance\AssignTicketRequest;
 use App\Http\Requests\Maintenance\CompleteTicketRequest;
 use App\Http\Requests\Maintenance\ReportTicketRequest;
 use App\Models\User;
-use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,24 +51,13 @@ class TicketController extends Controller
         /** @var User $user */
         $user = $request->user();
         $canAssign = $user->can('assign', $ticket);
-        $names = fn (array $ids) => User::query()->whereIn('id', array_filter($ids))->pluck('name', 'id');
 
         return Inertia::render('maintenance/show', [
             'ticket' => [...$this->summary($ticket), 'description' => $ticket->description],
             'canAssign' => $canAssign && $ticket->completed_at === null,
             'canComplete' => $user->can('complete', $ticket) && $ticket->completed_at === null,
-            'assignees' => $canAssign ? $this->assignees() : [],
-            'history' => $ticket->events()->with('actor')->orderBy('recorded_at')->orderBy('id')->get()->map(function (TicketEvent $event) use ($names) {
-                $people = $names([$event->before['assignee_id'] ?? null, $event->after['assignee_id'] ?? null]);
-
-                return [
-                    'id' => $event->id, 'event' => $event->event,
-                    'actor' => $event->actor->name ?? __('Former member'),
-                    'from' => isset($event->before['assignee_id']) ? $people[$event->before['assignee_id']] ?? __('Former member') : null,
-                    'to' => isset($event->after['assignee_id']) ? $people[$event->after['assignee_id']] ?? __('Former member') : null,
-                    'recordedAt' => $event->recorded_at->toIso8601String(),
-                ];
-            }),
+            'assignees' => $canAssign ? $this->assignees($ticket) : [],
+            'history' => $ticket->history(),
             'timezone' => Tenancy::property()?->timezone,
         ]);
     }
@@ -120,10 +106,10 @@ class TicketController extends Controller
     }
 
     /** @return list<array{id: string, name: string}> */
-    private function assignees(): array
+    private function assignees(Ticket $ticket): array
     {
         return OrganizationMembership::query()->with('user')->get()->map(fn (OrganizationMembership $member) => $member->user)
-            ->filter(fn (User $user) => Access::allows($user, OrganizationPermission::MaintenanceReport, Tenancy::property()))
+            ->filter(fn (User $user) => $ticket->acceptsAssignee($user))
             ->sortBy('name')->values()->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name])->all();
     }
 }

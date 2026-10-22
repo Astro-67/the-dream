@@ -6,7 +6,9 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Maintenance\Enums\TicketCategory;
 use App\Domains\Maintenance\Enums\TicketPriority;
 use App\Domains\Maintenance\Policies\TicketPolicy;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Models\User;
+use App\Support\Tenancy\Access;
 use App\Support\Tenancy\BelongsToProperty;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -78,6 +80,32 @@ class Ticket extends Model
     public function place(): ?string
     {
         return $this->room !== null ? __('Room :number', ['number' => $this->room->number]) : $this->location;
+    }
+
+    /** Who may be assigned this ticket: a member who may report maintenance at its property. */
+    public function acceptsAssignee(User $user): bool
+    {
+        return Access::allows($user, OrganizationPermission::MaintenanceReport, $this);
+    }
+
+    /**
+     * The ticket's history for display, naming removed members as former members.
+     *
+     * @return list<array{id: string, event: string, actor: string, from: string|null, to: string|null, recordedAt: string}>
+     */
+    public function history(): array
+    {
+        $events = $this->events()->with('actor')->orderBy('recorded_at')->orderBy('id')->get();
+        $names = User::query()->whereIn('id', $events->flatMap(fn (TicketEvent $event) => [$event->before['assignee_id'] ?? null, $event->after['assignee_id'] ?? null])->filter())->pluck('name', 'id');
+        $name = fn (?string $id) => $id === null ? null : $names[$id] ?? __('Former member');
+
+        return $events->map(fn (TicketEvent $event) => [
+            'id' => $event->id, 'event' => $event->event,
+            'actor' => $event->actor->name ?? __('Former member'),
+            'from' => $name($event->before['assignee_id'] ?? null),
+            'to' => $name($event->after['assignee_id'] ?? null),
+            'recordedAt' => $event->recorded_at->toIso8601String(),
+        ])->values()->all();
     }
 
     /**
