@@ -15,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 
 class RecordAdjustment
 {
-    /** @param array{amount: int, reason: string, idempotency_key: string, method?: string|null, reference?: string|null} $details */
+    /** @param array{amount: int, reason: string, idempotency_key: string, method?: string|null, reference?: string|null, payment_posting_id?: string|null} $details  a refund may name the payment it returns, linking it to that payment's receipt */
     public function handle(?User $actor, Folio $folio, string $type, array $details): Posting|PostingApproval
     {
         return Audit::validationRefusal($actor, $folio, 'Adjustment refused', fn () => DB::transaction(function () use ($actor, $folio, $type, $details) {
@@ -40,6 +40,15 @@ class RecordAdjustment
             if ($type === 'refund' && ! in_array($method, RecordPayment::METHODS, true)) {
                 throw ValidationException::withMessages(['method' => __('Choose a refund method.')]);
             }
+            $paymentId = $type === 'refund' ? ($details['payment_posting_id'] ?? null) : null;
+            if ($paymentId !== null) {
+                $payment = Posting::query()->where('folio_id', $folio->id)->where('type', 'payment')->find($paymentId)
+                    ?? throw ValidationException::withMessages(['payment_posting_id' => __('Choose a payment on this folio.')]);
+                ReversePosting::ensureCancellable($payment, 'payment_posting_id');
+                if ($amount > -$payment->amount) {
+                    throw ValidationException::withMessages(['amount' => __('A refund cannot exceed the payment it returns.')]);
+                }
+            }
             $property = Property::query()->whereKey($folio->property_id)
                 ->when($method === 'cash', fn ($query) => $query->lockForUpdate())->firstOrFail();
             if ($method === 'cash' && $actor === null) {
@@ -53,7 +62,7 @@ class RecordAdjustment
             }
 
             return app(SubmitControlledPosting::class)->handle($actor, $folio, [
-                'folio_id' => $folio->id, 'type' => $type, 'category' => $type, 'reason' => $reason,
+                'folio_id' => $folio->id, 'related_posting_id' => $paymentId, 'type' => $type, 'category' => $type, 'reason' => $reason,
                 'quantity' => 1, 'unit_price' => $amount, 'net' => $type === 'refund' ? $amount : -$amount,
                 'amount' => $type === 'refund' ? $amount : -$amount, 'currency' => $folio->currency,
                 'method' => $method, 'reference' => $details['reference'] ?? null, 'cashier_shift_id' => $shift?->id,

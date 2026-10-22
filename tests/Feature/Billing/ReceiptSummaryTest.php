@@ -89,3 +89,26 @@ test('a receipt issued before snapshots shows the payment and says the summary i
         ->get(route('receipts.show', $receipt))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('receipt.amount', 1000)->where('summary', null));
 });
+
+// protects=a refund against a payment shows on that payment's receipt, which stays unchanged; fails_when=the refund is unreachable from the receipt or links to a payment it cannot correct.
+test('a refund against a payment links to its receipt and leaves the snapshot unchanged', function () {
+    [$t, $folio] = receiptFolio();
+    $receipt = pay($t, $folio, 2000, 'paid');
+    $foreign = inTenant($t->b->property, function () use ($t) {
+        app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+
+        return app(RecordPayment::class)->handle($t->b->owner, Folio::query()->sole(), ['method' => 'bank_transfer', 'amount' => 3000, 'currency' => 'USD']);
+    });
+    $refund = fn (string $key, array $overrides = []) => ['_property' => $t->a->property->id, 'amount' => 500, 'method' => 'bank_transfer', 'reason' => 'Overpaid', 'idempotency_key' => $key, 'payment_posting_id' => $receipt->posting_id, ...$overrides];
+    $this->actingAs($t->a->member(OrganizationRole::Finance));
+
+    $this->post(route('folios.refunds.store', $folio), $refund('too-much', ['amount' => 2001]))->assertSessionHasErrors('amount');
+    $this->post(route('folios.refunds.store', $folio), $refund('foreign', ['payment_posting_id' => $foreign->id]))->assertSessionHasErrors('payment_posting_id');
+    $this->post(route('folios.refunds.store', $folio), $refund('linked'))->assertSessionHasNoErrors();
+    $this->post(route('folios.refunds.store', $folio), $refund('again'))->assertSessionHasErrors('payment_posting_id');
+
+    $this->get(route('receipts.show', $receipt))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('receipt.amount', 2000)->where('summary.balance', 3000)
+        ->has('corrections', 1)->where('corrections.0.type', 'refund')->where('corrections.0.amount', 500));
+    expect(inTenant($t->a->property, fn () => Receipt::query()->sole()->summary))->toMatchArray(['net_payments' => 2000, 'balance' => 3000]);
+});

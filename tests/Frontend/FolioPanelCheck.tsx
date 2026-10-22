@@ -69,6 +69,24 @@ const outgoing = renderToStaticMarkup(
 assert.match(outgoing, /off-page-destination/);
 assert.match(outgoing, /Copy off-page-destination/);
 assert.doesNotMatch(outgoing, /original-source/);
+const refunded = renderToStaticMarkup(
+    <PostingLink
+        posting={{
+            ...posting,
+            type: 'payment',
+            related: null,
+            reason: null,
+            cancelled_by: {
+                id: 'refund',
+                type: 'refund',
+                folio_id: 'f',
+                destination_folio_id: null,
+            },
+        }}
+    />,
+);
+assert.match(refunded, /Refunded/);
+assert.doesNotMatch(refunded, /Moved out/);
 console.log('Off-page transfer identity: PASS');
 
 function pageOf<Item>(data: Item[]): Paginated<Item> {

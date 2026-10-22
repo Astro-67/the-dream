@@ -12,6 +12,7 @@ import { store as writeOff } from '@/routes/folios/write-offs';
 import { paymentMethods } from './payment-form';
 import type { Folio } from './folio-panel';
 import { Spinner } from '@/components/ui/spinner';
+import { formatMoney } from '@/lib/utils';
 
 export function AdjustmentForms({ folio }: { folio: Folio }) {
     const { canRefund, canWriteOff } = usePage<{
@@ -39,6 +40,11 @@ function AdjustmentForm({
     const [key, setKey] = useState(() => crypto.randomUUID());
     const id = (field: string) => `${type}-${folio.id}-${field}`;
     const label = type === 'refund' ? 'Refund' : 'Write-off';
+    // shortcut: lists payments on the folio's loaded postings page only; page through payments if folios outgrow 50 postings.
+    const payments = folio.postings.data.filter(
+        (posting) =>
+            posting.type === 'payment' && posting.cancelled_by === null,
+    );
 
     return (
         <Form
@@ -101,6 +107,40 @@ function AdjustmentForm({
                                 </NativeSelect>
                                 <InputError message={errors.method} />
                             </div>
+                            {payments.length > 0 && (
+                                <div className="space-y-2">
+                                    <Label htmlFor={id('payment')}>
+                                        Payment refunded (optional)
+                                    </Label>
+                                    <NativeSelect
+                                        id={id('payment')}
+                                        name="payment_posting_id"
+                                        defaultValue=""
+                                        aria-invalid={Boolean(
+                                            errors.payment_posting_id,
+                                        )}
+                                    >
+                                        <option value="">Not linked</option>
+                                        {payments.map((payment) => (
+                                            <option
+                                                key={payment.id}
+                                                value={payment.id}
+                                            >
+                                                {payment.receipt?.number ??
+                                                    'Payment'}
+                                                ,{' '}
+                                                {formatMoney(
+                                                    -payment.amount,
+                                                    folio.currency,
+                                                )}
+                                            </option>
+                                        ))}
+                                    </NativeSelect>
+                                    <InputError
+                                        message={errors.payment_posting_id}
+                                    />
+                                </div>
+                            )}
                             <div className="space-y-2">
                                 <Label htmlFor={id('reference')}>
                                     Reference (optional)

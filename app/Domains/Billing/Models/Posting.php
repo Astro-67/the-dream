@@ -25,7 +25,7 @@ use LogicException;
  * @property string $folio_id
  * @property string|null $reservation_id
  * @property string|null $price_line_id
- * @property string|null $related_posting_id the posting this one reverses or transfers
+ * @property string|null $related_posting_id the posting this one reverses or transfers, or the payment a refund returns
  * @property string $type
  * @property string $category
  * @property string|null $description

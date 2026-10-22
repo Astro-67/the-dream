@@ -38,6 +38,7 @@ type Stay = {
 };
 const corrections: Record<string, string> = {
     reversal: 'Reversed',
+    refund: 'Refunded',
 };
 
 export default function Show({
