@@ -72,6 +72,13 @@ class ReservationController extends Controller
             'folios' => $folioPage->through(fn (Folio $folio, int $index) => [
                 'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => (int) $folio->getAttribute('balance_amount'),
                 'number' => ($folios->firstItem() ?? 1) + $index,
+                'payments' => $folio->postings()->whereNotNull('method')->whereIn('type', ['payment', 'refund', 'reversal'])
+                    ->with(['actor:id,name', 'receipt:id,posting_id,number'])->reorder()->orderByDesc('posted_at')->orderByDesc('id')
+                    ->paginate(50, ['*'], 'payments_page_'.$folio->id)->withQueryString()->through(fn (Posting $posting) => [
+                        ...$posting->only(['id', 'type', 'category', 'amount', 'method', 'reference']),
+                        'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
+                        'receipt' => $posting->receipt?->only(['id', 'number']),
+                    ]),
                 'postings' => $folio->postings()->with(['actor:id,name', 'receipt:id,posting_id,number', 'related:id,type,category,folio_id', 'cancelledBy:id,type,folio_id,related_posting_id', 'cancelledBy.cancelledBy:id,folio_id,related_posting_id'])
                     ->paginate(50, ['*'], 'postings_page_'.$folio->id)->withQueryString()->through(fn (Posting $posting) => [
                         ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),
