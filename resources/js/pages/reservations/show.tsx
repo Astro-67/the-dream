@@ -348,7 +348,6 @@ export default function Show({
                         />
                     )}
                 <FolioPanel
-                    reservationNumber={reservation.reservation_number}
                     stay={stay}
                     folios={folios}
                     totals={totals}

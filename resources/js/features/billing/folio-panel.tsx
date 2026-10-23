@@ -169,11 +169,9 @@ export function FolioPanel({
     channelCollectedAmount = null,
     acceptedPaymentMethods,
     extraCategories,
-    reservationNumber,
     stay,
     paymentsReportUrl,
 }: {
-    reservationNumber: string;
     stay: FolioStay;
     paymentsReportUrl?: string | null;
     folios: Paginated<Folio>;
@@ -197,13 +195,18 @@ export function FolioPanel({
         <section className="space-y-4">
             <h2 className="text-lg font-semibold">Folio</h2>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-5">
-                {[
-                    ['Guest', stay.guest],
-                    ['Reservation', stay.reservation_number],
-                    ['Room', stay.room ?? 'Not assigned'],
-                    ['Room type', stay.room_type ?? '—'],
-                    ['Nights', String(stay.nights)],
-                ].map(([label, value]) => (
+                {(
+                    [
+                        ['Guest', stay.guest],
+                        [
+                            'Reservation',
+                            <Identifier value={stay.reservation_number} />,
+                        ],
+                        ['Room', stay.room ?? 'Not assigned'],
+                        ['Room type', stay.room_type ?? '—'],
+                        ['Nights', String(stay.nights)],
+                    ] as const
+                ).map(([label, value]) => (
                     <div key={label}>
                         <dt className="text-muted-foreground">{label}</dt>
                         <dd className="font-medium">{value}</dd>
@@ -226,7 +229,7 @@ export function FolioPanel({
                 ))}
             </div>
             <Link
-                href={statement(reservationNumber)}
+                href={statement(stay.reservation_number)}
                 className="text-primary underline underline-offset-4"
             >
                 Folio statement

@@ -168,7 +168,6 @@ function renderPanel(canRecordPayment = true) {
             }}
             initialComponent={() => (
                 <FolioPanel
-                    reservationNumber="R-1042"
                     stay={{
                         reservation_number: 'R-1042',
                         guest: 'Amina Due',
@@ -222,6 +221,7 @@ assert.match(panel, /Due includes an estimate of [^<]*200[^<]* for 2 nights/);
 assert.match(panel, />Paid</);
 assert.match(panel, /Credit/);
 assert.match(panel, /reservations\/R-1042\/statement/);
+assert.match(panel, /<span class="font-mono">R-1042<\/span>/);
 assert.equal((panel.match(/aria-label="View folio /g) ?? []).length, 50);
 assert.match(panel, /folios_page=2/);
 assert.match(panel, /Sunset boat trip/);
