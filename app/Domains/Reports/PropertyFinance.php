@@ -46,11 +46,12 @@ final class PropertyFinance
      * @param  Collection<int, Property>  $properties
      * @return LengthAwarePaginator<int, array{id: string, propertyId: string, reservationNumber: string, status: string, departure: string, departed: bool, currency: string, balance: int, guest: string|null, room: string|null, charges: int, netPayments: int, notYetCharged: bool}>
      */
-    public function folios(Collection $properties, ?int $total = null, bool $settled = false, ?string $from = null, ?string $to = null): LengthAwarePaginator
+    public function folios(Collection $properties, ?int $total = null, bool $settled = false, ?string $from = null, ?string $to = null, ?string $reservationId = null): LengthAwarePaginator
     {
         $settledDeparting = $settled && $from !== null && $to !== null ? ['from' => $from, 'to' => $to] : null;
         $ids = Property::query()->real()->whereKey($properties->pluck('id'))->pluck('id');
         $page = self::unsettled($ids, $settledDeparting)
+            ->when($reservationId !== null, fn ($query) => $query->where('folios.reservation_id', $reservationId))
             ->select(['folios.id', 'folios.property_id', 'folios.currency', 'folios.reservation_id', 'reservations.reservation_number', 'reservations.status', 'reservations.departure'])
             ->selectRaw('COALESCE(balances.balance, 0) as balance')
             ->orderBy('reservations.departure')->orderBy('reservations.reservation_number')->orderBy('folios.currency')->orderBy('folios.id')
@@ -148,10 +149,11 @@ final class PropertyFinance
      * @param  Collection<int, Property>  $properties
      * @return array<string, array{rows: list<array{method: string, currency: string, shiftId: string|null, cashier: string|null, shiftOpenedAt: string|null, payments: int, refunds: int, reversals: int, net: int}>, totals: list<array{currency: string, payments: int, refunds: int, reversals: int, net: int}>}>
      */
-    public function payments(Collection $properties, string $from, string $to): array
+    public function payments(Collection $properties, string $from, string $to, ?string $reservationId = null): array
     {
         $properties = Property::query()->real()->whereKey($properties->pluck('id'))->get();
         $rows = Posting::query()->whereIn('postings.property_id', $properties->pluck('id'))
+            ->when($reservationId !== null, fn ($query) => $query->whereIn('postings.folio_id', Folio::query()->select('id')->where('reservation_id', $reservationId)))
             ->whereNotNull('postings.method')->whereIn('postings.type', ['payment', 'refund', 'reversal'])
             ->where('postings.business_date', '>=', $from)->where('postings.business_date', '<', CarbonImmutable::parse($to)->addDay()->toDateString())
             ->leftJoin('cashier_shifts', 'cashier_shifts.id', '=', 'postings.cashier_shift_id')

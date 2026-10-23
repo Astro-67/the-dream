@@ -40,9 +40,9 @@ final class Collections
     }
 
     /** @return array<string, mixed> */
-    public function received(Property $property, string $from, string $to): array
+    public function received(Property $property, string $from, string $to, ?string $reservationId = null): array
     {
-        $payments = app(PropertyFinance::class)->payments(collect([$property]), $from, $to)[$property->id] ?? ['rows' => [], 'totals' => []];
+        $payments = app(PropertyFinance::class)->payments(collect([$property]), $from, $to, $reservationId)[$property->id] ?? ['rows' => [], 'totals' => []];
         $payments['rows'] = collect($payments['rows'])->groupBy(fn (array $row): string => $row['method'].'/'.$row['currency'])
             ->map(fn ($rows): array => [
                 'method' => $rows->first()['method'],
@@ -60,9 +60,10 @@ final class Collections
      *
      * @return LengthAwarePaginator<int, PaymentRow>
      */
-    public function payments(Property $property, string $from, string $to): LengthAwarePaginator
+    public function payments(Property $property, string $from, string $to, ?string $reservationId = null): LengthAwarePaginator
     {
         $query = Posting::query()->where('property_id', $property->id)->whereNotNull('method')->whereIn('type', ['payment', 'refund', 'reversal'])
+            ->when($reservationId !== null, fn ($query) => $query->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservationId)))
             ->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->orderByDesc('posted_at')->orderByDesc('id');
         $rows = $query->clone()->paginate(50, ['*'], 'payments_page')->withQueryString();
         // Lookups for this page's rows only, in bulk, so the list costs the same queries at any size.

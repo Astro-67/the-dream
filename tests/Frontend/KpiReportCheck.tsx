@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { App } from '@inertiajs/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import KpiReport from '@/features/reports/kpi-report';
+import Payments from '@/pages/payments';
 
 const group = renderToStaticMarkup(
     <KpiReport
@@ -51,3 +53,49 @@ assert.doesNotMatch(
     /not averages/,
 );
 console.log('Group KPI report: PASS');
+
+const reservationPayments = renderToStaticMarkup(
+    <App
+        initialPage={{
+            component: 'Payments',
+            url: '/payments',
+            version: null,
+            clearHistory: false,
+            encryptHistory: false,
+            props: {
+                errors: {},
+                tenant: { property: { timezone: 'UTC' } },
+            },
+        }}
+        initialComponent={() => (
+            <Payments
+                filters={{
+                    from: '2026-06-01',
+                    to: '2026-06-03',
+                    period: 'custom',
+                    view: 'received',
+                    settled: false,
+                    reservation: 'reservation-151',
+                }}
+                reservationNumber="R-000151"
+                received={{ rows: [], totals: [] }}
+                payments={null}
+                folios={null}
+                refreshedAt="2026-06-03T09:00:00Z"
+                cashierShiftHistoryUrl={null}
+            />
+        )}
+    />,
+);
+assert.match(reservationPayments, /name="reservation" value="reservation-151"/);
+assert.match(reservationPayments, /R-000151/);
+assert.match(reservationPayments, /Clear reservation filter/);
+assert.match(
+    reservationPayments,
+    /period=today[^"]*reservation=reservation-151/,
+);
+assert.match(
+    reservationPayments,
+    /view=outstanding[^"]*reservation=reservation-151/,
+);
+console.log('Reservation payment report filters: PASS');
