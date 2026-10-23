@@ -34,8 +34,6 @@ class PostExtraChargeRequest extends FormRequest
         $valid = $this->validated();
 
         return [
-            // An allowlist, so reserved posting categories (room, deposit, payment, refund, write_off) cannot skew folio totals.
-            'category' => ['required', 'string', 'in:restaurant,bar,minibar,laundry,spa,transport,other'],
             'category' => $valid['category'], 'description' => $valid['description'],
             'quantity' => (int) $valid['quantity'], 'unit_price' => (int) $valid['unit_price'], 'idempotency_key' => $valid['idempotency_key'],
         ];
