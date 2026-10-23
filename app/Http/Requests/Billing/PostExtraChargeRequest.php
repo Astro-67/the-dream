@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Billing;
 
+use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Http\Requests\AuditsRefusals;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class PostExtraChargeRequest extends FormRequest
 {
@@ -18,8 +20,7 @@ class PostExtraChargeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // An allowlist, so reserved posting categories (room, deposit, payment, refund, write_off) cannot skew folio totals.
-            'category' => ['required', 'string', 'in:restaurant,bar,minibar,laundry,spa,transport,other'],
+            'category' => ['required', 'string', Rule::in(PostExtraCharge::CATEGORIES)],
             'description' => ['required', 'string', 'max:255'],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
             'unit_price' => ['required', 'integer', 'min:0', 'max:1000000000'],

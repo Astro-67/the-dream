@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Reservations;
 
+use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
@@ -105,6 +106,7 @@ class ReservationController extends Controller
                 'can_resolve' => $fee->status === 'proposed' && Gate::allows('resolve', $fee),
             ])->all(),
             'canPostCharge' => $folios->isNotEmpty() && Gate::allows('postCharge', $folios->first()),
+            'extraCategories' => PostExtraCharge::CATEGORIES,
             'canReverse' => $folios->isNotEmpty() && Gate::allows('reverse', $folios->first()),
             'canTransfer' => $folios->total() > 1 && $folios->isNotEmpty() && Gate::allows('transfer', $folios->first()),
             'canOpenFolio' => Gate::allows('create', [Folio::class, $reservation]),

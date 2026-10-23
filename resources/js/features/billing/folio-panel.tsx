@@ -139,6 +139,7 @@ function FolioDue({ total }: { total: FolioTotal }) {
     );
 }
 
+// Labels only: the server owns which extras may be posted (PostExtraCharge::CATEGORIES).
 const categories: Record<string, string> = {
     restaurant: 'Restaurant',
     bar: 'Bar',
@@ -165,6 +166,7 @@ export function FolioPanel({
     canRecordPayment = false,
     channelCollectedAmount = null,
     acceptedPaymentMethods,
+    extraCategories,
     reservationNumber,
     stay,
     paymentsReportUrl,
@@ -178,6 +180,7 @@ export function FolioPanel({
     canRecordPayment?: boolean;
     channelCollectedAmount?: number | null;
     acceptedPaymentMethods: string[];
+    extraCategories: string[];
 }) {
     const { tenant } = usePage().props;
     const timezone = tenant.property?.timezone ?? 'UTC';
@@ -428,7 +431,12 @@ export function FolioPanel({
                             View payments report for this reservation
                         </Link>
                     )}
-                    {canPostCharge && <ExtraChargeForm folio={folio} />}
+                    {canPostCharge && (
+                        <ExtraChargeForm
+                            folio={folio}
+                            categories={extraCategories}
+                        />
+                    )}
                     {canRecordPayment && total && (
                         <Dialog>
                             <DialogTrigger asChild>
@@ -474,7 +482,13 @@ export function FolioPanel({
     );
 }
 
-function ExtraChargeForm({ folio }: { folio: Folio }) {
+function ExtraChargeForm({
+    folio,
+    categories: allowed,
+}: {
+    folio: Folio;
+    categories: string[];
+}) {
     // One key per filled-in form, so a resubmission of the same form posts once.
     const [key, setKey] = useState(() => crypto.randomUUID());
     const id = (field: string) => `charge-${folio.id}-${field}`;
@@ -517,13 +531,11 @@ function ExtraChargeForm({ folio }: { folio: Folio }) {
                             <option value="" disabled>
                                 Choose a category
                             </option>
-                            {Object.entries(categories).map(
-                                ([value, label]) => (
-                                    <option key={value} value={value}>
-                                        {label}
-                                    </option>
-                                ),
-                            )}
+                            {allowed.map((value) => (
+                                <option key={value} value={value}>
+                                    {categories[value] ?? value}
+                                </option>
+                            ))}
                         </NativeSelect>
                         <InputError message={errors.category} />
                     </div>

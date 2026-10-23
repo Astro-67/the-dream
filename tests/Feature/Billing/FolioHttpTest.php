@@ -151,6 +151,7 @@ test('an extra posted with an allowed category keeps it on the folio line and in
     ])->assertSessionHasNoErrors();
 
     $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('extraCategories', fn ($categories) => collect($categories)->contains($category))
         ->where('folios.data.0.postings.data.0.category', $category)
         ->where('totals.0.charges', 700)->where('totals.0.extras', 700)->where('totals.0.balance', 700));
 })->with(['restaurant', 'bar', 'minibar', 'laundry', 'spa', 'transport', 'other']);

@@ -23,6 +23,9 @@ use InvalidArgumentException;
  */
 class PostExtraCharge
 {
+    /** Extras staff may post; an allowlist, so reserved posting categories (room, deposit, payment, refund, write_off) cannot skew folio totals. */
+    public const array CATEGORIES = ['restaurant', 'bar', 'minibar', 'laundry', 'spa', 'transport', 'other'];
+
     /** @param array{category?: string, description?: string|null, quantity: int, unit_price: int, idempotency_key?: string|null} $details */
     public function handle(?User $actor, Folio $folio, array $details): Posting
     {

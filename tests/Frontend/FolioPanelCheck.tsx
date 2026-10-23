@@ -198,6 +198,7 @@ function renderPanel(canRecordPayment = true) {
                     canPostCharge
                     canRecordPayment={canRecordPayment}
                     acceptedPaymentMethods={['card', 'other']}
+                    extraCategories={['spa', 'other']}
                 />
             )}
         />,
@@ -230,6 +231,9 @@ assert.match(panel, /Payment/);
 assert.match(panel, /Item name/);
 assert.match(panel, /VAT-inclusive unit price/);
 assert.match(panel, /name="category"/);
+// Category options are the server's list, labelled here.
+assert.match(panel, /<option value="spa">Spa<\/option>/);
+assert.doesNotMatch(panel, /<option value="restaurant">/);
 console.log('Only the selected folio mounts action forms: PASS');
 
 function changePaymentField(

@@ -97,6 +97,7 @@ export default function Show({
     feeProposals,
     canRecordPayment,
     acceptedPaymentMethods,
+    extraCategories,
     paymentsReportUrl,
 }: {
     reservation: Reservation;
@@ -132,6 +133,7 @@ export default function Show({
     feeProposals: FeeProposal[];
     canRecordPayment: boolean;
     acceptedPaymentMethods: string[];
+    extraCategories: string[];
     paymentsReportUrl: string | null;
 }) {
     return (
@@ -353,6 +355,7 @@ export default function Show({
                     canPostCharge={canPostCharge}
                     canRecordPayment={canRecordPayment}
                     acceptedPaymentMethods={acceptedPaymentMethods}
+                    extraCategories={extraCategories}
                     paymentsReportUrl={paymentsReportUrl}
                     channelCollectedAmount={
                         reservation.payment_collector === 'channel'
