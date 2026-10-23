@@ -3,6 +3,14 @@ import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
@@ -179,6 +187,7 @@ export function FolioPanel({
     const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null);
     const folio =
         folios.find((item) => item.id === selectedFolioId) ?? folios[0];
+    const total = totals.find((item) => item.currency === folio?.currency);
 
     return (
         <section className="space-y-4">
@@ -422,12 +431,38 @@ export function FolioPanel({
                         </Link>
                     )}
                     {canPostCharge && <ExtraChargeForm folio={folio} />}
-                    {canRecordPayment && (
-                        <PaymentForm
-                            folio={folio}
-                            channelCollected={channelCollected}
-                            acceptedMethods={acceptedPaymentMethods}
-                        />
+                    {canRecordPayment && total && (
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    Record payment for this {folio.currency}{' '}
+                                    folio
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-h-[90dvh] overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle>
+                                        Record payment for this {folio.currency}{' '}
+                                        folio
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        {total.due < 0 ? 'Credit' : 'Due'}:{' '}
+                                        {formatMoney(
+                                            Math.abs(total.due),
+                                            folio.currency,
+                                        )}
+                                        {total.estimate &&
+                                            ' (includes estimated nights before added taxes)'}
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <PaymentForm
+                                    folio={folio}
+                                    total={total}
+                                    channelCollected={channelCollected}
+                                    acceptedMethods={acceptedPaymentMethods}
+                                />
+                            </DialogContent>
+                        </Dialog>
                     )}
                     <AdjustmentForms folio={folio} />
                 </div>

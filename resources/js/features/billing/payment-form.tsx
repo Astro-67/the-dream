@@ -9,6 +9,7 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { store } from '@/routes/folios/payments';
+import type { FolioTotal } from './folio-summary';
 
 // Cash needs the cashier's open shift; the server refuses it otherwise.
 export const paymentMethods = {
@@ -25,10 +26,12 @@ export const paymentMethodLabel = (method: string) =>
 
 export function PaymentForm({
     folio,
+    total,
     channelCollected,
     acceptedMethods,
 }: {
     folio: { id: string; currency: string };
+    total: FolioTotal;
     channelCollected: boolean;
     acceptedMethods: string[];
 }) {
@@ -55,9 +58,6 @@ export function PaymentForm({
                 <>
                     <PropertyIntent />
                     <input type="hidden" name="idempotency_key" value={key} />
-                    <h3 className="font-semibold sm:col-span-2">
-                        Record a payment
-                    </h3>
                     <div className="space-y-2">
                         <Label htmlFor={id('method')}>Method</Label>
                         <NativeSelect
@@ -90,6 +90,7 @@ export function PaymentForm({
                                 id={id('amount')}
                                 name="amount"
                                 currency={folio.currency}
+                                defaultValue={total.due > 0 ? total.due : ''}
                                 min={1}
                                 required
                                 aria-invalid={Boolean(errors.amount)}

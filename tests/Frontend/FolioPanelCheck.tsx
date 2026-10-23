@@ -10,6 +10,7 @@ import {
 import type { FolioSummary } from '@/features/billing/folio-summary';
 import type { Paginated } from '@/types';
 import { PaymentsReceived } from '@/features/billing/payments-received';
+import { PaymentForm } from '@/features/billing/payment-form';
 
 const posting: Posting = {
     id: 'posting-in',
@@ -143,63 +144,70 @@ const folioPage = {
         { url: '/reservation?folios_page=2', label: 'Next', active: false },
     ],
 };
-const panel = renderToStaticMarkup(
-    <App
-        initialPage={{
-            component: 'FolioPanelCheck',
-            url: '/reservation',
-            version: null,
-            clearHistory: false,
-            encryptHistory: false,
-            props: {
-                errors: {},
-                tenant: { property: { id: 'property', timezone: 'UTC' } },
-                reservation: { reservation_number: 'R-1042' },
-                canRefund: false,
-                canWriteOff: false,
-                canOpenFolio: false,
-                canReverse: false,
-                canTransfer: false,
-                folioCurrencies: ['USD'],
-            },
-        }}
-        initialComponent={() => (
-            <FolioPanel
-                reservationNumber="R-1042"
-                stay={{
-                    reservation_number: 'R-1042',
-                    guest: 'Amina Due',
-                    room: '101',
-                    room_type: 'Deluxe Double',
-                    nights: 2,
-                }}
-                folios={folioPage}
-                totals={[
-                    {
-                        currency: 'USD',
-                        ...emptySummary,
-                        estimate: { nights: 2, amount: 20000 },
-                        due: 20000,
-                        status: 'unpaid',
-                    },
-                    {
-                        currency: 'TZS',
-                        ...emptySummary,
-                        net_payments: 5000,
-                        balance: -5000,
-                        estimate: null,
-                        due: -5000,
-                        status: 'paid',
-                    },
-                ]}
-                canPostCharge
-                canRecordPayment
-                acceptedPaymentMethods={['card', 'other']}
-            />
-        )}
-    />,
-);
-assert.equal((panel.match(/<form\b/g) ?? []).length, 2);
+function renderPanel(canRecordPayment = true) {
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'FolioPanelCheck',
+                url: '/reservation',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: {
+                    errors: {},
+                    tenant: { property: { id: 'property', timezone: 'UTC' } },
+                    reservation: { reservation_number: 'R-1042' },
+                    canRefund: false,
+                    canWriteOff: false,
+                    canOpenFolio: false,
+                    canReverse: false,
+                    canTransfer: false,
+                    folioCurrencies: ['USD'],
+                },
+            }}
+            initialComponent={() => (
+                <FolioPanel
+                    reservationNumber="R-1042"
+                    stay={{
+                        reservation_number: 'R-1042',
+                        guest: 'Amina Due',
+                        room: '101',
+                        room_type: 'Deluxe Double',
+                        nights: 2,
+                    }}
+                    folios={folioPage}
+                    totals={[
+                        {
+                            currency: 'USD',
+                            ...emptySummary,
+                            estimate: { nights: 2, amount: 20000 },
+                            due: 20000,
+                            status: 'unpaid',
+                        },
+                        {
+                            currency: 'TZS',
+                            ...emptySummary,
+                            net_payments: 5000,
+                            balance: -5000,
+                            estimate: null,
+                            due: -5000,
+                            status: 'paid',
+                        },
+                    ]}
+                    canPostCharge
+                    canRecordPayment={canRecordPayment}
+                    acceptedPaymentMethods={['card', 'other']}
+                />
+            )}
+        />,
+    );
+}
+const panel = renderPanel();
+assert.equal((panel.match(/<form\b/g) ?? []).length, 1);
+assert.match(panel, /Record payment for this USD folio/);
+assert.match(panel, /aria-haspopup="dialog"/);
+assert.doesNotMatch(renderPanel(false), /Record payment for this/);
+assert.doesNotMatch(panel, /name="idempotency_key"[^>]*payment/);
 // A zero balance with nights still to charge is not called settled.
 assert.match(panel, /Balance of posted charges/);
 assert.doesNotMatch(panel, /Settled/);
@@ -221,11 +229,55 @@ assert.match(panel, /Payment/);
 assert.match(panel, /Item name/);
 assert.match(panel, /VAT-inclusive unit price/);
 assert.match(panel, /name="category"/);
-assert.match(panel, /<option value="card" selected="">/);
-assert.match(panel, /<option value="other">Other<\/option>/);
-assert.doesNotMatch(panel, /<option value="bank_transfer"/);
-assert.doesNotMatch(panel, /<option value="cash"/);
 console.log('Only the selected folio mounts action forms: PASS');
+
+function paymentForm(due: number, currency = 'USD') {
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'PaymentFormCheck',
+                url: '/reservation',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: {
+                    errors: {},
+                    tenant: { property: { id: 'property' } },
+                },
+            }}
+            initialComponent={() => (
+                <PaymentForm
+                    folio={{ id: 'folio-payment', currency }}
+                    total={{
+                        ...emptySummary,
+                        currency,
+                        due,
+                        status: 'unpaid',
+                        estimate: null,
+                    }}
+                    channelCollected={false}
+                    acceptedMethods={['card', 'other']}
+                />
+            )}
+        />,
+    );
+}
+const payment = paymentForm(20000);
+assert.match(payment, /<option value="card" selected="">/);
+assert.match(payment, /<option value="other">Other<\/option>/);
+assert.doesNotMatch(payment, /<option value="bank_transfer"/);
+assert.doesNotMatch(payment, /<option value="cash"/);
+assert.match(payment, /name="amount" value="20000"/);
+assert.match(payment, /value="200"/);
+assert.match(payment, /name="card_last_four"/);
+assert.match(payment, /name="card_brand"/);
+assert.match(payment, /name="reference"/);
+assert.match(payment, /name="idempotency_key"/);
+assert.match(payment, /action="[^"]*folios\/folio-payment\/payments"/);
+assert.match(paymentForm(0), /name="amount" value=""/);
+assert.match(paymentForm(-5000), /name="amount" value=""/);
+assert.match(paymentForm(25000, 'TZS'), /value="25000"/);
+console.log('Payment defaults and existing fields: PASS');
 
 const paymentsReceived = renderToStaticMarkup(
     <PaymentsReceived
