@@ -82,6 +82,7 @@ final class FolioSummary
     /**
      * Per currency: the posted summary across the reservation's folios, plus the scheduled
      * nights not yet charged as a separate estimate at their booked price, before added taxes.
+     * due = balance + estimate; status is paid once nothing is due (a credit included).
      *
      * @param  Collection<int, array{folio: Folio, postings: EloquentCollection<int, Posting>, summary: Summary}>|null  $folios  already loaded by folios(), so totals match their itemisation
      * @return list<array<string, mixed>>
@@ -93,7 +94,18 @@ final class FolioSummary
         $estimates = self::unposted(collect([$reservation]))->get($reservation->id, collect());
 
         return $byCurrency->keys()->merge($estimates->keys())->unique()->sort()->values()
-            ->map(fn (string $currency) => ['currency' => $currency, ...($byCurrency->get($currency) ?? self::of([])), 'estimate' => $estimates->get($currency)])->all();
+            ->map(function (string $currency) use ($byCurrency, $estimates) {
+                $summary = $byCurrency->get($currency) ?? self::of([]);
+                $estimate = $estimates->get($currency);
+                $due = $summary['balance'] + ($estimate['amount'] ?? 0);
+
+                return ['currency' => $currency, ...$summary, 'estimate' => $estimate, 'due' => $due,
+                    'status' => match (true) {
+                        $due <= 0 => 'paid',
+                        $summary['net_payments'] > 0 => 'partially_paid',
+                        default => 'unpaid',
+                    }];
+            })->all();
     }
 
     /**

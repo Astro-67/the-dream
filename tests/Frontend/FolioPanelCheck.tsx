@@ -164,12 +164,30 @@ const panel = renderToStaticMarkup(
         initialComponent={() => (
             <FolioPanel
                 reservationNumber="R-1042"
+                stay={{
+                    reservation_number: 'R-1042',
+                    guest: 'Amina Due',
+                    room: '101',
+                    room_type: 'Deluxe Double',
+                    nights: 2,
+                }}
                 folios={folioPage}
                 totals={[
                     {
                         currency: 'USD',
                         ...emptySummary,
                         estimate: { nights: 2, amount: 20000 },
+                        due: 20000,
+                        status: 'unpaid',
+                    },
+                    {
+                        currency: 'TZS',
+                        ...emptySummary,
+                        net_payments: 5000,
+                        balance: -5000,
+                        estimate: null,
+                        due: -5000,
+                        status: 'paid',
                     },
                 ]}
                 canPostCharge
@@ -184,6 +202,13 @@ assert.equal((panel.match(/<form\b/g) ?? []).length, 2);
 assert.match(panel, /Balance of posted charges/);
 assert.doesNotMatch(panel, /Settled/);
 assert.match(panel, /Not yet charged: 2 nights/);
+assert.match(panel, /Amina Due/);
+assert.match(panel, /Deluxe Double/);
+assert.match(panel, />Unpaid</);
+assert.match(panel, /Due includes an estimate of [^<]*200[^<]* for 2 nights/);
+// A credit reads as Paid with the credit amount, never a negative Due.
+assert.match(panel, />Paid</);
+assert.match(panel, /Credit/);
 assert.match(panel, /reservations\/R-1042\/statement/);
 assert.equal((panel.match(/aria-label="View folio /g) ?? []).length, 50);
 assert.match(panel, /folios_page=2/);

@@ -18,6 +18,9 @@ export type FolioSummary = {
 export type FolioTotal = FolioSummary & {
     currency: string;
     estimate: { nights: number; amount: number } | null;
+    /** balance plus the estimate; worked out on the server. */
+    due: number;
+    status: 'unpaid' | 'partially_paid' | 'paid';
 };
 
 /** The balance line: owed, credit, or settled only when nothing is left to charge. */
