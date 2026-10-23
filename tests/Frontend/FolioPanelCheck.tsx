@@ -385,7 +385,13 @@ const paymentsReceived = renderToStaticMarkup(
                 reference: 'BANK-151',
                 receipt: { id: 'receipt-151', number: 'RCT-000151' },
             },
-            { ...posting, type: 'refund', amount: 500, method: 'card' },
+            {
+                ...posting,
+                type: 'refund',
+                category: 'refund',
+                amount: 500,
+                method: 'card',
+            },
         ])}
         currency="USD"
         timezone="UTC"

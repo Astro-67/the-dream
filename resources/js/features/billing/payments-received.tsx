@@ -10,7 +10,10 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import type { Posting } from '@/features/billing/folio-panel';
+import {
+    postingCategories,
+    type Posting,
+} from '@/features/billing/folio-panel';
 import { paymentMethodLabel } from '@/features/billing/payment-form';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
@@ -63,13 +66,12 @@ export function PaymentsReceived({
                         {payments.data.map((payment) => (
                             <TableRow key={payment.id}>
                                 <TableCell>
-                                    {payment.type === 'refund'
-                                        ? 'Refund'
-                                        : payment.type === 'reversal'
-                                          ? 'Reversal'
-                                          : payment.category === 'deposit'
-                                            ? 'Deposit'
-                                            : 'Payment'}
+                                    {/* A reversal keeps the category of the payment it cancels. */}
+                                    {payment.type === 'reversal'
+                                        ? 'Reversal'
+                                        : (postingCategories[
+                                              payment.category
+                                          ] ?? payment.category)}
                                 </TableCell>
                                 <TableCell>
                                     {paymentMethodLabel(payment.method ?? '')}
