@@ -113,7 +113,8 @@ test('the folio report link includes historical payments across reservation foli
     $t->a->property->update(['business_date' => '2026-12-10']);
     $paymentQueries = 0;
     DB::listen(function (QueryExecuted $query) use (&$paymentQueries) {
-        $paymentQueries += str_contains($query->sql, '"method" is not null') && ! str_contains($query->sql, 'MIN(') ? 1 : 0;
+        $sql = str_replace(['"', '`'], '', $query->sql);
+        $paymentQueries += str_contains($sql, 'method is not null') && ! str_contains($sql, 'MIN(') ? 1 : 0;
     });
 
     $response = $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
