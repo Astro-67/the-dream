@@ -8,9 +8,22 @@ import CreateOrganization from '@/pages/organizations/create';
 import { PropertyFields } from '@/features/tenancy/property-fields';
 import { OnboardingChecklist } from '@/features/tenancy/onboarding-checklist';
 import {
+    PropertySettingsFields,
     propertySettingsTabForErrors,
     propertySettingsTabs,
 } from '@/features/tenancy/property-settings-fields';
+
+const paymentSettings = renderToStaticMarkup(
+    <PropertySettingsFields
+        values={{ payment_settings: { accepted_methods: ['other'] } }}
+        errors={{}}
+    />,
+);
+assert.match(paymentSettings, /checked="" value="other"/);
+assert.match(
+    paymentSettings,
+    /for="payment_settings\.accepted_methods-other">Other<\/label>/,
+);
 
 function returnValidationErrors(
     node: ReactNode,

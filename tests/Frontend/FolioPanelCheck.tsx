@@ -192,7 +192,7 @@ const panel = renderToStaticMarkup(
                 ]}
                 canPostCharge
                 canRecordPayment
-                acceptedPaymentMethods={['card']}
+                acceptedPaymentMethods={['card', 'other']}
             />
         )}
     />,
@@ -220,6 +220,7 @@ assert.match(panel, /Item name/);
 assert.match(panel, /VAT-inclusive unit price/);
 assert.match(panel, /name="category"/);
 assert.match(panel, /<option value="card" selected="">/);
+assert.match(panel, /<option value="other">Other<\/option>/);
 assert.doesNotMatch(panel, /<option value="bank_transfer"/);
 assert.doesNotMatch(panel, /<option value="cash"/);
 console.log('Only the selected folio mounts action forms: PASS');

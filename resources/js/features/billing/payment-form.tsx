@@ -17,6 +17,7 @@ export const paymentMethods = {
     mobile_money: 'Mobile money',
     card: 'Card charged outside Thedream',
     channel_collected: 'Channel-collected',
+    other: 'Other',
 };
 
 export const paymentMethodLabel = (method: string) =>
