@@ -96,8 +96,10 @@ export function FolioPanel({
     channelCollected = false,
     acceptedPaymentMethods,
     reservationNumber,
+    paymentsReportUrl,
 }: {
     reservationNumber: string;
+    paymentsReportUrl?: string | null;
     folios: Paginated<Folio>;
     totals: FolioTotal[];
     canPostCharge: boolean;
@@ -316,6 +318,14 @@ export function FolioPanel({
                         currency={folio.currency}
                         timezone={timezone}
                     />
+                    {paymentsReportUrl && (
+                        <Link
+                            href={paymentsReportUrl}
+                            className="text-primary underline underline-offset-4"
+                        >
+                            View payments report for this reservation
+                        </Link>
+                    )}
                     {canPostCharge && <ExtraChargeForm folio={folio} />}
                     {canRecordPayment && (
                         <PaymentForm

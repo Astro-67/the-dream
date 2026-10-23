@@ -13,6 +13,7 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
 use App\Domains\Rates\StayRestrictions;
+use App\Domains\Reports\PropertyKpis;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\AssignableRooms;
 use App\Domains\Reservations\BookingRules;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\CreateReservationRequest;
 use App\Support\Money\Currency;
 use App\Support\Tenancy\Tenancy;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -67,8 +69,17 @@ class ReservationController extends Controller
             ->orderBy('created_at')->orderBy('id')->paginate(50, ['*'], 'folios_page')->withQueryString();
         $folioPage = clone $folios;
         $folioPage->setCollection(clone $folios->getCollection());
+        $paymentRange = Posting::query()->where('property_id', $property->id)
+            ->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
+            ->whereNotNull('method')->whereIn('type', ['payment', 'refund', 'reversal'])
+            ->selectRaw('MIN(business_date) as first_date, MAX(business_date) as last_date')->toBase()->first();
 
         return Inertia::render('reservations/show', [
+            'paymentsReportUrl' => Gate::allows('view', PropertyKpis::class) ? route('payments.index', [
+                'reservation' => $reservation->id, 'period' => 'custom',
+                'from' => CarbonImmutable::parse($paymentRange?->first_date ?? BusinessDate::current())->toDateString(),
+                'to' => CarbonImmutable::parse($paymentRange?->last_date ?? BusinessDate::current())->toDateString(),
+            ]) : null,
             'folios' => $folioPage->through(fn (Folio $folio, int $index) => [
                 'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => (int) $folio->getAttribute('balance_amount'),
                 'number' => ($folios->firstItem() ?? 1) + $index,
