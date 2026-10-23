@@ -34,7 +34,6 @@ export function FeeProposals({ fees }: { fees: FeeProposal[] }) {
 
     return (
         <section className="space-y-4">
-            <h2 className="text-lg font-semibold">Fees</h2>
             {fees.map((fee) => (
                 <div key={fee.id} className="max-w-[720px] space-y-3">
                     <div className="flex flex-wrap items-center gap-3">

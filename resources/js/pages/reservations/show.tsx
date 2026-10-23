@@ -1,3 +1,17 @@
+import { ChevronDown } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { FeeProposals } from '@/features/billing/fee-proposals';
 import type { FeeProposal } from '@/features/billing/fee-proposals';
 import { NativeSelect } from '@/components/ui/select';
@@ -139,8 +153,8 @@ export default function Show({
     return (
         <>
             <Head title={`Reservation ${reservation.reservation_number}`} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="space-y-3">
+            <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-6">
+                <header className="flex flex-wrap items-center gap-3 [&_button]:min-h-11">
                     <h1 className="text-2xl font-semibold">
                         Reservation{' '}
                         <Identifier
@@ -204,149 +218,287 @@ export default function Show({
                         />
                     )}
                 </header>
-                <dl className="grid gap-4 sm:grid-cols-2">
-                    {[
-                        ['Room', assignedRoom ?? 'Not assigned'],
-                        ['Room type', roomType.name],
-                        ['Rate plan', ratePlan.name],
-                        ['Arrival', formatDate(reservation.arrival, 'UTC')],
-                        ['Departure', formatDate(reservation.departure, 'UTC')],
-                        [
-                            'Scheduled nights',
-                            String(
-                                Math.round(
-                                    (Date.parse(reservation.departure) -
-                                        Date.parse(reservation.arrival)) /
-                                        86_400_000,
-                                ),
-                            ),
-                        ],
-                        [
-                            'Guests',
-                            `${reservation.adults} adults, ${reservation.children} children`,
-                        ],
-                        ...(booker ? [['Booker', booker.name]] : []),
-                        ['Lead guest', leadGuest?.name ?? 'Not added'],
-                        [
-                            'Meal plan',
-                            reservation.meal_plan.replaceAll('-', ' '),
-                        ],
-                        [
-                            'Booked through',
-                            reservation.tour_operator_name ?? 'Guest directly',
-                        ],
-                        ...(reservation.tour_operator_registration
-                            ? [
-                                  [
-                                      'Tour operator ZRA registration',
-                                      reservation.tour_operator_registration,
-                                  ],
-                                  [
-                                      'Tour operator pays for',
-                                      reservation.tour_operator_pays_for?.replaceAll(
-                                          '-',
-                                          ' ',
-                                      ) ?? '',
-                                  ],
-                              ]
-                            : []),
-                        [
-                            'Special requests',
-                            reservation.special_requests ?? 'None',
-                        ],
-                        [
-                            'Source',
-                            reservation.source === 'outside-integration'
-                                ? 'Booking received outside integration'
-                                : reservation.source,
-                        ],
-                        ...(reservation.requires_reconciliation
-                            ? [
-                                  [
-                                      'Channel reference',
-                                      reservation.channel_reference ?? '',
-                                  ],
-                                  [
-                                      'Reason received outside integration',
-                                      reservation.outside_integration_reason ??
-                                          '',
-                                  ],
-                              ]
-                            : []),
-                        ['Payment collector', reservation.payment_collector],
-                        ...(reservation.channel_collected_amount !== null
-                            ? [
-                                  [
-                                      'Channel-collected amount',
-                                      formatMoney(
-                                          reservation.channel_collected_amount,
-                                          reservation.price_lines[0]
-                                              ?.currency ?? '',
-                                      ),
-                                  ],
-                              ]
-                            : []),
-                    ].map(([label, value]) => (
-                        <div key={label}>
-                            <dt className="text-sm text-muted-foreground">
-                                {label}
-                            </dt>
-                            <dd>{value}</dd>
-                        </div>
-                    ))}
-                </dl>
-                {canAssignRoom && reservation.status === 'confirmed' && (
-                    <Form
-                        {...roomAssignment.form(reservation.reservation_number)}
-                        className="max-w-[720px] space-y-3"
-                    >
-                        {({ errors, processing }) => (
-                            <>
-                                <PropertyIntent />
-                                <Label htmlFor="room_id">Room assignment</Label>
-                                <NativeSelect
-                                    id="room_id"
-                                    name="room_id"
-                                    defaultValue={reservation.room_id ?? ''}
-                                    aria-describedby="room-error"
-                                >
-                                    <option value="">Unassigned</option>
-                                    {rooms.map((room) => (
-                                        <option key={room.id} value={room.id}>
-                                            {room.number} —{' '}
-                                            {room.isReady
-                                                ? 'Ready'
-                                                : 'Not ready'}
-                                        </option>
-                                    ))}
-                                </NativeSelect>
-                                <div id="room-error">
-                                    <InputError message={errors.room_id} />
+                <Card className="gap-4 py-4 md:py-6">
+                    <CardContent className="space-y-4 px-4 md:px-6">
+                        <h2 className="sr-only">Stay details</h2>
+                        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3 xl:grid-cols-5">
+                            {[
+                                ['Room', assignedRoom ?? 'Not assigned'],
+                                ['Room type', roomType.name],
+                                ['Rate plan', ratePlan.name],
+                                [
+                                    'Arrival',
+                                    formatDate(reservation.arrival, 'UTC'),
+                                ],
+                                [
+                                    'Departure',
+                                    formatDate(reservation.departure, 'UTC'),
+                                ],
+                                [
+                                    'Scheduled nights',
+                                    String(
+                                        Math.round(
+                                            (Date.parse(reservation.departure) -
+                                                Date.parse(
+                                                    reservation.arrival,
+                                                )) /
+                                                86_400_000,
+                                        ),
+                                    ),
+                                ],
+                                [
+                                    'Guests',
+                                    `${reservation.adults} adults, ${reservation.children} children`,
+                                ],
+                                ['Lead guest', leadGuest?.name ?? 'Not added'],
+                                [
+                                    'Payment collector',
+                                    reservation.payment_collector,
+                                ],
+                            ].map(([label, value]) => (
+                                <div key={label} className="min-w-0">
+                                    <dt className="text-sm text-muted-foreground">
+                                        {label}
+                                    </dt>
+                                    <dd className="break-words">{value}</dd>
                                 </div>
-                                <Button disabled={processing}>
-                                    <span className="size-4">
-                                        {processing && <Spinner />}
-                                    </span>
-                                    Save room assignment
+                            ))}
+                        </dl>
+                        <Collapsible>
+                            <CollapsibleTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="group min-h-11"
+                                >
+                                    More details
+                                    <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
                                 </Button>
-                            </>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="pt-4">
+                                <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                    {[
+                                        ...(booker
+                                            ? [['Booker', booker.name]]
+                                            : []),
+                                        [
+                                            'Meal plan',
+                                            reservation.meal_plan.replaceAll(
+                                                '-',
+                                                ' ',
+                                            ),
+                                        ],
+                                        [
+                                            'Booked through',
+                                            reservation.tour_operator_name ??
+                                                'Guest directly',
+                                        ],
+                                        ...(reservation.tour_operator_registration
+                                            ? [
+                                                  [
+                                                      'Tour operator ZRA registration',
+                                                      reservation.tour_operator_registration,
+                                                  ],
+                                                  [
+                                                      'Tour operator pays for',
+                                                      reservation.tour_operator_pays_for?.replaceAll(
+                                                          '-',
+                                                          ' ',
+                                                      ) ?? '',
+                                                  ],
+                                              ]
+                                            : []),
+                                        [
+                                            'Special requests',
+                                            reservation.special_requests ??
+                                                'None',
+                                        ],
+                                        [
+                                            'Source',
+                                            reservation.source ===
+                                            'outside-integration'
+                                                ? 'Booking received outside integration'
+                                                : reservation.source,
+                                        ],
+                                        ...(reservation.requires_reconciliation
+                                            ? [
+                                                  [
+                                                      'Channel reference',
+                                                      reservation.channel_reference ??
+                                                          '',
+                                                  ],
+                                                  [
+                                                      'Reason received outside integration',
+                                                      reservation.outside_integration_reason ??
+                                                          '',
+                                                  ],
+                                              ]
+                                            : []),
+                                        ...(reservation.channel_collected_amount !==
+                                        null
+                                            ? [
+                                                  [
+                                                      'Channel-collected amount',
+                                                      formatMoney(
+                                                          reservation.channel_collected_amount,
+                                                          reservation
+                                                              .price_lines[0]
+                                                              ?.currency ?? '',
+                                                      ),
+                                                  ],
+                                              ]
+                                            : []),
+                                    ].map(([label, value]) => (
+                                        <div key={label}>
+                                            <dt className="text-sm text-muted-foreground">
+                                                {label}
+                                            </dt>
+                                            <dd>{value}</dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </CollapsibleContent>
+                        </Collapsible>
+                    </CardContent>
+                </Card>
+                {((canAssignRoom && reservation.status === 'confirmed') ||
+                    can.moveRoom ||
+                    (canAmend &&
+                        amendmentOptions &&
+                        reservation.status === 'confirmed')) && (
+                    <div className="flex flex-wrap gap-2">
+                        {canAssignRoom &&
+                            reservation.status === 'confirmed' && (
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button
+                                            variant="secondary"
+                                            className="min-h-11"
+                                        >
+                                            Room assignment
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent
+                                        className="max-h-[90dvh] overflow-y-auto"
+                                        aria-describedby={undefined}
+                                    >
+                                        <DialogHeader>
+                                            <DialogTitle>
+                                                Room assignment
+                                            </DialogTitle>
+                                        </DialogHeader>
+                                        <Form
+                                            {...roomAssignment.form(
+                                                reservation.reservation_number,
+                                            )}
+                                            className="max-w-[720px] space-y-3"
+                                        >
+                                            {({ errors, processing }) => (
+                                                <>
+                                                    <PropertyIntent />
+                                                    <Label htmlFor="room_id">
+                                                        Room assignment
+                                                    </Label>
+                                                    <NativeSelect
+                                                        id="room_id"
+                                                        name="room_id"
+                                                        defaultValue={
+                                                            reservation.room_id ??
+                                                            ''
+                                                        }
+                                                        aria-describedby="room-error"
+                                                    >
+                                                        <option value="">
+                                                            Unassigned
+                                                        </option>
+                                                        {rooms.map((room) => (
+                                                            <option
+                                                                key={room.id}
+                                                                value={room.id}
+                                                            >
+                                                                {room.number} —{' '}
+                                                                {room.isReady
+                                                                    ? 'Ready'
+                                                                    : 'Not ready'}
+                                                            </option>
+                                                        ))}
+                                                    </NativeSelect>
+                                                    <div id="room-error">
+                                                        <InputError
+                                                            message={
+                                                                errors.room_id
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        disabled={processing}
+                                                    >
+                                                        <span className="size-4">
+                                                            {processing && (
+                                                                <Spinner />
+                                                            )}
+                                                        </span>
+                                                        Save room assignment
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </Form>
+                                    </DialogContent>
+                                </Dialog>
+                            )}
+                        {can.moveRoom && (
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button
+                                        variant="secondary"
+                                        className="min-h-11"
+                                    >
+                                        Move room
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent
+                                    className="max-h-[90dvh] overflow-y-auto"
+                                    aria-describedby={undefined}
+                                >
+                                    <DialogHeader>
+                                        <DialogTitle>Move room</DialogTitle>
+                                    </DialogHeader>
+                                    <RoomMoveForm
+                                        number={reservation.reservation_number}
+                                        rooms={moveRooms}
+                                    />
+                                </DialogContent>
+                            </Dialog>
                         )}
-                    </Form>
+                        {canAmend &&
+                            amendmentOptions &&
+                            reservation.status === 'confirmed' && (
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button
+                                            variant="secondary"
+                                            className="min-h-11"
+                                        >
+                                            Amend reservation
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent
+                                        className="max-h-[90dvh] overflow-y-auto sm:max-w-[720px]"
+                                        aria-describedby={undefined}
+                                    >
+                                        <DialogHeader>
+                                            <DialogTitle>
+                                                Amend reservation
+                                            </DialogTitle>
+                                        </DialogHeader>
+                                        <AmendmentForm
+                                            reservation={reservation}
+                                            options={amendmentOptions}
+                                        />
+                                    </DialogContent>
+                                </Dialog>
+                            )}
+                    </div>
                 )}
-                {can.moveRoom && (
-                    <RoomMoveForm
-                        number={reservation.reservation_number}
-                        rooms={moveRooms}
-                    />
-                )}
-                {canAmend &&
-                    amendmentOptions &&
-                    reservation.status === 'confirmed' && (
-                        <AmendmentForm
-                            reservation={reservation}
-                            options={amendmentOptions}
-                        />
-                    )}
                 <FolioPanel
                     stay={stay}
                     folios={folios}
@@ -362,8 +514,44 @@ export default function Show({
                             : null
                     }
                 />
-                <FeeProposals fees={feeProposals} />
-                <AmendmentHistory amendments={amendments} />
+                {feeProposals.length > 0 && (
+                    <Collapsible
+                        defaultOpen={feeProposals.some(
+                            (fee) => fee.can_resolve,
+                        )}
+                    >
+                        <h2>
+                            <CollapsibleTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="group h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
+                                >
+                                    Fee proposals ({feeProposals.length})
+                                    <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                                </Button>
+                            </CollapsibleTrigger>
+                        </h2>
+                        <CollapsibleContent className="pt-4">
+                            <FeeProposals fees={feeProposals} />
+                        </CollapsibleContent>
+                    </Collapsible>
+                )}
+                <Collapsible>
+                    <h2>
+                        <CollapsibleTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="group h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
+                            >
+                                Amendment history ({amendments.total})
+                                <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                            </Button>
+                        </CollapsibleTrigger>
+                    </h2>
+                    <CollapsibleContent className="pt-4">
+                        <AmendmentHistory amendments={amendments} />
+                    </CollapsibleContent>
+                </Collapsible>
                 <Link
                     className="text-primary underline underline-offset-4"
                     href={`/reservations/${encodeURIComponent(reservation.reservation_number)}/guests`}
@@ -371,92 +559,121 @@ export default function Show({
                     View and attach staying guests
                 </Link>
                 {groupMembers.length > 0 && (
-                    <section className="space-y-3">
-                        <h2 className="text-lg font-semibold">
-                            Other reservations in this booking group
+                    <Collapsible>
+                        <h2>
+                            <CollapsibleTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="group h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
+                                >
+                                    Other reservations in this booking group (
+                                    {groupMembers.length})
+                                    <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                                </Button>
+                            </CollapsibleTrigger>
                         </h2>
+                        <CollapsibleContent className="pt-4">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>
+                                            Reservation number
+                                        </TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead>Arrival</TableHead>
+                                        <TableHead>Departure</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {groupMembers.map((member) => (
+                                        <TableRow
+                                            key={member.reservation_number}
+                                        >
+                                            <TableCell>
+                                                <Link
+                                                    className="text-primary underline underline-offset-4"
+                                                    href={show(
+                                                        member.reservation_number,
+                                                    )}
+                                                >
+                                                    <Identifier
+                                                        value={
+                                                            member.reservation_number
+                                                        }
+                                                    />
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell>
+                                                <StatusChip
+                                                    tone={
+                                                        member.status ===
+                                                        'confirmed'
+                                                            ? 'success'
+                                                            : 'unavailable'
+                                                    }
+                                                >
+                                                    {member.status}
+                                                </StatusChip>
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDate(
+                                                    member.arrival,
+                                                    'UTC',
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDate(
+                                                    member.departure,
+                                                    'UTC',
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CollapsibleContent>
+                    </Collapsible>
+                )}
+                <Collapsible>
+                    <h2>
+                        <CollapsibleTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="group h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
+                            >
+                                Fixed nightly prices (
+                                {reservation.price_lines.length})
+                                <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                            </Button>
+                        </CollapsibleTrigger>
+                    </h2>
+                    <CollapsibleContent className="pt-4">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Reservation number</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Arrival</TableHead>
-                                    <TableHead>Departure</TableHead>
+                                    <TableHead>Night</TableHead>
+                                    <TableHead numeric>Amount</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {groupMembers.map((member) => (
-                                    <TableRow key={member.reservation_number}>
+                                {reservation.price_lines.map((line) => (
+                                    <TableRow key={line.id}>
                                         <TableCell>
-                                            <Link
-                                                className="text-primary underline underline-offset-4"
-                                                href={show(
-                                                    member.reservation_number,
-                                                )}
-                                            >
-                                                <Identifier
-                                                    value={
-                                                        member.reservation_number
-                                                    }
-                                                />
-                                            </Link>
+                                            {formatDate(line.date, 'UTC')}
                                         </TableCell>
-                                        <TableCell>
-                                            <StatusChip
-                                                tone={
-                                                    member.status ===
-                                                    'confirmed'
-                                                        ? 'success'
-                                                        : 'unavailable'
-                                                }
-                                            >
-                                                {member.status}
-                                            </StatusChip>
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatDate(member.arrival, 'UTC')}
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatDate(
-                                                member.departure,
-                                                'UTC',
-                                            )}
+                                        <TableCell numeric>
+                                            {formatMoney(
+                                                line.amount,
+                                                line.currency,
+                                            )}{' '}
+                                            {line.currency}
                                         </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
-                    </section>
-                )}
-                <section className="space-y-3">
-                    <h2 className="text-lg font-semibold">
-                        Fixed nightly prices
-                    </h2>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Night</TableHead>
-                                <TableHead numeric>Amount</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {reservation.price_lines.map((line) => (
-                                <TableRow key={line.id}>
-                                    <TableCell>
-                                        {formatDate(line.date, 'UTC')}
-                                    </TableCell>
-                                    <TableCell numeric>
-                                        {formatMoney(
-                                            line.amount,
-                                            line.currency,
-                                        )}{' '}
-                                        {line.currency}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </section>
+                    </CollapsibleContent>
+                </Collapsible>
             </div>
         </>
     );
