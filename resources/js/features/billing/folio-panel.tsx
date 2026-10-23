@@ -32,6 +32,7 @@ import { show as showReceipt } from '@/routes/receipts';
 import type { Paginated } from '@/types';
 import { FolioSummaryList, type FolioTotal } from './folio-summary';
 import { statement } from '@/routes/reservations';
+import { PaymentsReceived, type ReceivedPayment } from './payments-received';
 
 export type Posting = {
     id: string;
@@ -68,6 +69,7 @@ export type Folio = {
     balance: number;
     number: number;
     postings: Paginated<Posting>;
+    payments: Paginated<ReceivedPayment>;
 };
 export type { FolioTotal } from './folio-summary';
 
@@ -309,6 +311,11 @@ export function FolioPanel({
                         </Table>
                     )}
                     <Pagination page={folio.postings} />
+                    <PaymentsReceived
+                        payments={folio.payments}
+                        currency={folio.currency}
+                        timezone={timezone}
+                    />
                     {canPostCharge && <ExtraChargeForm folio={folio} />}
                     {canRecordPayment && (
                         <PaymentForm

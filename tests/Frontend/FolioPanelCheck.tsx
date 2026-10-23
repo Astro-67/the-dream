@@ -9,6 +9,7 @@ import {
 } from '@/features/billing/folio-panel';
 import type { FolioSummary } from '@/features/billing/folio-summary';
 import type { Paginated } from '@/types';
+import { PaymentsReceived } from '@/features/billing/payments-received';
 
 const posting: Posting = {
     id: 'posting-in',
@@ -110,6 +111,7 @@ const folios: Folio[] = Array.from({ length: 50 }, (_, index) => ({
     currency: 'USD',
     balance: 0,
     postings: pageOf<Posting>([]),
+    payments: pageOf<Posting>([]),
 }));
 folios[0].postings = pageOf([
     {
@@ -198,3 +200,44 @@ assert.match(panel, /<option value="card" selected="">/);
 assert.doesNotMatch(panel, /<option value="bank_transfer"/);
 assert.doesNotMatch(panel, /<option value="cash"/);
 console.log('Only the selected folio mounts action forms: PASS');
+
+const paymentsReceived = renderToStaticMarkup(
+    <PaymentsReceived
+        payments={pageOf([
+            {
+                ...posting,
+                id: 'deposit-151',
+                type: 'payment',
+                category: 'deposit',
+                method: 'bank_transfer',
+                amount: -2500,
+                actor: 'Front desk agent',
+                reference: 'BANK-151',
+                receipt: { id: 'receipt-151', number: 'RCT-000151' },
+            },
+            { ...posting, type: 'refund', amount: 500, method: 'card' },
+        ])}
+        currency="USD"
+        timezone="UTC"
+    />,
+);
+assert.match(paymentsReceived, /Payments received/);
+assert.match(paymentsReceived, /Deposit/);
+assert.match(paymentsReceived, /Bank transfer/);
+assert.match(paymentsReceived, /USD 25\.00/);
+assert.match(paymentsReceived, /Refund/);
+assert.match(paymentsReceived, /USD -5\.00/);
+assert.match(paymentsReceived, /Front desk agent/);
+assert.match(paymentsReceived, /BANK-151/);
+assert.match(paymentsReceived, /receipts\/receipt-151/);
+assert.match(paymentsReceived, /RCT-000151/);
+assert.equal(
+    renderToStaticMarkup(
+        <PaymentsReceived
+            payments={pageOf([])}
+            currency="USD"
+            timezone="UTC"
+        />,
+    ),
+    '',
+);
