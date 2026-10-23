@@ -46,11 +46,12 @@ final class PropertyFinance
      * @param  Collection<int, Property>  $properties
      * @return LengthAwarePaginator<int, array{id: string, propertyId: string, reservationNumber: string, status: string, departure: string, departed: bool, currency: string, balance: int, guest: string|null, room: string|null, charges: int, netPayments: int, notYetCharged: bool}>
      */
-    public function folios(Collection $properties, ?int $total = null, bool $settled = false, ?string $from = null, ?string $to = null): LengthAwarePaginator
+    public function folios(Collection $properties, ?int $total = null, bool $settled = false, ?string $from = null, ?string $to = null, ?string $reservationId = null): LengthAwarePaginator
     {
         $settledDeparting = $settled && $from !== null && $to !== null ? ['from' => $from, 'to' => $to] : null;
         $ids = Property::query()->real()->whereKey($properties->pluck('id'))->pluck('id');
         $page = self::unsettled($ids, $settledDeparting)
+            ->when($reservationId !== null, fn ($query) => $query->where('folios.reservation_id', $reservationId))
             ->select(['folios.id', 'folios.property_id', 'folios.currency', 'folios.reservation_id', 'reservations.reservation_number', 'reservations.status', 'reservations.departure'])
             ->selectRaw('COALESCE(balances.balance, 0) as balance')
             ->orderBy('reservations.departure')->orderBy('reservations.reservation_number')->orderBy('folios.currency')->orderBy('folios.id')

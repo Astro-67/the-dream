@@ -38,3 +38,24 @@ test('the reservation filter applies to both payment rows and received totals', 
         ->where('received.totals.0.payments', 2500)
         ->where('received.totals.0.net', 2500));
 });
+
+test('the reservation filter also scopes the outstanding view', function () {
+    $t = twoTenants();
+    [$reservation, $folio] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(CreateRoom::class)->handle($t->a->owner, [...InventoryForm::room($details['room_type_id']), 'number' => '102']);
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, $details);
+        app(CreateReservation::class)->handle($t->a->owner, $details);
+
+        return [$reservation, Folio::query()->where('reservation_id', $reservation->id)->sole()];
+    });
+
+    $this->actingAs($t->a->owner)->withSession([
+        'tenancy.organization_id' => $t->a->organization->id,
+        'tenancy.property_id' => $t->a->property->id,
+    ])->get(route('payments.index', [
+        'reservation' => $reservation->id, 'view' => 'outstanding', 'settled' => 1,
+        'period' => 'custom', 'from' => '2026-12-10', 'to' => '2026-12-12',
+    ]))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('folios.data', 1)->where('folios.data.0.id', $folio->id));
+});

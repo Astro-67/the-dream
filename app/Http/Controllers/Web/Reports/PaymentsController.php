@@ -26,7 +26,7 @@ class PaymentsController extends Controller
             'reservationNumber' => isset($filters['reservation']) ? Reservation::query()->where('property_id', $property->id)->findOrFail($filters['reservation'])->reservation_number : null,
             'received' => $filters['view'] === 'received' ? $collections->received($property, $filters['from'], $filters['to'], $filters['reservation'] ?? null) : null,
             'payments' => $filters['view'] === 'received' ? $collections->payments($property, $filters['from'], $filters['to'], $filters['reservation'] ?? null) : null,
-            'folios' => $filters['view'] === 'outstanding' ? $finance->folios(collect([$property]), settled: $filters['settled'], from: $filters['from'], to: $filters['to']) : null,
+            'folios' => $filters['view'] === 'outstanding' ? $finance->folios(collect([$property]), settled: $filters['settled'], from: $filters['from'], to: $filters['to'], reservationId: $filters['reservation'] ?? null) : null,
             'refreshedAt' => now()->toIso8601String(),
             'cashierShiftHistoryUrl' => Gate::allows('viewAny', CashierShift::class)
                 && $collections->cashierShiftHistoryAvailable($property)
