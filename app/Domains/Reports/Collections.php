@@ -62,7 +62,7 @@ final class Collections
      */
     public function payments(Property $property, string $from, string $to, ?string $reservationId = null): LengthAwarePaginator
     {
-        $query = Posting::query()->where('property_id', $property->id)->whereNotNull('method')->whereIn('type', ['payment', 'refund', 'reversal'])
+        $query = Posting::query()->where('property_id', $property->id)->moneyMovements()
             ->when($reservationId !== null, fn ($query) => $query->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservationId)))
             ->whereDate('business_date', '>=', $from)->whereDate('business_date', '<=', $to)->orderByDesc('posted_at')->orderByDesc('id');
         $rows = $query->clone()->paginate(50, ['*'], 'payments_page')->withQueryString();

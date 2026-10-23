@@ -71,7 +71,7 @@ class ReservationController extends Controller
         $folioPage->setCollection(clone $folios->getCollection());
         $paymentRange = Posting::query()->where('property_id', $property->id)
             ->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
-            ->whereNotNull('method')->whereIn('type', ['payment', 'refund', 'reversal'])
+            ->moneyMovements()
             ->selectRaw('MIN(business_date) as first_date, MAX(business_date) as last_date')->toBase()->first();
 
         return Inertia::render('reservations/show', [
@@ -83,7 +83,7 @@ class ReservationController extends Controller
             'folios' => $folioPage->through(fn (Folio $folio, int $index) => [
                 'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => (int) $folio->getAttribute('balance_amount'),
                 'number' => ($folios->firstItem() ?? 1) + $index,
-                'payments' => $folio->postings()->whereNotNull('method')->whereIn('type', ['payment', 'refund', 'reversal'])
+                'payments' => $folio->postings()->moneyMovements()
                     ->with(['actor:id,name', 'receipt:id,posting_id,number'])->reorder()->orderByDesc('posted_at')->orderByDesc('id')
                     ->paginate(50, ['*'], 'payments_page_'.$folio->id)->withQueryString()->through(fn (Posting $posting) => [
                         ...$posting->only(['id', 'type', 'category', 'amount', 'method', 'reference']),

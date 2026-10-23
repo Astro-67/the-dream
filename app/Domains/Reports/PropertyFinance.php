@@ -154,7 +154,7 @@ final class PropertyFinance
         $properties = Property::query()->real()->whereKey($properties->pluck('id'))->get();
         $rows = Posting::query()->whereIn('postings.property_id', $properties->pluck('id'))
             ->when($reservationId !== null, fn ($query) => $query->whereIn('postings.folio_id', Folio::query()->select('id')->where('reservation_id', $reservationId)))
-            ->whereNotNull('postings.method')->whereIn('postings.type', ['payment', 'refund', 'reversal'])
+            ->moneyMovements()
             ->where('postings.business_date', '>=', $from)->where('postings.business_date', '<', CarbonImmutable::parse($to)->addDay()->toDateString())
             ->leftJoin('cashier_shifts', 'cashier_shifts.id', '=', 'postings.cashier_shift_id')
             ->leftJoin('users', 'users.id', '=', 'cashier_shifts.user_id')
