@@ -111,7 +111,7 @@ export function FolioSummaryList({
 
     return (
         <div className="space-y-2">
-            <dl className="grid max-w-md grid-cols-[1fr_auto] gap-x-6 gap-y-1">
+            <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1">
                 {rows.map(([label, amount, strong]) => (
                     <div key={label} className="contents">
                         <dt

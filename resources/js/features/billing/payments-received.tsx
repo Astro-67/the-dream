@@ -46,7 +46,6 @@ export function PaymentsReceived({
 
     return (
         <section className="space-y-3">
-            <h3 className="font-semibold">Payments received</h3>
             {payments.data.length === 0 ? (
                 <EmptyState message="No payments on this page. Choose another page." />
             ) : (

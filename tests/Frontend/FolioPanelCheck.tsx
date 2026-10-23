@@ -5,10 +5,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { PostingLink } from '@/features/billing/folio-corrections';
 import {
     FolioPanel,
+    ExtraChargeForm,
     type Folio,
     type Posting,
 } from '@/features/billing/folio-panel';
-import type { FolioSummary } from '@/features/billing/folio-summary';
+import {
+    FolioSummaryList,
+    type FolioSummary,
+} from '@/features/billing/folio-summary';
 import type { Paginated } from '@/types';
 import { PaymentsReceived } from '@/features/billing/payments-received';
 import { PaymentForm } from '@/features/billing/payment-form';
@@ -133,6 +137,16 @@ folios[0].postings = pageOf([
         method: 'card',
     },
 ]);
+folios[0].payments = pageOf([
+    {
+        ...posting,
+        id: 'received',
+        type: 'payment',
+        category: 'payment',
+        amount: -2500,
+        reference: 'HIDDEN-PAYMENT',
+    },
+]);
 const folioPage = {
     ...pageOf(folios),
     total: 51,
@@ -145,7 +159,7 @@ const folioPage = {
         { url: '/reservation?folios_page=2', label: 'Next', active: false },
     ],
 };
-function renderPanel(canRecordPayment = true) {
+function renderPanel(canRecordPayment = true, content?: ReactNode) {
     return renderToStaticMarkup(
         <App
             initialPage={{
@@ -158,61 +172,81 @@ function renderPanel(canRecordPayment = true) {
                     errors: {},
                     tenant: { property: { id: 'property', timezone: 'UTC' } },
                     reservation: { reservation_number: 'R-1042' },
-                    canRefund: false,
-                    canWriteOff: false,
-                    canOpenFolio: false,
+                    canRefund: true,
+                    canWriteOff: true,
+                    canOpenFolio: true,
                     canReverse: false,
                     canTransfer: false,
                     folioCurrencies: ['USD'],
                 },
             }}
-            initialComponent={() => (
-                <FolioPanel
-                    stay={{
-                        reservation_number: 'R-1042',
-                        guest: 'Amina Due',
-                        room: '101',
-                        room_type: 'Deluxe Double',
-                        nights: 2,
-                    }}
-                    folios={folioPage}
-                    totals={[
-                        {
-                            currency: 'USD',
-                            ...emptySummary,
-                            estimate: { nights: 2, amount: 20000 },
-                            due: 20000,
-                            status: 'unpaid',
-                        },
-                        {
-                            currency: 'TZS',
-                            ...emptySummary,
-                            net_payments: 5000,
-                            balance: -5000,
-                            estimate: null,
-                            due: -5000,
-                            status: 'paid',
-                        },
-                    ]}
-                    canPostCharge
-                    canRecordPayment={canRecordPayment}
-                    acceptedPaymentMethods={['card', 'other']}
-                    extraCategories={['spa', 'other']}
-                />
-            )}
+            initialComponent={() =>
+                content ?? (
+                    <FolioPanel
+                        stay={{
+                            reservation_number: 'R-1042',
+                            guest: 'Amina Due',
+                            room: '101',
+                            room_type: 'Deluxe Double',
+                            nights: 2,
+                        }}
+                        folios={folioPage}
+                        totals={[
+                            {
+                                currency: 'USD',
+                                ...emptySummary,
+                                estimate: { nights: 2, amount: 20000 },
+                                due: 20000,
+                                status: 'unpaid',
+                            },
+                            {
+                                currency: 'TZS',
+                                ...emptySummary,
+                                net_payments: 5000,
+                                balance: -5000,
+                                estimate: null,
+                                due: -5000,
+                                status: 'paid',
+                            },
+                        ]}
+                        canPostCharge
+                        canRecordPayment={canRecordPayment}
+                        acceptedPaymentMethods={['card', 'other']}
+                        extraCategories={['spa', 'other']}
+                    />
+                )
+            }
         />,
     );
 }
 const panel = renderPanel();
-assert.equal((panel.match(/<form\b/g) ?? []).length, 1);
+assert.match(panel, /Payments received \(1\)/);
+assert.doesNotMatch(panel, /HIDDEN-PAYMENT/);
+assert.equal((panel.match(/<form\b/g) ?? []).length, 0);
+assert.match(panel, /Post an extra/);
+assert.match(panel, /Refunds and write-offs/);
+assert.match(panel, /Open another folio/);
+assert.equal((panel.match(/Show breakdown for /g) ?? []).length, 2);
+assert.doesNotMatch(
+    panel,
+    /name="category"|name="currency"|Room charges, net of tax/,
+);
 assert.match(panel, /Record payment for this USD folio/);
 assert.match(panel, /aria-haspopup="dialog"/);
 assert.doesNotMatch(renderPanel(false), /Record payment for this/);
 assert.doesNotMatch(panel, /name="idempotency_key"[^>]*payment/);
+// Test the hidden breakdown directly rather than dropping its coverage.
+const breakdown = renderToStaticMarkup(
+    <FolioSummaryList
+        summary={emptySummary}
+        currency="USD"
+        estimate={{ nights: 2, amount: 20000 }}
+    />,
+);
 // A zero balance with nights still to charge is not called settled.
-assert.match(panel, /Balance of posted charges/);
-assert.doesNotMatch(panel, /Settled/);
-assert.match(panel, /Not yet charged: 2 nights/);
+assert.match(breakdown, /Balance of posted charges/);
+assert.doesNotMatch(breakdown, /Settled/);
+assert.match(breakdown, /Not yet charged: 2 nights/);
 assert.match(panel, /Amina Due/);
 assert.match(panel, /Deluxe Double/);
 assert.match(panel, />Unpaid</);
@@ -228,13 +262,20 @@ assert.match(panel, /Sunset boat trip/);
 assert.match(panel, /Minibar/);
 assert.match(panel, /Room charge/);
 assert.match(panel, /Payment/);
-assert.match(panel, /Item name/);
-assert.match(panel, /VAT-inclusive unit price/);
-assert.match(panel, /name="category"/);
+const extra = renderPanel(
+    true,
+    <ExtraChargeForm folio={folios[0]} categories={['spa', 'other']} />,
+);
+assert.equal((extra.match(/<form\b/g) ?? []).length, 1);
+assert.match(extra, /Item name/);
+assert.match(extra, /VAT-inclusive unit price/);
+assert.match(extra, /name="category"/);
 // Category options are the server's list, labelled here.
-assert.match(panel, /<option value="spa">Spa<\/option>/);
-assert.doesNotMatch(panel, /<option value="restaurant">/);
-console.log('Only the selected folio mounts action forms: PASS');
+assert.match(extra, /<option value="spa">Spa<\/option>/);
+assert.doesNotMatch(extra, /<option value="restaurant">/);
+console.log(
+    'Folio actions start closed; extracted extra form retains category coverage: PASS',
+);
 
 function changePaymentField(
     node: ReactNode,

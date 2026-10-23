@@ -1,3 +1,10 @@
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { Form, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
@@ -20,13 +27,32 @@ export function AdjustmentForms({ folio }: { folio: Folio }) {
         canWriteOff: boolean;
     }>().props;
 
+    if (!canRefund && !(canWriteOff && folio.balance > 0)) return null;
+
     return (
-        <div className="space-y-6">
-            {canRefund && <AdjustmentForm folio={folio} type="refund" />}
-            {canWriteOff && folio.balance > 0 && (
-                <AdjustmentForm folio={folio} type="write_off" />
-            )}
-        </div>
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="secondary" className="min-h-11">
+                    Refunds and write-offs
+                </Button>
+            </DialogTrigger>
+            <DialogContent
+                className="max-h-[90dvh] overflow-y-auto sm:max-w-[720px]"
+                aria-describedby={undefined}
+            >
+                <DialogHeader>
+                    <DialogTitle>Refunds and write-offs</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6 md:space-y-8">
+                    {canRefund && (
+                        <AdjustmentForm folio={folio} type="refund" />
+                    )}
+                    {canWriteOff && folio.balance > 0 && (
+                        <AdjustmentForm folio={folio} type="write_off" />
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 

@@ -1,3 +1,9 @@
+import { ChevronDown } from 'lucide-react';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Form, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
@@ -307,40 +313,53 @@ export function OpenFolioForm() {
     }
 
     return (
-        <Form
-            {...openFolio.form(reservation.reservation_number)}
-            options={{ preserveScroll: true }}
-            className="flex max-w-[720px] flex-wrap items-end gap-3"
-        >
-            {({ errors, processing }) => (
-                <>
-                    <PropertyIntent />
-                    <div className="space-y-2">
-                        <Label htmlFor="open-folio-currency">
-                            Open another folio in
-                        </Label>
-                        <NativeSelect
-                            id="open-folio-currency"
-                            name="currency"
-                            required
-                            aria-invalid={Boolean(errors.currency)}
-                        >
-                            {folioCurrencies.map((currency) => (
-                                <option key={currency} value={currency}>
-                                    {currency}
-                                </option>
-                            ))}
-                        </NativeSelect>
-                    </div>
-                    <Button variant="secondary" disabled={processing}>
-                        <span className="size-4">
-                            {processing && <Spinner />}
-                        </span>
-                        Open folio
-                    </Button>
-                    <InputError message={errors.currency} className="w-full" />
-                </>
-            )}
-        </Form>
+        <Collapsible>
+            <CollapsibleTrigger asChild>
+                <Button variant="secondary" className="group min-h-11">
+                    Open another folio
+                    <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-4">
+                <Form
+                    {...openFolio.form(reservation.reservation_number)}
+                    options={{ preserveScroll: true }}
+                    className="flex max-w-[720px] flex-wrap items-end gap-3"
+                >
+                    {({ errors, processing }) => (
+                        <>
+                            <PropertyIntent />
+                            <div className="space-y-2">
+                                <Label htmlFor="open-folio-currency">
+                                    Open another folio in
+                                </Label>
+                                <NativeSelect
+                                    id="open-folio-currency"
+                                    name="currency"
+                                    required
+                                    aria-invalid={Boolean(errors.currency)}
+                                >
+                                    {folioCurrencies.map((currency) => (
+                                        <option key={currency} value={currency}>
+                                            {currency}
+                                        </option>
+                                    ))}
+                                </NativeSelect>
+                            </div>
+                            <Button variant="secondary" disabled={processing}>
+                                <span className="size-4">
+                                    {processing && <Spinner />}
+                                </span>
+                                Open folio
+                            </Button>
+                            <InputError
+                                message={errors.currency}
+                                className="w-full"
+                            />
+                        </>
+                    )}
+                </Form>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
