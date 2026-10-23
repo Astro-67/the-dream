@@ -77,8 +77,8 @@ class ReservationController extends Controller
         return Inertia::render('reservations/show', [
             'paymentsReportUrl' => Gate::allows('view', PropertyKpis::class) ? route('payments.index', [
                 'reservation' => $reservation->id, 'period' => 'custom',
-                'from' => CarbonImmutable::parse($paymentRange?->first_date ?? BusinessDate::current())->toDateString(),
-                'to' => CarbonImmutable::parse($paymentRange?->last_date ?? BusinessDate::current())->toDateString(),
+                'from' => CarbonImmutable::parse($paymentRange->first_date ?? BusinessDate::current())->toDateString(),
+                'to' => CarbonImmutable::parse($paymentRange->last_date ?? BusinessDate::current())->toDateString(),
             ]) : null,
             'folios' => $folioPage->through(fn (Folio $folio, int $index) => [
                 'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => (int) $folio->getAttribute('balance_amount'),

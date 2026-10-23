@@ -34,7 +34,7 @@ test('a folio lists deposits payments and refunds independently of its charge pa
         'reason' => 'Deposit correction', 'reference' => 'REFUND-151', 'idempotency_key' => 'refund-151',
     ])->assertRedirect()->assertSessionHasNoErrors();
 
-    $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
+    $response = $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->has('folios.data.0.postings.data', 50)
         ->has('folios.data.0.payments.data', 2)
         ->where('folios.data.0.payments.data.0.type', 'refund')
@@ -48,6 +48,42 @@ test('a folio lists deposits payments and refunds independently of its charge pa
         ->where('folios.data.0.payments.data.1.reference', 'BANK-151')
         ->where('folios.data.0.payments.data.1.receipt.number', 'RCT-000001')
         ->where('folios.data.0.payments.data.1.receipt.id', basename($deposit->headers->get('Location'))));
+    $this->get($response->viewData('page')['props']['paymentsReportUrl'])->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('payments.data', 2)
+        ->where('received.totals.0.payments', 2500)
+        ->where('received.totals.0.refunds', 500)
+        ->where('received.totals.0.net', 2000));
+});
+
+test('received payment pages retain their folio and reservation filters', function () {
+    $t = twoTenants();
+    [$reservation, $folio] = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+
+        return [$reservation, Folio::query()->sole()];
+    });
+    $this->actingAs($t->a->owner)->withSession([
+        'tenancy.organization_id' => $t->a->organization->id,
+        'tenancy.property_id' => $t->a->property->id,
+    ]);
+    for ($index = 0; $index < 51; $index++) {
+        $this->post(route('folios.payments.store', $folio), [
+            '_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 100,
+            'reference' => 'Payment-'.$index, 'idempotency_key' => 'page-'.$index,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+    }
+
+    $response = $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('folios.data.0.payments.data', 50)->where('folios.data.0.payments.total', 51));
+    $this->get($response->viewData('page')['props']['folios']['data'][0]['payments']['next_page_url'])
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('folios.data.0.payments.data', 1)->where('folios.data.0.payments.data.0.reference', 'Payment-0'));
+    $report = $this->get($response->viewData('page')['props']['paymentsReportUrl'])->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('payments.data', 50)->where('payments.total', 51)->where('received.totals.0.net', 5100));
+    $this->get($report->viewData('page')['props']['payments']['next_page_url'])->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('filters.reservation', $reservation->id)
+        ->has('payments.data', 1)->where('payments.data.0.reference', 'Payment-0')
+        ->where('received.totals.0.net', 5100));
 });
 
 test('the folio report link includes historical payments across reservation folios', function () {
