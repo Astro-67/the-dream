@@ -40,7 +40,11 @@ import {
 } from './folio-corrections';
 import { show as showReceipt } from '@/routes/receipts';
 import type { Paginated } from '@/types';
-import { FolioSummaryList, type FolioTotal } from './folio-summary';
+import {
+    FolioSummaryList,
+    paymentStatus,
+    type FolioTotal,
+} from './folio-summary';
 import { statement } from '@/routes/reservations';
 import { PaymentsReceived, type ReceivedPayment } from './payments-received';
 
@@ -89,12 +93,6 @@ export type FolioStay = {
     room_type: string | null;
     nights: number;
 };
-
-const paymentStatus = {
-    unpaid: { label: 'Unpaid', tone: 'error' },
-    partially_paid: { label: 'Partially paid', tone: 'warning' },
-    paid: { label: 'Paid', tone: 'success' },
-} as const;
 
 /** Total charges, Paid and Due for one currency; Due counts unposted nights as an estimate. */
 function FolioDue({ total }: { total: FolioTotal }) {
@@ -165,7 +163,7 @@ export function FolioPanel({
     totals,
     canPostCharge,
     canRecordPayment = false,
-    channelCollected = false,
+    channelCollectedAmount = null,
     acceptedPaymentMethods,
     reservationNumber,
     stay,
@@ -178,7 +176,7 @@ export function FolioPanel({
     totals: FolioTotal[];
     canPostCharge: boolean;
     canRecordPayment?: boolean;
-    channelCollected?: boolean;
+    channelCollectedAmount?: number | null;
     acceptedPaymentMethods: string[];
 }) {
     const { tenant } = usePage().props;
@@ -458,7 +456,9 @@ export function FolioPanel({
                                 <PaymentForm
                                     folio={folio}
                                     total={total}
-                                    channelCollected={channelCollected}
+                                    channelCollectedAmount={
+                                        channelCollectedAmount
+                                    }
                                     acceptedMethods={acceptedPaymentMethods}
                                 />
                             </DialogContent>

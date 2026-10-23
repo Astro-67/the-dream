@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { App } from '@inertiajs/react';
+import { isValidElement, useState, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PostingLink } from '@/features/billing/folio-corrections';
 import {
@@ -231,7 +232,71 @@ assert.match(panel, /VAT-inclusive unit price/);
 assert.match(panel, /name="category"/);
 console.log('Only the selected folio mounts action forms: PASS');
 
-function paymentForm(due: number, currency = 'USD') {
+function changePaymentField(
+    node: ReactNode,
+    field: string,
+    value: string,
+): boolean {
+    if (Array.isArray(node)) {
+        return node.some((child) => changePaymentField(child, field, value));
+    }
+    if (
+        !isValidElement<{
+            id?: string;
+            children?:
+                | ReactNode
+                | ((state: {
+                      errors: Record<string, string>;
+                      processing: boolean;
+                  }) => ReactNode);
+            onChange?: (event: { target: { value: string } }) => void;
+        }>(node)
+    )
+        return false;
+    if (node.props.id === `payment-folio-payment-${field}`) {
+        assert.ok(node.props.onChange);
+        node.props.onChange({ target: { value } });
+        return true;
+    }
+    return changePaymentField(
+        typeof node.props.children === 'function'
+            ? node.props.children({ errors: {}, processing: false })
+            : node.props.children,
+        field,
+        value,
+    );
+}
+
+function paymentForm(
+    due: number,
+    currency = 'USD',
+    amount?: string,
+    channelCollectedAmount: number | null = null,
+    selectedMethod?: string,
+) {
+    function PaymentCheck() {
+        const [changed, setChanged] = useState(false);
+        const form = PaymentForm({
+            folio: { id: 'folio-payment', currency },
+            total: {
+                ...emptySummary,
+                currency,
+                due,
+                status: 'unpaid',
+                estimate: null,
+            },
+            channelCollectedAmount,
+            acceptedMethods: ['card', 'other', 'channel_collected'],
+        });
+        if (!changed) {
+            if (amount !== undefined)
+                assert.ok(changePaymentField(form, 'amount', amount));
+            if (selectedMethod)
+                assert.ok(changePaymentField(form, 'method', selectedMethod));
+            setChanged(true);
+        }
+        return form;
+    }
     return renderToStaticMarkup(
         <App
             initialPage={{
@@ -245,20 +310,7 @@ function paymentForm(due: number, currency = 'USD') {
                     tenant: { property: { id: 'property' } },
                 },
             }}
-            initialComponent={() => (
-                <PaymentForm
-                    folio={{ id: 'folio-payment', currency }}
-                    total={{
-                        ...emptySummary,
-                        currency,
-                        due,
-                        status: 'unpaid',
-                        estimate: null,
-                    }}
-                    channelCollected={false}
-                    acceptedMethods={['card', 'other']}
-                />
-            )}
+            initialComponent={PaymentCheck}
         />,
     );
 }
@@ -278,6 +330,36 @@ assert.match(paymentForm(0), /name="amount" value=""/);
 assert.match(paymentForm(-5000), /name="amount" value=""/);
 assert.match(paymentForm(25000, 'TZS'), /value="25000"/);
 console.log('Payment defaults and existing fields: PASS');
+assert.match(payment, /After this payment/);
+assert.match(payment, /Due: USD 0\.00/);
+assert.match(payment, />Paid</);
+const partial = paymentForm(20000, 'USD', '50');
+assert.match(partial, /Due: USD 150\.00/);
+assert.match(partial, />Partially paid</);
+assert.doesNotMatch(partial, /This exceeds Due/);
+const overpayment = paymentForm(20000, 'USD', '250');
+assert.match(overpayment, /Credit: USD 50\.00/);
+assert.match(overpayment, />Paid</);
+assert.match(overpayment, /This exceeds Due/);
+assert.doesNotMatch(overpayment, /<button[^>]* disabled=/);
+assert.doesNotMatch(overpayment, /max="200"/);
+assert.doesNotMatch(paymentForm(20000, 'USD', ''), /After this payment/);
+assert.doesNotMatch(paymentForm(20000, 'USD', '-1'), /After this payment/);
+assert.match(paymentForm(0, 'USD', '5'), /Credit: USD 5\.00/);
+assert.match(paymentForm(-5000, 'USD', '5'), /Credit: USD 55\.00/);
+assert.match(paymentForm(25000, 'TZS', '5000'), /Due: TZS 20,000/);
+assert.doesNotMatch(payment, /<option value="channel_collected"/);
+const channel = paymentForm(
+    20000,
+    'USD',
+    undefined,
+    24000,
+    'channel_collected',
+);
+assert.match(channel, /Credit: USD 40\.00/);
+assert.doesNotMatch(channel, /name="amount"/);
+assert.match(channel, /This exceeds Due/);
+console.log('Live payment preview and non-blocking credit warning: PASS');
 
 const paymentsReceived = renderToStaticMarkup(
     <PaymentsReceived
