@@ -30,7 +30,7 @@ test('front desk charges a free-text item at its VAT-inclusive price and sees it
 
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
         ->post(route('folios.charges.store', $folio), [
-            '_property' => $t->a->property->id, 'description' => 'Sunset boat trip', 'quantity' => 2,
+            '_property' => $t->a->property->id, 'category' => 'transport', 'description' => 'Sunset boat trip', 'quantity' => 2,
             'unit_price' => 590, 'idempotency_key' => 'boat-trip',
         ])->assertRedirect(route('reservations.show', $reservation))->assertSessionHasNoErrors();
 
@@ -62,7 +62,7 @@ test('a resubmitted charge form posts once', function () {
     $t = twoTenants();
     inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
     $folio = inTenant($t->a->property, fn () => Folio::query()->sole());
-    $form = ['_property' => $t->a->property->id, 'description' => 'Laundry', 'quantity' => 1, 'unit_price' => 900, 'idempotency_key' => '01JABCDEFGHJKMNPQRSTVWXYZ0'];
+    $form = ['_property' => $t->a->property->id, 'category' => 'laundry', 'description' => 'Laundry', 'quantity' => 1, 'unit_price' => 900, 'idempotency_key' => '01JABCDEFGHJKMNPQRSTVWXYZ0'];
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
 
     $this->post(route('folios.charges.store', $folio), $form)->assertSessionHasNoErrors();
@@ -87,8 +87,8 @@ test('the reservation shows its folio postings, totals per currency and balance'
     $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
     $folio = inTenant($t->a->property, fn () => Folio::query()->sole());
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk));
-    $this->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'description' => 'Minibar', 'quantity' => 2, 'unit_price' => 150, 'idempotency_key' => 'a']);
-    $this->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'description' => 'Laundry', 'quantity' => 1, 'unit_price' => 1000, 'idempotency_key' => 'b']);
+    $this->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'category' => 'minibar', 'description' => 'Minibar', 'quantity' => 2, 'unit_price' => 150, 'idempotency_key' => 'a']);
+    $this->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'category' => 'laundry', 'description' => 'Laundry', 'quantity' => 1, 'unit_price' => 1000, 'idempotency_key' => 'b']);
 
     $this->actingAs($t->a->member(OrganizationRole::Auditor))->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->has('folios.data', 1)
@@ -140,3 +140,29 @@ test('folio pages stay bounded and currency totals include folios outside the pa
     $this->get(route('reservations.show', [$reservation, 'folios_page' => 2]))->assertInertia(fn (Assert $page) => $page
         ->has('folios.data', 1)->where('folios.current_page', 2)->where('folios.data.0.balance', 100)->where('totals.0.balance', 100));
 });
+
+test('an extra posted with an allowed category keeps it on the folio line and in the totals as an extra', function (string $category) {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+    $folio = inTenant($t->a->property, fn () => Folio::query()->sole());
+
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->post(route('folios.charges.store', $folio), [
+        '_property' => $t->a->property->id, 'category' => $category, 'description' => 'Item', 'quantity' => 1, 'unit_price' => 700, 'idempotency_key' => 'cat',
+    ])->assertSessionHasNoErrors();
+
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('folios.data.0.postings.data.0.category', $category)
+        ->where('totals.0.charges', 700)->where('totals.0.extras', 700)->where('totals.0.balance', 700));
+})->with(['restaurant', 'bar', 'minibar', 'laundry', 'spa', 'transport', 'other']);
+
+test('an extra without a category or with a reserved posting category is refused', function (?string $category) {
+    $t = twoTenants();
+    inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+    $folio = inTenant($t->a->property, fn () => Folio::query()->sole());
+
+    $this->actingAs($t->a->owner)->postJson(route('folios.charges.store', $folio), array_filter([
+        '_property' => $t->a->property->id, 'category' => $category, 'description' => 'Item', 'quantity' => 1, 'unit_price' => 700, 'idempotency_key' => 'cat',
+    ]))->assertUnprocessable()->assertJsonValidationErrors(['category']);
+
+    expect(inTenant($t->a->property, fn () => Posting::query()->count()))->toBe(0);
+})->with([null, 'room', 'deposit', 'payment', 'refund', 'write_off']);
