@@ -272,10 +272,10 @@ function paymentForm(
     currency = 'USD',
     amount?: string,
     channelCollectedAmount: number | null = null,
-    selectedMethod?: string,
+    methodChanges: string[] = [],
 ) {
     function PaymentCheck() {
-        const [changed, setChanged] = useState(false);
+        const [changed, setChanged] = useState(0);
         const form = PaymentForm({
             folio: { id: 'folio-payment', currency },
             total: {
@@ -288,12 +288,16 @@ function paymentForm(
             channelCollectedAmount,
             acceptedMethods: ['card', 'other', 'channel_collected'],
         });
-        if (!changed) {
-            if (amount !== undefined)
-                assert.ok(changePaymentField(form, 'amount', amount));
-            if (selectedMethod)
-                assert.ok(changePaymentField(form, 'method', selectedMethod));
-            setChanged(true);
+        const changes = [
+            ...(amount === undefined
+                ? []
+                : [{ field: 'amount', value: amount }]),
+            ...methodChanges.map((value) => ({ field: 'method', value })),
+        ];
+        if (changed < changes.length) {
+            const change = changes[changed];
+            assert.ok(changePaymentField(form, change.field, change.value));
+            setChanged(changed + 1);
         }
         return form;
     }
@@ -349,16 +353,18 @@ assert.match(paymentForm(0, 'USD', '5'), /Credit: USD 5\.00/);
 assert.match(paymentForm(-5000, 'USD', '5'), /Credit: USD 55\.00/);
 assert.match(paymentForm(25000, 'TZS', '5000'), /Due: TZS 20,000/);
 assert.doesNotMatch(payment, /<option value="channel_collected"/);
-const channel = paymentForm(
-    20000,
-    'USD',
-    undefined,
-    24000,
+const channel = paymentForm(20000, 'USD', undefined, 24000, [
     'channel_collected',
-);
+]);
 assert.match(channel, /Credit: USD 40\.00/);
 assert.doesNotMatch(channel, /name="amount"/);
 assert.match(channel, /This exceeds Due/);
+const restoredAmount = paymentForm(20000, 'USD', '50', 24000, [
+    'channel_collected',
+    'card',
+]);
+assert.match(restoredAmount, /name="amount" value="5000"/);
+assert.match(restoredAmount, /Due: USD 150\.00/);
 console.log('Live payment preview and non-blocking credit warning: PASS');
 
 const paymentsReceived = renderToStaticMarkup(

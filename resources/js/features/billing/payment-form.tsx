@@ -106,7 +106,7 @@ export function PaymentForm({
                                 id={id('amount')}
                                 name="amount"
                                 currency={folio.currency}
-                                defaultValue={total.due > 0 ? total.due : ''}
+                                defaultValue={amount}
                                 onChange={(event) =>
                                     setAmount(
                                         toMinorUnits(
