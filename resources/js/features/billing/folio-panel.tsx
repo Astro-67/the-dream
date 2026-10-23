@@ -114,7 +114,7 @@ function FolioDue({ total }: { total: FolioTotal }) {
                 <h3 className="font-semibold">{total.currency}</h3>
                 <StatusChip tone={status.tone}>{status.label}</StatusChip>
             </div>
-            <dl className="grid grid-cols-3 gap-4">
+            <dl className="grid grid-cols-[1fr_1fr_auto] gap-3">
                 <div>
                     <dt className="text-sm text-muted-foreground">
                         Total charges
@@ -131,7 +131,7 @@ function FolioDue({ total }: { total: FolioTotal }) {
                     <dt className="text-sm text-muted-foreground">
                         {due.label}
                     </dt>
-                    <dd className="text-lg font-semibold tabular-nums">
+                    <dd className="text-base font-semibold tabular-nums sm:text-lg">
                         {due.amount}
                     </dd>
                 </div>
