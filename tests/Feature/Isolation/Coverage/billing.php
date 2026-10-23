@@ -100,7 +100,7 @@ return [
         });
         $responses = [];
         foreach ($t->a->members() as $member) {
-            $responses[] = $this->actingAs($member)->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'description' => 'Minibar', 'quantity' => 1, 'unit_price' => 100, 'idempotency_key' => 'attack'])->assertNotFound();
+            $responses[] = $this->actingAs($member)->post(route('folios.charges.store', $folio), ['_property' => $t->a->property->id, 'category' => 'minibar', 'description' => 'Minibar', 'quantity' => 1, 'unit_price' => 100, 'idempotency_key' => 'attack'])->assertNotFound();
         }
         expect(inTenant($t->b->property, fn () => Posting::query()->count()))->toBe(0);
 
