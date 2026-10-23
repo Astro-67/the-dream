@@ -9,22 +9,50 @@ use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 
-test('only the folio property accepted payment methods may be recorded', function () {
+test('only the folio property accepted payment methods may be recorded', function (string $method, string $disabled) {
     [$t, $folio] = folioForPayments();
-    $t->a->property->update(['payment_settings' => ['accepted_methods' => ['bank_transfer']]]);
+    $t->a->property->update(['payment_settings' => ['accepted_methods' => [$method]]]);
     $this->actingAs($t->a->owner)
         ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
 
     $this->postJson(route('folios.payments.store', $folio), [
-        '_property' => $t->a->property->id, 'method' => 'card', 'amount' => 100, 'idempotency_key' => 'disabled',
+        '_property' => $t->a->property->id, 'method' => $disabled, 'amount' => 100, 'idempotency_key' => 'disabled',
     ])->assertUnprocessable()->assertJsonValidationErrors('method');
     expect(inTenant($t->a->property, fn () => Posting::query()->count()))->toBe(0);
 
     $this->post(route('folios.payments.store', $folio), [
-        '_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 100, 'idempotency_key' => 'accepted',
+        '_property' => $t->a->property->id, 'method' => $method, 'amount' => 100, 'idempotency_key' => 'accepted',
     ])->assertSessionHasNoErrors();
     $this->get(route('reservations.show', inTenant($t->a->property, fn () => Reservation::query()->findOrFail($folio->reservation_id))))
-        ->assertInertia(fn (Assert $page) => $page->where('acceptedPaymentMethods', ['bank_transfer'])->where('folios.data.0.balance', -100));
+        ->assertInertia(fn (Assert $page) => $page->where('acceptedPaymentMethods', [$method])->where('folios.data.0.balance', -100)
+            ->where('folios.data.0.postings.data.0.method', $method));
+})->with([['bank_transfer', 'other'], ['other', 'card']]);
+
+test('Other payments and linked refunds appear on the receipt and payments report', function () {
+    [$t, $folio] = folioForPayments();
+    $this->actingAs($t->a->owner)
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+
+    $this->post(route('folios.payments.store', $folio), [
+        '_property' => $t->a->property->id, 'method' => 'other', 'amount' => 500, 'idempotency_key' => 'other-payment',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $receipt = inTenant($t->a->property, fn () => Receipt::query()->sole());
+    $this->get(route('receipts.show', $receipt))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('receipt.method', 'other')->where('receipt.amount', 500));
+
+    $this->post(route('folios.refunds.store', $folio), [
+        '_property' => $t->a->property->id, 'method' => 'other', 'amount' => 100, 'reason' => 'Deposit returned',
+        'payment_posting_id' => $receipt->posting_id, 'idempotency_key' => 'other-refund',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $this->get(route('receipts.show', $receipt))->assertInertia(fn (Assert $page) => $page
+        ->where('receipt.method', 'other')->where('receipt.amount', 500)
+        ->where('corrections.0.type', 'refund')->where('corrections.0.amount', 100));
+    $this->get(route('payments.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('payments.total', 2)
+        ->where('payments.data.0.type', 'refund')->where('payments.data.0.method', 'other')->where('payments.data.0.amount', -100)
+        ->where('payments.data.1.type', 'payment')->where('payments.data.1.method', 'other')->where('payments.data.1.amount', 500)
+        ->where('payments.data.1.receipt.number', $receipt->number)
+        ->where('received.rows.0.method', 'other')->where('received.rows.0.net', 400));
 });
 use Tests\Support\PropertyForm;
 use Tests\Support\TwoTenants;
@@ -81,6 +109,47 @@ test('a resubmitted payment form posts once and issues one receipt', function ()
     $this->post(route('folios.payments.store', $folio), $form)->assertSessionHasNoErrors();
 
     expect(inTenant($t->a->property, fn () => [Posting::query()->count(), Receipt::query()->count()]))->toBe([1, 1]);
+});
+
+test('the dialog payment route accepts partial, full and excess deposits and opens the receipt', function (int $amount, int $due, string $status) {
+    [$t, $folio] = folioForPayments(['adults' => 1, 'children' => 0]);
+    $reservation = inTenant($t->a->property, fn () => Reservation::query()->findOrFail($folio->reservation_id));
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('canRecordPayment', true)->where('totals.0.due', 20000)->where('totals.0.status', 'unpaid'));
+
+    $form = ['_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => $amount, 'reference' => 'DIALOG-150', 'idempotency_key' => 'dialog-150'];
+    $response = $this->post(route('folios.payments.store', $folio), $form)->assertRedirect()->assertSessionHasNoErrors();
+    $this->get($response->headers->get('Location'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('receipts/show')->where('receipt.amount', $amount)->where('receipt.deposit', true)
+        ->where('receipt.reference', 'DIALOG-150'));
+    $this->post(route('folios.payments.store', $folio), $form)->assertRedirect($response->headers->get('Location'))->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('totals.0.due', $due)->where('totals.0.status', $status)
+        ->where('folios.data.0.payments.total', 1)->where('folios.data.0.payments.data.0.amount', -$amount));
+})->with([[5000, 15000, 'partially_paid'], [20000, 0, 'paid'], [25000, -5000, 'paid']]);
+
+test('payment and refund routes remain available when nothing is due', function () {
+    [$t, $folio] = folioForPayments(['adults' => 1, 'children' => 0]);
+    $reservation = inTenant($t->a->property, fn () => Reservation::query()->findOrFail($folio->reservation_id));
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $payment = ['_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 20000, 'idempotency_key' => 'paid-150'];
+    $this->post(route('folios.payments.store', $folio), $payment)->assertRedirect()->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('totals.0.due', 0)->where('canRecordPayment', true)->where('canRefund', true));
+    $receipt = inTenant($t->a->property, fn () => Receipt::query()->sole());
+    $this->post(route('folios.refunds.store', $folio), [
+        '_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 100, 'reason' => 'Return deposit',
+        'payment_posting_id' => $receipt->posting_id, 'idempotency_key' => 'refund-150',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $this->post(route('folios.payments.store', $folio), [...$payment, 'amount' => 100, 'idempotency_key' => 'settled-again-150'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('totals.0.due', 0));
+    $this->post(route('folios.payments.store', $folio), [...$payment, 'amount' => 500, 'idempotency_key' => 'credit-150'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('totals.0.due', -500)->where('totals.0.status', 'paid'));
 });
 
 test('the non-fiscal receipt label uses the active translation', function () {

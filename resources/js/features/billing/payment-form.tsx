@@ -5,10 +5,17 @@ import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Input } from '@/components/ui/input';
-import { MoneyInput } from '@/components/ui/money-input';
+import { MoneyInput, toMinorUnits } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { store } from '@/routes/folios/payments';
+import {
+    dueLine,
+    paymentStatus,
+    statusFor,
+    type FolioTotal,
+} from './folio-summary';
+import { StatusChip } from '@/components/ui/status-chip';
 
 // Cash needs the cashier's open shift; the server refuses it otherwise.
 export const paymentMethods = {
@@ -17,6 +24,7 @@ export const paymentMethods = {
     mobile_money: 'Mobile money',
     card: 'Card charged outside Thedream',
     channel_collected: 'Channel-collected',
+    other: 'Other',
 };
 
 export const paymentMethodLabel = (method: string) =>
@@ -24,11 +32,13 @@ export const paymentMethodLabel = (method: string) =>
 
 export function PaymentForm({
     folio,
-    channelCollected,
+    total,
+    channelCollectedAmount,
     acceptedMethods,
 }: {
     folio: { id: string; currency: string };
-    channelCollected: boolean;
+    total: FolioTotal;
+    channelCollectedAmount: number | null;
     acceptedMethods: string[];
 }) {
     // One key per filled-in form, so a resubmission of the same form posts once.
@@ -37,12 +47,23 @@ export function PaymentForm({
     const methods = Object.entries(paymentMethods).filter(
         ([value]) =>
             acceptedMethods.includes(value) &&
-            (channelCollected || value !== 'channel_collected'),
+            (channelCollectedAmount !== null || value !== 'channel_collected'),
     );
     const [selectedMethod, setMethod] = useState('bank_transfer');
     const method = methods.some(([value]) => value === selectedMethod)
         ? selectedMethod
         : (methods[0]?.[0] ?? '');
+    const [amount, setAmount] = useState<number | ''>(
+        total.due > 0 ? total.due : '',
+    );
+    const paymentAmount =
+        method === 'channel_collected' ? channelCollectedAmount : amount;
+    const afterDue = total.due - Number(paymentAmount);
+    const afterStatus =
+        paymentStatus[
+            statusFor(afterDue, total.net_payments + Number(paymentAmount))
+        ];
+    const after = dueLine(afterDue, folio.currency);
 
     return (
         <Form
@@ -54,9 +75,6 @@ export function PaymentForm({
                 <>
                     <PropertyIntent />
                     <input type="hidden" name="idempotency_key" value={key} />
-                    <h3 className="font-semibold sm:col-span-2">
-                        Record a payment
-                    </h3>
                     <div className="space-y-2">
                         <Label htmlFor={id('method')}>Method</Label>
                         <NativeSelect
@@ -89,6 +107,15 @@ export function PaymentForm({
                                 id={id('amount')}
                                 name="amount"
                                 currency={folio.currency}
+                                defaultValue={amount}
+                                onChange={(event) =>
+                                    setAmount(
+                                        toMinorUnits(
+                                            event.target.value,
+                                            folio.currency,
+                                        ),
+                                    )
+                                }
                                 min={1}
                                 required
                                 aria-invalid={Boolean(errors.amount)}
@@ -144,6 +171,32 @@ export function PaymentForm({
                         message={errors.idempotency_key ?? errors.currency}
                         className="sm:col-span-2"
                     />
+                    {paymentAmount !== null &&
+                        paymentAmount !== '' &&
+                        paymentAmount > 0 && (
+                            <div
+                                aria-live="polite"
+                                className="space-y-2 sm:col-span-2"
+                            >
+                                <p className="text-sm font-medium">
+                                    After this payment
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="tabular-nums">
+                                        {after.label}: {after.amount}
+                                    </span>
+                                    <StatusChip tone={afterStatus.tone}>
+                                        {afterStatus.label}
+                                    </StatusChip>
+                                </div>
+                                {paymentAmount > total.due && (
+                                    <p className="text-sm text-status-warning">
+                                        This exceeds Due. Saving will leave a
+                                        credit on this folio.
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     <div className="sm:col-span-2">
                         <Button disabled={processing || methods.length === 0}>
                             <span className="size-4">

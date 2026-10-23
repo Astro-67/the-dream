@@ -1,5 +1,28 @@
 import { formatMoney } from '@/lib/utils';
 
+export const paymentStatus = {
+    unpaid: { label: 'Unpaid', tone: 'error' },
+    partially_paid: { label: 'Partially paid', tone: 'warning' },
+    paid: { label: 'Paid', tone: 'success' },
+} as const;
+
+/** Client copy of the status rule for the live preview; FolioSummary::totals() on the server owns it. */
+export function statusFor(
+    due: number,
+    netPayments: number,
+): keyof typeof paymentStatus {
+    if (due <= 0) return 'paid';
+    return netPayments > 0 ? 'partially_paid' : 'unpaid';
+}
+
+/** Due, or Credit once overpaid, never a negative Due. */
+export function dueLine(due: number, currency: string) {
+    return {
+        label: due < 0 ? 'Credit' : 'Due',
+        amount: formatMoney(Math.abs(due), currency),
+    };
+}
+
 export type FolioSummary = {
     room: number;
     extras: number;
@@ -18,6 +41,9 @@ export type FolioSummary = {
 export type FolioTotal = FolioSummary & {
     currency: string;
     estimate: { nights: number; amount: number } | null;
+    /** balance plus the estimate; worked out on the server. */
+    due: number;
+    status: 'unpaid' | 'partially_paid' | 'paid';
 };
 
 /** The balance line: owed, credit, or settled only when nothing is left to charge. */

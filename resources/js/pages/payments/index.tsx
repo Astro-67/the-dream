@@ -1,5 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
+import { Identifier } from '@/components/ui/identifier';
+import { Tag } from '@/components/ui/status-chip';
 import {
     CollectionsTable,
     PaymentsTable,
@@ -22,6 +24,7 @@ type Filters = {
     period: string;
     view: string;
     settled: boolean;
+    reservation?: string;
 };
 
 export default function Payments({
@@ -31,6 +34,7 @@ export default function Payments({
     folios,
     refreshedAt,
     cashierShiftHistoryUrl,
+    reservationNumber,
 }: {
     filters: Filters;
     received: Received | null;
@@ -38,10 +42,11 @@ export default function Payments({
     folios: PropertyFinance['folios'] | null;
     refreshedAt: string;
     cashierShiftHistoryUrl: string | null;
+    reservationNumber: string | null;
 }) {
     return (
         <ReportLayout
-            key={`${filters.from}-${filters.to}`}
+            key={`${filters.from}-${filters.to}-${filters.reservation ?? ''}`}
             title="Payments"
             filters={filters}
             refreshedAt={refreshedAt}
@@ -51,12 +56,34 @@ export default function Payments({
                 <>
                     <input type="hidden" name="view" value={filters.view} />
                     <input type="hidden" name="period" value="custom" />
+                    {filters.reservation && (
+                        <input
+                            type="hidden"
+                            name="reservation"
+                            value={filters.reservation}
+                        />
+                    )}
                     {filters.view === 'outstanding' && (
                         <ShowSettledField checked={filters.settled} />
                     )}
                 </>
             }
         >
+            {reservationNumber && (
+                <div className="flex flex-wrap items-center gap-3">
+                    <Tag active>
+                        Reservation <Identifier value={reservationNumber} />
+                    </Tag>
+                    <Link
+                        href={index({
+                            query: { ...filters, reservation: undefined },
+                        })}
+                        className="text-primary underline underline-offset-4"
+                    >
+                        Clear reservation filter
+                    </Link>
+                </div>
+            )}
             <nav aria-label="Payment period" className="flex flex-wrap gap-2">
                 {Object.entries(periodLabels)
                     .filter(([period]) => period !== 'custom')
@@ -73,7 +100,11 @@ export default function Payments({
                         >
                             <Link
                                 href={index({
-                                    query: { period, view: filters.view },
+                                    query: {
+                                        period,
+                                        view: filters.view,
+                                        reservation: filters.reservation,
+                                    },
                                 })}
                                 aria-current={
                                     filters.period === period

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Reservations;
 
+use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
@@ -13,6 +14,7 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
 use App\Domains\Rates\StayRestrictions;
+use App\Domains\Reports\PropertyKpis;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\AssignableRooms;
 use App\Domains\Reservations\BookingRules;
@@ -67,11 +69,19 @@ class ReservationController extends Controller
             ->orderBy('created_at')->orderBy('id')->paginate(50, ['*'], 'folios_page')->withQueryString();
         $folioPage = clone $folios;
         $folioPage->setCollection(clone $folios->getCollection());
+        $payments = FolioSummary::payments($folios->getCollection());
 
         return Inertia::render('reservations/show', [
+            'paymentsReportUrl' => Gate::allows('view', PropertyKpis::class)
+                ? route('payments.index', ['reservation' => $reservation->id, 'period' => 'custom', ...FolioSummary::paymentDates($reservation)]) : null,
             'folios' => $folioPage->through(fn (Folio $folio, int $index) => [
                 'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => (int) $folio->getAttribute('balance_amount'),
                 'number' => ($folios->firstItem() ?? 1) + $index,
+                'payments' => $payments[$folio->id]->through(fn (Posting $posting) => [
+                    ...$posting->only(['id', 'type', 'category', 'amount', 'method', 'reference']),
+                    'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
+                    'receipt' => $posting->receipt?->only(['id', 'number']),
+                ]),
                 'postings' => $folio->postings()->with(['actor:id,name', 'receipt:id,posting_id,number', 'related:id,type,category,folio_id', 'cancelledBy:id,type,folio_id,related_posting_id', 'cancelledBy.cancelledBy:id,folio_id,related_posting_id'])
                     ->paginate(50, ['*'], 'postings_page_'.$folio->id)->withQueryString()->through(fn (Posting $posting) => [
                         ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),
@@ -89,12 +99,14 @@ class ReservationController extends Controller
                     ]),
             ]),
             'totals' => FolioSummary::totals($reservation),
+            'stay' => $reservation->stay(),
             'checkoutBalances' => FolioSummary::checkoutBalances(collect([$reservation]))[$reservation->id] ?? [],
             'feeProposals' => FeeProposal::query()->where('reservation_id', $reservation->id)->orderBy('created_at')->get()->map(fn (FeeProposal $fee) => [
                 ...$fee->only(['id', 'kind', 'amount', 'status', 'reason', 'fiscal_exception_candidate']), 'currency' => $fee->currency->value,
                 'can_resolve' => $fee->status === 'proposed' && Gate::allows('resolve', $fee),
             ])->all(),
             'canPostCharge' => $folios->isNotEmpty() && Gate::allows('postCharge', $folios->first()),
+            'extraCategories' => PostExtraCharge::CATEGORIES,
             'canReverse' => $folios->isNotEmpty() && Gate::allows('reverse', $folios->first()),
             'canTransfer' => $folios->total() > 1 && $folios->isNotEmpty() && Gate::allows('transfer', $folios->first()),
             'canOpenFolio' => Gate::allows('create', [Folio::class, $reservation]),

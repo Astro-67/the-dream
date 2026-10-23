@@ -12,9 +12,11 @@ use Tests\Support\TwoTenants;
 
 return [
     'payments.index' => RouteCoverage::attempt(function (TwoTenants $t) {
-        inTenant($t->b->property, function () use ($t) {
-            app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+        $reservation = inTenant($t->b->property, function () use ($t) {
+            $reservation = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
             app(RecordPayment::class)->handle($t->b->owner, Folio::query()->sole(), ['method' => 'card', 'amount' => 700, 'currency' => 'USD']);
+
+            return $reservation;
         });
         $responses = [];
         foreach ($t->a->members() as $role => $member) {
@@ -30,6 +32,13 @@ return [
                         ->where($view === 'received' ? 'received.rows' : 'folios.data', []));
                 }
                 $responses[] = $response;
+                $filtered = $this->getJson(route('payments.index', ['view' => $view, 'reservation' => $reservation->id]));
+                if (in_array($role, [OrganizationRole::FrontDesk->value, OrganizationRole::Housekeeping->value], true)) {
+                    $filtered->assertForbidden();
+                } else {
+                    $filtered->assertUnprocessable()->assertJsonValidationErrors('reservation');
+                }
+                $responses[] = $filtered;
             }
         }
 

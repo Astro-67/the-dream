@@ -38,6 +38,7 @@ import {
 import {
     FolioPanel,
     type Folio,
+    type FolioStay,
     type FolioTotal,
 } from '@/features/billing/folio-panel';
 import { Spinner } from '@/components/ui/spinner';
@@ -90,11 +91,14 @@ export default function Show({
     groupMembers,
     folios,
     totals,
+    stay,
     checkoutBalances,
     canPostCharge,
     feeProposals,
     canRecordPayment,
     acceptedPaymentMethods,
+    extraCategories,
+    paymentsReportUrl,
 }: {
     reservation: Reservation;
     roomType: Named;
@@ -123,11 +127,14 @@ export default function Show({
     >[];
     folios: Paginated<Folio>;
     totals: FolioTotal[];
+    stay: FolioStay;
     checkoutBalances: CheckoutBalance[];
     canPostCharge: boolean;
     feeProposals: FeeProposal[];
     canRecordPayment: boolean;
     acceptedPaymentMethods: string[];
+    extraCategories: string[];
+    paymentsReportUrl: string | null;
 }) {
     return (
         <>
@@ -341,15 +348,18 @@ export default function Show({
                         />
                     )}
                 <FolioPanel
-                    reservationNumber={reservation.reservation_number}
+                    stay={stay}
                     folios={folios}
                     totals={totals}
                     canPostCharge={canPostCharge}
                     canRecordPayment={canRecordPayment}
                     acceptedPaymentMethods={acceptedPaymentMethods}
-                    channelCollected={
-                        reservation.payment_collector === 'channel' &&
-                        reservation.channel_collected_amount !== null
+                    extraCategories={extraCategories}
+                    paymentsReportUrl={paymentsReportUrl}
+                    channelCollectedAmount={
+                        reservation.payment_collector === 'channel'
+                            ? reservation.channel_collected_amount
+                            : null
                     }
                 />
                 <FeeProposals fees={feeProposals} />

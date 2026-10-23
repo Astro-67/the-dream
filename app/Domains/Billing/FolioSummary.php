@@ -4,10 +4,14 @@ namespace App\Domains\Billing;
 
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationPriceLine;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 
 /**
@@ -82,6 +86,7 @@ final class FolioSummary
     /**
      * Per currency: the posted summary across the reservation's folios, plus the scheduled
      * nights not yet charged as a separate estimate at their booked price, before added taxes.
+     * due = balance + estimate; status is paid once nothing is due (a credit included).
      *
      * @param  Collection<int, array{folio: Folio, postings: EloquentCollection<int, Posting>, summary: Summary}>|null  $folios  already loaded by folios(), so totals match their itemisation
      * @return list<array<string, mixed>>
@@ -93,7 +98,67 @@ final class FolioSummary
         $estimates = self::unposted(collect([$reservation]))->get($reservation->id, collect());
 
         return $byCurrency->keys()->merge($estimates->keys())->unique()->sort()->values()
-            ->map(fn (string $currency) => ['currency' => $currency, ...($byCurrency->get($currency) ?? self::of([])), 'estimate' => $estimates->get($currency)])->all();
+            ->map(function (string $currency) use ($byCurrency, $estimates) {
+                $summary = $byCurrency->get($currency) ?? self::of([]);
+                $estimate = $estimates->get($currency);
+                $due = $summary['balance'] + ($estimate['amount'] ?? 0);
+
+                return ['currency' => $currency, ...$summary, 'estimate' => $estimate, 'due' => $due,
+                    'status' => match (true) {
+                        $due <= 0 => 'paid',
+                        $summary['net_payments'] > 0 => 'partially_paid',
+                        default => 'unpaid',
+                    }];
+            })->all();
+    }
+
+    /**
+     * First and last business date with money received on the reservation, today when there is none,
+     * so the payments report link covers every payment.
+     *
+     * @return array{from: string, to: string}
+     */
+    public static function paymentDates(Reservation $reservation): array
+    {
+        $range = Posting::query()->where('property_id', $reservation->property_id)
+            ->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))->moneyMovements()
+            ->selectRaw('MIN(business_date) as first_date, MAX(business_date) as last_date')->toBase()->first();
+
+        return [
+            'from' => CarbonImmutable::parse($range->first_date ?? BusinessDate::current())->toDateString(),
+            'to' => CarbonImmutable::parse($range->last_date ?? BusinessDate::current())->toDateString(),
+        ];
+    }
+
+    /**
+     * Each folio's Payments received list, newest first, paged per folio, from one query for the whole page.
+     * Row one also carries the total on empty/out-of-range pages; at most 51 rows are loaded per folio.
+     *
+     * @param  EloquentCollection<int, Folio>  $folios
+     * @return Collection<string, LengthAwarePaginator<int, Posting>> keyed by folio id
+     */
+    public static function payments(EloquentCollection $folios): Collection
+    {
+        $ranked = Posting::query()->whereIn('folio_id', $folios->modelKeys())->moneyMovements()->select('postings.*')
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY folio_id ORDER BY posted_at DESC, id DESC) as payment_row, COUNT(*) OVER (PARTITION BY folio_id) as payment_count');
+        $payments = Posting::query()->fromSub($ranked, 'postings')->where(function ($query) use ($folios) {
+            $query->where('payment_row', 1);
+            foreach ($folios as $folio) {
+                $offset = (Paginator::resolveCurrentPage('payments_page_'.$folio->id) - 1) * 50;
+                $query->orWhere(fn ($query) => $query->where('folio_id', $folio->id)->whereBetween('payment_row', [$offset + 1, $offset + 50]));
+            }
+        })->with(['actor:id,name', 'receipt:id,posting_id,number'])->orderByDesc('posted_at')->orderByDesc('id')->get();
+
+        return $folios->toBase()->mapWithKeys(function (Folio $folio) use ($payments) {
+            $own = $payments->where('folio_id', $folio->id);
+            $pageName = 'payments_page_'.$folio->id;
+            $page = Paginator::resolveCurrentPage($pageName);
+            $offset = ($page - 1) * 50;
+            $rows = $own->whereBetween('payment_row', [$offset + 1, $offset + 50])->values();
+            $paginator = new LengthAwarePaginator($rows, (int) ($own->first()?->getAttribute('payment_count') ?? 0), 50, $page, ['path' => Paginator::resolveCurrentPath(), 'pageName' => $pageName]);
+
+            return [$folio->id => $paginator->withQueryString()];
+        });
     }
 
     /**

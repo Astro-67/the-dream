@@ -3,13 +3,23 @@ import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
 import { Spinner } from '@/components/ui/spinner';
+import { StatusChip } from '@/components/ui/status-chip';
 import {
     Table,
     TableBody,
@@ -30,8 +40,14 @@ import {
 } from './folio-corrections';
 import { show as showReceipt } from '@/routes/receipts';
 import type { Paginated } from '@/types';
-import { FolioSummaryList, type FolioTotal } from './folio-summary';
+import {
+    dueLine,
+    FolioSummaryList,
+    paymentStatus,
+    type FolioTotal,
+} from './folio-summary';
 import { statement } from '@/routes/reservations';
+import { PaymentsReceived, type ReceivedPayment } from './payments-received';
 
 export type Posting = {
     id: string;
@@ -68,12 +84,71 @@ export type Folio = {
     balance: number;
     number: number;
     postings: Paginated<Posting>;
+    payments: Paginated<ReceivedPayment>;
 };
 export type { FolioTotal } from './folio-summary';
+export type FolioStay = {
+    reservation_number: string;
+    guest: string;
+    room: string | null;
+    room_type: string | null;
+    nights: number;
+};
 
-const categories = {
+/** Total charges, Paid and Due for one currency; Due counts unposted nights as an estimate. */
+function FolioDue({ total }: { total: FolioTotal }) {
+    const status = paymentStatus[total.status];
+    const money = (amount: number) => formatMoney(amount, total.currency);
+    const due = dueLine(total.due, total.currency);
+
+    return (
+        <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-semibold">{total.currency}</h3>
+                <StatusChip tone={status.tone}>{status.label}</StatusChip>
+            </div>
+            <dl className="grid grid-cols-3 gap-4">
+                <div>
+                    <dt className="text-sm text-muted-foreground">
+                        Total charges
+                    </dt>
+                    <dd className="tabular-nums">{money(total.charges)}</dd>
+                </div>
+                <div>
+                    <dt className="text-sm text-muted-foreground">Paid</dt>
+                    <dd className="tabular-nums">
+                        {money(total.net_payments)}
+                    </dd>
+                </div>
+                <div>
+                    <dt className="text-sm text-muted-foreground">
+                        {due.label}
+                    </dt>
+                    <dd className="text-lg font-semibold tabular-nums">
+                        {due.amount}
+                    </dd>
+                </div>
+            </dl>
+            {total.estimate && (
+                <p className="text-sm text-muted-foreground">
+                    Due includes an estimate of {money(total.estimate.amount)}{' '}
+                    for {total.estimate.nights}{' '}
+                    {total.estimate.nights === 1 ? 'night' : 'nights'} not yet
+                    charged, before added taxes.
+                </p>
+            )}
+        </div>
+    );
+}
+
+// Labels only: the server owns which extras may be posted (PostExtraCharge::CATEGORIES).
+const categories: Record<string, string> = {
+    restaurant: 'Restaurant',
+    bar: 'Bar',
     minibar: 'Minibar',
     laundry: 'Laundry',
+    spa: 'Spa',
+    transport: 'Transport',
     other: 'Other',
 };
 
@@ -91,17 +166,21 @@ export function FolioPanel({
     totals,
     canPostCharge,
     canRecordPayment = false,
-    channelCollected = false,
+    channelCollectedAmount = null,
     acceptedPaymentMethods,
-    reservationNumber,
+    extraCategories,
+    stay,
+    paymentsReportUrl,
 }: {
-    reservationNumber: string;
+    stay: FolioStay;
+    paymentsReportUrl?: string | null;
     folios: Paginated<Folio>;
     totals: FolioTotal[];
     canPostCharge: boolean;
     canRecordPayment?: boolean;
-    channelCollected?: boolean;
+    channelCollectedAmount?: number | null;
     acceptedPaymentMethods: string[];
+    extraCategories: string[];
 }) {
     const { tenant } = usePage().props;
     const timezone = tenant.property?.timezone ?? 'UTC';
@@ -109,14 +188,38 @@ export function FolioPanel({
     const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null);
     const folio =
         folios.find((item) => item.id === selectedFolioId) ?? folios[0];
+    const total = totals.find((item) => item.currency === folio?.currency);
+    const due = total && dueLine(total.due, total.currency);
 
     return (
         <section className="space-y-4">
             <h2 className="text-lg font-semibold">Folio</h2>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-5">
+                {(
+                    [
+                        ['Guest', stay.guest],
+                        [
+                            'Reservation',
+                            <Identifier value={stay.reservation_number} />,
+                        ],
+                        ['Room', stay.room ?? 'Not assigned'],
+                        ['Room type', stay.room_type ?? '—'],
+                        ['Nights', String(stay.nights)],
+                    ] as const
+                ).map(([label, value]) => (
+                    <div key={label}>
+                        <dt className="text-muted-foreground">{label}</dt>
+                        <dd className="font-medium">{value}</dd>
+                    </div>
+                ))}
+            </dl>
             <div className="flex flex-wrap gap-8">
                 {totals.map((total) => (
-                    <section key={total.currency} className="space-y-2">
-                        <h3 className="font-semibold">{total.currency}</h3>
+                    <section
+                        key={total.currency}
+                        className="w-full max-w-md space-y-4"
+                    >
+                        <FolioDue total={total} />
                         <FolioSummaryList
                             summary={total}
                             currency={total.currency}
@@ -126,7 +229,7 @@ export function FolioPanel({
                 ))}
             </div>
             <Link
-                href={statement(reservationNumber)}
+                href={statement(stay.reservation_number)}
                 className="text-primary underline underline-offset-4"
             >
                 Folio statement
@@ -241,6 +344,18 @@ export function FolioPanel({
                                                     posting.category as keyof typeof postingCategories
                                                 ] ??
                                                     posting.category)}
+                                            {posting.description &&
+                                                categories[
+                                                    posting.category
+                                                ] && (
+                                                    <div className="text-sm text-muted-foreground">
+                                                        {
+                                                            categories[
+                                                                posting.category
+                                                            ]
+                                                        }
+                                                    </div>
+                                                )}
                                             {posting.method && (
                                                 <div className="text-sm text-muted-foreground">
                                                     {paymentMethods[
@@ -309,13 +424,55 @@ export function FolioPanel({
                         </Table>
                     )}
                     <Pagination page={folio.postings} />
-                    {canPostCharge && <ExtraChargeForm folio={folio} />}
-                    {canRecordPayment && (
-                        <PaymentForm
+                    <PaymentsReceived
+                        payments={folio.payments}
+                        currency={folio.currency}
+                        timezone={timezone}
+                    />
+                    {paymentsReportUrl && (
+                        <Link
+                            href={paymentsReportUrl}
+                            className="text-primary underline underline-offset-4"
+                        >
+                            View payments report for this reservation
+                        </Link>
+                    )}
+                    {canPostCharge && (
+                        <ExtraChargeForm
                             folio={folio}
-                            channelCollected={channelCollected}
-                            acceptedMethods={acceptedPaymentMethods}
+                            categories={extraCategories}
                         />
+                    )}
+                    {canRecordPayment && total && (
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    Record payment for this {folio.currency}{' '}
+                                    folio
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-h-[90dvh] overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle>
+                                        Record payment for this {folio.currency}{' '}
+                                        folio
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        {due?.label}: {due?.amount}
+                                        {total.estimate &&
+                                            ' (includes estimated nights before added taxes)'}
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <PaymentForm
+                                    folio={folio}
+                                    total={total}
+                                    channelCollectedAmount={
+                                        channelCollectedAmount
+                                    }
+                                    acceptedMethods={acceptedPaymentMethods}
+                                />
+                            </DialogContent>
+                        </Dialog>
                     )}
                     <AdjustmentForms folio={folio} />
                 </div>
@@ -327,7 +484,13 @@ export function FolioPanel({
     );
 }
 
-function ExtraChargeForm({ folio }: { folio: Folio }) {
+function ExtraChargeForm({
+    folio,
+    categories: allowed,
+}: {
+    folio: Folio;
+    categories: string[];
+}) {
     // One key per filled-in form, so a resubmission of the same form posts once.
     const [key, setKey] = useState(() => crypto.randomUUID());
     const id = (field: string) => `charge-${folio.id}-${field}`;
@@ -357,6 +520,26 @@ function ExtraChargeForm({ folio }: { folio: Folio }) {
                             aria-invalid={Boolean(errors.description)}
                         />
                         <InputError message={errors.description} />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor={id('category')}>Category</Label>
+                        <NativeSelect
+                            id={id('category')}
+                            name="category"
+                            required
+                            defaultValue=""
+                            aria-invalid={Boolean(errors.category)}
+                        >
+                            <option value="" disabled>
+                                Choose a category
+                            </option>
+                            {allowed.map((value) => (
+                                <option key={value} value={value}>
+                                    {categories[value] ?? value}
+                                </option>
+                            ))}
+                        </NativeSelect>
+                        <InputError message={errors.category} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor={id('quantity')}>Quantity</Label>
