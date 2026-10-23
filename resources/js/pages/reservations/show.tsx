@@ -268,7 +268,7 @@ export default function Show({
                             <CollapsibleTrigger asChild>
                                 <Button
                                     variant="ghost"
-                                    className="group min-h-11"
+                                    className="group -mx-3 min-h-11"
                                 >
                                     More details
                                     <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
@@ -524,7 +524,7 @@ export default function Show({
                             <CollapsibleTrigger asChild>
                                 <Button
                                     variant="ghost"
-                                    className="group h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
+                                    className="group -mx-3 h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
                                 >
                                     Fee proposals ({feeProposals.length})
                                     <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
@@ -541,7 +541,7 @@ export default function Show({
                         <CollapsibleTrigger asChild>
                             <Button
                                 variant="ghost"
-                                className="group h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
+                                className="group -mx-3 h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
                             >
                                 Amendment history ({amendments.total})
                                 <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
@@ -564,7 +564,7 @@ export default function Show({
                             <CollapsibleTrigger asChild>
                                 <Button
                                     variant="ghost"
-                                    className="group h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
+                                    className="group -mx-3 h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
                                 >
                                     Other reservations in this booking group (
                                     {groupMembers.length})
@@ -639,7 +639,7 @@ export default function Show({
                         <CollapsibleTrigger asChild>
                             <Button
                                 variant="ghost"
-                                className="group h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
+                                className="group -mx-3 h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
                             >
                                 Fixed nightly prices (
                                 {reservation.price_lines.length})

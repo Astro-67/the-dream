@@ -206,7 +206,9 @@ export function FolioPanel({
                 <span aria-hidden="true">·</span>
                 <Identifier value={stay.reservation_number} />
                 <span aria-hidden="true">·</span>
-                <span>Room {stay.room ?? 'Not assigned'}</span>
+                <span>
+                    {stay.room ? `Room ${stay.room}` : 'No room assigned'}
+                </span>
                 <span aria-hidden="true">·</span>
                 <span>{stay.room_type ?? '—'}</span>
                 <span aria-hidden="true">·</span>
@@ -223,7 +225,7 @@ export function FolioPanel({
                                 <CollapsibleTrigger asChild>
                                     <Button
                                         variant="ghost"
-                                        className="group min-h-11"
+                                        className="group -mx-3 min-h-11"
                                         aria-label={`Show breakdown for ${total.currency}`}
                                     >
                                         Show breakdown
@@ -513,7 +515,7 @@ export function FolioPanel({
                                 <CollapsibleTrigger asChild>
                                     <Button
                                         variant="ghost"
-                                        className="group min-h-11 font-semibold"
+                                        className="group -mx-3 min-h-11 font-semibold"
                                     >
                                         Payments received (
                                         {folio.payments.total})
