@@ -74,3 +74,11 @@ test('each currency has its own due and status, never added together', function 
         ->where('totals.0.currency', 'TZS')->where('totals.0.due', 30000)->where('totals.0.status', 'unpaid')
         ->where('totals.1.currency', 'USD')->where('totals.1.due', 0)->where('totals.1.status', 'paid'));
 });
+
+test('the folio header names the guest, reservation, room, room type and nights', function () {
+    [$t, $reservation] = dueStay();
+
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('stay.guest', 'Travel Booker')->where('stay.reservation_number', $reservation->reservation_number)
+        ->where('stay.room', null)->where('stay.room_type', 'Deluxe Double')->where('stay.nights', 2));
+});

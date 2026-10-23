@@ -89,6 +89,7 @@ class ReservationController extends Controller
                     ]),
             ]),
             'totals' => FolioSummary::totals($reservation),
+            'stay' => $reservation->stay(),
             'checkoutBalances' => FolioSummary::checkoutBalances(collect([$reservation]))[$reservation->id] ?? [],
             'feeProposals' => FeeProposal::query()->where('reservation_id', $reservation->id)->orderBy('created_at')->get()->map(fn (FeeProposal $fee) => [
                 ...$fee->only(['id', 'kind', 'amount', 'status', 'reason', 'fiscal_exception_candidate']), 'currency' => $fee->currency->value,

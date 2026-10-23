@@ -38,6 +38,7 @@ import {
 import {
     FolioPanel,
     type Folio,
+    type FolioStay,
     type FolioTotal,
 } from '@/features/billing/folio-panel';
 import { Spinner } from '@/components/ui/spinner';
@@ -90,6 +91,7 @@ export default function Show({
     groupMembers,
     folios,
     totals,
+    stay,
     checkoutBalances,
     canPostCharge,
     feeProposals,
@@ -123,6 +125,7 @@ export default function Show({
     >[];
     folios: Paginated<Folio>;
     totals: FolioTotal[];
+    stay: FolioStay;
     checkoutBalances: CheckoutBalance[];
     canPostCharge: boolean;
     feeProposals: FeeProposal[];
@@ -342,6 +345,7 @@ export default function Show({
                     )}
                 <FolioPanel
                     reservationNumber={reservation.reservation_number}
+                    stay={stay}
                     folios={folios}
                     totals={totals}
                     canPostCharge={canPostCharge}

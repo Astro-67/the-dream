@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
 import { Spinner } from '@/components/ui/spinner';
+import { StatusChip } from '@/components/ui/status-chip';
 import {
     Table,
     TableBody,
@@ -70,6 +71,64 @@ export type Folio = {
     postings: Paginated<Posting>;
 };
 export type { FolioTotal } from './folio-summary';
+export type FolioStay = {
+    reservation_number: string;
+    guest: string;
+    room: string | null;
+    room_type: string | null;
+    nights: number;
+};
+
+const paymentStatus = {
+    unpaid: { label: 'Unpaid', tone: 'error' },
+    partially_paid: { label: 'Partially paid', tone: 'warning' },
+    paid: { label: 'Paid', tone: 'success' },
+} as const;
+
+/** Total charges, Paid and Due for one currency; Due counts unposted nights as an estimate. */
+function FolioDue({ total }: { total: FolioTotal }) {
+    const status = paymentStatus[total.status];
+    const money = (amount: number) => formatMoney(amount, total.currency);
+
+    return (
+        <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-semibold">{total.currency}</h3>
+                <StatusChip tone={status.tone}>{status.label}</StatusChip>
+            </div>
+            <dl className="grid grid-cols-3 gap-4">
+                <div>
+                    <dt className="text-sm text-muted-foreground">
+                        Total charges
+                    </dt>
+                    <dd className="tabular-nums">{money(total.charges)}</dd>
+                </div>
+                <div>
+                    <dt className="text-sm text-muted-foreground">Paid</dt>
+                    <dd className="tabular-nums">
+                        {money(total.net_payments)}
+                    </dd>
+                </div>
+                <div>
+                    <dt className="text-sm text-muted-foreground">
+                        {total.due < 0 ? 'Credit' : 'Due'}
+                    </dt>
+                    <dd className="text-lg font-semibold tabular-nums">
+                        {money(Math.abs(total.due))}
+                    </dd>
+                </div>
+            </dl>
+            {total.estimate && (
+                <p className="text-sm text-muted-foreground">
+                    Due includes an estimate of {money(total.estimate.amount)}{' '}
+                    for {total.estimate.nights}{' '}
+                    {total.estimate.nights === 1 ? 'night' : 'nights'} not yet
+                    charged, before added taxes.
+                </p>
+            )}
+        </div>
+    );
+}
 
 const categories = {
     minibar: 'Minibar',
@@ -94,8 +153,10 @@ export function FolioPanel({
     channelCollected = false,
     acceptedPaymentMethods,
     reservationNumber,
+    stay,
 }: {
     reservationNumber: string;
+    stay: FolioStay;
     folios: Paginated<Folio>;
     totals: FolioTotal[];
     canPostCharge: boolean;
@@ -113,10 +174,27 @@ export function FolioPanel({
     return (
         <section className="space-y-4">
             <h2 className="text-lg font-semibold">Folio</h2>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-5">
+                {[
+                    ['Guest', stay.guest],
+                    ['Reservation', stay.reservation_number],
+                    ['Room', stay.room ?? 'Not assigned'],
+                    ['Room type', stay.room_type ?? '—'],
+                    ['Nights', String(stay.nights)],
+                ].map(([label, value]) => (
+                    <div key={label}>
+                        <dt className="text-muted-foreground">{label}</dt>
+                        <dd className="font-medium">{value}</dd>
+                    </div>
+                ))}
+            </dl>
             <div className="flex flex-wrap gap-8">
                 {totals.map((total) => (
-                    <section key={total.currency} className="space-y-2">
-                        <h3 className="font-semibold">{total.currency}</h3>
+                    <section
+                        key={total.currency}
+                        className="w-full max-w-md space-y-4"
+                    >
+                        <FolioDue total={total} />
                         <FolioSummaryList
                             summary={total}
                             currency={total.currency}
