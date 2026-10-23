@@ -132,21 +132,30 @@ final class FolioSummary
 
     /**
      * Each folio's Payments received list, newest first, paged per folio, from one query for the whole page.
-     * shortcut: loads every payment of the page's folios and pages them in memory; use a windowed query if folios reach thousands of payments.
+     * Row one also carries the total on empty/out-of-range pages; at most 51 rows are loaded per folio.
      *
      * @param  EloquentCollection<int, Folio>  $folios
      * @return Collection<string, LengthAwarePaginator<int, Posting>> keyed by folio id
      */
     public static function payments(EloquentCollection $folios): Collection
     {
-        $payments = Posting::query()->whereIn('folio_id', $folios->modelKeys())->moneyMovements()
-            ->with(['actor:id,name', 'receipt:id,posting_id,number'])->orderByDesc('posted_at')->orderByDesc('id')->get();
+        $ranked = Posting::query()->whereIn('folio_id', $folios->modelKeys())->moneyMovements()->select('postings.*')
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY folio_id ORDER BY posted_at DESC, id DESC) as payment_row, COUNT(*) OVER (PARTITION BY folio_id) as payment_count');
+        $payments = Posting::query()->fromSub($ranked, 'postings')->where(function ($query) use ($folios) {
+            $query->where('payment_row', 1);
+            foreach ($folios as $folio) {
+                $offset = (Paginator::resolveCurrentPage('payments_page_'.$folio->id) - 1) * 50;
+                $query->orWhere(fn ($query) => $query->where('folio_id', $folio->id)->whereBetween('payment_row', [$offset + 1, $offset + 50]));
+            }
+        })->with(['actor:id,name', 'receipt:id,posting_id,number'])->orderByDesc('posted_at')->orderByDesc('id')->get();
 
         return $folios->toBase()->mapWithKeys(function (Folio $folio) use ($payments) {
             $own = $payments->where('folio_id', $folio->id);
             $pageName = 'payments_page_'.$folio->id;
             $page = Paginator::resolveCurrentPage($pageName);
-            $paginator = new LengthAwarePaginator($own->forPage($page, 50)->values(), $own->count(), 50, $page, ['path' => Paginator::resolveCurrentPath(), 'pageName' => $pageName]);
+            $offset = ($page - 1) * 50;
+            $rows = $own->whereBetween('payment_row', [$offset + 1, $offset + 50])->values();
+            $paginator = new LengthAwarePaginator($rows, (int) ($own->first()?->getAttribute('payment_count') ?? 0), 50, $page, ['path' => Paginator::resolveCurrentPath(), 'pageName' => $pageName]);
 
             return [$folio->id => $paginator->withQueryString()];
         });

@@ -80,6 +80,9 @@ test('received payment pages retain their folio and reservation filters', functi
     $this->get($response->viewData('page')['props']['folios']['data'][0]['payments']['next_page_url'])
         ->assertOk()->assertInertia(fn (Assert $page) => $page
         ->has('folios.data.0.payments.data', 1)->where('folios.data.0.payments.data.0.reference', 'Payment-0'));
+    $this->get(route('reservations.show', [$reservation, 'payments_page_'.$folio->id => 3]))
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('folios.data.0.payments.data', [])->where('folios.data.0.payments.total', 51));
     $report = $this->get($response->viewData('page')['props']['paymentsReportUrl'])->assertOk()->assertInertia(fn (Assert $page) => $page
         ->has('payments.data', 50)->where('payments.total', 51)->where('received.totals.0.net', 5100));
     $this->get($report->viewData('page')['props']['payments']['next_page_url'])->assertOk()->assertInertia(fn (Assert $page) => $page
