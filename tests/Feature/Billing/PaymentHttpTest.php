@@ -9,14 +9,14 @@ use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 
-test('only the folio property accepted payment methods may be recorded', function (string $method) {
+test('only the folio property accepted payment methods may be recorded', function (string $method, string $disabled) {
     [$t, $folio] = folioForPayments();
     $t->a->property->update(['payment_settings' => ['accepted_methods' => [$method]]]);
     $this->actingAs($t->a->owner)
         ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
 
     $this->postJson(route('folios.payments.store', $folio), [
-        '_property' => $t->a->property->id, 'method' => 'card', 'amount' => 100, 'idempotency_key' => 'disabled',
+        '_property' => $t->a->property->id, 'method' => $disabled, 'amount' => 100, 'idempotency_key' => 'disabled',
     ])->assertUnprocessable()->assertJsonValidationErrors('method');
     expect(inTenant($t->a->property, fn () => Posting::query()->count()))->toBe(0);
 
@@ -26,7 +26,34 @@ test('only the folio property accepted payment methods may be recorded', functio
     $this->get(route('reservations.show', inTenant($t->a->property, fn () => Reservation::query()->findOrFail($folio->reservation_id))))
         ->assertInertia(fn (Assert $page) => $page->where('acceptedPaymentMethods', [$method])->where('folios.data.0.balance', -100)
             ->where('folios.data.0.postings.data.0.method', $method));
-})->with(['bank_transfer', 'other']);
+})->with([['bank_transfer', 'other'], ['other', 'card']]);
+
+test('Other payments and linked refunds appear on the receipt and payments report', function () {
+    [$t, $folio] = folioForPayments();
+    $this->actingAs($t->a->owner)
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+
+    $this->post(route('folios.payments.store', $folio), [
+        '_property' => $t->a->property->id, 'method' => 'other', 'amount' => 500, 'idempotency_key' => 'other-payment',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $receipt = inTenant($t->a->property, fn () => Receipt::query()->sole());
+    $this->get(route('receipts.show', $receipt))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('receipt.method', 'other')->where('receipt.amount', 500));
+
+    $this->post(route('folios.refunds.store', $folio), [
+        '_property' => $t->a->property->id, 'method' => 'other', 'amount' => 100, 'reason' => 'Deposit returned',
+        'payment_posting_id' => $receipt->posting_id, 'idempotency_key' => 'other-refund',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $this->get(route('receipts.show', $receipt))->assertInertia(fn (Assert $page) => $page
+        ->where('receipt.method', 'other')->where('receipt.amount', 500)
+        ->where('corrections.0.type', 'refund')->where('corrections.0.amount', 100));
+    $this->get(route('payments.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('payments.total', 2)
+        ->where('payments.data.0.type', 'refund')->where('payments.data.0.method', 'other')->where('payments.data.0.amount', -100)
+        ->where('payments.data.1.type', 'payment')->where('payments.data.1.method', 'other')->where('payments.data.1.amount', 500)
+        ->where('payments.data.1.receipt.number', $receipt->number)
+        ->where('received.rows.0.method', 'other')->where('received.rows.0.net', 400));
+});
 use Tests\Support\PropertyForm;
 use Tests\Support\TwoTenants;
 
