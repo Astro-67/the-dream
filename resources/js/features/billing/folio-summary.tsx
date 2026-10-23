@@ -6,6 +6,23 @@ export const paymentStatus = {
     paid: { label: 'Paid', tone: 'success' },
 } as const;
 
+/** Client copy of the status rule for the live preview; FolioSummary::totals() on the server owns it. */
+export function statusFor(
+    due: number,
+    netPayments: number,
+): keyof typeof paymentStatus {
+    if (due <= 0) return 'paid';
+    return netPayments > 0 ? 'partially_paid' : 'unpaid';
+}
+
+/** Due, or Credit once overpaid, never a negative Due. */
+export function dueLine(due: number, currency: string) {
+    return {
+        label: due < 0 ? 'Credit' : 'Due',
+        amount: formatMoney(Math.abs(due), currency),
+    };
+}
+
 export type FolioSummary = {
     room: number;
     extras: number;

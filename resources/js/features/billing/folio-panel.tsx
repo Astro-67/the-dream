@@ -41,6 +41,7 @@ import {
 import { show as showReceipt } from '@/routes/receipts';
 import type { Paginated } from '@/types';
 import {
+    dueLine,
     FolioSummaryList,
     paymentStatus,
     type FolioTotal,
@@ -98,6 +99,7 @@ export type FolioStay = {
 function FolioDue({ total }: { total: FolioTotal }) {
     const status = paymentStatus[total.status];
     const money = (amount: number) => formatMoney(amount, total.currency);
+    const due = dueLine(total.due, total.currency);
 
     return (
         <div className="space-y-2">
@@ -120,10 +122,10 @@ function FolioDue({ total }: { total: FolioTotal }) {
                 </div>
                 <div>
                     <dt className="text-sm text-muted-foreground">
-                        {total.due < 0 ? 'Credit' : 'Due'}
+                        {due.label}
                     </dt>
                     <dd className="text-lg font-semibold tabular-nums">
-                        {money(Math.abs(total.due))}
+                        {due.amount}
                     </dd>
                 </div>
             </dl>
@@ -189,6 +191,7 @@ export function FolioPanel({
     const folio =
         folios.find((item) => item.id === selectedFolioId) ?? folios[0];
     const total = totals.find((item) => item.currency === folio?.currency);
+    const due = total && dueLine(total.due, total.currency);
 
     return (
         <section className="space-y-4">
@@ -452,11 +455,7 @@ export function FolioPanel({
                                         folio
                                     </DialogTitle>
                                     <DialogDescription>
-                                        {total.due < 0 ? 'Credit' : 'Due'}:{' '}
-                                        {formatMoney(
-                                            Math.abs(total.due),
-                                            folio.currency,
-                                        )}
+                                        {due?.label}: {due?.amount}
                                         {total.estimate &&
                                             ' (includes estimated nights before added taxes)'}
                                     </DialogDescription>

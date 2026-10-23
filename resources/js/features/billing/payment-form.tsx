@@ -9,9 +9,13 @@ import { MoneyInput, toMinorUnits } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { store } from '@/routes/folios/payments';
-import { paymentStatus, type FolioTotal } from './folio-summary';
+import {
+    dueLine,
+    paymentStatus,
+    statusFor,
+    type FolioTotal,
+} from './folio-summary';
 import { StatusChip } from '@/components/ui/status-chip';
-import { formatMoney } from '@/lib/utils';
 
 // Cash needs the cashier's open shift; the server refuses it otherwise.
 export const paymentMethods = {
@@ -57,12 +61,9 @@ export function PaymentForm({
     const afterDue = total.due - Number(paymentAmount);
     const afterStatus =
         paymentStatus[
-            afterDue <= 0
-                ? 'paid'
-                : total.net_payments + Number(paymentAmount) > 0
-                  ? 'partially_paid'
-                  : 'unpaid'
+            statusFor(afterDue, total.net_payments + Number(paymentAmount))
         ];
+    const after = dueLine(afterDue, folio.currency);
 
     return (
         <Form
@@ -182,11 +183,7 @@ export function PaymentForm({
                                 </p>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="tabular-nums">
-                                        {afterDue < 0 ? 'Credit' : 'Due'}:{' '}
-                                        {formatMoney(
-                                            Math.abs(afterDue),
-                                            folio.currency,
-                                        )}
+                                        {after.label}: {after.amount}
                                     </span>
                                     <StatusChip tone={afterStatus.tone}>
                                         {afterStatus.label}
