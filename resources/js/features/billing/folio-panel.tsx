@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
 import { Spinner } from '@/components/ui/spinner';
@@ -71,9 +72,13 @@ export type Folio = {
 };
 export type { FolioTotal } from './folio-summary';
 
-const categories = {
+const categories: Record<string, string> = {
+    restaurant: 'Restaurant',
+    bar: 'Bar',
     minibar: 'Minibar',
     laundry: 'Laundry',
+    spa: 'Spa',
+    transport: 'Transport',
     other: 'Other',
 };
 
@@ -241,6 +246,18 @@ export function FolioPanel({
                                                     posting.category as keyof typeof postingCategories
                                                 ] ??
                                                     posting.category)}
+                                            {posting.description &&
+                                                categories[
+                                                    posting.category
+                                                ] && (
+                                                    <div className="text-sm text-muted-foreground">
+                                                        {
+                                                            categories[
+                                                                posting.category
+                                                            ]
+                                                        }
+                                                    </div>
+                                                )}
                                             {posting.method && (
                                                 <div className="text-sm text-muted-foreground">
                                                     {paymentMethods[
@@ -357,6 +374,28 @@ function ExtraChargeForm({ folio }: { folio: Folio }) {
                             aria-invalid={Boolean(errors.description)}
                         />
                         <InputError message={errors.description} />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor={id('category')}>Category</Label>
+                        <NativeSelect
+                            id={id('category')}
+                            name="category"
+                            required
+                            defaultValue=""
+                            aria-invalid={Boolean(errors.category)}
+                        >
+                            <option value="" disabled>
+                                Choose a category
+                            </option>
+                            {Object.entries(categories).map(
+                                ([value, label]) => (
+                                    <option key={value} value={value}>
+                                        {label}
+                                    </option>
+                                ),
+                            )}
+                        </NativeSelect>
+                        <InputError message={errors.category} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor={id('quantity')}>Quantity</Label>
