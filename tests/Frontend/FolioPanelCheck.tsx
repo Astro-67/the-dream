@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { App } from '@inertiajs/react';
+import { isValidElement, useState, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PostingLink } from '@/features/billing/folio-corrections';
 import {
@@ -10,6 +11,7 @@ import {
 import type { FolioSummary } from '@/features/billing/folio-summary';
 import type { Paginated } from '@/types';
 import { PaymentsReceived } from '@/features/billing/payments-received';
+import { PaymentForm } from '@/features/billing/payment-form';
 
 const posting: Posting = {
     id: 'posting-in',
@@ -143,63 +145,70 @@ const folioPage = {
         { url: '/reservation?folios_page=2', label: 'Next', active: false },
     ],
 };
-const panel = renderToStaticMarkup(
-    <App
-        initialPage={{
-            component: 'FolioPanelCheck',
-            url: '/reservation',
-            version: null,
-            clearHistory: false,
-            encryptHistory: false,
-            props: {
-                errors: {},
-                tenant: { property: { id: 'property', timezone: 'UTC' } },
-                reservation: { reservation_number: 'R-1042' },
-                canRefund: false,
-                canWriteOff: false,
-                canOpenFolio: false,
-                canReverse: false,
-                canTransfer: false,
-                folioCurrencies: ['USD'],
-            },
-        }}
-        initialComponent={() => (
-            <FolioPanel
-                reservationNumber="R-1042"
-                stay={{
-                    reservation_number: 'R-1042',
-                    guest: 'Amina Due',
-                    room: '101',
-                    room_type: 'Deluxe Double',
-                    nights: 2,
-                }}
-                folios={folioPage}
-                totals={[
-                    {
-                        currency: 'USD',
-                        ...emptySummary,
-                        estimate: { nights: 2, amount: 20000 },
-                        due: 20000,
-                        status: 'unpaid',
-                    },
-                    {
-                        currency: 'TZS',
-                        ...emptySummary,
-                        net_payments: 5000,
-                        balance: -5000,
-                        estimate: null,
-                        due: -5000,
-                        status: 'paid',
-                    },
-                ]}
-                canPostCharge
-                canRecordPayment
-                acceptedPaymentMethods={['card', 'other']}
-            />
-        )}
-    />,
-);
-assert.equal((panel.match(/<form\b/g) ?? []).length, 2);
+function renderPanel(canRecordPayment = true) {
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'FolioPanelCheck',
+                url: '/reservation',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: {
+                    errors: {},
+                    tenant: { property: { id: 'property', timezone: 'UTC' } },
+                    reservation: { reservation_number: 'R-1042' },
+                    canRefund: false,
+                    canWriteOff: false,
+                    canOpenFolio: false,
+                    canReverse: false,
+                    canTransfer: false,
+                    folioCurrencies: ['USD'],
+                },
+            }}
+            initialComponent={() => (
+                <FolioPanel
+                    reservationNumber="R-1042"
+                    stay={{
+                        reservation_number: 'R-1042',
+                        guest: 'Amina Due',
+                        room: '101',
+                        room_type: 'Deluxe Double',
+                        nights: 2,
+                    }}
+                    folios={folioPage}
+                    totals={[
+                        {
+                            currency: 'USD',
+                            ...emptySummary,
+                            estimate: { nights: 2, amount: 20000 },
+                            due: 20000,
+                            status: 'unpaid',
+                        },
+                        {
+                            currency: 'TZS',
+                            ...emptySummary,
+                            net_payments: 5000,
+                            balance: -5000,
+                            estimate: null,
+                            due: -5000,
+                            status: 'paid',
+                        },
+                    ]}
+                    canPostCharge
+                    canRecordPayment={canRecordPayment}
+                    acceptedPaymentMethods={['card', 'other']}
+                />
+            )}
+        />,
+    );
+}
+const panel = renderPanel();
+assert.equal((panel.match(/<form\b/g) ?? []).length, 1);
+assert.match(panel, /Record payment for this USD folio/);
+assert.match(panel, /aria-haspopup="dialog"/);
+assert.doesNotMatch(renderPanel(false), /Record payment for this/);
+assert.doesNotMatch(panel, /name="idempotency_key"[^>]*payment/);
 // A zero balance with nights still to charge is not called settled.
 assert.match(panel, /Balance of posted charges/);
 assert.doesNotMatch(panel, /Settled/);
@@ -221,11 +230,142 @@ assert.match(panel, /Payment/);
 assert.match(panel, /Item name/);
 assert.match(panel, /VAT-inclusive unit price/);
 assert.match(panel, /name="category"/);
-assert.match(panel, /<option value="card" selected="">/);
-assert.match(panel, /<option value="other">Other<\/option>/);
-assert.doesNotMatch(panel, /<option value="bank_transfer"/);
-assert.doesNotMatch(panel, /<option value="cash"/);
 console.log('Only the selected folio mounts action forms: PASS');
+
+function changePaymentField(
+    node: ReactNode,
+    field: string,
+    value: string,
+): boolean {
+    if (Array.isArray(node)) {
+        return node.some((child) => changePaymentField(child, field, value));
+    }
+    if (
+        !isValidElement<{
+            id?: string;
+            children?:
+                | ReactNode
+                | ((state: {
+                      errors: Record<string, string>;
+                      processing: boolean;
+                  }) => ReactNode);
+            onChange?: (event: { target: { value: string } }) => void;
+        }>(node)
+    )
+        return false;
+    if (node.props.id === `payment-folio-payment-${field}`) {
+        assert.ok(node.props.onChange);
+        node.props.onChange({ target: { value } });
+        return true;
+    }
+    return changePaymentField(
+        typeof node.props.children === 'function'
+            ? node.props.children({ errors: {}, processing: false })
+            : node.props.children,
+        field,
+        value,
+    );
+}
+
+function paymentForm(
+    due: number,
+    currency = 'USD',
+    amount?: string,
+    channelCollectedAmount: number | null = null,
+    methodChanges: string[] = [],
+) {
+    function PaymentCheck() {
+        const [changed, setChanged] = useState(0);
+        const form = PaymentForm({
+            folio: { id: 'folio-payment', currency },
+            total: {
+                ...emptySummary,
+                currency,
+                due,
+                status: 'unpaid',
+                estimate: null,
+            },
+            channelCollectedAmount,
+            acceptedMethods: ['card', 'other', 'channel_collected'],
+        });
+        const changes = [
+            ...(amount === undefined
+                ? []
+                : [{ field: 'amount', value: amount }]),
+            ...methodChanges.map((value) => ({ field: 'method', value })),
+        ];
+        if (changed < changes.length) {
+            const change = changes[changed];
+            assert.ok(changePaymentField(form, change.field, change.value));
+            setChanged(changed + 1);
+        }
+        return form;
+    }
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'PaymentFormCheck',
+                url: '/reservation',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: {
+                    errors: {},
+                    tenant: { property: { id: 'property' } },
+                },
+            }}
+            initialComponent={PaymentCheck}
+        />,
+    );
+}
+const payment = paymentForm(20000);
+assert.match(payment, /<option value="card" selected="">/);
+assert.match(payment, /<option value="other">Other<\/option>/);
+assert.doesNotMatch(payment, /<option value="bank_transfer"/);
+assert.doesNotMatch(payment, /<option value="cash"/);
+assert.match(payment, /name="amount" value="20000"/);
+assert.match(payment, /value="200"/);
+assert.match(payment, /name="card_last_four"/);
+assert.match(payment, /name="card_brand"/);
+assert.match(payment, /name="reference"/);
+assert.match(payment, /name="idempotency_key"/);
+assert.match(payment, /action="[^"]*folios\/folio-payment\/payments"/);
+assert.match(paymentForm(0), /name="amount" value=""/);
+assert.match(paymentForm(-5000), /name="amount" value=""/);
+assert.match(paymentForm(25000, 'TZS'), /value="25000"/);
+console.log('Payment defaults and existing fields: PASS');
+assert.match(payment, /After this payment/);
+assert.match(payment, /Due: USD 0\.00/);
+assert.match(payment, />Paid</);
+const partial = paymentForm(20000, 'USD', '50');
+assert.match(partial, /Due: USD 150\.00/);
+assert.match(partial, />Partially paid</);
+assert.doesNotMatch(partial, /This exceeds Due/);
+const overpayment = paymentForm(20000, 'USD', '250');
+assert.match(overpayment, /Credit: USD 50\.00/);
+assert.match(overpayment, />Paid</);
+assert.match(overpayment, /This exceeds Due/);
+assert.doesNotMatch(overpayment, /<button[^>]* disabled=/);
+assert.doesNotMatch(overpayment, /max="200"/);
+assert.doesNotMatch(paymentForm(20000, 'USD', ''), /After this payment/);
+assert.doesNotMatch(paymentForm(20000, 'USD', '-1'), /After this payment/);
+assert.match(paymentForm(0, 'USD', '5'), /Credit: USD 5\.00/);
+assert.match(paymentForm(-5000, 'USD', '5'), /Credit: USD 55\.00/);
+assert.match(paymentForm(25000, 'TZS', '5000'), /Due: TZS 20,000/);
+assert.doesNotMatch(payment, /<option value="channel_collected"/);
+const channel = paymentForm(20000, 'USD', undefined, 24000, [
+    'channel_collected',
+]);
+assert.match(channel, /Credit: USD 40\.00/);
+assert.doesNotMatch(channel, /name="amount"/);
+assert.match(channel, /This exceeds Due/);
+const restoredAmount = paymentForm(20000, 'USD', '50', 24000, [
+    'channel_collected',
+    'card',
+]);
+assert.match(restoredAmount, /name="amount" value="5000"/);
+assert.match(restoredAmount, /Due: USD 150\.00/);
+console.log('Live payment preview and non-blocking credit warning: PASS');
 
 const paymentsReceived = renderToStaticMarkup(
     <PaymentsReceived

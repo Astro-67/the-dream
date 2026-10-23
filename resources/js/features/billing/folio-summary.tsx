@@ -1,5 +1,11 @@
 import { formatMoney } from '@/lib/utils';
 
+export const paymentStatus = {
+    unpaid: { label: 'Unpaid', tone: 'error' },
+    partially_paid: { label: 'Partially paid', tone: 'warning' },
+    paid: { label: 'Paid', tone: 'success' },
+} as const;
+
 export type FolioSummary = {
     room: number;
     extras: number;

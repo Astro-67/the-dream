@@ -111,6 +111,47 @@ test('a resubmitted payment form posts once and issues one receipt', function ()
     expect(inTenant($t->a->property, fn () => [Posting::query()->count(), Receipt::query()->count()]))->toBe([1, 1]);
 });
 
+test('the dialog payment route accepts partial, full and excess deposits and opens the receipt', function (int $amount, int $due, string $status) {
+    [$t, $folio] = folioForPayments(['adults' => 1, 'children' => 0]);
+    $reservation = inTenant($t->a->property, fn () => Reservation::query()->findOrFail($folio->reservation_id));
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('canRecordPayment', true)->where('totals.0.due', 20000)->where('totals.0.status', 'unpaid'));
+
+    $form = ['_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => $amount, 'reference' => 'DIALOG-150', 'idempotency_key' => 'dialog-150'];
+    $response = $this->post(route('folios.payments.store', $folio), $form)->assertRedirect()->assertSessionHasNoErrors();
+    $this->get($response->headers->get('Location'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('receipts/show')->where('receipt.amount', $amount)->where('receipt.deposit', true)
+        ->where('receipt.reference', 'DIALOG-150'));
+    $this->post(route('folios.payments.store', $folio), $form)->assertRedirect($response->headers->get('Location'))->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('totals.0.due', $due)->where('totals.0.status', $status)
+        ->where('folios.data.0.payments.total', 1)->where('folios.data.0.payments.data.0.amount', -$amount));
+})->with([[5000, 15000, 'partially_paid'], [20000, 0, 'paid'], [25000, -5000, 'paid']]);
+
+test('payment and refund routes remain available when nothing is due', function () {
+    [$t, $folio] = folioForPayments(['adults' => 1, 'children' => 0]);
+    $reservation = inTenant($t->a->property, fn () => Reservation::query()->findOrFail($folio->reservation_id));
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $payment = ['_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 20000, 'idempotency_key' => 'paid-150'];
+    $this->post(route('folios.payments.store', $folio), $payment)->assertRedirect()->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('totals.0.due', 0)->where('canRecordPayment', true)->where('canRefund', true));
+    $receipt = inTenant($t->a->property, fn () => Receipt::query()->sole());
+    $this->post(route('folios.refunds.store', $folio), [
+        '_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 100, 'reason' => 'Return deposit',
+        'payment_posting_id' => $receipt->posting_id, 'idempotency_key' => 'refund-150',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    $this->post(route('folios.payments.store', $folio), [...$payment, 'amount' => 100, 'idempotency_key' => 'settled-again-150'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page->where('totals.0.due', 0));
+    $this->post(route('folios.payments.store', $folio), [...$payment, 'amount' => 500, 'idempotency_key' => 'credit-150'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('totals.0.due', -500)->where('totals.0.status', 'paid'));
+});
+
 test('the non-fiscal receipt label uses the active translation', function () {
     [$t, $folio] = folioForPayments();
     $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->post(route('folios.payments.store', $folio), [

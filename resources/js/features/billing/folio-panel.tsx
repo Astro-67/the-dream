@@ -3,6 +3,14 @@ import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
@@ -32,7 +40,11 @@ import {
 } from './folio-corrections';
 import { show as showReceipt } from '@/routes/receipts';
 import type { Paginated } from '@/types';
-import { FolioSummaryList, type FolioTotal } from './folio-summary';
+import {
+    FolioSummaryList,
+    paymentStatus,
+    type FolioTotal,
+} from './folio-summary';
 import { statement } from '@/routes/reservations';
 import { PaymentsReceived, type ReceivedPayment } from './payments-received';
 
@@ -81,12 +93,6 @@ export type FolioStay = {
     room_type: string | null;
     nights: number;
 };
-
-const paymentStatus = {
-    unpaid: { label: 'Unpaid', tone: 'error' },
-    partially_paid: { label: 'Partially paid', tone: 'warning' },
-    paid: { label: 'Paid', tone: 'success' },
-} as const;
 
 /** Total charges, Paid and Due for one currency; Due counts unposted nights as an estimate. */
 function FolioDue({ total }: { total: FolioTotal }) {
@@ -157,7 +163,7 @@ export function FolioPanel({
     totals,
     canPostCharge,
     canRecordPayment = false,
-    channelCollected = false,
+    channelCollectedAmount = null,
     acceptedPaymentMethods,
     reservationNumber,
     stay,
@@ -170,7 +176,7 @@ export function FolioPanel({
     totals: FolioTotal[];
     canPostCharge: boolean;
     canRecordPayment?: boolean;
-    channelCollected?: boolean;
+    channelCollectedAmount?: number | null;
     acceptedPaymentMethods: string[];
 }) {
     const { tenant } = usePage().props;
@@ -179,6 +185,7 @@ export function FolioPanel({
     const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null);
     const folio =
         folios.find((item) => item.id === selectedFolioId) ?? folios[0];
+    const total = totals.find((item) => item.currency === folio?.currency);
 
     return (
         <section className="space-y-4">
@@ -422,12 +429,40 @@ export function FolioPanel({
                         </Link>
                     )}
                     {canPostCharge && <ExtraChargeForm folio={folio} />}
-                    {canRecordPayment && (
-                        <PaymentForm
-                            folio={folio}
-                            channelCollected={channelCollected}
-                            acceptedMethods={acceptedPaymentMethods}
-                        />
+                    {canRecordPayment && total && (
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button>
+                                    Record payment for this {folio.currency}{' '}
+                                    folio
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-h-[90dvh] overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle>
+                                        Record payment for this {folio.currency}{' '}
+                                        folio
+                                    </DialogTitle>
+                                    <DialogDescription>
+                                        {total.due < 0 ? 'Credit' : 'Due'}:{' '}
+                                        {formatMoney(
+                                            Math.abs(total.due),
+                                            folio.currency,
+                                        )}
+                                        {total.estimate &&
+                                            ' (includes estimated nights before added taxes)'}
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <PaymentForm
+                                    folio={folio}
+                                    total={total}
+                                    channelCollectedAmount={
+                                        channelCollectedAmount
+                                    }
+                                    acceptedMethods={acceptedPaymentMethods}
+                                />
+                            </DialogContent>
+                        </Dialog>
                     )}
                     <AdjustmentForms folio={folio} />
                 </div>

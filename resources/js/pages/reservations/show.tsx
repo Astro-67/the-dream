@@ -354,9 +354,10 @@ export default function Show({
                     canRecordPayment={canRecordPayment}
                     acceptedPaymentMethods={acceptedPaymentMethods}
                     paymentsReportUrl={paymentsReportUrl}
-                    channelCollected={
-                        reservation.payment_collector === 'channel' &&
-                        reservation.channel_collected_amount !== null
+                    channelCollectedAmount={
+                        reservation.payment_collector === 'channel'
+                            ? reservation.channel_collected_amount
+                            : null
                     }
                 />
                 <FeeProposals fees={feeProposals} />
