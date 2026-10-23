@@ -9,9 +9,9 @@ use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 
-test('only the folio property accepted payment methods may be recorded', function () {
+test('only the folio property accepted payment methods may be recorded', function (string $method) {
     [$t, $folio] = folioForPayments();
-    $t->a->property->update(['payment_settings' => ['accepted_methods' => ['bank_transfer']]]);
+    $t->a->property->update(['payment_settings' => ['accepted_methods' => [$method]]]);
     $this->actingAs($t->a->owner)
         ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
 
@@ -21,11 +21,12 @@ test('only the folio property accepted payment methods may be recorded', functio
     expect(inTenant($t->a->property, fn () => Posting::query()->count()))->toBe(0);
 
     $this->post(route('folios.payments.store', $folio), [
-        '_property' => $t->a->property->id, 'method' => 'bank_transfer', 'amount' => 100, 'idempotency_key' => 'accepted',
+        '_property' => $t->a->property->id, 'method' => $method, 'amount' => 100, 'idempotency_key' => 'accepted',
     ])->assertSessionHasNoErrors();
     $this->get(route('reservations.show', inTenant($t->a->property, fn () => Reservation::query()->findOrFail($folio->reservation_id))))
-        ->assertInertia(fn (Assert $page) => $page->where('acceptedPaymentMethods', ['bank_transfer'])->where('folios.data.0.balance', -100));
-});
+        ->assertInertia(fn (Assert $page) => $page->where('acceptedPaymentMethods', [$method])->where('folios.data.0.balance', -100)
+            ->where('folios.data.0.postings.data.0.method', $method));
+})->with(['bank_transfer', 'other']);
 use Tests\Support\PropertyForm;
 use Tests\Support\TwoTenants;
 

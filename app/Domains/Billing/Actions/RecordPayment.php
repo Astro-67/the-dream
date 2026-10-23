@@ -26,7 +26,7 @@ use Illuminate\Validation\ValidationException;
  */
 class RecordPayment
 {
-    public const array METHODS = ['cash', 'bank_transfer', 'mobile_money', 'card', 'channel_collected'];
+    public const array METHODS = ['cash', 'bank_transfer', 'mobile_money', 'card', 'channel_collected', 'other'];
 
     /** @param array{method: string, amount?: int|null, currency: string, reference?: string|null, card_last_four?: string|null, card_brand?: string|null, idempotency_key?: string|null} $details */
     public function handle(?User $actor, Folio $folio, array $details): Posting
