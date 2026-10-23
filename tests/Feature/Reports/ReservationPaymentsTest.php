@@ -1,11 +1,13 @@
 <?php
 
+use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
+use Tests\Support\Isolation\RouteCoverage;
 
 test('the reservation filter applies to both payment rows and received totals', function () {
     $t = twoTenants();
@@ -38,6 +40,35 @@ test('the reservation filter applies to both payment rows and received totals', 
         ->where('received.totals.0.payments', 2500)
         ->where('received.totals.0.net', 2500));
 });
+
+test('the payment reservation filter rejects another property or organization', function (string $tenant, string $view) {
+    $t = twoTenants();
+    $other = $tenant === 'same organization' ? $t->a->otherProperty : $t->b->property;
+    $owner = $tenant === 'same organization' ? $t->a->owner : $t->b->owner;
+    $reservation = inTenant($other, function () use ($owner) {
+        $reservation = app(CreateReservation::class)->handle($owner, BookingForm::details($owner));
+        app(RecordPayment::class)->handle($owner, Folio::query()->sole(), ['method' => 'bank_transfer', 'amount' => 7500, 'currency' => 'USD']);
+
+        return $reservation;
+    });
+
+    $response = $this->actingAs($t->a->owner)->withSession([
+        'tenancy.organization_id' => $t->a->organization->id,
+        'tenancy.property_id' => $t->a->property->id,
+    ])->getJson(route('payments.index', ['reservation' => $reservation->id, 'view' => $view]))
+        ->assertUnprocessable()->assertJsonValidationErrors('reservation');
+    $response->assertDontSee($reservation->reservation_number);
+    RouteCoverage::assertNothingOf($t->b, $response);
+})->with(['same organization', 'different organization'])->with(['received', 'outstanding']);
+
+test('the payment reservation filter rejects malformed and missing reservations', function (mixed $reservation) {
+    $t = twoTenants();
+    $this->actingAs($t->a->owner)->withSession([
+        'tenancy.organization_id' => $t->a->organization->id,
+        'tenancy.property_id' => $t->a->property->id,
+    ])->getJson(route('payments.index', ['reservation' => $reservation]))
+        ->assertUnprocessable()->assertJsonValidationErrors('reservation');
+})->with(['invalid', '01JABCDEFGHJKMNPQRSTVWXYZ00', ['unexpected']]);
 
 test('the reservation filter also scopes the outstanding view', function () {
     $t = twoTenants();
