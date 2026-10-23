@@ -95,6 +95,7 @@ const methods: Record<string, string> = {
     mobile_money: 'Mobile money',
     card: 'Card',
     channel_collected: 'Channel-collected amount',
+    other: 'Other',
 };
 
 export function PropertySettingsFields({

@@ -86,6 +86,10 @@ assert.match(html, /101, Deluxe Double/);
 assert.match(html, /Later corrections/);
 assert.match(html, /reservations\/R-1042\/statement/);
 assert.doesNotMatch(html, /Historical folio summary unavailable/);
+assert.match(
+    render({ ...base, receipt: { ...base.receipt, method: 'other' } }),
+    /<dd[^>]*>Other<\/dd>/,
+);
 
 const noLevy = render({
     ...base,
@@ -119,7 +123,7 @@ const row = {
     guest: 'Amina Lead',
     reservation_number: 'R-1042',
     room: null,
-    method: 'channel_collected',
+    method: 'other',
     reference: null,
     amount: 2000,
     currency: 'USD',
@@ -161,4 +165,5 @@ assert.match(table, /Deposit/);
 assert.match(table, /Reversed payment/);
 assert.match(table, /USD -20\.00/);
 assert.match(table, /Unassigned/);
+assert.equal((table.match(/>Other</g) ?? []).length, 2);
 console.log('Receipt summary and individual payments: PASS');
