@@ -1,3 +1,10 @@
+import { ChevronDown } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Form, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
@@ -107,7 +114,7 @@ function FolioDue({ total }: { total: FolioTotal }) {
                 <h3 className="font-semibold">{total.currency}</h3>
                 <StatusChip tone={status.tone}>{status.label}</StatusChip>
             </div>
-            <dl className="grid grid-cols-3 gap-4">
+            <dl className="grid grid-cols-[1fr_1fr_auto] gap-3">
                 <div>
                     <dt className="text-sm text-muted-foreground">
                         Total charges
@@ -124,7 +131,7 @@ function FolioDue({ total }: { total: FolioTotal }) {
                     <dt className="text-sm text-muted-foreground">
                         {due.label}
                     </dt>
-                    <dd className="text-lg font-semibold tabular-nums">
+                    <dd className="text-base font-semibold tabular-nums sm:text-lg">
                         {due.amount}
                     </dd>
                 </div>
@@ -194,46 +201,49 @@ export function FolioPanel({
     return (
         <section className="space-y-4">
             <h2 className="text-lg font-semibold">Folio</h2>
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-5">
-                {(
-                    [
-                        ['Guest', stay.guest],
-                        [
-                            'Reservation',
-                            <Identifier value={stay.reservation_number} />,
-                        ],
-                        ['Room', stay.room ?? 'Not assigned'],
-                        ['Room type', stay.room_type ?? '—'],
-                        ['Nights', String(stay.nights)],
-                    ] as const
-                ).map(([label, value]) => (
-                    <div key={label}>
-                        <dt className="text-muted-foreground">{label}</dt>
-                        <dd className="font-medium">{value}</dd>
-                    </div>
-                ))}
-            </dl>
-            <div className="flex flex-wrap gap-8">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                <span>{stay.guest}</span>
+                <span aria-hidden="true">·</span>
+                <Identifier value={stay.reservation_number} />
+                <span aria-hidden="true">·</span>
+                <span>
+                    {stay.room ? `Room ${stay.room}` : 'No room assigned'}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>{stay.room_type ?? '—'}</span>
+                <span aria-hidden="true">·</span>
+                <span>
+                    {stay.nights} {stay.nights === 1 ? 'night' : 'nights'}
+                </span>
+            </p>
+            <div className="grid items-start gap-4 lg:grid-cols-2 2xl:grid-cols-3">
                 {totals.map((total) => (
-                    <section
-                        key={total.currency}
-                        className="w-full max-w-md space-y-4"
-                    >
-                        <FolioDue total={total} />
-                        <FolioSummaryList
-                            summary={total}
-                            currency={total.currency}
-                            estimate={total.estimate}
-                        />
-                    </section>
+                    <Card key={total.currency} className="gap-4 py-4 md:py-6">
+                        <CardContent className="space-y-4 px-4 md:px-6">
+                            <FolioDue total={total} />
+                            <Collapsible>
+                                <CollapsibleTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        className="group -mx-3 min-h-11"
+                                        aria-label={`Show breakdown for ${total.currency}`}
+                                    >
+                                        Show breakdown
+                                        <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                                    </Button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="pt-4">
+                                    <FolioSummaryList
+                                        summary={total}
+                                        currency={total.currency}
+                                        estimate={total.estimate}
+                                    />
+                                </CollapsibleContent>
+                            </Collapsible>
+                        </CardContent>
+                    </Card>
                 ))}
             </div>
-            <Link
-                href={statement(stay.reservation_number)}
-                className="text-primary underline underline-offset-4"
-            >
-                Folio statement
-            </Link>
             {folioPage.total > 1 && (
                 <Table aria-label="Folios">
                     <TableHeader>
@@ -263,11 +273,7 @@ export function FolioPanel({
                                     <Button
                                         asChild
                                         size="sm"
-                                        variant={
-                                            item.id === folio?.id
-                                                ? 'default'
-                                                : 'secondary'
-                                        }
+                                        variant="secondary"
                                     >
                                         <a
                                             href="#folio-detail"
@@ -303,8 +309,87 @@ export function FolioPanel({
                             />
                         </h3>
                     )}
+                    <div className="flex flex-wrap items-center gap-2">
+                        {canRecordPayment && total && (
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button className="h-auto min-h-11 text-left whitespace-normal">
+                                        Record payment for this {folio.currency}{' '}
+                                        folio
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-h-[90dvh] overflow-y-auto">
+                                    <DialogHeader>
+                                        <DialogTitle>
+                                            Record payment for this{' '}
+                                            {folio.currency} folio
+                                        </DialogTitle>
+                                        <DialogDescription>
+                                            {due?.label}: {due?.amount}
+                                            {total.estimate &&
+                                                ' (includes estimated nights before added taxes)'}
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <PaymentForm
+                                        folio={folio}
+                                        total={total}
+                                        channelCollectedAmount={
+                                            channelCollectedAmount
+                                        }
+                                        acceptedMethods={acceptedPaymentMethods}
+                                    />
+                                </DialogContent>
+                            </Dialog>
+                        )}
+
+                        {canPostCharge && (
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button
+                                        variant="secondary"
+                                        className="min-h-11"
+                                    >
+                                        Post an extra
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent
+                                    className="max-h-[90dvh] overflow-y-auto"
+                                    aria-describedby={undefined}
+                                >
+                                    <DialogHeader>
+                                        <DialogTitle>Post an extra</DialogTitle>
+                                    </DialogHeader>
+                                    <ExtraChargeForm
+                                        folio={folio}
+                                        categories={extraCategories}
+                                    />
+                                </DialogContent>
+                            </Dialog>
+                        )}
+                        <AdjustmentForms folio={folio} />
+                        <Button
+                            asChild
+                            variant="link"
+                            className="h-auto min-h-11 text-left whitespace-normal"
+                        >
+                            <Link href={statement(stay.reservation_number)}>
+                                Folio statement
+                            </Link>
+                        </Button>
+                        {paymentsReportUrl && (
+                            <Button
+                                asChild
+                                variant="link"
+                                className="h-auto min-h-11 text-left whitespace-normal"
+                            >
+                                <Link href={paymentsReportUrl}>
+                                    View payments report for this reservation
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                     {folio.postings.data.length === 0 ? (
-                        <EmptyState message="Nothing posted yet. Post an extra below when the guest uses one." />
+                        <EmptyState message="Nothing posted yet. Post an extra when the guest uses one." />
                     ) : (
                         <Table>
                             <TableHeader>
@@ -424,67 +509,47 @@ export function FolioPanel({
                         </Table>
                     )}
                     <Pagination page={folio.postings} />
-                    <PaymentsReceived
-                        payments={folio.payments}
-                        currency={folio.currency}
-                        timezone={timezone}
-                    />
-                    {paymentsReportUrl && (
-                        <Link
-                            href={paymentsReportUrl}
-                            className="text-primary underline underline-offset-4"
-                        >
-                            View payments report for this reservation
-                        </Link>
-                    )}
-                    {canPostCharge && (
-                        <ExtraChargeForm
-                            folio={folio}
-                            categories={extraCategories}
-                        />
-                    )}
-                    {canRecordPayment && total && (
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <Button>
-                                    Record payment for this {folio.currency}{' '}
-                                    folio
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-h-[90dvh] overflow-y-auto">
-                                <DialogHeader>
-                                    <DialogTitle>
-                                        Record payment for this {folio.currency}{' '}
-                                        folio
-                                    </DialogTitle>
-                                    <DialogDescription>
-                                        {due?.label}: {due?.amount}
-                                        {total.estimate &&
-                                            ' (includes estimated nights before added taxes)'}
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <PaymentForm
-                                    folio={folio}
-                                    total={total}
-                                    channelCollectedAmount={
-                                        channelCollectedAmount
-                                    }
-                                    acceptedMethods={acceptedPaymentMethods}
+                    {folio.payments.total > 0 && (
+                        <Collapsible>
+                            <h3>
+                                <CollapsibleTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        className="group -mx-3 min-h-11 font-semibold"
+                                    >
+                                        Payments received (
+                                        {folio.payments.total})
+                                        <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                                    </Button>
+                                </CollapsibleTrigger>
+                            </h3>
+                            <CollapsibleContent className="pt-4">
+                                <PaymentsReceived
+                                    payments={folio.payments}
+                                    currency={folio.currency}
+                                    timezone={timezone}
                                 />
-                            </DialogContent>
-                        </Dialog>
+                            </CollapsibleContent>
+                        </Collapsible>
                     )}
-                    <AdjustmentForms folio={folio} />
                 </div>
             ) : (
-                <EmptyState message="No folios on this page. Choose another page or open a folio." />
+                <div className="space-y-3">
+                    <Link
+                        href={statement(stay.reservation_number)}
+                        className="text-primary underline underline-offset-4"
+                    >
+                        Folio statement
+                    </Link>
+                    <EmptyState message="No folios on this page. Choose another page or open a folio." />
+                </div>
             )}
             <OpenFolioForm />
         </section>
     );
 }
 
-function ExtraChargeForm({
+export function ExtraChargeForm({
     folio,
     categories: allowed,
 }: {
@@ -507,9 +572,6 @@ function ExtraChargeForm({
                 <>
                     <PropertyIntent />
                     <input type="hidden" name="idempotency_key" value={key} />
-                    <h3 className="font-semibold sm:col-span-2">
-                        Post an extra
-                    </h3>
                     <div className="space-y-2 sm:col-span-2">
                         <Label htmlFor={id('description')}>Item name</Label>
                         <Input

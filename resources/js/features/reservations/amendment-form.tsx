@@ -50,7 +50,6 @@ export function AmendmentForm({
     const [previewError, setPreviewError] = useState('');
     return (
         <section className="max-w-[720px] space-y-3">
-            <h2 className="text-lg font-semibold">Amend reservation</h2>
             <Form
                 {...amend.form(reservation.reservation_number)}
                 className="space-y-4"
@@ -335,7 +334,6 @@ export function AmendmentHistory({
     const timezone = tenant.property?.timezone ?? 'UTC';
     return (
         <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Amendment history</h2>
             {amendments.data.length === 0 && (
                 <EmptyState message="No amendments yet." />
             )}

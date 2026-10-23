@@ -4,6 +4,8 @@ import type { ComponentType } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import Maintenance from '@/pages/maintenance/index';
 import Create from '@/pages/reservations/create';
+import Show from '@/pages/reservations/show';
+import type { ComponentProps } from 'react';
 
 function render(Page: ComponentType) {
     return renderToStaticMarkup(
@@ -80,3 +82,148 @@ assert.match(booking, /<dt[^>]*>Nights<\/dt><dd[^>]*>3<\/dd>/);
 assert.match(booking, /USD 100\.00/);
 assert.match(booking, /<aside[^>]*>[\s\S]*Confirm reservation[\s\S]*<\/aside>/);
 console.log('Booking summary keeps confirm beside the stay: PASS');
+
+const emptyPage = {
+    data: [],
+    total: 0,
+    current_page: 1,
+    last_page: 1,
+    per_page: 50,
+    from: null,
+    to: null,
+    prev_page_url: null,
+    next_page_url: null,
+    links: [],
+};
+const stayProps: ComponentProps<typeof Show> = {
+    reservation: {
+        reservation_number: 'R-1042',
+        status: 'confirmed',
+        room_id: null,
+        room_type_id: 'type',
+        rate_plan_id: 'plan',
+        arrival: '2026-12-10',
+        departure: '2026-12-13',
+        adults: 2,
+        children: 0,
+        source: 'phone',
+        meal_plan: 'room-only',
+        special_requests: 'Quiet room',
+        booked_through: 'direct',
+        tour_operator_name: null,
+        tour_operator_registration: null,
+        tour_operator_pays_for: null,
+        channel_reference: null,
+        outside_integration_reason: null,
+        requires_reconciliation: false,
+        payment_collector: 'property',
+        channel_collected_amount: null,
+        price_lines: [
+            { id: 'night', date: '2026-12-10', amount: 10000, currency: 'USD' },
+        ],
+    },
+    roomType: { id: 'type', name: 'Deluxe' },
+    assignedRoom: '101',
+    ratePlan: { id: 'plan', name: 'Breakfast' },
+    booker: { id: 'booker', name: 'Travel Booker' },
+    leadGuest: { id: 'guest', name: 'Amina' },
+    rooms: [],
+    canAssignRoom: true,
+    canAmend: true,
+    amendmentOptions: { roomTypes: [], ratePlans: [], rooms: [] },
+    amendments: emptyPage,
+    can: {
+        cancel: false,
+        void: false,
+        moveRoom: true,
+        changeStay: false,
+        checkIn: true,
+        checkOut: false,
+        overrideBalance: false,
+    },
+    moveRooms: [],
+    groupMembers: [
+        {
+            reservation_number: 'R-1043',
+            status: 'confirmed',
+            arrival: '2026-12-10',
+            departure: '2026-12-13',
+        },
+    ],
+    folios: emptyPage,
+    totals: [],
+    stay: {
+        reservation_number: 'R-1042',
+        guest: 'Amina',
+        room: '101',
+        room_type: 'Deluxe',
+        nights: 3,
+    },
+    checkoutBalances: [],
+    canPostCharge: false,
+    feeProposals: [],
+    canRecordPayment: false,
+    acceptedPaymentMethods: [],
+    extraCategories: [],
+    paymentsReportUrl: null,
+};
+const reservation = render(() => <Show {...stayProps} />);
+for (const label of [
+    'More details',
+    'Room assignment',
+    'Move room',
+    'Amend reservation',
+    'Amendment history (0)',
+    'Other reservations in this booking group (1)',
+    'Fixed nightly prices (1)',
+]) {
+    assert.ok(
+        reservation.includes(label),
+        `Missing disclosure trigger: ${label}`,
+    );
+}
+assert.match(reservation, /aria-expanded="false"/);
+for (const visible of [
+    'Deluxe',
+    'Breakfast',
+    '101',
+    'Amina',
+    'Scheduled nights',
+    'Payment collector',
+])
+    assert.ok(reservation.includes(visible));
+for (const hidden of [
+    'Travel Booker',
+    'Quiet room',
+    'R-1043',
+    'name="room_id"',
+    'name="pricing"',
+    'No amendments yet.',
+])
+    assert.ok(
+        !reservation.includes(hidden),
+        `Content should start hidden: ${hidden}`,
+    );
+const fee = {
+    id: 'fee',
+    kind: 'cancellation',
+    amount: 1000,
+    currency: 'USD',
+    status: 'proposed',
+    reason: 'Policy fee',
+    fiscal_exception_candidate: false,
+    can_resolve: true,
+} as const;
+assert.match(
+    render(() => <Show {...stayProps} feeProposals={[fee]} />),
+    /Post fee/,
+);
+assert.doesNotMatch(
+    render(() => (
+        <Show {...stayProps} feeProposals={[{ ...fee, can_resolve: false }]} />
+    )),
+    /Policy fee/,
+);
+console.log(
+    'Reservation facts stay visible, secondary forms and history disclose on request: PASS',
+);

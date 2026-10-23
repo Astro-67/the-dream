@@ -30,7 +30,6 @@ export function RoomMoveForm({
             {({ errors, processing }) => (
                 <>
                     <PropertyIntent />
-                    <h2 className="text-lg font-semibold">Move room</h2>
                     <div className="space-y-2">
                         <Label htmlFor="move-room_id">New room</Label>
                         <NativeSelect
