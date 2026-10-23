@@ -25,7 +25,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\CreateReservationRequest;
 use App\Support\Money\Currency;
 use App\Support\Tenancy\Tenancy;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -69,27 +68,19 @@ class ReservationController extends Controller
             ->orderBy('created_at')->orderBy('id')->paginate(50, ['*'], 'folios_page')->withQueryString();
         $folioPage = clone $folios;
         $folioPage->setCollection(clone $folios->getCollection());
-        $paymentRange = Posting::query()->where('property_id', $property->id)
-            ->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
-            ->moneyMovements()
-            ->selectRaw('MIN(business_date) as first_date, MAX(business_date) as last_date')->toBase()->first();
+        $payments = FolioSummary::payments($folios->getCollection());
 
         return Inertia::render('reservations/show', [
-            'paymentsReportUrl' => Gate::allows('view', PropertyKpis::class) ? route('payments.index', [
-                'reservation' => $reservation->id, 'period' => 'custom',
-                'from' => CarbonImmutable::parse($paymentRange->first_date ?? BusinessDate::current())->toDateString(),
-                'to' => CarbonImmutable::parse($paymentRange->last_date ?? BusinessDate::current())->toDateString(),
-            ]) : null,
+            'paymentsReportUrl' => Gate::allows('view', PropertyKpis::class)
+                ? route('payments.index', ['reservation' => $reservation->id, 'period' => 'custom', ...FolioSummary::paymentDates($reservation)]) : null,
             'folios' => $folioPage->through(fn (Folio $folio, int $index) => [
                 'id' => $folio->id, 'currency' => $folio->currency->value, 'balance' => (int) $folio->getAttribute('balance_amount'),
                 'number' => ($folios->firstItem() ?? 1) + $index,
-                'payments' => $folio->postings()->moneyMovements()
-                    ->with(['actor:id,name', 'receipt:id,posting_id,number'])->reorder()->orderByDesc('posted_at')->orderByDesc('id')
-                    ->paginate(50, ['*'], 'payments_page_'.$folio->id)->withQueryString()->through(fn (Posting $posting) => [
-                        ...$posting->only(['id', 'type', 'category', 'amount', 'method', 'reference']),
-                        'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
-                        'receipt' => $posting->receipt?->only(['id', 'number']),
-                    ]),
+                'payments' => $payments[$folio->id]->through(fn (Posting $posting) => [
+                    ...$posting->only(['id', 'type', 'category', 'amount', 'method', 'reference']),
+                    'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
+                    'receipt' => $posting->receipt?->only(['id', 'number']),
+                ]),
                 'postings' => $folio->postings()->with(['actor:id,name', 'receipt:id,posting_id,number', 'related:id,type,category,folio_id', 'cancelledBy:id,type,folio_id,related_posting_id', 'cancelledBy.cancelledBy:id,folio_id,related_posting_id'])
                     ->paginate(50, ['*'], 'postings_page_'.$folio->id)->withQueryString()->through(fn (Posting $posting) => [
                         ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),

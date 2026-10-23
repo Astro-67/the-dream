@@ -4,10 +4,14 @@ namespace App\Domains\Billing;
 
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationPriceLine;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 
 /**
@@ -106,6 +110,46 @@ final class FolioSummary
                         default => 'unpaid',
                     }];
             })->all();
+    }
+
+    /**
+     * First and last business date with money received on the reservation, today when there is none,
+     * so the payments report link covers every payment.
+     *
+     * @return array{from: string, to: string}
+     */
+    public static function paymentDates(Reservation $reservation): array
+    {
+        $range = Posting::query()->where('property_id', $reservation->property_id)
+            ->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))->moneyMovements()
+            ->selectRaw('MIN(business_date) as first_date, MAX(business_date) as last_date')->toBase()->first();
+
+        return [
+            'from' => CarbonImmutable::parse($range->first_date ?? BusinessDate::current())->toDateString(),
+            'to' => CarbonImmutable::parse($range->last_date ?? BusinessDate::current())->toDateString(),
+        ];
+    }
+
+    /**
+     * Each folio's Payments received list, newest first, paged per folio, from one query for the whole page.
+     * shortcut: loads every payment of the page's folios and pages them in memory; use a windowed query if folios reach thousands of payments.
+     *
+     * @param  EloquentCollection<int, Folio>  $folios
+     * @return Collection<string, LengthAwarePaginator<int, Posting>> keyed by folio id
+     */
+    public static function payments(EloquentCollection $folios): Collection
+    {
+        $payments = Posting::query()->whereIn('folio_id', $folios->modelKeys())->moneyMovements()
+            ->with(['actor:id,name', 'receipt:id,posting_id,number'])->orderByDesc('posted_at')->orderByDesc('id')->get();
+
+        return $folios->toBase()->mapWithKeys(function (Folio $folio) use ($payments) {
+            $own = $payments->where('folio_id', $folio->id);
+            $pageName = 'payments_page_'.$folio->id;
+            $page = Paginator::resolveCurrentPage($pageName);
+            $paginator = new LengthAwarePaginator($own->forPage($page, 50)->values(), $own->count(), 50, $page, ['path' => Paginator::resolveCurrentPath(), 'pageName' => $pageName]);
+
+            return [$folio->id => $paginator->withQueryString()];
+        });
     }
 
     /**

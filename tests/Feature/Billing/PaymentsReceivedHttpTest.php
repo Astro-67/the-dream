@@ -6,6 +6,8 @@ use App\Domains\Billing\Models\Folio;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 
@@ -106,11 +108,16 @@ test('the folio report link includes historical payments across reservation foli
         ])->assertRedirect()->assertSessionHasNoErrors();
     }
     $t->a->property->update(['business_date' => '2026-12-10']);
+    $paymentQueries = 0;
+    DB::listen(function (QueryExecuted $query) use (&$paymentQueries) {
+        $paymentQueries += str_contains($query->sql, '"method" is not null') && ! str_contains($query->sql, 'MIN(') ? 1 : 0;
+    });
 
     $response = $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->has('folios.data.0.payments.data', 1)->where('folios.data.0.payments.data.0.amount', -2500)
         ->has('folios.data.1.payments.data', 1)->where('folios.data.1.payments.data.0.amount', -50000)
         ->has('paymentsReportUrl'));
+    expect($paymentQueries)->toBe(1, 'one payments query for the whole folio page');
     $this->get($response->viewData('page')['props']['paymentsReportUrl'])->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('filters.reservation', $reservation->id)
         ->where('filters.from', '2026-06-01')->where('filters.to', '2026-06-03')
