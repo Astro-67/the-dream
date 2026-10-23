@@ -25,6 +25,9 @@ class PaymentsRequest extends ReportRequest
             ...parent::rules(),
             'period' => ['required', Rule::in(['today', 'this-month', 'last-month', 'this-year', 'custom'])],
             'view' => ['required', Rule::in(['received', 'outstanding'])],
+            'reservation' => ['sometimes', 'ulid', Rule::exists('reservations', 'id')
+                ->where('organization_id', Tenancy::organization()?->id)
+                ->where('property_id', Tenancy::property()?->id)],
         ];
     }
 }
