@@ -22,6 +22,11 @@ use Illuminate\Validation\ValidationException;
  */
 final class JurisdictionRules
 {
+    public static function usesVfms(Property $property): bool
+    {
+        return $property->jurisdiction_profile === JurisdictionProfile::Zanzibar;
+    }
+
     /**
      * Currencies the property may sell and keep folios in.
      *
