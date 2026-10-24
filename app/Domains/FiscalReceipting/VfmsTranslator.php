@@ -22,6 +22,7 @@ final class VfmsTranslator implements LifecycleTranslator
     /** Lifecycle event => [VFMS request type, gateway path, payload builder]. Later calls add rows. */
     private const CALLS = [
         'checked_in' => ['ACCOMMODATION_REQUEST', 'accommodation/', 'accommodation'],
+        'room_moved' => ['ACCOMMODATION_CHANGE_ROOM', 'change/room/', 'changeRoom'],
     ];
 
     public function __construct(private readonly VfmsPayloads $payloads, private readonly Outbox $outbox) {}

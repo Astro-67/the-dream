@@ -12,6 +12,7 @@ final class SandboxVfms implements VfmsGateway
     /** Guide-required body fields per request type. Later calls add theirs. */
     private const REQUIRED = [
         'ACCOMMODATION_REQUEST' => ['paymentPackage', 'checkInDate', 'guest', 'roomId', 'roomName', 'accommodationSource', 'accommodationPrice', 'accommodationDiscount', 'referenceNumber', 'currency'],
+        'ACCOMMODATION_CHANGE_ROOM' => ['roomName', 'roomId', 'documentNumber', 'referenceNumber', 'currency', 'accommodationPrice', 'accommodationDiscount'],
     ];
 
     private const GUEST_REQUIRED = ['documentName', 'documentNo', 'country', 'fullName'];
