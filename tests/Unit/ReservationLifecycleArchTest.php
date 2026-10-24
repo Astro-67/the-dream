@@ -1,5 +1,6 @@
 <?php
 
+// protects=core domains stay unaware of integration implementations (ADR 0013, #159); fails_when=a core domain imports an integration; no_claim=delivery correctness.
 arch('core domains never reference integration interfaces (ADR 0013)')
     ->expect(['App\Domains\Reservations', 'App\Domains\Guests', 'App\Domains\FrontDesk', 'App\Domains\Billing'])
     ->not->toUse(['App\Domains\ZanReporting', 'App\Domains\FiscalReceipting', 'App\Domains\Distribution', 'App\Support\Outbox']);

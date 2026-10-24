@@ -48,7 +48,7 @@ class Room extends Model
     protected static function booted(): void
     {
         // Rooms are never deleted, so the highest number is never handed out again; CreateRoom's entitlement lock serializes this.
-        static::creating(fn (self $room) => $room->vfms_room_id ??= (int) self::query()->withoutGlobalScopes()->where('property_id', $room->property_id)->max('vfms_room_id') + 1);
+        static::creating(fn (self $room) => $room->vfms_room_id ??= (int) self::query()->where('property_id', $room->property_id)->max('vfms_room_id') + 1);
         static::updating(function (self $room): void {
             if ($room->isDirty('vfms_room_id')) {
                 throw new LogicException('A VFMS room number is never edited.');

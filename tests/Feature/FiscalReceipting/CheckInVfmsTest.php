@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\FiscalReceipting\Adapters\SandboxVfms;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FrontDesk\Actions\CheckIn;
@@ -16,6 +17,7 @@ use App\Domains\Tenancy\Models\Property;
 use App\Support\Outbox\OutboxAttempt;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -71,7 +73,7 @@ test('a Sandbox check-in of two guests files one accepted accommodation message'
     expect($message->status)->toBe('delivered')
         ->and($message->event)->toBe('accommodation')
         ->and($message->payload['mode'])->toBe('sandbox')
-        ->and($message->payload['body'])->toBe([
+        ->and($message->payload['body'])->toEqual([
             'paymentPackage' => 'bed-and-breakfast',
             'checkInDate' => '2026-12-10',
             'guest' => [
@@ -90,6 +92,46 @@ test('a Sandbox check-in of two guests files one accepted accommodation message'
         ->and(inTenant($t->a->property, fn () => $message->attempts()->sole()->provider_references))->toHaveKey('receiptNumber');
     expect(inTenant($t->a->property, fn () => $message->attempts()->sole()->provider_references['receiptNumber']))->toStartWith('SBX-');
 });
+
+// protects=Sandbox and incomplete credentials never contact VFMS (#159); fails_when=any HTTP request escapes either guard; no_claim=Live gateway availability.
+test('Sandbox or missing credentials never sends an HTTP request', function (bool $sandbox, bool $complete) {
+    $t = twoTenants();
+    liveCredentials($t->a);
+    inTenant($t->a->property, function () use ($t, $sandbox, $complete) {
+        VfmsCredential::for($t->a->property)->forceFill([
+            'mode' => $sandbox ? VfmsMode::Sandbox : VfmsMode::Live,
+            'token' => $complete ? 'tok-live' : null,
+        ])->save();
+    });
+
+    checkInTwoGuests($t->a);
+
+    Http::assertNothingSent();
+    expect(vfmsMessages($t->a)[0]->status)->toBe($sandbox ? 'delivered' : 'rejected');
+})->with([
+    'Sandbox with credentials' => [true, true],
+    'Sandbox without credentials' => [true, false],
+    'Live without credentials' => [false, false],
+]);
+
+// protects=Sandbox refuses bodies missing guide-required fields (#159); fails_when=a missing body, guest or operator field is accepted; no_claim=VFMS production validation.
+test('Sandbox rejects missing required accommodation fields', function (string $field) {
+    $t = twoTenants();
+    checkInTwoGuests($t->a, ['booked_through' => 'tour-operator', 'tour_operator_name' => 'Safari Co', 'tour_operator_registration' => 'ZRA-123', 'tour_operator_pays_for' => 'room-only']);
+    $payload = vfmsMessages($t->a)[0]->payload;
+    data_forget($payload['body'], $field);
+
+    $result = app(SandboxVfms::class)->send($payload, new VfmsCredential);
+
+    expect($result->outcome)->toBe('rejected')
+        ->and($result->responseBody['missing'])->toContain($field);
+    Http::assertNothingSent();
+})->with([
+    'paymentPackage', 'checkInDate', 'guest', 'roomId', 'roomName',
+    'accommodationSource', 'accommodationPrice', 'accommodationDiscount',
+    'referenceNumber', 'currency', 'guest.0.documentName', 'guest.0.documentNo',
+    'guest.0.country', 'guest.0.fullName', 'tourRegNo', 'costOptions',
+]);
 
 // protects=tour-operator stays name the operator and what it pays for (spec #156, ADR 0005); fails_when=a choice maps to the wrong cost options or the registration number is dropped; no_claim=how VFMS bills the operator.
 test('a tour-operator stay is sent with its registration number and cost options', function (string $paysFor, string $costOptions) {
@@ -172,6 +214,7 @@ test('each VFMS gateway answer maps to its delivery outcome', function (Closure 
     '500' => [fn () => Http::response([], 500), 'unknown', false],
     '503' => [fn () => Http::response([], 503), 'unknown', false],
     'connection error' => [fn () => Http::failedConnection(), 'unknown', false],
+    'timeout' => [fn () => throw new ConnectionException('cURL error 28: Operation timed out'), 'unknown', false],
 ]);
 
 // protects=credentials never enter delivery records (spec #156 AC 2); fails_when=the token appears in an outbox payload or attempt body; no_claim=logs and audit (VfmsSettingsTest).

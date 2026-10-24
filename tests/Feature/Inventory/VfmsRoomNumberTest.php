@@ -61,4 +61,6 @@ test('the migration numbers existing rooms per property', function () {
 
     $rows = DB::table('rooms')->get(['property_id', 'vfms_room_id'])->groupBy('property_id')->map(fn ($rooms) => $rooms->pluck('vfms_room_id')->sort()->values()->all());
     expect($rows->values()->sort()->values()->all())->toBe([[1], [1, 2], [1, 2, 3]]);
+    addRooms($t->a, ['104']);
+    expect(vfmsRoomIds($t->a))->toBe([1, 2, 3, 4]);
 });
