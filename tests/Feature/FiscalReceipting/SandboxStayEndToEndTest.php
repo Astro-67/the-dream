@@ -23,6 +23,7 @@ beforeEach(function () {
 });
 
 // protects=spec #156 AC 5: a full Sandbox stay driven through the real routes files every step with VFMS in order and ends in a stamped report matching the folio (#166); fails_when=a step files no message, an extra one, out of order or unaccepted, any request leaves the server, or the report differs from the folio; no_claim=VFMS production acceptance or Live figures.
+// The report also lists only guests still in-house: fails_when=a departed guest (Ola) is named on it.
 test('a full Sandbox stay files six accepted VFMS messages in order and a stamped report matching the folio', function () {
     $t = twoTenants()->a;
     $property = ['_property' => $t->property->id];
@@ -63,7 +64,7 @@ test('a full Sandbox stay files six accepted VFMS messages in order and a stampe
     // Nights at 110.00 and 125.00, and 20.00 of water.
     $this->actingAs($desk)->get(route('reservations.fiscal-report', $reservation))->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('fiscal-receipting/checkout-report')
-            ->where('status', 'sandbox')->where('qrSvg', null)
+            ->where('status', 'sandbox')->where('qrSvg', null)->where('guests', ['Anna Berg'])
             ->where('report.number', fn (string $number) => str_starts_with($number, 'SBX-'))
             ->where('report.room', 23500)->where('report.extras', 2000)->where('report.total', 25500));
     $this->get(route('reservations.show', $reservation))
