@@ -131,3 +131,27 @@ test('the same document can be in-house at another Zanzibar property', function 
         ->postJson(route('reservations.check-in', $other), ['_property' => $otherProperty->id])->assertSessionHasNoErrors();
     inTenant($otherProperty, fn () => expect($other->fresh()->status)->toBe(ReservationStatus::CheckedIn));
 })->with(['same organization' => false, 'other organization' => true]);
+
+/**
+ * protects: correcting an in-house guest's document cannot make it collide with another in-house stay (ADR 0016).
+ * fails_when: the edit saves, the refusal misses the other room, leaks the number, or is not audited.
+ * no_claim: guests not in house, who meet the guard at check-in.
+ */
+test('editing an in-house guest to another in-house document is refused and names the room', function () {
+    $t = twoTenants();
+    [$first, $second, $guest] = documentGuardArrivals($t->a->property, $t->a->owner);
+    inTenant($t->a->property, fn () => $guest->documents()->sole()->update(['number' => 'OTHER']));
+    $this->actingAs($t->a->owner);
+    foreach ([$first, $second] as $stay) {
+        $this->postJson(route('reservations.check-in', $stay), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
+    }
+    $response = $this->putJson(route('guests.update', $guest), ['_property' => $t->a->property->id, 'name' => $guest->name, 'documents' => [['type' => 'passport', 'number' => 'p1234567', 'nationality' => 'DE']]])
+        ->assertUnprocessable()->assertJsonValidationErrors('documents');
+    expect($response->json('errors.documents.0'))->toContain('101')
+        ->and($response->getContent())->not->toContain('P1234567');
+    inTenant($t->a->property, function () use ($guest, $second) {
+        expect($guest->documents()->sole()->getAttribute('number'))->toBe('OTHER')
+            ->and($second->lifecycleEvents()->where('type', 'guest_profile_changed')->exists())->toBeFalse()
+            ->and(Activity::query()->where('subject_id', $guest->id)->where('event', 'refused')->exists())->toBeTrue();
+    });
+});

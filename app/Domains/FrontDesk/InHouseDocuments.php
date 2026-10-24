@@ -14,8 +14,12 @@ use Illuminate\Validation\ValidationException;
 
 class InHouseDocuments
 {
-    /** @param Collection<int, Guest> $guests */
-    public static function ensureAvailable(Property $property, Collection $guests, Reservation $reservation): void
+    /**
+     * Refuses on $field, the form input the refusal is shown on.
+     *
+     * @param  Collection<int, Guest>  $guests
+     */
+    public static function ensureAvailable(Property $property, Collection $guests, Reservation $reservation, string $field = 'guests'): void
     {
         if (! JurisdictionRules::usesVfms($property)) {
             return;
@@ -39,7 +43,7 @@ class InHouseDocuments
 
         if ($conflict !== null) {
             $number = Room::query()->whereKey($conflict->getAttribute('room_id'))->value('number');
-            throw ValidationException::withMessages(['guests' => __('A guest with this document is already in-house in room :room.', ['room' => $number])]);
+            throw ValidationException::withMessages([$field => __('A guest with this document is already in-house in room :room.', ['room' => $number])]);
         }
     }
 }
