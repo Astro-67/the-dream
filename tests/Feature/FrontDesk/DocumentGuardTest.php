@@ -61,3 +61,34 @@ test('check-in refuses a document already in-house and names the room without le
         expect($audit->toJson())->not->toContain('P1234567')->not->toContain($hash);
     });
 });
+
+/**
+ * protects: adding either a new or matched guest cannot reuse another in-house document.
+ * fails_when: attaching bypasses the guard, creates a stray guest/event, or omits the other room.
+ * no_claim: modifying documents after a guest has already been attached.
+ */
+test('adding a guest refuses another in-house document and rolls back the addition', function (bool $matched) {
+    $t = twoTenants();
+    [$first, $second, $guest] = documentGuardArrivals($t->a);
+    $details = inTenant($t->a->property, function () use ($first, $guest, $matched) {
+        $guest->documents()->sole()->update(['number' => 'OTHER']);
+
+        return $matched ? ['guest_id' => $first->leadGuest()->id] : [
+            'name' => 'Late Arrival',
+            'documents' => [['type' => 'national_id', 'number' => "p 123\t4567", 'nationality' => 'TZ']],
+        ];
+    });
+    $this->actingAs($t->a->owner);
+    foreach ([$first, $second] as $stay) {
+        $this->postJson(route('reservations.check-in', $stay), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
+    }
+    $response = $this->postJson(route('reservations.add-guest', $second), ['_property' => $t->a->property->id, ...$details])
+        ->assertUnprocessable()->assertJsonValidationErrors('guests');
+    expect($response->json('errors.guests.0'))->toContain('101');
+    inTenant($t->a->property, function () use ($second) {
+        expect(Guest::query()->count())->toBe(2)
+            ->and(ReservationGuest::query()->where('reservation_id', $second->id)->count())->toBe(1)
+            ->and($second->lifecycleEvents()->where('type', 'guest_added')->exists())->toBeFalse()
+            ->and(Activity::query()->where('subject_id', $second->id)->where('description', 'Add guest refused')->where('event', 'refused')->exists())->toBeTrue();
+    });
+})->with(['new guest' => false, 'matched guest' => true]);
