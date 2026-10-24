@@ -34,7 +34,7 @@ final class HttpVfms implements VfmsGateway
         }
         // shortcut: guide 1.6 omits the response schema; unfamiliar report shapes stay unresolved until verified with VFMS.
         foreach ($rows as $row) {
-            if (! is_array($row) || ! is_string($row['referenceNumber'] ?? null)) {
+            if (! is_array($row) || ! is_string($row['referenceNumber'] ?? null) || trim($row['referenceNumber']) === '') {
                 return $unresolved;
             }
         }

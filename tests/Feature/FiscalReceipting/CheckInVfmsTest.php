@@ -9,11 +9,13 @@ use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Property;
+use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\OutboxAttempt;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
@@ -299,4 +301,54 @@ test('VFMS reconciliation resends an absent check-in once with the original refe
     'empty report' => [false, []],
     'different reference' => [false, [['referenceNumber' => 'another-stay', 'receiptNumber' => 'VFMS-99']]],
     'resend also times out' => [true, []],
+]);
+
+// protects=failed or ambiguous reports hold unknown work for existing compliance recovery (#165); fails_when=a lookup failure permits a resend or automatic retry; no_claim=live report availability.
+test('VFMS reconciliation leaves a failed lookup unknown for the compliance operator', function (Closure $reportAnswer) {
+    $t = twoTenants();
+    liveCredentials($t->a);
+    $checkIns = 0;
+    Http::fake([
+        'gateway.zanrevenue.org/api/accommodation/' => function () use (&$checkIns) {
+            $checkIns++;
+
+            throw new ConnectionException('Operation timed out');
+        },
+        'gateway.zanrevenue.org/api/accommodationReport/' => $reportAnswer,
+    ]);
+
+    checkInTwoGuests($t->a);
+
+    $message = vfmsMessages($t->a)[0];
+    expect($message->status)->toBe('unknown');
+    $this->travel(2)->minutes();
+    inTenant($t->a->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    expect($checkIns)->toBe(1)
+        ->and(vfmsMessages($t->a)[0]->attempt_count)->toBe(1);
+    $operator = platformStaff(PlatformRole::ComplianceOperator);
+    $this->artisan('outbox:retry', [
+        'message' => $message->id,
+        '--actor' => $operator->id,
+        '--property' => $t->a->property->id,
+        '--reason' => 'Check unknown VFMS delivery',
+    ])->assertFailed();
+    $this->artisan('outbox:confirm-accepted', [
+        'message' => $message->id,
+        '--actor' => $operator->id,
+        '--property' => $t->a->property->id,
+        '--reason' => 'Verified filing in the VFMS portal',
+        '--evidence' => 'VFMS receipt 42',
+    ])->assertSuccessful();
+    expect(vfmsMessages($t->a)[0]->status)->toBe('delivered')
+        ->and($checkIns)->toBe(1);
+})->with([
+    'timeout' => [fn () => throw new ConnectionException('Report timed out')],
+    'connection error' => [fn () => Http::failedConnection()],
+    'server error' => [fn () => Http::response([], 503)],
+    'refused credentials' => [fn () => Http::response([], 401)],
+    'not found endpoint' => [fn () => Http::response([], 404)],
+    'non JSON' => [fn () => Http::response('upstream unavailable', 200)],
+    'unexpected envelope' => [fn () => Http::response(['data' => []], 200)],
+    'missing reference' => [fn () => Http::response([['receiptNumber' => 'VFMS-42']], 200)],
+    'blank reference' => [fn () => Http::response([['referenceNumber' => '', 'receiptNumber' => 'VFMS-42']], 200)],
 ]);
