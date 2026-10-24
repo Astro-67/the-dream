@@ -29,6 +29,7 @@ class IdentityDocument extends Model
     {
         $normalized = Str::upper(preg_replace('/\s+/u', '', $number ?? '') ?? '');
 
+        // shortcut: hashes use the current APP_KEY, rehash existing documents when rotating it.
         return $normalized === '' ? null : hash_hmac('sha256', $normalized, app('encrypter')->getKey());
     }
 

@@ -2,6 +2,7 @@
 
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\IdentityDocument;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * protects: encrypted document numbers have a keyed, normalized search value that stays private.
@@ -13,7 +14,7 @@ test('document search hashes follow normalized numbers on create and update with
     app()->forgetInstance('encrypter');
     [$owner, , $property] = organizationWithOwner();
 
-    inTenant($property, function () use ($owner) {
+    $guest = inTenant($property, function () use ($owner) {
         $guest = app(CreateGuest::class)->handle($owner, ['name' => 'Registered Guest', 'documents' => [['number' => " p 123\t4567\n"]]]);
         $document = $guest->documents()->sole();
         expect($document->getAttribute('number_hash'))->toBe('dd0277d574e5fcb1a7657af3a617c8a0706fa1e1e1d156bbb060a27093e47d55')
@@ -30,5 +31,10 @@ test('document search hashes follow normalized numbers on create and update with
         $same->update(['number' => " \t\n"]);
         expect($same->fresh()->getAttribute('number_hash'))->toBeNull()
             ->and(IdentityDocument::query()->count())->toBe(2);
+
+        return $guest;
     });
+    $this->actingAs($owner)->get(route('guests.show', $guest))
+        ->assertOk()->assertDontSee('number_hash')->assertDontSee('dd0277d574e5fcb1a7657af3a617c8a0706fa1e1e1d156bbb060a27093e47d55');
+    expect(Activity::query()->get()->toJson())->not->toContain('number_hash')->not->toContain('dd0277d574e5fcb1a7657af3a617c8a0706fa1e1e1d156bbb060a27093e47d55');
 });

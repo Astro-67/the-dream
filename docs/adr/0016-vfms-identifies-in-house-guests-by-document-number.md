@@ -17,3 +17,4 @@ Related choices that follow from the same fact:
 
 - A parent booking two family rooms registers a different guest as the first guest of the second room.
 - Two guests from different countries with the same document number cannot be in-house together. Accepted as rare; VFMS offers no other key.
+- Document numbers stay encrypted. A hidden SHA-256 HMAC of the whitespace-stripped, uppercased number supports comparison; its key is the decoded `APP_KEY`. Rehash all existing documents under the new key before reopening check-in and guest additions after key rotation; `APP_PREVIOUS_KEYS` decrypts old values but does not update search hashes.
