@@ -61,6 +61,27 @@ final class VfmsPayloads
     }
 
     /**
+     * §2.6 add guest: the new guest, filed against the lead guest's document.
+     *
+     * @return array<string, mixed>
+     */
+    public function addGuest(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $guests = $this->guests($reservation);
+        $added = $this->guest(Guest::query()->with('documents')->findOrFail($event->snapshot['guest_id']));
+
+        return [
+            'firstGuestDocument' => $guests[0]['documentNo'],
+            'documentName' => $added['documentName'],
+            'documentNo' => $added['documentNo'],
+            'arrivalDate' => $event->business_date->toDateString(),
+            'referenceNumber' => $this->referenceNumber($event, $reservation),
+            'country' => $added['country'],
+            'fullName' => $added['fullName'],
+        ];
+    }
+
+    /**
      * Every guest on the stay, lead guest first, each with their first identity document.
      *
      * @return list<array{documentName: string|null, documentNo: string|null, country: string|null, fullName: string}>
@@ -70,19 +91,26 @@ final class VfmsPayloads
         $ids = ReservationGuest::query()->where('reservation_id', $reservation->id)->orderBy('id')->pluck('guest_id');
         $guests = Guest::query()->with('documents')->whereIn('id', $ids)->get()->keyBy('id');
 
-        return $ids->map(function (string $id) use ($guests): array {
-            $guest = $guests[$id];
-            /** @var IdentityDocument|null $document */
-            $document = $guest->documents->sortBy('id')->first();
-            $country = $document?->getAttribute('nationality') ?? $guest->getAttribute('nationality');
+        return $ids->map(fn (string $id) => $this->guest($guests[$id]))->values()->all();
+    }
 
-            return [
-                'documentName' => $document?->getAttribute('type'),
-                'documentNo' => $document?->getAttribute('number'),
-                'country' => Countries::NAMES[$country] ?? $country,
-                'fullName' => $guest->name,
-            ];
-        })->values()->all();
+    /**
+     * One guest as VFMS names them, with their first identity document.
+     *
+     * @return array{documentName: string|null, documentNo: string|null, country: string|null, fullName: string}
+     */
+    public function guest(Guest $guest): array
+    {
+        /** @var IdentityDocument|null $document */
+        $document = $guest->documents->sortBy('id')->first();
+        $country = $document?->getAttribute('nationality') ?? $guest->getAttribute('nationality');
+
+        return [
+            'documentName' => $document?->getAttribute('type'),
+            'documentNo' => $document?->getAttribute('number'),
+            'country' => Countries::NAMES[$country] ?? $country,
+            'fullName' => $guest->name,
+        ];
     }
 
     /** Stable across retries: the message keeps the event it was built from. */
