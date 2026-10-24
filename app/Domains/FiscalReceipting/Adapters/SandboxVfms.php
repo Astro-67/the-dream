@@ -31,11 +31,44 @@ final class SandboxVfms implements VfmsGateway
         if (($body['accommodationSource'] ?? null) === 'TOUR OPERATOR') {
             $missing = [...$missing, ...array_values(array_filter(['tourRegNo', 'costOptions'], fn (string $field) => blank($body[$field] ?? null)))];
         }
+        if ($payload['request_type'] === 'ACCOMMODATION_ADD_SERVICE') {
+            $missing = [...$missing, ...$this->invalidServices($body)];
+        }
         if ($missing !== []) {
             return new DeliveryResult('rejected', responseBody: ['status' => 400, 'missing' => $missing]);
         }
         $receipt = 'SBX-'.strtoupper(substr(hash('sha256', $payload['request_type'].'|'.($body['referenceNumber'] ?? '')), 0, 12));
 
         return new DeliveryResult('accepted', ['receiptNumber' => $receipt], ['status' => 200, 'receiptNumber' => $receipt]);
+    }
+
+    /** @param array<string, mixed> $body
+     * @return list<string>
+     */
+    private function invalidServices(array $body): array
+    {
+        $invalid = [];
+        if (($body['type'] ?? null) !== 'CS') {
+            $invalid[] = 'type';
+        }
+        if (! is_array($body['service'] ?? null) || ! array_is_list($body['service'])) {
+            return [...$invalid, 'service'];
+        }
+        foreach ($body['service'] as $index => $item) {
+            if (! is_array($item) || ! is_string($item['itemName'] ?? null) || blank($item['itemName'])) {
+                $invalid[] = "service.{$index}.itemName";
+            }
+            if (! is_array($item) || ! is_int($item['quantity'] ?? null) || $item['quantity'] < 1) {
+                $invalid[] = "service.{$index}.quantity";
+            }
+            foreach (['price', 'discount'] as $field) {
+                $value = is_array($item) ? ($item[$field] ?? null) : null;
+                if ((! is_float($value) && ! is_int($value)) || $value < 0) {
+                    $invalid[] = "service.{$index}.{$field}";
+                }
+            }
+        }
+
+        return $invalid;
     }
 }
