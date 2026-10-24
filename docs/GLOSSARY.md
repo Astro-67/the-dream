@@ -100,6 +100,10 @@ _Avoid_: Customer, client
 The guest whose details are taken with the reservation. Other guests are added to the reservation later.
 _Avoid_: Main guest, primary guest
 
+**Guest departure**:
+One guest other than the lead guest leaving an in-house stay before it checks out ("Guest leaves"). The stay and room stay in-house; at a Zanzibar property VFMS checks out that guest's document, and the stay's check-out lists only the guests still in-house.
+_Avoid_: Partial check-out
+
 **Tour operator**:
 A ZRA-registered company that books a reservation and pays some or all of it: the room, the infrastructure levy, other services, or a combination. A reservation either has one or is paid by the guest directly.
 _Avoid_: Booker, agent, company
