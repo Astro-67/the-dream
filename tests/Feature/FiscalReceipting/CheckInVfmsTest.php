@@ -236,3 +236,36 @@ test('the VFMS token is absent from every outbox payload and attempt body', func
     ]));
     expect($records)->toContain('ACCOMMODATION')->not->toContain($marker)->not->toContain('INT-1001');
 });
+
+// protects=an uncertain check-in already filed by VFMS is not filed twice (#165); fails_when=delivery resends instead of retaining the report numbers; no_claim=the production report response shape, which guide 1.6 does not document.
+test('VFMS reconciliation finds a timed out check-in without resending', function () {
+    $t = twoTenants();
+    liveCredentials($t->a);
+    $reference = null;
+    $checkIns = 0;
+    Http::fake([
+        'gateway.zanrevenue.org/api/accommodation/' => function (Request $request) use (&$reference, &$checkIns) {
+            $checkIns++;
+            $reference = $request['referenceNumber'];
+
+            throw new ConnectionException('Operation timed out');
+        },
+        'gateway.zanrevenue.org/api/accommodationReport/' => function (Request $request) use (&$reference) {
+            expect($request->header('vfms-request-type'))->toBe(['ACCOMMODATION_REPORT'])
+                ->and($request->header('vfms-intergration-id'))->toBe(['INT-1001'])
+                ->and($request->header('vfms-token-id'))->toBe(['tok-live'])
+                ->and($request->method())->toBe('POST')
+                ->and($request->data())->toEqual(['startDate' => '2026-12-10', 'endDate' => '2026-12-10', 'refno' => $reference]);
+
+            return Http::response([['referenceNumber' => $reference, 'receiptNumber' => 'VFMS-42']], 200);
+        },
+    ]);
+
+    checkInTwoGuests($t->a);
+
+    $message = vfmsMessages($t->a)[0];
+    expect($message->status)->toBe('delivered')
+        ->and($message->provider_references)->toEqual(['mode' => 'live', 'receiptNumber' => 'VFMS-42']);
+    expect($checkIns)->toBe(1);
+    Http::assertSentCount(1);
+});

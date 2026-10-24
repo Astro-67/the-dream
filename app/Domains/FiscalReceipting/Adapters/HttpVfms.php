@@ -15,6 +15,37 @@ final class HttpVfms implements VfmsGateway
 {
     public const BASE_URL = 'https://gateway.zanrevenue.org/api/';
 
+    /** @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
+    public function accommodationReport(array $body, VfmsCredential $credential): array
+    {
+        $evidence = 'VFMS accommodation report by reference';
+        $unresolved = ['outcome' => 'unresolved', 'evidence' => $evidence];
+        $result = $this->send([
+            'mode' => 'live',
+            'request_type' => 'ACCOMMODATION_REPORT',
+            'path' => 'accommodationReport/',
+            'body' => ['startDate' => $body['checkInDate'], 'endDate' => now()->toDateString(), 'refno' => $body['referenceNumber']],
+        ], $credential);
+        $rows = $result->responseBody['body'] ?? null;
+        if ($result->outcome !== 'accepted' || ! is_array($rows) || ! array_is_list($rows)) {
+            return $unresolved;
+        }
+        // shortcut: guide 1.6 omits the response schema; unfamiliar report shapes stay unresolved until verified with VFMS.
+        foreach ($rows as $row) {
+            if (! is_array($row) || ! is_string($row['referenceNumber'] ?? null)) {
+                return $unresolved;
+            }
+        }
+        $matches = array_values(array_filter($rows, fn (array $row): bool => $row['referenceNumber'] === $body['referenceNumber']));
+        if (count($matches) !== 1 || ! is_string($matches[0]['receiptNumber'] ?? null) || trim($matches[0]['receiptNumber']) === '') {
+            return $unresolved;
+        }
+
+        return ['outcome' => 'accepted', 'evidence' => $evidence, 'references' => ['receiptNumber' => $matches[0]['receiptNumber']]];
+    }
+
     public function send(array $payload, VfmsCredential $credential): DeliveryResult
     {
         try {
