@@ -46,3 +46,9 @@ test('passport rule follows the property setting for foreign guests', function (
     $property->setAttribute('front_desk_settings', ['passport_required_for_foreign_guests' => false]);
     expect(JurisdictionRules::requiresPassport($property, 'GB'))->toBeFalse();
 })->with(JurisdictionProfile::cases());
+
+// protects=only Zanzibar properties file with VFMS (ADR 0014); fails_when=a mainland property is offered VFMS settings or filing; no_claim=whether credentials are saved.
+test('only a Zanzibar property uses VFMS', function () {
+    expect(JurisdictionRules::usesVfms(propertyUnder(JurisdictionProfile::Zanzibar)))->toBeTrue()
+        ->and(JurisdictionRules::usesVfms(propertyUnder(JurisdictionProfile::MainlandTanzania)))->toBeFalse();
+});

@@ -38,4 +38,9 @@ final class MainlandTanzaniaRules implements ProfileRules
     {
         return false;
     }
+
+    public function usesVfms(): bool
+    {
+        return false;
+    }
 }
