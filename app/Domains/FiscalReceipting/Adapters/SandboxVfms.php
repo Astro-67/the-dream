@@ -59,7 +59,7 @@ final class SandboxVfms implements VfmsGateway
      * A fake check-out report echoing the folio as Thedream posted it, so the folio switch
      * and report run end to end without Sandbox inventing tax or debt on test stays.
      *
-     * @param  array{reservation_id: string, body: array<string, mixed>}  $payload
+     * @param  array{mode: string, request_type: string, path: string, reservation_id?: string, body: array<string, mixed>}  $payload
      */
     private function checkoutReport(array $payload): DeliveryResult
     {
