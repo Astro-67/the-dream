@@ -30,6 +30,8 @@ class InHouseDocuments
             ->where('reservations.property_id', $property->id)
             ->where('reservations.status', ReservationStatus::CheckedIn->value)
             ->where('reservations.id', '!=', $reservation->id)
+            // A guest who has left (Guest departure) is checked out at VFMS.
+            ->whereNull('reservation_guests.departed_at')
             ->whereIn('identity_documents.number_hash', $hashes)
             ->select('reservations.room_id')
             ->lockForUpdate()

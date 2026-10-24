@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\FrontDesk\Actions\AddGuest;
 use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\FrontDesk\Actions\CheckOut;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
@@ -8,6 +9,7 @@ use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
@@ -16,7 +18,9 @@ use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 use Tests\Support\TenantFixture;
 
 beforeEach(function () {
@@ -120,3 +124,38 @@ test('roles without check-out permission cannot record a guest leaving', functio
     'housekeeping' => [OrganizationRole::Housekeeping, false],
     'auditor' => [OrganizationRole::Auditor, false],
 ]);
+
+// protects=the guests page offers Guest leaves only where it can succeed and shows who has left (#164); fails_when=the lead guest is not identified, a departed guest is not marked, or a role without check-out is offered the action; no_claim=the rendered layout.
+test('the guests page shows the lead guest, who has left and whether a departure can be recorded', function () {
+    $t = twoTenants();
+    $reservation = guestLeavesStay($t->a);
+    $lead = guestLeavesGuest($t->a, 'Anna Berg');
+    $second = guestLeavesGuest($t->a, 'Ola Berg');
+    guestLeavesPost($t->a, $reservation, $second)->assertSessionHasNoErrors();
+
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.guests.create', $reservation))
+        ->assertInertia(fn (Assert $page) => $page->where('leadGuestId', $lead->id)->where('departedGuestIds', [$second->id])->where('canRecordDeparture', true));
+    $this->actingAs($t->a->member(OrganizationRole::Auditor))->get(route('reservations.guests.create', $reservation))
+        ->assertInertia(fn (Assert $page) => $page->where('canRecordDeparture', false));
+});
+
+// protects=a guest who has left is no longer in-house for the document guard (ADR 0016, #164); fails_when=their document is still refused on another stay at the property; no_claim=re-adding them to the stay they left.
+test('a guest who left can be added to another in-house stay at the property', function () {
+    $t = twoTenants();
+    $reservation = guestLeavesStay($t->a);
+    $ola = guestLeavesGuest($t->a, 'Ola Berg');
+    $other = inTenant($t->a->property, function () use ($t, $reservation) {
+        $room = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($reservation->room_type_id, ['number' => '202']));
+        RoomStatus::query()->where('room_id', $room->id)->update(['status' => HousekeepingStatus::Clean]);
+        $stay = app(CreateReservation::class)->handle($t->a->owner, [...$reservation->only(['room_type_id', 'rate_plan_id', 'booker_id', 'adults', 'children', 'source']), 'arrival' => '2026-12-10', 'departure' => '2026-12-12', 'room_id' => $room->id]);
+        $guest = app(CreateGuest::class)->handle($t->a->owner, ['name' => 'Kim Lee', 'documents' => [['type' => 'passport', 'number' => 'K1112223', 'nationality' => 'DE']]]);
+        ReservationGuest::query()->create(['reservation_id' => $stay->id, 'guest_id' => $guest->id]);
+
+        return app(CheckIn::class)->handle($t->a->owner, $stay);
+    });
+    guestLeavesPost($t->a, $reservation, $ola)->assertSessionHasNoErrors();
+
+    inTenant($t->a->property, fn () => app(AddGuest::class)->handle($t->a->owner, $other, ['guest_id' => $ola->id]));
+
+    expect(inTenant($t->a->property, fn () => ReservationGuest::query()->where(['reservation_id' => $other->id, 'guest_id' => $ola->id])->exists()))->toBeTrue();
+});
