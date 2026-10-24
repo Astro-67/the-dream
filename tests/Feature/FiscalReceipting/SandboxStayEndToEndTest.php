@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Billing\Models\Folio;
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
@@ -23,11 +24,14 @@ beforeEach(function () {
 });
 
 // protects=spec #156 AC 5: a full Sandbox stay driven through the real routes files every step with VFMS in order and ends in a stamped report matching the folio (#166); fails_when=a step files no message, an extra one, out of order or unaccepted, any request leaves the server, or the report differs from the folio; no_claim=VFMS production acceptance or Live figures.
+// Spec #156 AC 2: fails_when=the property's token (a marker) appears in any outbox payload or attempt body of the stay's VFMS calls.
 // The report also lists only guests still in-house: fails_when=a departed guest (Ola) is named on it.
 test('a full Sandbox stay files six accepted VFMS messages in order and a stamped report matching the folio', function () {
     $t = twoTenants()->a;
     $property = ['_property' => $t->property->id];
-    $reservation = inTenant($t->property, function () use ($t) {
+    $marker = 'tok-MARKER-7f3a91';
+    $reservation = inTenant($t->property, function () use ($t, $marker) {
+        VfmsCredential::query()->create(['integration_id' => 'INT-1001', 'registration_id' => 'REG-2002', 'token' => $marker]);
         $details = BookingForm::details($t->owner);
         app(CreateRoom::class)->handle($t->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
@@ -60,6 +64,9 @@ test('a full Sandbox stay files six accepted VFMS messages in order and a stampe
         ->and($messages[4]->payload['body']['documentNumberList'])->toBe([['documentNumber' => 'P7654321']])
         ->and($messages[5]->payload['body']['documentNumberList'])->toBe([['documentNumber' => 'P1234567']]);
     Http::assertNothingSent();
+    $attempts = inTenant($t->property, fn () => $messages->flatMap(fn (OutboxMessage $message) => $message->attempts()->get()));
+    expect($attempts)->toHaveCount(6)
+        ->and(json_encode([$messages->pluck('payload'), $attempts->map->only(['request_body', 'response_body', 'provider_references'])]))->not->toContain($marker);
 
     // Nights at 110.00 and 125.00, and 20.00 of water.
     $this->actingAs($desk)->get(route('reservations.fiscal-report', $reservation))->assertOk()
