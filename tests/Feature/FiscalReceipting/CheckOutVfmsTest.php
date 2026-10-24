@@ -2,6 +2,7 @@
 
 use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\FrontDesk\Actions\CheckOut;
+use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
@@ -9,9 +10,11 @@ use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
 
@@ -36,10 +39,12 @@ function inHouseForCheckOut(TenantFixture $tenant): Reservation
     });
 }
 
-/** Checks the stay out on its departure date; the owner's override covers any balance. */
+/** Closes both nights, posting 110.00 a night, then checks out on the departure date; the owner's override covers the balance. */
 function checkOutOnDeparture(TenantFixture $tenant, Reservation $reservation): Reservation
 {
-    $tenant->property->update(['business_date' => '2026-12-12']);
+    foreach (['2026-12-10', '2026-12-11'] as $date) {
+        inTenant($tenant->property, fn () => app(CloseBusinessDate::class)->handle($tenant->owner, $tenant->property->fresh(), $date));
+    }
 
     return inTenant($tenant->property, fn () => app(CheckOut::class)->handle($tenant->owner, $reservation, 'Guest settles at the desk'));
 }
@@ -65,4 +70,27 @@ test('a Sandbox check-out files one accepted check-out message after the check-i
             'documentNumberList' => [['documentNumber' => 'P1234567'], ['documentNumber' => 'P7654321']],
             'currency' => 'USD',
         ]);
+});
+
+// protects=ADR 0015: before VFMS answers, the folio's tax is Thedream's estimate; after, it is VFMS's tax and levy and the balance matches the report (#160); fails_when=the label stays estimated, the levy is Thedream's, or the balance differs from the report total; no_claim=VFMS's real levy rates.
+test('an accepted check-out replaces the estimated tax with VFMS tax and levy', function () {
+    $t = twoTenants();
+    $reservation = inHouseForCheckOut($t->a);
+
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.show', $reservation))
+        ->assertInertia(fn (Assert $page) => $page->where('taxSource', 'estimated'));
+
+    checkOutOnDeparture($t->a, $reservation);
+
+    // Two nights at 110.00, no tax rules; the Sandbox levy is 1.00 per guest per night.
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.show', $reservation))
+        ->assertInertia(fn (Assert $page) => $page->where('taxSource', 'vfms')
+            ->where('totals.0.room', 22000)
+            ->where('totals.0.levy', 400)
+            ->where('totals.0.charges', 22400)
+            ->where('totals.0.balance', 22400)
+            ->where('folios.data.0.postings.data.2.category', 'vfms_adjustment'));
+    $report = checkOutVfmsMessages($t->a)[1]->getAttribute('provider_references');
+    expect($report)->toMatchArray(['totalAmount' => 224, 'infrastructureTax' => 4])
+        ->and($report['reportNo'])->toStartWith('SBX-');
 });

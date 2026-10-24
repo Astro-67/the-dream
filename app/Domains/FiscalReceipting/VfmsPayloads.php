@@ -110,6 +110,12 @@ final class VfmsPayloads
         return $currency === Currency::TZS ? (float) $minor : $minor / 100;
     }
 
+    /** The guide's Double in major units back to minor units, the inverse of amount(). */
+    public function minor(float|int $major, Currency $currency): int
+    {
+        return (int) round($currency === Currency::TZS ? $major : $major * 100);
+    }
+
     /** VFMS spells euro EURO. */
     public function currency(Currency $currency): string
     {

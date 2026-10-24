@@ -8,6 +8,8 @@ use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationPriceLine;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
+use App\Domains\Tenancy\Models\Property;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -110,6 +112,19 @@ final class FolioSummary
                         default => 'unpaid',
                     }];
             })->all();
+    }
+
+    /**
+     * Whose tax the folio shows (ADR 0015): null where Thedream's tax rules are the tax,
+     * 'estimated' at a VFMS property until VFMS's check-out figures are posted, then 'vfms'.
+     */
+    public static function taxSource(Reservation $reservation, Property $property): ?string
+    {
+        if (! JurisdictionRules::usesVfms($property)) {
+            return null;
+        }
+
+        return Posting::query()->where('reservation_id', $reservation->id)->where('category', 'vfms_adjustment')->exists() ? 'vfms' : 'estimated';
     }
 
     /**

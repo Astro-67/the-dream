@@ -35,7 +35,11 @@ final class HttpVfms implements VfmsGateway
         }
 
         return match (true) {
-            in_array($status, [200, 201], true) => new DeliveryResult('accepted', array_filter(['receiptNumber' => $response->json('receiptNumber')]), $body),
+            // shortcut: guide v1.6 documents no check-out response fields; reportNo and the totals are assumed names, confirm on the first Live check-out.
+            in_array($status, [200, 201], true) => new DeliveryResult('accepted', array_filter([
+                'receiptNumber' => $response->json('receiptNumber'), 'reportNo' => $response->json('reportNo'), 'totalAmount' => $response->json('totalAmount'),
+                'totalTax' => $response->json('totalTax'), 'infrastructureTax' => $response->json('infrastructureTax'),
+            ], fn ($value) => is_scalar($value)), $body),
             in_array($status, [400, 401, 403, 404], true) => new DeliveryResult('rejected', responseBody: $body),
             // 5xx and anything unexpected leave acceptance uncertain.
             default => new DeliveryResult('unknown', responseBody: $body),

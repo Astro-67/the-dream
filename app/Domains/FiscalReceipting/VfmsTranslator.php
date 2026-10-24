@@ -43,6 +43,7 @@ final class VfmsTranslator implements LifecycleTranslator
                 'mode' => VfmsCredential::for($property)->mode->value,
                 'request_type' => $requestType,
                 'path' => $path,
+                'reservation_id' => $reservation->id,
                 'body' => $this->payloads->{$builder}($event, $reservation, $property),
             ], "vfms:{$event->id}");
         });

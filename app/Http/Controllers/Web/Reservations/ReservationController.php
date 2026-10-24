@@ -99,6 +99,7 @@ class ReservationController extends Controller
                     ]),
             ]),
             'totals' => FolioSummary::totals($reservation),
+            'taxSource' => FolioSummary::taxSource($reservation, $property),
             'stay' => $reservation->stay(),
             'checkoutBalances' => FolioSummary::checkoutBalances(collect([$reservation]))[$reservation->id] ?? [],
             'feeProposals' => FeeProposal::query()->where('reservation_id', $reservation->id)->orderBy('created_at')->get()->map(fn (FeeProposal $fee) => [
@@ -147,6 +148,7 @@ class ReservationController extends Controller
     public function statement(Reservation $reservation): Response
     {
         Gate::authorize('view', $reservation);
+        $property = Property::query()->findOrFail($reservation->property_id);
         $folios = FolioSummary::folios($reservation);
 
         return Inertia::render('reservations/statement', [
@@ -160,7 +162,8 @@ class ReservationController extends Controller
                 ])->values(),
             ])->values(),
             'totals' => FolioSummary::totals($reservation, $folios),
-            'property' => Property::query()->findOrFail($reservation->property_id)->only(['name', 'address_line', 'city', 'phone', 'email']),
+            'taxSource' => FolioSummary::taxSource($reservation, $property),
+            'property' => $property->only(['name', 'address_line', 'city', 'phone', 'email']),
         ]);
     }
 }

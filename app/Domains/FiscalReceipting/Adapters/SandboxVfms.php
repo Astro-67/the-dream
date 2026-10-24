@@ -2,8 +2,14 @@
 
 namespace App\Domains\FiscalReceipting\Adapters;
 
+use App\Domains\Billing\FolioSummary;
+use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Contracts\VfmsGateway;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
+use App\Domains\FiscalReceipting\VfmsPayloads;
+use App\Domains\Reservations\Models\Reservation;
+use App\Support\Money\Currency;
 use App\Support\Outbox\DeliveryResult;
 
 /** Answers like VFMS without leaving the server: fake SBX- numbers, refusing bodies missing guide-required fields. */
@@ -34,8 +40,34 @@ final class SandboxVfms implements VfmsGateway
         if ($missing !== []) {
             return new DeliveryResult('rejected', responseBody: ['status' => 400, 'missing' => $missing]);
         }
+        if ($payload['request_type'] === 'ACCOMMODATION_CHECK_OUT') {
+            return $this->checkoutReport($payload);
+        }
         $receipt = 'SBX-'.strtoupper(substr(hash('sha256', $payload['request_type'].'|'.($body['referenceNumber'] ?? '')), 0, 12));
 
         return new DeliveryResult('accepted', ['receiptNumber' => $receipt], ['status' => 200, 'receiptNumber' => $receipt]);
+    }
+
+    /**
+     * A fake check-out report: VAT as Thedream posted it, and a levy of 1.00 (2,500 TZS)
+     * per listed guest per night in place of Thedream's estimate, so the folio switch shows.
+     *
+     * @param  array{reservation_id: string, body: array<string, mixed>}  $payload
+     */
+    private function checkoutReport(array $payload): DeliveryResult
+    {
+        $reservation = Reservation::query()->findOrFail($payload['reservation_id']);
+        $currency = $payload['body']['currency'] === 'EURO' ? Currency::EUR : Currency::from($payload['body']['currency']);
+        $posted = FolioSummary::of(Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id)->where('currency', $currency->value))->get());
+        $levy = count($payload['body']['documentNumberList']) * $reservation->stay()['nights'] * ($currency === Currency::TZS ? 2500 : 100);
+        $payloads = app(VfmsPayloads::class);
+        $report = [
+            'reportNo' => 'SBX-'.strtoupper(substr(hash('sha256', 'checkout|'.$reservation->id), 0, 12)),
+            'totalAmount' => $payloads->amount($posted['charges'] - $posted['levy'] + $levy, $currency),
+            'totalTax' => $payloads->amount($posted['vat'], $currency),
+            'infrastructureTax' => $payloads->amount($levy, $currency),
+        ];
+
+        return new DeliveryResult('accepted', $report, ['status' => 200, ...$report]);
     }
 }
