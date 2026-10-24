@@ -3,12 +3,14 @@ import { flushSync } from 'react-dom';
 import {
     PropertySettingsFields,
     TaxInclusionFields,
+    VfmsFields,
     propertySettingsTabs,
     propertySettingsTabForErrors,
 } from '@/features/tenancy/property-settings-fields';
 import type {
     PropertySettings,
     TaxInclusionControl,
+    VfmsSettings,
 } from '@/features/tenancy/property-settings-fields';
 import { Form, Head, Link } from '@inertiajs/react';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -38,6 +40,7 @@ type Props = PropertyFormOptions & {
     taxInclusion: Record<string, TaxInclusionControl>;
     canManageTaxes: boolean;
     canManageCashierShifts: boolean;
+    vfms: VfmsSettings | null;
 };
 
 const registrationFieldLabels: Record<string, string> = {
@@ -54,6 +57,7 @@ export default function EditProperty({
     taxInclusion,
     canManageTaxes,
     canManageCashierShifts,
+    vfms,
     ...options
 }: Props) {
     const configuresRegistration = property.registration_fields !== undefined;
@@ -405,6 +409,9 @@ export default function EditProperty({
                         </>
                     )}
                 </Form>
+                {vfms && activeTab === 'tax_settings' && (
+                    <VfmsFields propertyId={property.id} vfms={vfms} />
+                )}
             </div>
         </>
     );
