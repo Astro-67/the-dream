@@ -355,6 +355,8 @@ test('VFMS reconciliation leaves a failed lookup unknown for the compliance oper
     'refused credentials' => [fn () => Http::response([], 401)],
     'not found endpoint' => [fn () => Http::response([], 404)],
     'non JSON' => [fn () => Http::response('upstream unavailable', 200)],
+    'empty JSON object is not an empty report' => [fn () => Http::response('{}', 200, ['Content-Type' => 'application/json'])],
+    'numeric JSON object is not a report list' => [fn (Request $request) => Http::response('{"0":{"referenceNumber":"'.$request['refno'].'","receiptNumber":"VFMS-42"}}', 200)],
     'unexpected envelope' => [fn () => Http::response(['data' => []], 200)],
     'missing reference' => [fn () => Http::response([['receiptNumber' => 'VFMS-42']], 200)],
     'blank reference' => [fn () => Http::response([['referenceNumber' => '', 'receiptNumber' => 'VFMS-42']], 200)],
