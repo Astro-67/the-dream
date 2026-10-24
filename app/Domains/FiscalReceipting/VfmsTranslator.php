@@ -24,6 +24,8 @@ final class VfmsTranslator implements LifecycleTranslator
     private const CALLS = [
         'checked_in' => ['ACCOMMODATION_REQUEST', 'accommodation/', 'accommodation'],
         'extra_posted' => ['ACCOMMODATION_ADD_SERVICE', 'service/', 'services'],
+        'room_moved' => ['ACCOMMODATION_CHANGE_ROOM', 'change/room/', 'changeRoom'],
+        'nightly_price_changed' => ['CHANGEROOM_PRICE', 'changeRoomPrice/', 'changeRoomPrice'],
         'guest_added' => ['ACCOMMODATION_ADD_GUEST', 'guest/accommodation/', 'addGuest'],
         'guest_profile_changed' => ['GUEST_PROFILE', 'guest/changeProfile/', 'changeProfile'],
     ];
