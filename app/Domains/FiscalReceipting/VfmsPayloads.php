@@ -120,8 +120,27 @@ final class VfmsPayloads
      */
     public function checkout(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
     {
+        return $this->checkoutOf($reservation, $this->guests($reservation, inHouseOnly: true));
+    }
+
+    /**
+     * §2.8 check-out for one guest leaving an in-house stay (Guest departure).
+     *
+     * @return array{documentNumberList: list<array{documentNumber: string|null}>, currency: string}
+     */
+    public function guestDeparture(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        return $this->checkoutOf($reservation, [$this->guest(Guest::query()->with('documents')->findOrFail($event->snapshot['guest_id']))]);
+    }
+
+    /**
+     * @param  list<array{documentNo: string|null}>  $guests
+     * @return array{documentNumberList: list<array{documentNumber: string|null}>, currency: string}
+     */
+    private function checkoutOf(Reservation $reservation, array $guests): array
+    {
         return [
-            'documentNumberList' => array_map(fn (array $guest) => ['documentNumber' => $guest['documentNo']], $this->guests($reservation)),
+            'documentNumberList' => array_map(fn (array $guest) => ['documentNumber' => $guest['documentNo']], $guests),
             // The stay's first folio: an arrival-day early departure has no price lines left.
             'currency' => $this->currency(Folio::query()->where('reservation_id', $reservation->id)->orderBy('created_at')->orderBy('id')->firstOrFail()->currency),
         ];
@@ -169,13 +188,14 @@ final class VfmsPayloads
     }
 
     /**
-     * Every guest on the stay, lead guest first, each with their first identity document.
+     * Every guest on the stay, lead guest first, each with their first identity document;
+     * $inHouseOnly leaves out guests who have already departed.
      *
      * @return list<array{documentName: string|null, documentNo: string|null, country: string|null, fullName: string}>
      */
-    public function guests(Reservation $reservation): array
+    public function guests(Reservation $reservation, bool $inHouseOnly = false): array
     {
-        $ids = ReservationGuest::query()->where('reservation_id', $reservation->id)->orderBy('id')->pluck('guest_id');
+        $ids = ReservationGuest::query()->where('reservation_id', $reservation->id)->when($inHouseOnly, fn ($query) => $query->whereNull('departed_at'))->orderBy('id')->pluck('guest_id');
         $guests = Guest::query()->with('documents')->whereIn('id', $ids)->get()->keyBy('id');
 
         return $ids->map(fn (string $id) => $this->guest($guests[$id]))->values()->all();

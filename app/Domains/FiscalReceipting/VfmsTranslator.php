@@ -29,6 +29,7 @@ final class VfmsTranslator implements LifecycleTranslator
         'nightly_price_changed' => ['CHANGEROOM_PRICE', 'changeRoomPrice/', 'changeRoomPrice'],
         'guest_added' => ['ACCOMMODATION_ADD_GUEST', 'guest/accommodation/', 'addGuest'],
         'guest_profile_changed' => ['GUEST_PROFILE', 'guest/changeProfile/', 'changeProfile'],
+        'guest_departed' => ['ACCOMMODATION_CHECK_OUT', 'guest/checkout/', 'guestDeparture'],
     ];
 
     public function __construct(private readonly VfmsPayloads $payloads, private readonly Outbox $outbox) {}
