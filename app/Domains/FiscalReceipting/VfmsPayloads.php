@@ -14,6 +14,7 @@ use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Countries;
 use App\Support\Money\Currency;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -78,6 +79,26 @@ final class VfmsPayloads
             'referenceNumber' => $this->referenceNumber($event, $reservation),
             'country' => $added['country'],
             'fullName' => $added['fullName'],
+        ];
+    }
+
+    /**
+     * §2.7 change profile: the guest's corrected details, keyed by the document VFMS holds.
+     *
+     * @return array<string, mixed>
+     */
+    public function changeProfile(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $guest = $this->guest(Guest::query()->with('documents')->findOrFail($event->snapshot['guest_id']));
+        $old = $event->snapshot['old_document_number'];
+
+        return [
+            'oldDocumentNo' => $old === null ? null : Crypt::decryptString($old),
+            'newDocumentNo' => $guest['documentNo'],
+            'fullName' => $guest['fullName'],
+            'documentName' => $guest['documentName'],
+            'country' => $guest['country'],
+            'referenceNumber' => $this->referenceNumber($event, $reservation),
         ];
     }
 
