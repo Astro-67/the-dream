@@ -52,8 +52,9 @@ import {
     FolioSummaryList,
     paymentStatus,
     type FolioTotal,
+    type TaxSource,
 } from './folio-summary';
-import { statement } from '@/routes/reservations';
+import { fiscalReport, statement } from '@/routes/reservations';
 import { PaymentsReceived, type ReceivedPayment } from './payments-received';
 
 export type Posting = {
@@ -166,6 +167,7 @@ export const postingCategories: Record<string, string> = {
     payment: 'Payment',
     refund: 'Refund',
     write_off: 'Write-off',
+    vfms_adjustment: 'VFMS adjustment',
 };
 
 export function FolioPanel({
@@ -178,7 +180,9 @@ export function FolioPanel({
     extraCategories,
     stay,
     paymentsReportUrl,
+    taxSource = null,
 }: {
+    taxSource?: TaxSource;
     stay: FolioStay;
     paymentsReportUrl?: string | null;
     folios: Paginated<Folio>;
@@ -237,6 +241,7 @@ export function FolioPanel({
                                         summary={total}
                                         currency={total.currency}
                                         estimate={total.estimate}
+                                        taxSource={taxSource}
                                     />
                                 </CollapsibleContent>
                             </Collapsible>
@@ -376,6 +381,19 @@ export function FolioPanel({
                                 Folio statement
                             </Link>
                         </Button>
+                        {taxSource && (
+                            <Button
+                                asChild
+                                variant="link"
+                                className="h-auto min-h-11 text-left whitespace-normal"
+                            >
+                                <Link
+                                    href={fiscalReport(stay.reservation_number)}
+                                >
+                                    Fiscal check-out report
+                                </Link>
+                            </Button>
+                        )}
                         {paymentsReportUrl && (
                             <Button
                                 asChild

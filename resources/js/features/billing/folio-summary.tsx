@@ -56,22 +56,32 @@ export function balanceLabel(
     return estimate ? 'Balance of posted charges' : 'Settled';
 }
 
+/** Whose tax the folio shows (ADR 0015); null where Thedream's tax rules are the tax. */
+export type TaxSource = 'estimated' | 'vfms' | null;
+
+function taxLabel(name: string, source: TaxSource): string {
+    if (source === 'estimated') return `Estimated tax: ${name}`;
+    return source === 'vfms' ? `${name} (VFMS)` : name;
+}
+
 /** One currency's posted summary; amounts are never converted between currencies. */
 export function FolioSummaryList({
     summary,
     currency,
     estimate = null,
+    taxSource = null,
 }: {
     summary: FolioSummary;
     currency: string;
     estimate?: FolioTotal['estimate'];
+    taxSource?: TaxSource;
 }) {
     const rows: [string, number | string, boolean?][] = [
         ['Room charges, net of tax', summary.room],
         ['Other charges, net of tax', summary.extras],
-        ['VAT', summary.vat],
+        [taxLabel('VAT', taxSource), summary.vat],
         [
-            'Infrastructure levy',
+            taxLabel('Infrastructure levy', taxSource),
             // A levy left out in this currency is never shown as a zero charge.
             summary.levy_unavailable && !summary.levy
                 ? 'Not available in this currency'

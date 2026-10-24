@@ -200,6 +200,14 @@ The authority's identifier for a property, separate from its TIN, VRN and full Z
 A receipt or check-out report issued through VFMS, carrying a VFMS QR code.
 _Avoid_: Invoice, bill, folio
 
+**Estimated tax**:
+The VAT and infrastructure levy Thedream's tax rules put on a Zanzibar folio before check-out. Replaced at check-out by the tax and levy VFMS returns, with any difference posted as a VFMS adjustment line (ADR 0015).
+_Avoid_: Provisional tax, draft tax
+
+**Fiscal check-out report**:
+The guest's fiscal receipt for a whole stay: VFMS's report number, the room charges, extras, VFMS tax and levy, and a QR code for the VFMS portal. Shown once VFMS has accepted every filing of the stay; in Sandbox it is stamped "SANDBOX, NOT FISCAL" and has no QR.
+_Avoid_: Checkout invoice, bill, folio statement
+
 **Fiscal exception**:
 A charge that has no path into VFMS, such as a cancellation or no-show fee, so it gets a non-fiscal receipt and is listed for the property's accountant.
 _Avoid_: Unreceipted charge, tax gap

@@ -3,6 +3,8 @@
 use App\Domains\FiscalReceipting\Actions\SaveVfmsCredentials;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
+use App\Domains\Reservations\Actions\CreateReservation;
+use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
@@ -32,6 +34,15 @@ return [
             $this->actingAs($t->a->owner)->put(route('properties.vfms.mode', $t->b->property->id), [...$form, '_property' => $t->b->property->id])->assertForbidden(),
         ];
         expect(VfmsCredential::for($t->b->property)->mode)->toBe(VfmsMode::Sandbox);
+
+        return $responses;
+    }),
+    'reservations.fiscal-report' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $reservation = inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->get(route('reservations.fiscal-report', $reservation->reservation_number))->assertNotFound();
+        }
 
         return $responses;
     }),

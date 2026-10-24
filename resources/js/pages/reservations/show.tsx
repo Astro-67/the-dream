@@ -55,6 +55,7 @@ import {
     type FolioStay,
     type FolioTotal,
 } from '@/features/billing/folio-panel';
+import type { TaxSource } from '@/features/billing/folio-summary';
 import { Spinner } from '@/components/ui/spinner';
 
 type Named = { id: string; name: string };
@@ -105,6 +106,7 @@ export default function Show({
     groupMembers,
     folios,
     totals,
+    taxSource,
     stay,
     checkoutBalances,
     canPostCharge,
@@ -141,6 +143,7 @@ export default function Show({
     >[];
     folios: Paginated<Folio>;
     totals: FolioTotal[];
+    taxSource: TaxSource;
     stay: FolioStay;
     checkoutBalances: CheckoutBalance[];
     canPostCharge: boolean;
@@ -503,6 +506,7 @@ export default function Show({
                     stay={stay}
                     folios={folios}
                     totals={totals}
+                    taxSource={taxSource}
                     canPostCharge={canPostCharge}
                     canRecordPayment={canRecordPayment}
                     acceptedPaymentMethods={acceptedPaymentMethods}

@@ -247,6 +247,23 @@ const breakdown = renderToStaticMarkup(
 assert.match(breakdown, /Balance of posted charges/);
 assert.doesNotMatch(breakdown, /Settled/);
 assert.match(breakdown, /Not yet charged: 2 nights/);
+// ADR 0015: at a VFMS property Thedream's tax is an estimate until VFMS answers at check-out.
+const estimated = renderToStaticMarkup(
+    <FolioSummaryList
+        summary={emptySummary}
+        currency="USD"
+        taxSource="estimated"
+    />,
+);
+assert.match(estimated, /Estimated tax: VAT/);
+assert.match(estimated, /Estimated tax: Infrastructure levy/);
+const filed = renderToStaticMarkup(
+    <FolioSummaryList summary={emptySummary} currency="USD" taxSource="vfms" />,
+);
+assert.match(filed, /VAT \(VFMS\)/);
+assert.match(filed, /Infrastructure levy \(VFMS\)/);
+assert.doesNotMatch(filed, /Estimated tax/);
+assert.doesNotMatch(breakdown, /Estimated tax|VFMS/);
 assert.match(panel, /Amina Due/);
 assert.match(panel, /Deluxe Double/);
 assert.match(panel, />Unpaid</);
