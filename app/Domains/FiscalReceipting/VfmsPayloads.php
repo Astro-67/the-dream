@@ -32,15 +32,6 @@ final class VfmsPayloads
     public function accommodation(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
     {
         $date = $event->business_date->toDateString();
-        $line = $reservation->nightPrice($date) ?? throw ValidationException::withMessages(['reservation' => __('This reservation has no price line for the business date.')]);
-        $currency = Currency::from($line->getAttribute('currency'));
-        try {
-            $tax = TaxCalculator::forProperty($property, $line->getAttribute('amount'), $currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Room);
-        } catch (InvalidArgumentException $e) {
-            throw ValidationException::withMessages(['reservation' => __(':reservation: :reason', ['reservation' => $reservation->reservation_number, 'reason' => $e->getMessage()])]);
-        }
-        // Tax-inclusive, but VFMS assesses the infrastructure levy itself.
-        $price = $tax->net + array_sum(array_column(array_filter($tax->lines, fn (array $taxLine) => ($taxLine['category'] ?? null) !== 'hotel_levy'), 'amount'));
         $room = Room::query()->findOrFail($reservation->room_id);
         $paysFor = $reservation->getAttribute('tour_operator_pays_for');
         $tourOperator = $reservation->getAttribute('booked_through') === 'tour-operator' && $paysFor instanceof TourOperatorPaysFor;
@@ -53,12 +44,51 @@ final class VfmsPayloads
             'roomName' => $room->number,
             // OTA stays are DIRECT (ADR 0005).
             'accommodationSource' => $tourOperator ? 'TOUR OPERATOR' : 'DIRECT',
-            'accommodationPrice' => $this->amount($price, $currency),
+            ...$this->roomPrice($reservation, $property, $date),
             'accommodationDiscount' => 0.0,
             'referenceNumber' => $this->referenceNumber($event, $reservation),
             ...($tourOperator ? ['tourRegNo' => $reservation->getAttribute('tour_operator_registration'), 'costOptions' => $this->costOptions($paysFor)] : []),
-            'currency' => $this->currency($currency),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    public function changeRoom(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $room = Room::query()->findOrFail($reservation->room_id);
+
+        return [
+            'roomName' => $room->number,
+            'roomId' => $room->vfms_room_id,
+            'documentNumber' => $this->guests($reservation)[0]['documentNo'],
+            'referenceNumber' => $this->referenceNumber($event, $reservation),
+            ...$this->roomPrice($reservation, $property, $event->business_date->toDateString()),
+            'accommodationDiscount' => 0.0,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function changeRoomPrice(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $room = Room::query()->findOrFail($reservation->room_id);
+        $price = $this->roomPrice($reservation, $property, $event->getAttribute('snapshot')['date']);
+
+        return ['rooms' => [['roomPrice' => $price['accommodationPrice'], 'hotelRoomRoom' => $room->vfms_room_id]]];
+    }
+
+    /** @return array{accommodationPrice: float, currency: string} */
+    private function roomPrice(Reservation $reservation, Property $property, string $date): array
+    {
+        $line = $reservation->nightPrice($date) ?? throw ValidationException::withMessages(['reservation' => __('This reservation has no price line for the business date.')]);
+        $currency = Currency::from($line->getAttribute('currency'));
+        try {
+            $tax = TaxCalculator::forProperty($property, $line->getAttribute('amount'), $currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Room);
+        } catch (InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['reservation' => __(':reservation: :reason', ['reservation' => $reservation->reservation_number, 'reason' => $e->getMessage()])]);
+        }
+        // Tax-inclusive, but VFMS assesses the infrastructure levy itself.
+        $price = $tax->net + array_sum(array_column(array_filter($tax->lines, fn (array $taxLine) => ($taxLine['category'] ?? null) !== 'hotel_levy'), 'amount'));
+
+        return ['accommodationPrice' => $this->amount($price, $currency), 'currency' => $this->currency($currency)];
     }
 
     /**

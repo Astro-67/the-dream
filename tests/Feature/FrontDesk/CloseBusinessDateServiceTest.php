@@ -48,13 +48,18 @@ test('a property manager can toggle stayover service on close and housekeeping c
     $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('property.stayover_service_on_close', true));
 });
 
+// protects=night audit records only changed nightly prices once; fails_when=steady prices emit events or reruns duplicate them; no_claim=production authority delivery.
 test('closing records a nightly price change only when the next night differs, once per reservation and date', function () {
     [$owner, , $property] = organizationWithOwner();
     $property->update(['business_date' => '2026-12-10', 'stayover_service_on_close' => true]);
     inTenant($property, function () use ($owner, $property) {
         $details = BookingForm::details($owner);
         app(CreateRoom::class)->handle($owner, [...InventoryForm::room($details['room_type_id']), 'number' => '2']);
-        [$changed, $steady] = [app(CreateReservation::class)->handle($owner, $details), app(CreateReservation::class)->handle($owner, $details)];
+        $rooms = Room::query()->orderBy('number')->get();
+        [$changed, $steady] = [
+            app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => $rooms[0]->id]),
+            app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => $rooms[1]->id]),
+        ];
         foreach ([$changed, $steady] as $reservation) {
             $reservation->update(['status' => ReservationStatus::CheckedIn]);
         }
