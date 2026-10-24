@@ -18,7 +18,7 @@ final class HttpVfms implements VfmsGateway
     /** @param array<string, mixed> $body
      * @return array<string, mixed>
      */
-    public function accommodationReport(array $body, VfmsCredential $credential): array
+    public function accommodationReport(array $body, VfmsCredential $credential, string $timezone): array
     {
         $evidence = 'VFMS accommodation report by reference';
         $unresolved = ['outcome' => 'unresolved', 'evidence' => $evidence];
@@ -26,7 +26,7 @@ final class HttpVfms implements VfmsGateway
             'mode' => 'live',
             'request_type' => 'ACCOMMODATION_REPORT',
             'path' => 'accommodationReport/',
-            'body' => ['startDate' => $body['checkInDate'], 'endDate' => now()->toDateString(), 'refno' => $body['referenceNumber']],
+            'body' => ['startDate' => $body['checkInDate'], 'endDate' => now($timezone)->toDateString(), 'refno' => $body['referenceNumber']],
         ], $credential);
         $rows = $result->responseBody['body'] ?? null;
         if ($result->outcome !== 'accepted' || ($result->responseBody['report_is_list'] ?? false) !== true || ! is_array($rows) || ! array_is_list($rows)) {

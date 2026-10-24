@@ -54,14 +54,15 @@ final class VfmsAdapter implements DeliveryAdapter, RestoreReconciliationAdapter
         $reports = [];
         foreach ($messages as $message) {
             $reports[$message->id] = Tenancy::within(TenantContext::fromIds($message->organization_id, $message->property_id), function () use ($message): array {
-                $credential = VfmsCredential::for(Property::query()->findOrFail($message->property_id));
+                $property = Property::query()->findOrFail($message->property_id);
+                $credential = VfmsCredential::for($property);
                 if ($message->payload['request_type'] !== 'ACCOMMODATION_REQUEST'
                     || $message->payload['mode'] !== VfmsMode::Live->value
                     || $credential->mode !== VfmsMode::Live
                     || ! $credential->isComplete()) {
                     return ['outcome' => 'unresolved', 'evidence' => 'No live accommodation report available for this operation'];
                 }
-                $report = $this->http->accommodationReport($message->payload['body'], $credential);
+                $report = $this->http->accommodationReport($message->payload['body'], $credential, $property->timezone);
                 if ($report['outcome'] === 'accepted') {
                     $report['references']['mode'] = 'live';
                 }

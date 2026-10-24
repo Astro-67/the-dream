@@ -241,9 +241,10 @@ test('the VFMS token is absent from every outbox payload and attempt body', func
     expect($records)->toContain('ACCOMMODATION')->not->toContain($marker)->not->toContain('INT-1001');
 });
 
-// protects=an uncertain check-in already filed by VFMS is not filed twice (#165); fails_when=delivery resends instead of retaining the report numbers; no_claim=the production report response shape, which guide 1.6 does not document.
+// protects=an uncertain check-in already filed by VFMS is not filed twice, including after local midnight (#165); fails_when=the report dates use UTC or delivery resends instead of retaining the report numbers; no_claim=the production report response shape, which guide 1.6 does not document.
 test('VFMS reconciliation finds an uncertain check-in without resending', function (Closure $answer) {
     $t = twoTenants();
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 00:30:00', 'Africa/Dar_es_Salaam'));
     liveCredentials($t->a);
     $reference = null;
     $checkIns = 0;
