@@ -178,7 +178,7 @@ final class VfmsPayloads
         $old = $event->snapshot['old_document_number'];
 
         return [
-            'oldDocumentNo' => $old === null ? null : Crypt::decryptString($old),
+            'oldDocumentNo' => Crypt::decryptString($old),
             'newDocumentNo' => $guest['documentNo'],
             'fullName' => $guest['fullName'],
             'documentName' => $guest['documentName'],

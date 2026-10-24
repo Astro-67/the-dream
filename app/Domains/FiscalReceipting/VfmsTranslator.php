@@ -43,6 +43,10 @@ final class VfmsTranslator implements LifecycleTranslator
         if ($event->type === 'extra_posted' && (($event->snapshot['status'] ?? null) !== 'checked_in' || ! in_array($event->snapshot['category'] ?? null, PostExtraCharge::CATEGORIES, true))) {
             return;
         }
+        // §2.7 is keyed on the document VFMS holds; with none, VFMS can never accept the change.
+        if ($event->type === 'guest_profile_changed' && ($event->snapshot['old_document_number'] ?? null) === null) {
+            return;
+        }
         $property = Property::query()->findOrFail($event->property_id);
         if ($property->demo || ! JurisdictionRules::usesVfms($property)) {
             return;

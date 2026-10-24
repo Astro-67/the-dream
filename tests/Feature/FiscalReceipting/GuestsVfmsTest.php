@@ -114,3 +114,14 @@ test('editing a guest not in house, or a field VFMS does not hold, files nothing
     'in house: phone and email' => [true, ['phone' => '+255 700 000 000', 'email' => 'anna@example.com']],
     'in house: same document resubmitted' => [true, ['documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE']]]],
 ]);
+
+// protects=VFMS keys a profile change on the document it already holds (guide §2.7), so a guest it holds under no document gets no change-profile message and the ordered stream never stalls on a refusal; fails_when=a change-profile message is filed with a null oldDocumentNo; no_claim=how VFMS learns of a guest it never registered (staff correct it at VFMS).
+test('giving a document to an in-house guest who had none files no change-profile message', function () {
+    $t = twoTenants();
+    guestsVfmsStay($t->a);
+    inTenant($t->a->property, fn () => Guest::query()->where('name', 'Anna Berg')->sole()->documents()->delete());
+
+    guestsVfmsUpdateLead($t->a, ['documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE']]]);
+
+    expect(guestsVfmsMessages($t->a))->toBe([]);
+});
