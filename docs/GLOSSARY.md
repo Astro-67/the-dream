@@ -212,6 +212,10 @@ _Avoid_: Provisional tax, draft tax
 The guest's fiscal receipt for a whole stay: VFMS's report number, the room charges, extras, VFMS tax and levy, and a QR code for the VFMS portal. Shown once VFMS has accepted every filing of the stay; in Sandbox it is stamped "SANDBOX, NOT FISCAL" and has no QR.
 _Avoid_: Checkout invoice, bill, folio statement
 
+**VFMS mode**:
+Per property, **Sandbox** (the default: filings are answered inside Thedream and never reach ZRA, and the check-out answer reports the folio as posted, with no levy of its own) or **Live** (filed with ZRA's production VFMS). Only an Owner or Property manager switches it, with a reason.
+_Avoid_: Test mode, demo mode
+
 **Fiscal exception**:
 A charge that has no path into VFMS, such as a cancellation or no-show fee, so it gets a non-fiscal receipt and is listed for the property's accountant.
 _Avoid_: Unreceipted charge, tax gap

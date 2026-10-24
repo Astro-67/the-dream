@@ -68,7 +68,7 @@ The application is one Laravel app divided into domains under `app/Domains/<Doma
 | **Subscriptions**    | Plans, organization subscriptions, state history, usage and entitlements                                                                           | §7.3, §13        |
 | **Distribution**     | Channel connections, mappings, inbound and outbound channel messages, reconciliation. Interface: `ChannelConnector`                                | §7.8             |
 | **ZanReporting**     | Booking reports and hotel-info sync. Interface: `ZanReporter`                                                                                      | §7.9             |
-| **FiscalReceipting** | VFMS transactions. Interface: `FiscalReceipter`                                                                                                    | §7.10            |
+| **FiscalReceipting** | VFMS transactions. Interface: `VfmsGateway` (`LifecycleTranslator`)                                                                                | §7.10            |
 | **Reports**          | Occupancy, ADR, RevPAR, channel mix, group reports, and the compliance dashboard                                                                   | §7.11            |
 
 Not yet a domain folder, and added when their first ticket needs them:
@@ -84,7 +84,7 @@ Users, login, registration and MFA stay where the starter kit puts them (`app/Mo
 app/Domains/<Domain>/
   Actions/ Models/ Events/ Listeners/ Policies/ Data/ Enums/ Exceptions/
 app/Domains/{Distribution,ZanReporting,FiscalReceipting}/
-  Contracts/        ChannelConnector.php, ZanReporter.php, FiscalReceipter.php
+  Contracts/        ChannelConnector.php, ZanReporter.php, VfmsGateway.php
   Adapters/         Vendor adapters and Fake* adapters
 app/Support/
   Tenancy/          Tenancy::within(), TenantContext, BelongsToTenant, BelongsToProperty
@@ -108,7 +108,7 @@ database/migrations/           One folder, migration names prefixed by domain
 These are enforced by Pest architecture tests (`arch()`), so a violation fails CI:
 
 1. **Writes go through the owning domain's actions.** Another domain may read a model, but it changes data only by calling that domain's action.
-2. **Core domains never touch adapters or write outbox rows directly.** Reservations, FrontDesk and Billing record one reservation lifecycle event per action; integration translators turn it into outbox rows in the same transaction (ADR 0013). Core domains never call `ZanReporter` or `FiscalReceipter`. Only integration domains call the shared outbox `record`; an architecture test enforces this boundary. Core domains never reference an adapter class or an HTTP client (ADR 0010).
+2. **Core domains never touch adapters or write outbox rows directly.** Reservations, FrontDesk and Billing record one reservation lifecycle event per action; integration translators turn it into outbox rows in the same transaction (ADR 0013). Core domains never call `ZanReporter` or a VFMS gateway. Only integration domains call the shared outbox `record`; an architecture test enforces this boundary. Core domains never reference an adapter class or an HTTP client (ADR 0010).
 3. **Every tenant-owned model uses `BelongsToTenant`** (§4).
 4. **Controllers stay thin.** They authorize through a Policy, validate through a Form Request, call one action, and return an Inertia response.
 5. **No `env()` outside config files.** Secrets are read through config.
@@ -237,12 +237,16 @@ Quota identities and limits are policy data, coordinated globally across workers
 
 **VFMS (FiscalReceipting)**
 
+- **Translator seam.** `Reservations\Actions\RecordLifecycleEvent` calls every service tagged `LifecycleTranslator::TAG` inside its transaction. `FiscalReceipting\VfmsTranslator` maps each event to one guide call (`CALLS`: `checked_in` §2.1, `room_moved` §2.2, `nightly_price_changed` §2.3, `guest_added` §2.6, `guest_profile_changed` §2.7, `extra_posted` §2.11, `guest_departed` and `checked_out` §2.8) and records it with the payload from `VfmsPayloads`. Mainland properties (`JurisdictionRules::usesVfms`) and `test` events write nothing.
+- **Adapter.** `Adapters\VfmsAdapter` (integration `vfms`, policy `ordered`, `maxBatchSize=1`) reads the property's `vfms_credentials` at send time and picks a gateway: `HttpVfms` posts to `https://gateway.zanrevenue.org/api/` (the only VFMS server; 401 sets `credentials_refused_at`), `SandboxVfms` answers in-process with `SBX-` numbers and rejects bodies missing guide-required fields. Payloads carry the mode recorded at filing, never credentials; a Sandbox-recorded message is never sent Live.
+- **Sandbox / Live.** Every property starts in Sandbox; only `SwitchVfmsMode` (Owner or Property manager, Zanzibar, all three credentials, a typed confirmation and a reason, audited) sets Live. Sandbox computes no fake levy: its check-out answer reports the folio as posted, so the VFMS adjustment is zero.
+- **Check-out.** On an accepted §2.8 check-out the adapter calls `Billing\PostVfmsAdjustment`, so the folio switches from estimated tax to VFMS's tax and levy, and `CheckoutReport` builds the fiscal check-out report (portal QR in Live, "SANDBOX, NOT FISCAL" in Sandbox). **Assumed:** guide v1.6 names no check-out response fields; `HttpVfms` reads `reportNo`, `totalAmount`, `totalTax`, `infrastructureTax`. Confirm on the first Live check-out.
 - Ordered per stay, one message per call. Check-out waits for every earlier call's explicit acceptance (FSC-07).
 - `Billing\PostExtraCharge` records `extra_posted`; only extras on checked-in Zanzibar stays produce services (`CS`, guide §2.11). Accepted services attach their VFMS receipt number through `Posting::recordFiscalReceipt`, which changes only fiscal metadata, never the append-only amounts or frozen tax lines.
 - `referenceNumber` carries the idempotency key. Duplicate-reference behaviour and corrected-payload key reuse remain **unverified**; a duplicate error alone never means delivered. Reconcile against the accommodation report and verify acceptance before proceeding.
 - Credentials are per property (FSC-01). After restore, VFMS delivery **must be reconciled**, not assumed safe to replay.
 - VFMS keeps `unknownRetrySafe=false`. An uncertain accommodation request immediately looks up its saved `referenceNumber` via §2.5 `accommodationReport/` (`ACCOMMODATION_REPORT`, `refno`, check-in date through today). A matching report with a receipt number supplies acceptance; confirmed absence permits one resend of the unchanged snapshot. A failed or ambiguous lookup, or an uncertain resend, stays unknown for existing compliance recovery. Other call types stay unknown: an accommodation report does not prove a room change, extra or check-out was accepted.
-- The adapter implements the shared restore reconciliation contract, not the safe-replay contract. Restore lookup can confirm acceptance but cannot authorize historical replay on absence. Guide 1.6 does not specify the report response schema: the client currently recognizes a JSON list of rows containing `referenceNumber` and, for acceptance, `receiptNumber`; malformed, duplicate or unfamiliar shapes remain unresolved. Verify this shape and report completeness with VFMS before Live activation; HTTP-faked tests are not provider evidence. Report guest details are not copied into reconciliation evidence.
+- The adapter implements the shared restore reconciliation contract, not the safe-replay contract. Restore lookup can confirm acceptance but cannot authorize historical replay on absence. **Assumed:** guide 1.6 does not specify the report response schema: the client currently recognizes a JSON list of rows containing `referenceNumber` and, for acceptance, `receiptNumber`; malformed, duplicate or unfamiliar shapes remain unresolved. Verify this shape and report completeness with VFMS before Live activation; HTTP-faked tests are not provider evidence. Report guest details are not copied into reconciliation evidence.
 
 **Channel manager (Distribution)**
 
@@ -289,7 +293,8 @@ All rows below are `outbox_messages`, distinguished by integration; integration 
 | Guest cancels                  | `Reservations\CancelReservation`                                                             | ZAN (Cancel / Cancel + CancelDate); channel availability. Any fee → `Billing\PostFiscalException`   |
 | No-show confirmed              | `FrontDesk\ConfirmNoShow` (proposed by night audit)                                          | ZAN (Cancel / Cancel, guest count 0)                                                                |
 | Check-in                       | `FrontDesk\CheckIn` (requires identity documents for every guest under the Zanzibar profile) | ZAN (Modify / Checked In); VFMS (ACCOMMODATION_REQUEST, DIRECT, first night's rate)                 |
-| Room move, added guest, extras | `FrontDesk\MoveRoom`, `Guests\AddGuest`, `Billing\PostCharge`                                | VFMS (change room, add guest, services); ZAN where reported fields change                           |
+| Room move, added guest, extras | `FrontDesk\MoveRoom`, `FrontDesk\AddGuest`, `Billing\PostExtraCharge`                        | VFMS (change room, add guest, services); ZAN where reported fields change                           |
+| Corrected guest, guest leaves  | `Guests\UpdateGuest`, `FrontDesk\GuestLeaves`                                                | VFMS (change profile; check-out of that guest's document)                                           |
 | Night audit                    | `FrontDesk\CloseBusinessDate`                                                                | VFMS (CHANGEROOM_PRICE) when the next night's rate differs                                          |
 | Check-out                      | `FrontDesk\CheckOut`                                                                         | ZAN (Modify / Checked Out); VFMS (ACCOMMODATION_CHECK_OUT). The fiscal report prints once delivered |
 
@@ -328,7 +333,9 @@ Each integration domain owns recording semantics, transport and delivery policy 
 - **Delivery adapters** expose `send(messages)`, returning one accepted/rejected/retryable/unknown result per input with provider references and retry timing. Wire format and provider-specific response classification stay here; ordering, claiming, batching, quotas and retries do not.
 - **Policy data** declares batch group/size, quota identity/limit and ordering/latest-only keys (§5). Read/reconciliation operations such as `listReservations` and `exchangeRate` are separate from outbound recording.
 
-**Fakes** (`FakeChannelConnector`, `FakeZanTransport`, `FakeVfmsTransport`) are bound in tests. They simulate partial results, retry timings, unknown acceptance, expired claims and duplicates. Their contracts validate the foundation only; real-provider compatibility requires staging contract tests.
+VFMS shipped without `FiscalReceipter`: it is a `LifecycleTranslator` plus the `VfmsGateway` contract, with `SandboxVfms` serving as its fake (§5.3).
+
+**Fakes** (`FakeChannelConnector`, `FakeZanTransport`) are bound in tests. They simulate partial results, retry timings, unknown acceptance, expired claims and duplicates. Their contracts validate the foundation only; real-provider compatibility requires staging contract tests.
 
 ## 9. Data conventions
 
@@ -374,13 +381,13 @@ The scheduler runs under Supervisor as `php artisan schedule:work`.
 
 **Environments**
 
-| Environment | ZRA endpoints                           | Channel manager |
-| ----------- | --------------------------------------- | --------------- |
-| Local       | Fakes                                   | Fake            |
-| Staging     | ZAN Gateway staging, VFMS test          | Vendor sandbox  |
-| Production  | ZAN Gateway production, VFMS production | Live            |
+| Environment | ZRA endpoints                                                                | Channel manager |
+| ----------- | ---------------------------------------------------------------------------- | --------------- |
+| Local       | Fakes                                                                        | Fake            |
+| Staging     | ZAN Gateway staging, VFMS Sandbox mode                                       | Vendor sandbox  |
+| Production  | ZAN Gateway production, VFMS per property mode (Sandbox until switched Live) | Live            |
 
-**Unverified:** the VFMS production URL, and whether it uses TLS. The test endpoint is plain HTTP on port 6060, so the security group's outbound rules must allow it.
+VFMS has no test server: the only endpoint is `https://gateway.zanrevenue.org/api/` (production). Sandbox mode never calls it (§5.3).
 
 ## 12. Runbook: restore and post-restore reconciliation
 
@@ -448,7 +455,7 @@ This applies only if the client rejects a VPS (ADR 0006).
 - The PDPA 2022 cross-border question is resolved for `af-south-1` before the first real guest record (ADR 0011, PRD §16).
 - `af-south-1` is enabled on the AWS account.
 - Thedream's own ZRA supplier key is issued, with the ZAN Gateway staging contract test passing.
-- VFMS test credentials are issued, and the VFMS production URL and transport are confirmed.
+- Each pilot property's VFMS credentials are saved, and the first Live check-out and accommodation report confirm the assumed response fields (§5.3).
 - The channel manager is selected against PRD §9, with its sandbox contract test passing.
 - A production retention policy for encrypted outbox bodies and history is approved before real guest data; M1 never prunes them.
 - The restore exercise, including post-restore delivery reconciliation and missing identity/history recovery or a verified safe identity boundary, passes.
