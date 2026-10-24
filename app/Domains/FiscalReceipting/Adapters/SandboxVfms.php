@@ -22,6 +22,15 @@ final class SandboxVfms implements VfmsGateway
     {
         $body = $payload['body'];
         $missing = array_values(array_filter(self::REQUIRED[$payload['request_type']] ?? [], fn (string $field) => ! isset($body[$field]) || $body[$field] === '' || $body[$field] === []));
+        if ($payload['request_type'] === 'CHANGEROOM_PRICE') {
+            foreach ($body['rooms'] ?? [] as $index => $room) {
+                foreach (['roomPrice', 'hotelRoomRoom'] as $field) {
+                    if (! isset($room[$field]) || $room[$field] === '') {
+                        $missing[] = "rooms.{$index}.{$field}";
+                    }
+                }
+            }
+        }
         foreach ($body['guest'] ?? [] as $index => $guest) {
             foreach (self::GUEST_REQUIRED as $field) {
                 if (blank($guest[$field] ?? null)) {

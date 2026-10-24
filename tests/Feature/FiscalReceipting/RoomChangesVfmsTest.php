@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\FiscalReceipting\Adapters\SandboxVfms;
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\Actions\MoveRoom;
@@ -83,3 +85,18 @@ test('a Sandbox room move files the new room and lead document after check-in', 
     });
     Http::assertNothingSent();
 });
+
+// protects=Sandbox validates guide §2.3 room entries; fails_when=a room without its price or VFMS number is accepted; no_claim=production VFMS validation.
+test('Sandbox rejects missing fields within a changed room price', function (string $field) {
+    inTenant($this->tenant->property, function () use ($field) {
+        $this->reservation->priceLines()->whereDate('date', '2026-12-11')->update(['amount' => 12550]);
+        app(CloseBusinessDate::class)->handle($this->tenant->owner, $this->tenant->property, '2026-12-10');
+        $payload = OutboxMessage::query()->where('integration', 'vfms')->where('event', 'changeRoomPrice')->sole()->payload;
+        data_forget($payload['body'], 'rooms.0.'.$field);
+
+        $result = app(SandboxVfms::class)->send($payload, new VfmsCredential);
+
+        expect($result->outcome)->toBe('rejected')
+            ->and($result->responseBody['missing'])->toContain('rooms.0.'.$field);
+    });
+})->with(['roomPrice', 'hotelRoomRoom']);
