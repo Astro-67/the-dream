@@ -46,7 +46,7 @@ class UpdateGuest
         $ids = ReservationGuest::query()->where('guest_id', $guest->id)->whereNull('departed_at')->pluck('reservation_id');
         $stays = Reservation::query()->whereIn('id', $ids)->where('status', ReservationStatus::CheckedIn)->get();
         foreach ($stays as $stay) {
-            InHouseDocuments::ensureAvailable(Property::query()->findOrFail($stay->property_id), new Collection([$guest->fresh()]), $stay, 'documents');
+            InHouseDocuments::ensureAvailable(Property::query()->findOrFail($stay->property_id), new Collection([$guest->unsetRelation('documents')]), $stay, 'documents');
         }
     }
 
