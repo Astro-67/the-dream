@@ -26,4 +26,6 @@ interface ProfileRules
     public function requiredRegistrationFields(array $configured): array;
 
     public function marksFeesAsFiscalExceptions(): bool;
+
+    public function usesVfms(): bool;
 }

@@ -7,6 +7,7 @@ use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Rates\Enums\ChargeKind;
 use App\Domains\Rates\TaxCalculator;
+use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -30,6 +31,7 @@ class PostExtraCharge
     public function handle(?User $actor, Folio $folio, array $details): Posting
     {
         return Audit::validationRefusal($actor, $folio, 'Extra charge refused', fn () => DB::transaction(function () use ($actor, $folio, $details) {
+            $reservation = Reservation::query()->whereKey($folio->reservation_id)->lockForUpdate()->firstOrFail();
             $folio = Folio::query()->whereKey($folio->id)->lockForUpdate()->firstOrFail();
             // Two identical extras can both be real, so without a client key each call is a new submission.
             $key = $details['idempotency_key'] ?? (string) Str::ulid();
@@ -37,7 +39,6 @@ class PostExtraCharge
             if ($existing !== null) {
                 return $existing;
             }
-            $reservation = Reservation::query()->findOrFail($folio->reservation_id);
             $property = Property::query()->findOrFail($folio->property_id);
             $date = BusinessDate::of($property);
             $gross = $details['quantity'] * $details['unit_price'];
@@ -54,6 +55,7 @@ class PostExtraCharge
                 'idempotency_key' => $key, 'actor_id' => $actor?->id, 'business_date' => $date, 'posted_at' => now(),
             ]);
             Audit::record($actor, 'created', $posting, 'Extra charge posted', ['folio_id' => $folio->id, 'amount' => $posting->amount, 'currency' => $folio->currency->value]);
+            app(RecordLifecycleEvent::class)->handle($reservation, 'extra_posted', $actor, ['posting_id' => $posting->id, 'category' => $posting->category]);
 
             return $posting;
         }));

@@ -33,4 +33,10 @@ final class ZanzibarRules implements ProfileRules
     {
         return true;
     }
+
+    /** ZRA requires every Zanzibar hotel to file stays with VFMS. */
+    public function usesVfms(): bool
+    {
+        return true;
+    }
 }

@@ -3,7 +3,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Link, usePage } from '@inertiajs/react';
+import { Form, Link, usePage } from '@inertiajs/react';
+import { PropertyIntent } from '@/components/shared/property-intent';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { StatusChip } from '@/components/ui/status-chip';
+import vfmsRoutes from '@/routes/properties/vfms';
 import { formatDate } from '@/features/platform/format';
 import { index as taxRules } from '@/routes/tax-rules';
 
@@ -405,5 +410,205 @@ export function TaxInclusionFields({
                 </div>
             )}
         </fieldset>
+    );
+}
+
+export type VfmsSettings = {
+    integration_id: string | null;
+    registration_id: string | null;
+    token_saved: boolean;
+    mode: 'sandbox' | 'live';
+    live_since: string | null;
+    credentials_refused_at: string | null;
+    confirmation: string;
+};
+
+/**
+ * VFMS credentials and the Sandbox/Live switch. Its own forms, so it sits outside
+ * the property form; the server sends it only for VFMS properties the member manages.
+ */
+export function VfmsFields({
+    propertyId,
+    vfms,
+}: {
+    propertyId: string;
+    vfms: VfmsSettings;
+}) {
+    const live = vfms.mode === 'live';
+    const complete =
+        !!vfms.integration_id && !!vfms.registration_id && vfms.token_saved;
+    return (
+        <section
+            aria-labelledby="vfms-heading"
+            className="flex flex-col gap-6 border-t pt-6"
+        >
+            <div className="flex flex-wrap items-center gap-3">
+                <h2 id="vfms-heading" className="text-lg font-semibold">
+                    VFMS
+                </h2>
+                <StatusChip tone={live ? 'success' : 'info'}>
+                    {live ? 'Live' : 'Sandbox'}
+                </StatusChip>
+                {vfms.credentials_refused_at && (
+                    <StatusChip tone="error">Credentials refused</StatusChip>
+                )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+                {live
+                    ? `Stays are filed with ZRA's VFMS${vfms.live_since ? ` since ${formatDate(vfms.live_since)}` : ''}.`
+                    : 'Sandbox: stays are answered on this server and nothing reaches ZRA.'}
+            </p>
+            <Form
+                {...vfmsRoutes.update.form(propertyId)}
+                disableWhileProcessing
+                options={{ preserveScroll: true }}
+                resetOnSuccess={['token']}
+                className="grid gap-4 sm:grid-cols-2"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        <PropertyIntent propertyId={propertyId} />
+                        <InputError
+                            message={errors.vfms}
+                            className="sm:col-span-2"
+                        />
+                        <div className="grid content-start gap-2">
+                            <Label htmlFor="vfms_integration_id">
+                                Integration ID
+                            </Label>
+                            <Input
+                                id="vfms_integration_id"
+                                name="integration_id"
+                                required
+                                maxLength={100}
+                                autoComplete="off"
+                                defaultValue={vfms.integration_id ?? ''}
+                                aria-invalid={!!errors.integration_id}
+                            />
+                            <InputError message={errors.integration_id} />
+                        </div>
+                        <div className="grid content-start gap-2">
+                            <Label htmlFor="vfms_registration_id">
+                                Registration ID
+                            </Label>
+                            <Input
+                                id="vfms_registration_id"
+                                name="registration_id"
+                                required
+                                maxLength={100}
+                                autoComplete="off"
+                                defaultValue={vfms.registration_id ?? ''}
+                                aria-invalid={!!errors.registration_id}
+                            />
+                            <InputError message={errors.registration_id} />
+                        </div>
+                        <div className="grid content-start gap-2 sm:col-span-2">
+                            <Label htmlFor="vfms_token">Token</Label>
+                            <Input
+                                id="vfms_token"
+                                name="token"
+                                type="password"
+                                required={!vfms.token_saved}
+                                maxLength={500}
+                                autoComplete="new-password"
+                                aria-describedby="vfms_token_hint"
+                                aria-invalid={!!errors.token}
+                            />
+                            <p
+                                id="vfms_token_hint"
+                                className="text-sm text-muted-foreground"
+                            >
+                                {vfms.token_saved
+                                    ? 'Token saved. Leave blank to keep it.'
+                                    : 'No token saved yet.'}
+                            </p>
+                            <InputError message={errors.token} />
+                        </div>
+                        <div className="flex justify-end sm:col-span-2">
+                            <Button type="submit" variant="secondary">
+                                {processing && <Spinner />}
+                                Save VFMS credentials
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </Form>
+            <Form
+                {...vfmsRoutes.mode.form(propertyId)}
+                disableWhileProcessing
+                options={{ preserveScroll: true }}
+                resetOnSuccess
+                className="grid gap-4 sm:grid-cols-2"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        <PropertyIntent propertyId={propertyId} />
+                        <input
+                            type="hidden"
+                            name="mode"
+                            value={live ? 'sandbox' : 'live'}
+                        />
+                        <h3 className="text-base font-semibold sm:col-span-2">
+                            {live ? 'Switch back to Sandbox' : 'Switch to Live'}
+                        </h3>
+                        {!live && !complete && (
+                            <p className="text-sm text-muted-foreground sm:col-span-2">
+                                Save the Integration ID, Registration ID and
+                                Token before switching to Live.
+                            </p>
+                        )}
+                        <InputError
+                            message={errors.mode}
+                            className="sm:col-span-2"
+                        />
+                        <div className="grid content-start gap-2 sm:col-span-2">
+                            <Label htmlFor="vfms_reason">Reason</Label>
+                            <Input
+                                id="vfms_reason"
+                                name="reason"
+                                required
+                                maxLength={500}
+                                aria-invalid={!!errors.reason}
+                            />
+                            <InputError message={errors.reason} />
+                        </div>
+                        {!live && (
+                            <div className="grid content-start gap-2 sm:col-span-2">
+                                <Label htmlFor="vfms_confirmation">
+                                    Type {vfms.confirmation} to confirm
+                                </Label>
+                                <Input
+                                    id="vfms_confirmation"
+                                    name="confirmation"
+                                    required
+                                    autoComplete="off"
+                                    pattern={vfms.confirmation}
+                                    aria-describedby="vfms_confirmation_hint"
+                                    aria-invalid={!!errors.confirmation}
+                                />
+                                <p
+                                    id="vfms_confirmation_hint"
+                                    className="text-sm text-muted-foreground"
+                                >
+                                    Live files every stay with ZRA. Filed stays
+                                    cannot be withdrawn.
+                                </p>
+                                <InputError message={errors.confirmation} />
+                            </div>
+                        )}
+                        <div className="flex justify-end sm:col-span-2">
+                            <Button
+                                type="submit"
+                                variant={live ? 'secondary' : 'destructive'}
+                                disabled={!live && !complete}
+                            >
+                                {processing && <Spinner />}
+                                {live ? 'Switch to Sandbox' : 'Switch to Live'}
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </Form>
+        </section>
     );
 }

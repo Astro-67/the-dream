@@ -62,6 +62,14 @@ final class JurisdictionRules
     }
 
     /**
+     * Whether the property files stays with VFMS and so has VFMS settings.
+     */
+    public static function usesVfms(Property $property): bool
+    {
+        return self::of($property->jurisdiction_profile)->usesVfms();
+    }
+
+    /**
      * Whether a property under this profile records a ZRA hotel code. Takes
      * the profile so a property form can ask before the property is saved.
      */
