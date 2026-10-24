@@ -30,7 +30,7 @@ final class CheckoutReport
             return ['status' => 'waiting', 'report' => null, 'portalUrl' => null, 'qrSvg' => null];
         }
         $references = $checkout->getAttribute('provider_references');
-        $currency = $checkout->payload['body']['currency'] === 'EURO' ? 'EUR' : $checkout->payload['body']['currency'];
+        $currency = app(VfmsPayloads::class)->fromVfmsCurrency($checkout->payload['body']['currency'])->value;
         $summary = collect(FolioSummary::totals($reservation))->firstWhere('currency', $currency);
         $live = ($references['mode'] ?? null) === 'live';
         $url = $live ? self::PORTAL_URL.rawurlencode((string) $references['reportNo']) : null;

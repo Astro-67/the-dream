@@ -9,7 +9,6 @@ use App\Domains\FiscalReceipting\Contracts\VfmsGateway;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FiscalReceipting\VfmsPayloads;
 use App\Domains\Reservations\Models\Reservation;
-use App\Support\Money\Currency;
 use App\Support\Outbox\DeliveryResult;
 
 /** Answers like VFMS without leaving the server: fake SBX- numbers, refusing bodies missing guide-required fields. */
@@ -79,9 +78,9 @@ final class SandboxVfms implements VfmsGateway
     private function checkoutReport(array $payload): DeliveryResult
     {
         $reservation = Reservation::query()->findOrFail($payload['reservation_id']);
-        $currency = $payload['body']['currency'] === 'EURO' ? Currency::EUR : Currency::from($payload['body']['currency']);
-        $posted = FolioSummary::of(Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id)->where('currency', $currency->value))->get());
         $payloads = app(VfmsPayloads::class);
+        $currency = $payloads->fromVfmsCurrency($payload['body']['currency']);
+        $posted = FolioSummary::of(Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id)->where('currency', $currency->value))->get());
         $report = [
             'reportNo' => 'SBX-'.strtoupper(substr(hash('sha256', 'checkout|'.$reservation->id), 0, 12)),
             'totalAmount' => $payloads->amount($posted['charges'], $currency),

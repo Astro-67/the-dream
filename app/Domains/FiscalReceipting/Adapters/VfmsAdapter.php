@@ -10,7 +10,6 @@ use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FiscalReceipting\VfmsPayloads;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
-use App\Support\Money\Currency;
 use App\Support\Outbox\DeliveryAdapter;
 use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\DeliveryResult;
@@ -71,7 +70,7 @@ final class VfmsAdapter implements DeliveryAdapter, RestoreReconciliationAdapter
      */
     private function adjustFolio(array $payload, array $report): void
     {
-        $currency = $payload['body']['currency'] === 'EURO' ? Currency::EUR : Currency::from($payload['body']['currency']);
+        $currency = $this->payloads->fromVfmsCurrency($payload['body']['currency']);
         $minor = fn (string $field) => $this->payloads->minor((float) ($report[$field] ?? 0), $currency);
         app(PostVfmsAdjustment::class)->handle(Reservation::query()->findOrFail($payload['reservation_id']), $currency, [
             'report_number' => (string) ($report['reportNo'] ?? ''), 'total' => $minor('totalAmount'), 'tax' => $minor('totalTax'), 'levy' => $minor('infrastructureTax'),
