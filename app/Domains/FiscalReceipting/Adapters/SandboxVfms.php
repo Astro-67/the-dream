@@ -14,6 +14,8 @@ final class SandboxVfms implements VfmsGateway
         'ACCOMMODATION_REQUEST' => ['paymentPackage', 'checkInDate', 'guest', 'roomId', 'roomName', 'accommodationSource', 'accommodationPrice', 'accommodationDiscount', 'referenceNumber', 'currency'],
         'ACCOMMODATION_CHANGE_ROOM' => ['roomName', 'roomId', 'documentNumber', 'referenceNumber', 'currency', 'accommodationPrice', 'accommodationDiscount'],
         'CHANGEROOM_PRICE' => ['rooms'],
+        'ACCOMMODATION_ADD_GUEST' => ['firstGuestDocument', 'documentName', 'documentNo', 'arrivalDate', 'referenceNumber', 'country', 'fullName'],
+        'GUEST_PROFILE' => ['oldDocumentNo', 'newDocumentNo', 'fullName', 'documentName', 'country', 'referenceNumber'],
     ];
 
     private const GUEST_REQUIRED = ['documentName', 'documentNo', 'country', 'fullName'];
