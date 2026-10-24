@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\FiscalReceipting\Adapters\SandboxVfms;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FrontDesk\Actions\CheckIn;
@@ -158,3 +159,15 @@ test('only users who can view the stay open its fiscal report', function (Organi
 
     $allowed ? $response->assertOk() : $response->assertForbidden();
 })->with(array_map(fn (OrganizationRole $role) => [$role, $role !== OrganizationRole::Housekeeping], OrganizationRole::cases()));
+
+// protects=Sandbox refuses a check-out VFMS would refuse (guide §2.8); fails_when=a check-out missing its documents or currency is accepted; no_claim=VFMS production validation.
+test('Sandbox rejects a check-out missing required fields', function (string $field) {
+    $t = twoTenants();
+    checkOutOnDeparture($t->a, inHouseForCheckOut($t->a));
+    $payload = checkOutVfmsMessages($t->a)[1]->payload;
+    data_forget($payload['body'], $field);
+
+    $result = app(SandboxVfms::class)->send($payload, new VfmsCredential);
+
+    expect($result->outcome)->toBe('rejected')->and($result->responseBody['missing'])->toContain($field);
+})->with(['documentNumberList', 'currency', 'documentNumberList.0.documentNumber']);

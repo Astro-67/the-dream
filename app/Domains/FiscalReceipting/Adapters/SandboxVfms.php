@@ -34,6 +34,11 @@ final class SandboxVfms implements VfmsGateway
                 }
             }
         }
+        foreach ($payload['request_type'] === 'ACCOMMODATION_CHECK_OUT' ? $body['documentNumberList'] ?? [] : [] as $index => $document) {
+            if (blank($document['documentNumber'] ?? null)) {
+                $missing[] = "documentNumberList.{$index}.documentNumber";
+            }
+        }
         if (($body['accommodationSource'] ?? null) === 'TOUR OPERATOR') {
             $missing = [...$missing, ...array_values(array_filter(['tourRegNo', 'costOptions'], fn (string $field) => blank($body[$field] ?? null)))];
         }
