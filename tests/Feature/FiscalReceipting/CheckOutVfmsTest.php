@@ -78,6 +78,9 @@ test('a Sandbox check-out files one accepted check-out message after the check-i
 // protects=ADR 0015: before VFMS answers, the folio's tax is Thedream's estimate; after, it is VFMS's tax and levy and the balance matches the report (#160); fails_when=the label stays estimated, the levy is Thedream's, or the balance differs from the report total; no_claim=VFMS's real levy rates.
 test('an accepted check-out replaces the estimated tax with VFMS tax and levy', function () {
     $t = twoTenants();
+    inTenant($t->a->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'live_since' => now()]));
+    // Two nights at 110.00 with no tax rules in Thedream; VFMS assesses 1.00 levy per guest per night.
+    Http::fake(['gateway.zanrevenue.org/api/guest/checkout/' => Http::response(['reportNo' => 'CO-778', 'totalAmount' => 224.0, 'totalTax' => 0.0, 'infrastructureTax' => 4.0]), 'gateway.zanrevenue.org/*' => Http::response([])]);
     $reservation = inHouseForCheckOut($t->a);
 
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.show', $reservation))
@@ -85,17 +88,26 @@ test('an accepted check-out replaces the estimated tax with VFMS tax and levy', 
 
     checkOutOnDeparture($t->a, $reservation);
 
-    // Two nights at 110.00, no tax rules; the Sandbox levy is 1.00 per guest per night.
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.show', $reservation))
         ->assertInertia(fn (Assert $page) => $page->where('taxSource', 'vfms')
             ->where('totals.0.room', 22000)
             ->where('totals.0.levy', 400)
             ->where('totals.0.charges', 22400)
             ->where('totals.0.balance', 22400)
-            ->where('folios.data.0.postings.data.2.category', 'vfms_adjustment'));
-    $report = checkOutVfmsMessages($t->a)[1]->getAttribute('provider_references');
-    expect($report)->toMatchArray(['totalAmount' => 224, 'infrastructureTax' => 4])
-        ->and($report['reportNo'])->toStartWith('SBX-');
+            ->where('folios.data.0.postings.data.2.category', 'vfms_adjustment')
+            ->where('folios.data.0.postings.data.2.amount', 400));
+});
+
+// protects=Sandbox never invents tax or debt on test stays (#160); fails_when=a Sandbox check-out changes the folio balance; no_claim=Live figures.
+test('a Sandbox check-out settles the folio at the figures Thedream posted', function () {
+    $t = twoTenants();
+    $reservation = checkOutOnDeparture($t->a, inHouseForCheckOut($t->a));
+
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.show', $reservation))
+        ->assertInertia(fn (Assert $page) => $page->where('taxSource', 'vfms')
+            ->where('totals.0.balance', 22000)
+            ->where('folios.data.0.postings.data.2.amount', 0));
+    expect(checkOutVfmsMessages($t->a)[1]->getAttribute('provider_references'))->toMatchArray(['totalAmount' => 220, 'infrastructureTax' => 0]);
 });
 
 /** Opens the stay's fiscal check-out report as $role (front desk by default, which works in one property only). */
@@ -115,7 +127,7 @@ test('a Sandbox fiscal report is stamped and carries no portal QR', function () 
         ->where('qrSvg', null)->where('portalUrl', null)
         ->where('report.number', $reportNo)
         ->where('report.currency', 'USD')
-        ->where('report.room', 22000)->where('report.extras', 0)->where('report.levy', 400)->where('report.total', 22400)
+        ->where('report.room', 22000)->where('report.extras', 0)->where('report.levy', 0)->where('report.total', 22000)
         ->where('stay.nights', 2)
         ->where('guests', ['Anna Berg', 'Ola Berg'])
         ->where('property.name', $t->a->property->name));

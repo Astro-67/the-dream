@@ -56,8 +56,8 @@ final class SandboxVfms implements VfmsGateway
     }
 
     /**
-     * A fake check-out report: VAT as Thedream posted it, and a levy of 1.00 (2,500 TZS)
-     * per listed guest per night in place of Thedream's estimate, so the folio switch shows.
+     * A fake check-out report echoing the folio as Thedream posted it, so the folio switch
+     * and report run end to end without Sandbox inventing tax or debt on test stays.
      *
      * @param  array{reservation_id: string, body: array<string, mixed>}  $payload
      */
@@ -66,13 +66,12 @@ final class SandboxVfms implements VfmsGateway
         $reservation = Reservation::query()->findOrFail($payload['reservation_id']);
         $currency = $payload['body']['currency'] === 'EURO' ? Currency::EUR : Currency::from($payload['body']['currency']);
         $posted = FolioSummary::of(Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id)->where('currency', $currency->value))->get());
-        $levy = count($payload['body']['documentNumberList']) * $reservation->stay()['nights'] * ($currency === Currency::TZS ? 2500 : 100);
         $payloads = app(VfmsPayloads::class);
         $report = [
             'reportNo' => 'SBX-'.strtoupper(substr(hash('sha256', 'checkout|'.$reservation->id), 0, 12)),
-            'totalAmount' => $payloads->amount($posted['charges'] - $posted['levy'] + $levy, $currency),
+            'totalAmount' => $payloads->amount($posted['charges'], $currency),
             'totalTax' => $payloads->amount($posted['vat'], $currency),
-            'infrastructureTax' => $payloads->amount($levy, $currency),
+            'infrastructureTax' => $payloads->amount($posted['levy'], $currency),
         ];
 
         return new DeliveryResult('accepted', $report, ['status' => 200, ...$report]);

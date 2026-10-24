@@ -2,6 +2,7 @@
 
 namespace App\Domains\FiscalReceipting;
 
+use App\Domains\Billing\Models\Folio;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\IdentityDocument;
 use App\Domains\Guests\Models\ReservationGuest;
@@ -70,7 +71,8 @@ final class VfmsPayloads
     {
         return [
             'documentNumberList' => array_map(fn (array $guest) => ['documentNumber' => $guest['documentNo']], $this->guests($reservation)),
-            'currency' => $this->currency(Currency::from($reservation->priceLines()->firstOrFail()->getAttribute('currency'))),
+            // The stay's first folio: an arrival-day early departure has no price lines left.
+            'currency' => $this->currency(Folio::query()->where('reservation_id', $reservation->id)->orderBy('created_at')->orderBy('id')->firstOrFail()->currency),
         ];
     }
 
