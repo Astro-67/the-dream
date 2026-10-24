@@ -47,8 +47,8 @@ final class VfmsTranslator implements LifecycleTranslator
         if ($event->type === 'guest_profile_changed' && ($event->snapshot['old_document_number'] ?? null) === null) {
             return;
         }
-        $property = Property::query()->findOrFail($event->property_id);
-        if ($property->demo || ! JurisdictionRules::usesVfms($property)) {
+        $property = Property::query()->real()->find($event->property_id);
+        if ($property === null || ! JurisdictionRules::usesVfms($property)) {
             return;
         }
         Tenancy::within(TenantContext::forProperty($property), function () use ($event, $property, $requestType, $path, $builder) {
