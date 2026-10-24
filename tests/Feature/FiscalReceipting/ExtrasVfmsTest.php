@@ -13,6 +13,7 @@ use App\Domains\Reservations\Actions\CreateReservation;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 
 beforeEach(function () {
@@ -23,7 +24,7 @@ beforeEach(function () {
 // protects=an in-house extra files guide §2.11 services and keeps its fiscal receipt (#163); fails_when=the payload differs or the receipt is not saved on the charge; no_claim=production VFMS acceptance.
 test('an in-house extra files one Sandbox services message with its receipt', function () {
     $tenant = twoTenants()->a;
-    inTenant($tenant->property, function () use ($tenant) {
+    [$reservation, $posting] = inTenant($tenant->property, function () use ($tenant) {
         $details = BookingForm::details($tenant->owner);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
         $reservation = app(CreateReservation::class)->handle($tenant->owner, [
@@ -57,6 +58,12 @@ test('an in-house extra files one Sandbox services message with its receipt', fu
             ->and(app(VfmsPayloads::class)->services($event, $reservation, $tenant->property)['service'][0]['price'])->toBeFloat()
             ->and($posting->fresh()->vfms_receipt_number)->toStartWith('SBX-')
             ->and($posting->fresh()->vfms_receipt_number)->toBe($message->getAttribute('provider_references')['receiptNumber']);
+
+        return [$reservation, $posting->fresh()];
     });
+    $this->actingAs($tenant->owner)
+        ->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('folios.data.0.postings.data.0.vfms_receipt_number', $posting->vfms_receipt_number));
     Http::assertNothingSent();
 });

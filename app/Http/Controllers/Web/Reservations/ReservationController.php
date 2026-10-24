@@ -84,7 +84,7 @@ class ReservationController extends Controller
                 ]),
                 'postings' => $folio->postings()->with(['actor:id,name', 'receipt:id,posting_id,number', 'related:id,type,category,folio_id', 'cancelledBy:id,type,folio_id,related_posting_id', 'cancelledBy.cancelledBy:id,folio_id,related_posting_id'])
                     ->paginate(50, ['*'], 'postings_page_'.$folio->id)->withQueryString()->through(fn (Posting $posting) => [
-                        ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),
+                        ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines', 'vfms_receipt_number']),
                         'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
                         'related' => $posting->related?->only(['id', 'type', 'category', 'folio_id']),
                         'cancelled_by' => $posting->cancelledBy === null ? null : [
