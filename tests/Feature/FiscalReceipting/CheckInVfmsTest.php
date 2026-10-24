@@ -73,6 +73,10 @@ test('a Sandbox check-in of two guests files one accepted accommodation message'
     expect($message->status)->toBe('delivered')
         ->and($message->event)->toBe('accommodation')
         ->and($message->payload['mode'])->toBe('sandbox')
+        ->and($message->payload['body']['roomId'])->toBeInt()
+        ->and($message->payload['body']['roomName'])->toBe('101')
+        ->and($message->payload['body']['accommodationPrice'])->toBeIn([110, 110.0])
+        ->and($message->payload['body']['accommodationDiscount'])->toBeIn([0, 0.0])
         ->and($message->payload['body'])->toEqual([
             'paymentPackage' => 'bed-and-breakfast',
             'checkInDate' => '2026-12-10',

@@ -21,6 +21,7 @@ use Tests\Fakes\ReconcilingOutboxAdapter;
 use Tests\Fakes\ReplayOnlyOutboxAdapter;
 
 beforeEach(function () {
+    app()->instance(DeliveryAdapters::class, new DeliveryAdapters);
     config(['queue.default' => 'database']);
 });
 
