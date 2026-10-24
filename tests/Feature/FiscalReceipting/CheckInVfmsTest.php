@@ -269,3 +269,34 @@ test('VFMS reconciliation finds a timed out check-in without resending', functio
     expect($checkIns)->toBe(1);
     Http::assertSentCount(1);
 });
+
+// protects=confirmed absence permits exactly one unchanged resend (#165); fails_when=the reference or body changes, or a second uncertain answer loops; no_claim=VFMS production report completeness.
+test('VFMS reconciliation resends an absent check-in once with the original reference', function (bool $resendTimesOut, array $rows) {
+    $t = twoTenants();
+    liveCredentials($t->a);
+    $bodies = [];
+    Http::fake([
+        'gateway.zanrevenue.org/api/accommodation/' => function (Request $request) use (&$bodies, $resendTimesOut) {
+            $bodies[] = $request->data();
+            if (count($bodies) === 1 || $resendTimesOut) {
+                throw new ConnectionException('Operation timed out');
+            }
+
+            return Http::response(['receiptNumber' => 'VFMS-43'], 201);
+        },
+        'gateway.zanrevenue.org/api/accommodationReport/' => Http::response($rows, 200),
+    ]);
+
+    checkInTwoGuests($t->a);
+
+    $message = vfmsMessages($t->a)[0];
+    expect($bodies)->toHaveCount(2)
+        ->and($bodies[1])->toEqual($bodies[0])
+        ->and($message->payload['body'])->toEqual($bodies[0])
+        ->and($message->status)->toBe($resendTimesOut ? 'unknown' : 'delivered');
+    expect(Http::recorded(fn (Request $request) => str_ends_with($request->url(), '/accommodationReport/')))->toHaveCount(1);
+})->with([
+    'empty report' => [false, []],
+    'different reference' => [false, [['referenceNumber' => 'another-stay', 'receiptNumber' => 'VFMS-99']]],
+    'resend also times out' => [true, []],
+]);

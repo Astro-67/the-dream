@@ -39,6 +39,9 @@ final class HttpVfms implements VfmsGateway
             }
         }
         $matches = array_values(array_filter($rows, fn (array $row): bool => $row['referenceNumber'] === $body['referenceNumber']));
+        if ($matches === []) {
+            return ['outcome' => 'not_found', 'evidence' => $evidence];
+        }
         if (count($matches) !== 1 || ! is_string($matches[0]['receiptNumber'] ?? null) || trim($matches[0]['receiptNumber']) === '') {
             return $unresolved;
         }

@@ -40,6 +40,8 @@ final class VfmsAdapter implements DeliveryAdapter, RestoreReconciliationAdapter
                 $report = $this->reconcile([$message])[$message->id];
                 if ($report['outcome'] === 'accepted') {
                     $result = new DeliveryResult('accepted', $report['references']);
+                } elseif ($report['outcome'] === 'not_found') {
+                    $result = $this->http->send($message->payload, $credential);
                 }
             }
 
