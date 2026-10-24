@@ -84,3 +84,39 @@ test('the stay check-out after a guest left lists only the remaining guest', fun
     expect($checkout->status)->toBe('delivered')
         ->and($checkout->payload['body']['documentNumberList'])->toBe([['documentNumber' => 'P1234567']]);
 });
+
+// protects=Guest leaves only ever acts on a non-lead guest still in an in-house stay (#164); fails_when=the lead guest, a guest already gone, or a stay not in-house is accepted, or a refusal still records an event or a VFMS message; no_claim=wording of the refusal.
+test('guest leaves is refused for the lead guest, a departed guest and a stay not in-house', function (string $name, bool $checkIn, bool $leaveFirst, string $field) {
+    $t = twoTenants();
+    $reservation = guestLeavesStay($t->a, $checkIn);
+    $guest = guestLeavesGuest($t->a, $name);
+    if ($leaveFirst) {
+        guestLeavesPost($t->a, $reservation, $guest)->assertSessionHasNoErrors();
+    }
+
+    guestLeavesPost($t->a, $reservation, $guest)->assertSessionHasErrors($field);
+
+    inTenant($t->a->property, fn () => expect($reservation->lifecycleEvents()->where('type', 'guest_departed')->count())->toBe($leaveFirst ? 1 : 0)
+        ->and(OutboxMessage::query()->where('integration', 'vfms')->where('event', 'guestDeparture')->count())->toBe($leaveFirst ? 1 : 0));
+})->with([
+    'lead guest' => ['Anna Berg', true, false, 'guest_id'],
+    'already departed' => ['Ola Berg', true, true, 'guest_id'],
+    'stay not in-house' => ['Ola Berg', false, false, 'reservation'],
+]);
+
+// protects=Guest leaves follows the check-out permission (#164); fails_when=a role that cannot check out records a departure, or one that can is refused; no_claim=the role-permission matrix itself.
+test('roles without check-out permission cannot record a guest leaving', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $reservation = guestLeavesStay($t->a);
+
+    $response = guestLeavesPost($t->a, $reservation, guestLeavesGuest($t->a, 'Ola Berg'), $role);
+
+    $allowed ? $response->assertRedirect()->assertSessionHasNoErrors() : $response->assertForbidden();
+    inTenant($t->a->property, fn () => expect($reservation->lifecycleEvents()->where('type', 'guest_departed')->exists())->toBe($allowed));
+})->with([
+    'front desk' => [OrganizationRole::FrontDesk, true],
+    'property manager' => [OrganizationRole::PropertyManager, true],
+    'finance' => [OrganizationRole::Finance, false],
+    'housekeeping' => [OrganizationRole::Housekeeping, false],
+    'auditor' => [OrganizationRole::Auditor, false],
+]);
