@@ -238,6 +238,7 @@ Quota identities and limits are policy data, coordinated globally across workers
 **VFMS (FiscalReceipting)**
 
 - Ordered per stay, one message per call. Check-out waits for every earlier call's explicit acceptance (FSC-07).
+- `Billing\PostExtraCharge` records `extra_posted`; only extras on checked-in Zanzibar stays produce services (`CS`, guide §2.11). Accepted services attach their VFMS receipt number through `Posting::recordFiscalReceipt`, which changes only fiscal metadata, never the append-only amounts or frozen tax lines.
 - `referenceNumber` carries the idempotency key. Duplicate-reference behaviour and corrected-payload key reuse remain **unverified**; a duplicate error alone never means delivered. Reconcile against the accommodation report and verify acceptance before proceeding.
 - Credentials are per property (FSC-01). After restore, VFMS delivery **must be reconciled**, not assumed safe to replay.
 

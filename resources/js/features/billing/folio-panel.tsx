@@ -433,9 +433,12 @@ export function FolioPanel({
                                             {posting.vfms_receipt_number && (
                                                 <div className="text-sm wrap-anywhere text-muted-foreground">
                                                     VFMS receipt:{' '}
-                                                    {
-                                                        posting.vfms_receipt_number
-                                                    }
+                                                    <Identifier
+                                                        value={
+                                                            posting.vfms_receipt_number
+                                                        }
+                                                        copyable
+                                                    />
                                                 </div>
                                             )}
                                             {posting.description &&

@@ -76,6 +76,7 @@ class Posting extends Model
         return new Money($this->amount, $this->currency);
     }
 
+    /** Fiscal metadata arrives after posting; financial fields remain append-only. */
     public function recordFiscalReceipt(string $number): void
     {
         DB::transaction(function () use ($number) {
