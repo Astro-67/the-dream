@@ -79,6 +79,7 @@ enum OrganizationRole: string
                 P::MaintenanceView, P::MaintenanceReport, P::MaintenanceManage,
                 P::FiscalExceptionsReview, P::ReportsView,
                 P::ChannelsManage, P::ApprovalsManage, P::NightAuditView, P::NightAuditClose,
+                P::VfmsManage,
             ],
             self::FrontDesk => [
                 P::ReservationsView, P::ReservationsManage, P::RoomsAssign,
