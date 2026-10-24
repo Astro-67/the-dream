@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('identity_documents', function (Blueprint $table): void {
             $table->char('number_hash', 64)->nullable();
-            $table->index(['property_id', 'number_hash'], 'identity_documents_property_number_hash_index');
+            $table->index(['number_hash', 'property_id'], 'identity_documents_number_hash_property_index');
         });
 
         DB::table('identity_documents')->select(['id', 'number'])->orderBy('id')->chunkById(500, function ($documents): void {
@@ -28,7 +28,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('identity_documents', function (Blueprint $table): void {
-            $table->dropIndex('identity_documents_property_number_hash_index');
+            $table->dropIndex('identity_documents_number_hash_property_index');
             $table->dropColumn('number_hash');
         });
     }
