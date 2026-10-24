@@ -2,6 +2,7 @@
 
 namespace App\Domains\FrontDesk\Actions;
 
+use App\Domains\FrontDesk\InHouseDocuments;
 use App\Domains\FrontDesk\Registration;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\Guest;
@@ -35,7 +36,10 @@ class AddGuest
             if (ReservationGuest::query()->where(['reservation_id' => $locked->id, 'guest_id' => $guest->id])->exists()) {
                 throw ValidationException::withMessages(['guest_id' => __(':guest is already staying on this reservation.', ['guest' => $guest->name])]);
             }
-            Registration::ensure(Property::query()->findOrFail($locked->property_id), new Collection([$guest]));
+            $property = Property::query()->findOrFail($locked->property_id);
+            $guests = new Collection([$guest]);
+            Registration::ensure($property, $guests);
+            InHouseDocuments::ensureAvailable($property, $guests, $locked);
 
             ReservationGuest::query()->create(['reservation_id' => $locked->id, 'guest_id' => $guest->id]);
             app(RecordLifecycleEvent::class)->handle($locked, 'guest_added', $actor, ['guest_id' => $guest->id]);

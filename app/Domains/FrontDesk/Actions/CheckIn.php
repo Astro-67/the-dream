@@ -3,6 +3,7 @@
 namespace App\Domains\FrontDesk\Actions;
 
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\FrontDesk\InHouseDocuments;
 use App\Domains\FrontDesk\Registration;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
@@ -50,7 +51,9 @@ class CheckIn
             if (! $readiness->isReady($room)) {
                 throw ValidationException::withMessages(['room' => __('Room :number is not ready.', ['number' => $room->getAttribute('number')])]);
             }
-            Registration::ensure($property, Guest::query()->whereIn('id', ReservationGuest::query()->select('guest_id')->where('reservation_id', $locked->id))->get());
+            $guests = Guest::query()->whereIn('id', ReservationGuest::query()->select('guest_id')->where('reservation_id', $locked->id))->get();
+            Registration::ensure($property, $guests);
+            InHouseDocuments::ensureAvailable($property, $guests, $locked);
 
             $locked->update(['status' => ReservationStatus::CheckedIn]);
             app(SetRoomOccupied::class)->handle($actor, $room, 'Check-in '.$locked->reservation_number);
