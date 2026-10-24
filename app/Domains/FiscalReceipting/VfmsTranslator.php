@@ -2,6 +2,7 @@
 
 namespace App\Domains\FiscalReceipting;
 
+use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Reservations\Contracts\LifecycleTranslator;
@@ -22,6 +23,7 @@ final class VfmsTranslator implements LifecycleTranslator
     /** Lifecycle event => [VFMS request type, gateway path, payload builder]. Later calls add rows. */
     private const CALLS = [
         'checked_in' => ['ACCOMMODATION_REQUEST', 'accommodation/', 'accommodation'],
+        'extra_posted' => ['ACCOMMODATION_ADD_SERVICE', 'service/', 'services'],
     ];
 
     public function __construct(private readonly VfmsPayloads $payloads, private readonly Outbox $outbox) {}
@@ -30,6 +32,9 @@ final class VfmsTranslator implements LifecycleTranslator
     {
         [$requestType, $path, $builder] = self::CALLS[$event->type] ?? [null, null, null];
         if ($builder === null) {
+            return;
+        }
+        if ($event->type === 'extra_posted' && (($event->snapshot['status'] ?? null) !== 'checked_in' || ! in_array($event->snapshot['category'] ?? null, PostExtraCharge::CATEGORIES, true))) {
             return;
         }
         $property = Property::query()->findOrFail($event->property_id);
@@ -42,6 +47,7 @@ final class VfmsTranslator implements LifecycleTranslator
                 'mode' => VfmsCredential::for($property)->mode->value,
                 'request_type' => $requestType,
                 'path' => $path,
+                ...($event->type === 'extra_posted' ? ['posting_id' => $event->snapshot['posting_id']] : []),
                 'body' => $this->payloads->{$builder}($event, $reservation, $property),
             ], "vfms:{$event->id}");
         });

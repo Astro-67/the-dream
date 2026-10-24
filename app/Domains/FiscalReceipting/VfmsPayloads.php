@@ -2,6 +2,8 @@
 
 namespace App\Domains\FiscalReceipting;
 
+use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\Posting;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\IdentityDocument;
 use App\Domains\Guests\Models\ReservationGuest;
@@ -23,6 +25,26 @@ use InvalidArgumentException;
  */
 final class VfmsPayloads
 {
+    /** @return array<string, mixed> */
+    public function services(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $posting = Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
+            ->findOrFail($event->snapshot['posting_id']);
+
+        return [
+            'documentNumber' => $this->guests($reservation)[0]['documentNo'],
+            'service' => [[
+                'itemName' => $posting->description ?? $posting->category,
+                'price' => $this->amount($posting->unit_price, $posting->currency),
+                'quantity' => $posting->quantity,
+                'discount' => 0.0,
+            ]],
+            'referenceNumber' => $this->referenceNumber($event, $reservation),
+            'type' => 'CS',
+            'currency' => $this->currency($posting->currency),
+        ];
+    }
+
     /**
      * §2.1 accommodation, sent at check-in.
      *

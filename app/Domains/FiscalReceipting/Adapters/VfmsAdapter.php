@@ -2,6 +2,8 @@
 
 namespace App\Domains\FiscalReceipting\Adapters;
 
+use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Tenancy\Models\Property;
@@ -34,6 +36,11 @@ final class VfmsAdapter implements DeliveryAdapter
                 return new DeliveryResult('rejected', ['mode' => 'live'], ['error' => 'VFMS credentials are incomplete.'], messageId: $message->id);
             }
             $result = ($live ? $this->http : $this->sandbox)->send($message->payload, $credential);
+            if ($message->event === 'services' && $result->outcome === 'accepted' && filled($result->references['receiptNumber'] ?? null)) {
+                Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $message->subject_id))
+                    ->findOrFail($message->payload['posting_id'])
+                    ->recordFiscalReceipt((string) $result->references['receiptNumber']);
+            }
 
             return new DeliveryResult($result->outcome, ['mode' => $live ? 'live' : 'sandbox', ...$result->references], $result->responseBody, $result->retryAt, $message->id);
         }, $messages);
