@@ -4,7 +4,6 @@ namespace App\Domains\Guests\Actions;
 
 use App\Domains\FrontDesk\InHouseDocuments;
 use App\Domains\Guests\Models\Guest;
-use App\Domains\Guests\Models\IdentityDocument;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Enums\ReservationStatus;
@@ -23,7 +22,7 @@ class UpdateGuest
     public function handle(User $actor, Guest $guest, array $details): Guest
     {
         return Audit::validationRefusal($actor, $guest, 'Guest update refused', fn () => DB::transaction(function () use ($actor, $guest, $details) {
-            $before = $this->profile($guest);
+            $before = $guest->authorityProfile();
             $guest->fill(Arr::only($details, Guest::FIELDS));
             $changed = array_keys($guest->getDirty());
             $old = $guest->getOriginal();
@@ -33,7 +32,7 @@ class UpdateGuest
                 $this->ensureDocumentsAvailable($guest);
             }
             Audit::record($actor, 'updated', $guest, 'Guest updated', ['old' => array_intersect_key($old, array_flip($changed)), 'attributes' => $guest->only($changed)]);
-            if ($this->profile($guest) !== $before) {
+            if ($guest->authorityProfile() !== $before) {
                 $this->recordProfileChange($actor, $guest, $before['number']);
             }
 
@@ -49,19 +48,6 @@ class UpdateGuest
         foreach ($stays as $stay) {
             InHouseDocuments::ensureAvailable(Property::query()->findOrFail($stay->property_id), new Collection([$guest->fresh()]), $stay, 'documents');
         }
-    }
-
-    /**
-     * What authorities hold about a guest: name, and the first document with its country.
-     *
-     * @return array{name: string, type: mixed, number: mixed, country: mixed}
-     */
-    private function profile(Guest $guest): array
-    {
-        /** @var IdentityDocument|null $document */
-        $document = $guest->documents()->orderBy('id')->first();
-
-        return ['name' => $guest->name, 'type' => $document?->getAttribute('type'), 'number' => $document?->getAttribute('number'), 'country' => $document?->getAttribute('nationality') ?? $guest->getAttribute('nationality')];
     }
 
     /** One guest_profile_changed event per in-house stay of the guest; other stays are not reported. */

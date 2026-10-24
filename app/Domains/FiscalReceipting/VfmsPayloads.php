@@ -5,7 +5,6 @@ namespace App\Domains\FiscalReceipting;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Guests\Models\Guest;
-use App\Domains\Guests\Models\IdentityDocument;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Rates\Enums\ChargeKind;
@@ -130,7 +129,7 @@ final class VfmsPayloads
      */
     public function guestDeparture(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
     {
-        return $this->checkoutOf($reservation, [$this->guest(Guest::query()->with('documents')->findOrFail($event->snapshot['guest_id']))]);
+        return $this->checkoutOf($reservation, [$this->guest(Guest::query()->findOrFail($event->snapshot['guest_id']))]);
     }
 
     /**
@@ -154,7 +153,7 @@ final class VfmsPayloads
     public function addGuest(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
     {
         $guests = $this->guests($reservation);
-        $added = $this->guest(Guest::query()->with('documents')->findOrFail($event->snapshot['guest_id']));
+        $added = $this->guest(Guest::query()->findOrFail($event->snapshot['guest_id']));
 
         return [
             'firstGuestDocument' => $guests[0]['documentNo'],
@@ -174,7 +173,7 @@ final class VfmsPayloads
      */
     public function changeProfile(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
     {
-        $guest = $this->guest(Guest::query()->with('documents')->findOrFail($event->snapshot['guest_id']));
+        $guest = $this->guest(Guest::query()->findOrFail($event->snapshot['guest_id']));
         $old = $event->snapshot['old_document_number'];
 
         return [
@@ -196,27 +195,25 @@ final class VfmsPayloads
     public function guests(Reservation $reservation, bool $inHouseOnly = false): array
     {
         $ids = ReservationGuest::query()->where('reservation_id', $reservation->id)->when($inHouseOnly, fn ($query) => $query->whereNull('departed_at'))->orderBy('id')->pluck('guest_id');
-        $guests = Guest::query()->with('documents')->whereIn('id', $ids)->get()->keyBy('id');
+        $guests = Guest::query()->whereIn('id', $ids)->get()->keyBy('id');
 
         return $ids->map(fn (string $id) => $this->guest($guests[$id]))->values()->all();
     }
 
     /**
-     * One guest as VFMS names them, with their first identity document.
+     * One guest as VFMS names them: the authority profile, country spelled out.
      *
      * @return array{documentName: string|null, documentNo: string|null, country: string|null, fullName: string}
      */
     public function guest(Guest $guest): array
     {
-        /** @var IdentityDocument|null $document */
-        $document = $guest->documents->sortBy('id')->first();
-        $country = $document?->getAttribute('nationality') ?? $guest->getAttribute('nationality');
+        $profile = $guest->authorityProfile();
 
         return [
-            'documentName' => $document?->getAttribute('type'),
-            'documentNo' => $document?->getAttribute('number'),
-            'country' => Countries::NAMES[$country] ?? $country,
-            'fullName' => $guest->name,
+            'documentName' => $profile['type'],
+            'documentNo' => $profile['number'],
+            'country' => Countries::NAMES[$profile['country']] ?? $profile['country'],
+            'fullName' => $profile['name'],
         ];
     }
 
@@ -242,6 +239,12 @@ final class VfmsPayloads
     public function currency(Currency $currency): string
     {
         return $currency === Currency::EUR ? 'EURO' : $currency->value;
+    }
+
+    /** VFMS's currency spelling back to ours, the inverse of currency(). */
+    public function fromVfmsCurrency(string $currency): Currency
+    {
+        return $currency === 'EURO' ? Currency::EUR : Currency::from($currency);
     }
 
     /** 5 accommodation, 6 infrastructure levy, 7 other services, ascending. */
