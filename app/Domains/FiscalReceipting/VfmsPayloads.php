@@ -14,6 +14,7 @@ use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Countries;
 use App\Support\Money\Currency;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -74,6 +75,47 @@ final class VfmsPayloads
     }
 
     /**
+     * §2.6 add guest: the new guest, filed against the lead guest's document.
+     *
+     * @return array<string, mixed>
+     */
+    public function addGuest(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $guests = $this->guests($reservation);
+        $added = $this->guest(Guest::query()->with('documents')->findOrFail($event->snapshot['guest_id']));
+
+        return [
+            'firstGuestDocument' => $guests[0]['documentNo'],
+            'documentName' => $added['documentName'],
+            'documentNo' => $added['documentNo'],
+            'arrivalDate' => $event->business_date->toDateString(),
+            'referenceNumber' => $this->referenceNumber($event, $reservation),
+            'country' => $added['country'],
+            'fullName' => $added['fullName'],
+        ];
+    }
+
+    /**
+     * §2.7 change profile: the guest's corrected details, keyed by the document VFMS holds.
+     *
+     * @return array<string, mixed>
+     */
+    public function changeProfile(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $guest = $this->guest(Guest::query()->with('documents')->findOrFail($event->snapshot['guest_id']));
+        $old = $event->snapshot['old_document_number'];
+
+        return [
+            'oldDocumentNo' => $old === null ? null : Crypt::decryptString($old),
+            'newDocumentNo' => $guest['documentNo'],
+            'fullName' => $guest['fullName'],
+            'documentName' => $guest['documentName'],
+            'country' => $guest['country'],
+            'referenceNumber' => $this->referenceNumber($event, $reservation),
+        ];
+    }
+
+    /**
      * Every guest on the stay, lead guest first, each with their first identity document.
      *
      * @return list<array{documentName: string|null, documentNo: string|null, country: string|null, fullName: string}>
@@ -83,19 +125,26 @@ final class VfmsPayloads
         $ids = ReservationGuest::query()->where('reservation_id', $reservation->id)->orderBy('id')->pluck('guest_id');
         $guests = Guest::query()->with('documents')->whereIn('id', $ids)->get()->keyBy('id');
 
-        return $ids->map(function (string $id) use ($guests): array {
-            $guest = $guests[$id];
-            /** @var IdentityDocument|null $document */
-            $document = $guest->documents->sortBy('id')->first();
-            $country = $document?->getAttribute('nationality') ?? $guest->getAttribute('nationality');
+        return $ids->map(fn (string $id) => $this->guest($guests[$id]))->values()->all();
+    }
 
-            return [
-                'documentName' => $document?->getAttribute('type'),
-                'documentNo' => $document?->getAttribute('number'),
-                'country' => Countries::NAMES[$country] ?? $country,
-                'fullName' => $guest->name,
-            ];
-        })->values()->all();
+    /**
+     * One guest as VFMS names them, with their first identity document.
+     *
+     * @return array{documentName: string|null, documentNo: string|null, country: string|null, fullName: string}
+     */
+    public function guest(Guest $guest): array
+    {
+        /** @var IdentityDocument|null $document */
+        $document = $guest->documents->sortBy('id')->first();
+        $country = $document?->getAttribute('nationality') ?? $guest->getAttribute('nationality');
+
+        return [
+            'documentName' => $document?->getAttribute('type'),
+            'documentNo' => $document?->getAttribute('number'),
+            'country' => Countries::NAMES[$country] ?? $country,
+            'fullName' => $guest->name,
+        ];
     }
 
     /** Stable across retries: the message keeps the event it was built from. */

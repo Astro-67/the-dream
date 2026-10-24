@@ -23,6 +23,8 @@ final class VfmsTranslator implements LifecycleTranslator
     private const CALLS = [
         'checked_in' => ['ACCOMMODATION_REQUEST', 'accommodation/', 'accommodation'],
         'checked_out' => ['ACCOMMODATION_CHECK_OUT', 'guest/checkout/', 'checkout'],
+        'guest_added' => ['ACCOMMODATION_ADD_GUEST', 'guest/accommodation/', 'addGuest'],
+        'guest_profile_changed' => ['GUEST_PROFILE', 'guest/changeProfile/', 'changeProfile'],
     ];
 
     public function __construct(private readonly VfmsPayloads $payloads, private readonly Outbox $outbox) {}
