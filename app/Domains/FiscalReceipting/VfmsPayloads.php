@@ -61,6 +61,19 @@ final class VfmsPayloads
     }
 
     /**
+     * §2.8 check-out, sent when the stay checks out: every guest still on the stay.
+     *
+     * @return array{documentNumberList: list<array{documentNumber: string|null}>, currency: string}
+     */
+    public function checkout(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        return [
+            'documentNumberList' => array_map(fn (array $guest) => ['documentNumber' => $guest['documentNo']], $this->guests($reservation)),
+            'currency' => $this->currency(Currency::from($reservation->priceLines()->firstOrFail()->getAttribute('currency'))),
+        ];
+    }
+
+    /**
      * Every guest on the stay, lead guest first, each with their first identity document.
      *
      * @return list<array{documentName: string|null, documentNo: string|null, country: string|null, fullName: string}>
