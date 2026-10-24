@@ -65,7 +65,7 @@ final class HttpVfms implements VfmsGateway
         $status = $response->status();
         $body = ['status' => $status, 'body' => $response->json() ?? $response->body()];
         if ($payload['request_type'] === 'ACCOMMODATION_REPORT') {
-            $body['report_is_list'] = is_array($response->object());
+            $body['report_is_list'] = is_array(json_decode($response->body()));
         }
         if ($status === 401) {
             Tenancy::within(TenantContext::fromIds($credential->organization_id, $credential->property_id), fn () => $credential->forceFill(['credentials_refused_at' => now()])->save());
