@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\FrontDesk\Actions\CheckIn;
+use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\Actions\MoveRoom;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
@@ -32,6 +33,28 @@ beforeEach(function () {
 
         return app(CheckIn::class)->handle($this->tenant->owner, $reservation);
     });
+});
+
+// protects=guide §2.3 files the next night's changed price after accommodation; fails_when=the current night's price, wrong room or duplicate message is filed; no_claim=production VFMS acceptance.
+test('night audit files a changed next-night price once on the stay stream', function () {
+    inTenant($this->tenant->property, function () {
+        $this->reservation->priceLines()->whereDate('date', '2026-12-11')->update(['amount' => 12550]);
+        app(CloseBusinessDate::class)->handle($this->tenant->owner, $this->tenant->property, '2026-12-10');
+        app(CloseBusinessDate::class)->handle($this->tenant->owner, $this->tenant->property, '2026-12-10');
+
+        $messages = OutboxMessage::query()->where('integration', 'vfms')->orderBy('sequence')->get();
+        $room = Room::query()->findOrFail($this->reservation->room_id);
+        expect($messages->pluck('event')->all())->toBe(['accommodation', 'changeRoomPrice'])
+            ->and($messages->pluck('status')->all())->toBe(['delivered', 'delivered'])
+            ->and($messages->pluck('stream_key')->unique())->toHaveCount(1)
+            ->and($messages->pluck('sequence')->all())->toBe([1, 2])
+            ->and($messages[1]->payload['request_type'])->toBe('CHANGEROOM_PRICE')
+            ->and($messages[1]->payload['path'])->toBe('changeRoomPrice/')
+            ->and($messages[1]->payload['body'])->toEqual([
+                'rooms' => [['roomPrice' => 125.5, 'hotelRoomRoom' => $room->vfms_room_id]],
+            ]);
+    });
+    Http::assertNothingSent();
 });
 
 // protects=guide §2.2 room moves follow check-in on the stay stream; fails_when=the destination, lead document, price or order is wrong; no_claim=production VFMS acceptance.

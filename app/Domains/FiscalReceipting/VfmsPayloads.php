@@ -65,6 +65,15 @@ final class VfmsPayloads
         ];
     }
 
+    /** @return array<string, mixed> */
+    public function changeRoomPrice(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $room = Room::query()->findOrFail($reservation->room_id);
+        $price = $this->roomPrice($reservation, $property, $event->getAttribute('snapshot')['date']);
+
+        return ['rooms' => [['roomPrice' => $price['accommodationPrice'], 'hotelRoomRoom' => $room->vfms_room_id]]];
+    }
+
     /** @return array{accommodationPrice: float, currency: string} */
     private function roomPrice(Reservation $reservation, Property $property, string $date): array
     {
