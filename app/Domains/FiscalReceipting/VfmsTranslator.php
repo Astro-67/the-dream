@@ -2,6 +2,7 @@
 
 namespace App\Domains\FiscalReceipting;
 
+use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Reservations\Contracts\LifecycleTranslator;
@@ -23,6 +24,9 @@ final class VfmsTranslator implements LifecycleTranslator
     private const CALLS = [
         'checked_in' => ['ACCOMMODATION_REQUEST', 'accommodation/', 'accommodation'],
         'checked_out' => ['ACCOMMODATION_CHECK_OUT', 'guest/checkout/', 'checkout'],
+        'extra_posted' => ['ACCOMMODATION_ADD_SERVICE', 'service/', 'services'],
+        'room_moved' => ['ACCOMMODATION_CHANGE_ROOM', 'change/room/', 'changeRoom'],
+        'nightly_price_changed' => ['CHANGEROOM_PRICE', 'changeRoomPrice/', 'changeRoomPrice'],
         'guest_added' => ['ACCOMMODATION_ADD_GUEST', 'guest/accommodation/', 'addGuest'],
         'guest_profile_changed' => ['GUEST_PROFILE', 'guest/changeProfile/', 'changeProfile'],
     ];
@@ -33,6 +37,9 @@ final class VfmsTranslator implements LifecycleTranslator
     {
         [$requestType, $path, $builder] = self::CALLS[$event->type] ?? [null, null, null];
         if ($builder === null) {
+            return;
+        }
+        if ($event->type === 'extra_posted' && (($event->snapshot['status'] ?? null) !== 'checked_in' || ! in_array($event->snapshot['category'] ?? null, PostExtraCharge::CATEGORIES, true))) {
             return;
         }
         $property = Property::query()->findOrFail($event->property_id);
@@ -46,6 +53,7 @@ final class VfmsTranslator implements LifecycleTranslator
                 'request_type' => $requestType,
                 'path' => $path,
                 'reservation_id' => $reservation->id,
+                ...($event->type === 'extra_posted' ? ['posting_id' => $event->snapshot['posting_id']] : []),
                 'body' => $this->payloads->{$builder}($event, $reservation, $property),
             ], "vfms:{$event->id}");
         });

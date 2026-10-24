@@ -19,6 +19,9 @@ final class SandboxVfms implements VfmsGateway
     private const REQUIRED = [
         'ACCOMMODATION_REQUEST' => ['paymentPackage', 'checkInDate', 'guest', 'roomId', 'roomName', 'accommodationSource', 'accommodationPrice', 'accommodationDiscount', 'referenceNumber', 'currency'],
         'ACCOMMODATION_CHECK_OUT' => ['documentNumberList', 'currency'],
+        'ACCOMMODATION_ADD_SERVICE' => ['documentNumber', 'service', 'referenceNumber', 'type', 'currency'],
+        'ACCOMMODATION_CHANGE_ROOM' => ['roomName', 'roomId', 'documentNumber', 'referenceNumber', 'currency', 'accommodationPrice', 'accommodationDiscount'],
+        'CHANGEROOM_PRICE' => ['rooms'],
         'ACCOMMODATION_ADD_GUEST' => ['firstGuestDocument', 'documentName', 'documentNo', 'arrivalDate', 'referenceNumber', 'country', 'fullName'],
         'GUEST_PROFILE' => ['oldDocumentNo', 'newDocumentNo', 'fullName', 'documentName', 'country', 'referenceNumber'],
     ];
@@ -29,6 +32,15 @@ final class SandboxVfms implements VfmsGateway
     {
         $body = $payload['body'];
         $missing = array_values(array_filter(self::REQUIRED[$payload['request_type']] ?? [], fn (string $field) => ! isset($body[$field]) || $body[$field] === '' || $body[$field] === []));
+        if ($payload['request_type'] === 'CHANGEROOM_PRICE') {
+            foreach ($body['rooms'] ?? [] as $index => $room) {
+                foreach (['roomPrice', 'hotelRoomRoom'] as $field) {
+                    if (! isset($room[$field]) || $room[$field] === '') {
+                        $missing[] = "rooms.{$index}.{$field}";
+                    }
+                }
+            }
+        }
         foreach ($body['guest'] ?? [] as $index => $guest) {
             foreach (self::GUEST_REQUIRED as $field) {
                 if (blank($guest[$field] ?? null)) {
@@ -43,6 +55,9 @@ final class SandboxVfms implements VfmsGateway
         }
         if (($body['accommodationSource'] ?? null) === 'TOUR OPERATOR') {
             $missing = [...$missing, ...array_values(array_filter(['tourRegNo', 'costOptions'], fn (string $field) => blank($body[$field] ?? null)))];
+        }
+        if ($payload['request_type'] === 'ACCOMMODATION_ADD_SERVICE') {
+            $missing = [...$missing, ...$this->invalidServices($body)];
         }
         if ($missing !== []) {
             return new DeliveryResult('rejected', responseBody: ['status' => 400, 'missing' => $missing]);
@@ -75,5 +90,35 @@ final class SandboxVfms implements VfmsGateway
         ];
 
         return new DeliveryResult('accepted', $report, ['status' => 200, ...$report]);
+    }
+
+    /** @param array<string, mixed> $body
+     * @return list<string>
+     */
+    private function invalidServices(array $body): array
+    {
+        $invalid = [];
+        if (($body['type'] ?? null) !== 'CS') {
+            $invalid[] = 'type';
+        }
+        if (! is_array($body['service'] ?? null) || ! array_is_list($body['service'])) {
+            return [...$invalid, 'service'];
+        }
+        foreach ($body['service'] as $index => $item) {
+            if (! is_array($item) || ! is_string($item['itemName'] ?? null) || blank($item['itemName'])) {
+                $invalid[] = "service.{$index}.itemName";
+            }
+            if (! is_array($item) || ! is_int($item['quantity'] ?? null) || $item['quantity'] < 1) {
+                $invalid[] = "service.{$index}.quantity";
+            }
+            foreach (['price', 'discount'] as $field) {
+                $value = is_array($item) ? ($item[$field] ?? null) : null;
+                if ((! is_float($value) && ! is_int($value)) || $value < 0) {
+                    $invalid[] = "service.{$index}.{$field}";
+                }
+            }
+        }
+
+        return $invalid;
     }
 }

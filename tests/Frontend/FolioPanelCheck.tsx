@@ -127,7 +127,13 @@ folios[0].postings = pageOf([
         category: 'other',
         description: 'Sunset boat trip',
     },
-    { ...posting, id: 'legacy', type: 'charge', category: 'minibar' },
+    {
+        ...posting,
+        id: 'legacy',
+        type: 'charge',
+        category: 'minibar',
+        vfms_receipt_number: 'SBX-EXTRA-163',
+    },
     { ...posting, id: 'room', type: 'charge', category: 'room' },
     {
         ...posting,
@@ -220,6 +226,9 @@ function renderPanel(canRecordPayment = true, content?: ReactNode) {
     );
 }
 const panel = renderPanel();
+// protects=the charge shows its VFMS receipt (#163); fails_when=receipt metadata is hidden; no_claim=production fiscal validity.
+assert.match(panel, /VFMS receipt:/);
+assert.match(panel, /Copy SBX-EXTRA-163/);
 assert.match(panel, /Payments received \(1\)/);
 assert.doesNotMatch(panel, /HIDDEN-PAYMENT/);
 assert.equal((panel.match(/<form\b/g) ?? []).length, 0);

@@ -9,13 +9,17 @@ use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Property;
+use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\OutboxAttempt;
 use App\Support\Outbox\OutboxMessage;
+use App\Support\Outbox\RestoreGate;
+use App\Support\Outbox\RestoreReconciler;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
@@ -236,3 +240,168 @@ test('the VFMS token is absent from every outbox payload and attempt body', func
     ]));
     expect($records)->toContain('ACCOMMODATION')->not->toContain($marker)->not->toContain('INT-1001');
 });
+
+// protects=an uncertain check-in already filed by VFMS is not filed twice, including after local midnight (#165); fails_when=the report dates use UTC or delivery resends instead of retaining the report numbers; no_claim=the production report response shape, which guide 1.6 does not document.
+test('VFMS reconciliation finds an uncertain check-in without resending', function (Closure $answer) {
+    $t = twoTenants();
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 00:30:00', 'Africa/Dar_es_Salaam'));
+    liveCredentials($t->a);
+    $reference = null;
+    $checkIns = 0;
+    Http::fake([
+        'gateway.zanrevenue.org/api/accommodation/' => function (Request $request) use (&$reference, &$checkIns, $answer) {
+            $checkIns++;
+            $reference = $request['referenceNumber'];
+
+            return $answer();
+        },
+        'gateway.zanrevenue.org/api/accommodationReport/' => function (Request $request) use (&$reference) {
+            expect($request->header('vfms-request-type'))->toBe(['ACCOMMODATION_REPORT'])
+                ->and($request->header('vfms-intergration-id'))->toBe(['INT-1001'])
+                ->and($request->header('vfms-token-id'))->toBe(['tok-live'])
+                ->and($request->method())->toBe('POST')
+                ->and($request->data())->toEqual(['startDate' => '2026-12-10', 'endDate' => '2026-12-10', 'refno' => $reference]);
+
+            return Http::response([['referenceNumber' => $reference, 'receiptNumber' => 'VFMS-42']], 200);
+        },
+    ]);
+
+    checkInTwoGuests($t->a);
+
+    $message = vfmsMessages($t->a)[0];
+    expect($message->status)->toBe('delivered')
+        ->and($message->provider_references)->toEqual(['mode' => 'live', 'receiptNumber' => 'VFMS-42']);
+    expect($checkIns)->toBe(1);
+    expect(Http::recorded(fn (Request $request) => str_ends_with($request->url(), '/accommodationReport/')))->toHaveCount(1);
+})->with([
+    'timeout' => [fn () => throw new ConnectionException('Operation timed out')],
+    'connection error' => [fn () => Http::failedConnection()],
+    '500' => [fn () => Http::response([], 500)],
+    '503' => [fn () => Http::response([], 503)],
+]);
+
+// protects=confirmed absence permits exactly one unchanged resend (#165); fails_when=the reference or body changes, or a second uncertain answer loops; no_claim=VFMS production report completeness.
+test('VFMS reconciliation resends an absent check-in once with the original reference', function (bool $resendTimesOut, array $rows) {
+    $t = twoTenants();
+    liveCredentials($t->a);
+    $bodies = [];
+    Http::fake([
+        'gateway.zanrevenue.org/api/accommodation/' => function (Request $request) use (&$bodies, $resendTimesOut) {
+            $bodies[] = $request->data();
+            if (count($bodies) === 1 || $resendTimesOut) {
+                throw new ConnectionException('Operation timed out');
+            }
+
+            return Http::response(['receiptNumber' => 'VFMS-43'], 201);
+        },
+        'gateway.zanrevenue.org/api/accommodationReport/' => Http::response($rows, 200),
+    ]);
+
+    checkInTwoGuests($t->a);
+
+    $message = vfmsMessages($t->a)[0];
+    expect($bodies)->toHaveCount(2)
+        ->and($bodies[1])->toEqual($bodies[0])
+        ->and($message->payload['body'])->toEqual($bodies[0])
+        ->and($message->status)->toBe($resendTimesOut ? 'unknown' : 'delivered');
+    expect(Http::recorded(fn (Request $request) => str_ends_with($request->url(), '/accommodationReport/')))->toHaveCount(1);
+})->with([
+    'empty report' => [false, []],
+    'different reference' => [false, [['referenceNumber' => 'another-stay', 'receiptNumber' => 'VFMS-99']]],
+    'resend also times out' => [true, []],
+]);
+
+// protects=failed or ambiguous reports hold unknown work for existing compliance recovery (#165); fails_when=a lookup failure permits a resend or automatic retry; no_claim=live report availability.
+test('VFMS reconciliation leaves a failed lookup unknown for the compliance operator', function (Closure $reportAnswer) {
+    $t = twoTenants();
+    liveCredentials($t->a);
+    $checkIns = 0;
+    Http::fake([
+        'gateway.zanrevenue.org/api/accommodation/' => function () use (&$checkIns) {
+            $checkIns++;
+
+            throw new ConnectionException('Operation timed out');
+        },
+        'gateway.zanrevenue.org/api/accommodationReport/' => $reportAnswer,
+    ]);
+
+    checkInTwoGuests($t->a);
+
+    $message = vfmsMessages($t->a)[0];
+    expect($message->status)->toBe('unknown');
+    $this->travel(2)->minutes();
+    inTenant($t->a->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    expect($checkIns)->toBe(1)
+        ->and(vfmsMessages($t->a)[0]->attempt_count)->toBe(1);
+    $operator = platformStaff(PlatformRole::ComplianceOperator);
+    $this->artisan('outbox:retry', [
+        'message' => $message->id,
+        '--actor' => $operator->id,
+        '--property' => $t->a->property->id,
+        '--reason' => 'Check unknown VFMS delivery',
+    ])->assertFailed();
+    $this->artisan('outbox:confirm-accepted', [
+        'message' => $message->id,
+        '--actor' => $operator->id,
+        '--property' => $t->a->property->id,
+        '--reason' => 'Verified filing in the VFMS portal',
+        '--evidence' => 'VFMS receipt 42',
+    ])->assertSuccessful();
+    expect(vfmsMessages($t->a)[0]->status)->toBe('delivered')
+        ->and($checkIns)->toBe(1);
+})->with([
+    'timeout' => [fn () => throw new ConnectionException('Report timed out')],
+    'connection error' => [fn () => Http::failedConnection()],
+    'server error' => [fn () => Http::response([], 503)],
+    'refused credentials' => [fn () => Http::response([], 401)],
+    'not found endpoint' => [fn () => Http::response([], 404)],
+    'non JSON' => [fn () => Http::response('upstream unavailable', 200)],
+    'empty JSON object is not an empty report' => [fn () => Http::response('{}', 200, ['Content-Type' => 'application/json'])],
+    'numeric JSON object is not a report list' => [fn (Request $request) => Http::response('{"0":{"referenceNumber":"'.$request['refno'].'","receiptNumber":"VFMS-42"}}', 200)],
+    'unexpected envelope' => [fn () => Http::response(['data' => []], 200)],
+    'missing reference' => [fn () => Http::response([['receiptNumber' => 'VFMS-42']], 200)],
+    'blank reference' => [fn () => Http::response([['referenceNumber' => '', 'receiptNumber' => 'VFMS-42']], 200)],
+    'missing receipt' => [fn (Request $request) => Http::response([['referenceNumber' => $request['refno']]], 200)],
+    'blank receipt' => [fn (Request $request) => Http::response([['referenceNumber' => $request['refno'], 'receiptNumber' => '']], 200)],
+    'duplicate match' => [fn (Request $request) => Http::response([
+        ['referenceNumber' => $request['refno'], 'receiptNumber' => 'VFMS-42'],
+        ['referenceNumber' => $request['refno'], 'receiptNumber' => 'VFMS-43'],
+    ], 200)],
+]);
+
+// protects=VFMS participates in spec 2 restore reconciliation without declaring replay safe; fails_when=the shared reconciler cannot resolve filing or replays an absent operation blindly; no_claim=missing identity recovery after restore.
+test('VFMS report results use the existing restore reconciliation contract', function (bool $found) {
+    $t = twoTenants();
+    liveCredentials($t->a);
+    $lookupAvailable = false;
+    Http::fake([
+        'gateway.zanrevenue.org/api/accommodation/' => Http::response([], 503),
+        'gateway.zanrevenue.org/api/accommodationReport/' => function (Request $request) use (&$lookupAvailable, $found) {
+            if (! $lookupAvailable) {
+                return Http::response([], 503);
+            }
+
+            return Http::response($found ? [[
+                'referenceNumber' => $request['refno'],
+                'receiptNumber' => 'VFMS-RESTORED-42',
+                'guest' => ['documentNo' => 'PRIVATE-REPORT-DOCUMENT'],
+            ]] : [], 200);
+        },
+    ]);
+    checkInTwoGuests($t->a);
+    $message = vfmsMessages($t->a)[0];
+    expect($message->status)->toBe('unknown');
+    inTenant($t->a->property, fn () => DB::transaction(fn () => app(RestoreGate::class)->close($t->a->property, 'Restore exercise', $t->a->owner)));
+    $lookupAvailable = true;
+
+    $result = app(RestoreReconciler::class)->reconcile($t->a->owner, $t->a->property, 'Check VFMS after restore');
+
+    expect($result)->toEqual(['reconciled' => 1, 'unresolved' => $found ? 0 : 1])
+        ->and(vfmsMessages($t->a)[0]->status)->toBe($found ? 'delivered' : 'unknown');
+    $evidence = DB::table('outbox_restore_evidence')->where('message_id', $message->id)->sole();
+    expect($evidence->outcome)->toBe($found ? 'accepted' : 'not_found')
+        ->and(json_encode($evidence))->not->toContain('PRIVATE-REPORT-DOCUMENT')->not->toContain('tok-live');
+    if ($found) {
+        expect(vfmsMessages($t->a)[0]->provider_references)->toEqual(['mode' => 'live', 'receiptNumber' => 'VFMS-RESTORED-42']);
+    }
+})->with(['found' => true, 'absent is not proof of safe historical replay' => false]);

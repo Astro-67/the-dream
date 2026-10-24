@@ -238,8 +238,11 @@ Quota identities and limits are policy data, coordinated globally across workers
 **VFMS (FiscalReceipting)**
 
 - Ordered per stay, one message per call. Check-out waits for every earlier call's explicit acceptance (FSC-07).
+- `Billing\PostExtraCharge` records `extra_posted`; only extras on checked-in Zanzibar stays produce services (`CS`, guide §2.11). Accepted services attach their VFMS receipt number through `Posting::recordFiscalReceipt`, which changes only fiscal metadata, never the append-only amounts or frozen tax lines.
 - `referenceNumber` carries the idempotency key. Duplicate-reference behaviour and corrected-payload key reuse remain **unverified**; a duplicate error alone never means delivered. Reconcile against the accommodation report and verify acceptance before proceeding.
 - Credentials are per property (FSC-01). After restore, VFMS delivery **must be reconciled**, not assumed safe to replay.
+- VFMS keeps `unknownRetrySafe=false`. An uncertain accommodation request immediately looks up its saved `referenceNumber` via §2.5 `accommodationReport/` (`ACCOMMODATION_REPORT`, `refno`, check-in date through today). A matching report with a receipt number supplies acceptance; confirmed absence permits one resend of the unchanged snapshot. A failed or ambiguous lookup, or an uncertain resend, stays unknown for existing compliance recovery. Other call types stay unknown: an accommodation report does not prove a room change, extra or check-out was accepted.
+- The adapter implements the shared restore reconciliation contract, not the safe-replay contract. Restore lookup can confirm acceptance but cannot authorize historical replay on absence. Guide 1.6 does not specify the report response schema: the client currently recognizes a JSON list of rows containing `referenceNumber` and, for acceptance, `receiptNumber`; malformed, duplicate or unfamiliar shapes remain unresolved. Verify this shape and report completeness with VFMS before Live activation; HTTP-faked tests are not provider evidence. Report guest details are not copied into reconciliation evidence.
 
 **Channel manager (Distribution)**
 

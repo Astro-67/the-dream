@@ -85,6 +85,7 @@ export type Posting = {
     method?: string | null;
     reference?: string | null;
     receipt?: { id: string; number: string } | null;
+    vfms_receipt_number?: string | null;
 };
 export type Folio = {
     id: string;
@@ -447,6 +448,17 @@ export function FolioPanel({
                                                     posting.category as keyof typeof postingCategories
                                                 ] ??
                                                     posting.category)}
+                                            {posting.vfms_receipt_number && (
+                                                <div className="text-sm wrap-anywhere text-muted-foreground">
+                                                    VFMS receipt:{' '}
+                                                    <Identifier
+                                                        value={
+                                                            posting.vfms_receipt_number
+                                                        }
+                                                        copyable
+                                                    />
+                                                </div>
+                                            )}
                                             {posting.description &&
                                                 categories[
                                                     posting.category

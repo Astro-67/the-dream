@@ -5,9 +5,10 @@ arch('core domains never reference integration interfaces (ADR 0013)')
     ->expect(['App\Domains\Reservations', 'App\Domains\Guests', 'App\Domains\FrontDesk', 'App\Domains\Billing'])
     ->not->toUse(['App\Domains\ZanReporting', 'App\Domains\FiscalReceipting', 'App\Domains\Distribution', 'App\Support\Outbox']);
 
+// protects=lifecycle actions cannot silently omit integration events (ADR 0013); fails_when=an action stops recording its event; no_claim=payload or delivery correctness.
 test('every reservation lifecycle action records an event (ADR 0013)', function () {
     $actions = glob(dirname(__DIR__, 2).'/app/Domains/{Reservations,FrontDesk,Billing}/Actions/*.php', GLOB_BRACE);
-    $lifecycle = '/^(CreateReservation|AssignRoom|ModifyReservation|AmendReservation|CancelReservation|VoidReservation|TerminateReservation|ConfirmNoShow|CheckIn|ExtendStay|DepartEarly|MoveRoom|AddGuest|ChangeNightlyPrice|CheckOut)$/';
+    $lifecycle = '/^(CreateReservation|AssignRoom|ModifyReservation|AmendReservation|CancelReservation|VoidReservation|TerminateReservation|ConfirmNoShow|CheckIn|ExtendStay|DepartEarly|MoveRoom|AddGuest|ChangeNightlyPrice|CheckOut|PostExtraCharge)$/';
     $checked = [];
     foreach ($actions as $path) {
         if (! preg_match($lifecycle, basename($path, '.php'))) {

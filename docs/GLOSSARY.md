@@ -130,7 +130,7 @@ A property moving from setup to live once its go-live gates pass. Before go-live
 _Avoid_: Activation, launch
 
 **Reservation lifecycle event**:
-A record that something happened to a reservation that authorities may need to know about: created, modified, cancelled, no-show confirmed, checked in, room moved, guest added, guest profile changed (name, country or identity document of an in-house guest), nightly price changed, checked out.
+A record that something happened to a reservation that authorities may need to know about: created, modified, cancelled, no-show confirmed, checked in, room moved, guest added, guest profile changed (name, country or identity document of an in-house guest), nightly price changed, extra posted, checked out.
 _Avoid_: Booking report (that is ZAN Gateway's message, derived from the event)
 
 **Maintenance ticket**:

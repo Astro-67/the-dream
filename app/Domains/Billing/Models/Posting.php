@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 /**
@@ -43,6 +44,7 @@ use LogicException;
  * @property CarbonImmutable $posted_at
  * @property string|null $method a payment's method
  * @property string|null $reference
+ * @property string|null $vfms_receipt_number
  * @property string|null $card_last_four
  * @property string|null $card_brand
  * @property string|null $cashier_shift_id the shift whose cash drawer a cash posting went through
@@ -72,6 +74,18 @@ class Posting extends Model
     public function money(): Money
     {
         return new Money($this->amount, $this->currency);
+    }
+
+    /** Fiscal metadata arrives after posting; financial fields remain append-only. */
+    public function recordFiscalReceipt(string $number): void
+    {
+        DB::transaction(function () use ($number) {
+            $posting = self::query()->whereKey($this->id)->lockForUpdate()->firstOrFail();
+            if ($posting->vfms_receipt_number !== null && $posting->vfms_receipt_number !== $number) {
+                throw new LogicException('A fiscal receipt number cannot be replaced.');
+            }
+            self::query()->whereKey($this->id)->toBase()->update(['vfms_receipt_number' => $number]);
+        });
     }
 
     /** @return BelongsTo<User, $this> */

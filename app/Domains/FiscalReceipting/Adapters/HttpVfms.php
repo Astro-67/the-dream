@@ -15,6 +15,40 @@ final class HttpVfms implements VfmsGateway
 {
     public const BASE_URL = 'https://gateway.zanrevenue.org/api/';
 
+    /** @param array<string, mixed> $body
+     * @return array<string, mixed>
+     */
+    public function accommodationReport(array $body, VfmsCredential $credential, string $timezone): array
+    {
+        $evidence = 'VFMS accommodation report by reference';
+        $unresolved = ['outcome' => 'unresolved', 'evidence' => $evidence];
+        $result = $this->send([
+            'mode' => 'live',
+            'request_type' => 'ACCOMMODATION_REPORT',
+            'path' => 'accommodationReport/',
+            'body' => ['startDate' => $body['checkInDate'], 'endDate' => now($timezone)->toDateString(), 'refno' => $body['referenceNumber']],
+        ], $credential);
+        $rows = $result->responseBody['body'] ?? null;
+        if ($result->outcome !== 'accepted' || ($result->responseBody['report_is_list'] ?? false) !== true || ! is_array($rows) || ! array_is_list($rows)) {
+            return $unresolved;
+        }
+        // shortcut: guide 1.6 omits the response schema; unfamiliar report shapes stay unresolved until verified with VFMS.
+        foreach ($rows as $row) {
+            if (! is_array($row) || ! is_string($row['referenceNumber'] ?? null) || trim($row['referenceNumber']) === '') {
+                return $unresolved;
+            }
+        }
+        $matches = array_values(array_filter($rows, fn (array $row): bool => $row['referenceNumber'] === $body['referenceNumber']));
+        if ($matches === []) {
+            return ['outcome' => 'not_found', 'evidence' => $evidence];
+        }
+        if (count($matches) !== 1 || ! is_string($matches[0]['receiptNumber'] ?? null) || trim($matches[0]['receiptNumber']) === '') {
+            return $unresolved;
+        }
+
+        return ['outcome' => 'accepted', 'evidence' => $evidence, 'references' => ['receiptNumber' => $matches[0]['receiptNumber']]];
+    }
+
     public function send(array $payload, VfmsCredential $credential): DeliveryResult
     {
         try {
@@ -30,6 +64,9 @@ final class HttpVfms implements VfmsGateway
         }
         $status = $response->status();
         $body = ['status' => $status, 'body' => $response->json() ?? $response->body()];
+        if ($payload['request_type'] === 'ACCOMMODATION_REPORT') {
+            $body['report_is_list'] = is_array(json_decode($response->body()));
+        }
         if ($status === 401) {
             Tenancy::within(TenantContext::fromIds($credential->organization_id, $credential->property_id), fn () => $credential->forceFill(['credentials_refused_at' => now()])->save());
         }
