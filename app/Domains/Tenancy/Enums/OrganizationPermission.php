@@ -76,6 +76,7 @@ enum OrganizationPermission: string
     case ApprovalsManage = 'approvals.manage';
     case OutboxRecover = 'outbox.recover';
     case OutboxRawRead = 'outbox.raw.read';
+    case VfmsManage = 'vfms.manage';
 
     /**
      * Whether the permission only reads. Everything else changes data.

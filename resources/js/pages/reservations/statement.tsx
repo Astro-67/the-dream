@@ -19,6 +19,7 @@ import {
     FolioSummaryList,
     type FolioSummary,
     type FolioTotal,
+    type TaxSource,
 } from '@/features/billing/folio-summary';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney } from '@/lib/utils';
@@ -64,8 +65,10 @@ export default function Statement({
     reservation,
     folios,
     totals,
+    taxSource,
     property,
 }: {
+    taxSource: TaxSource;
     reservation: {
         reservation_number: string;
         guest: string;
@@ -228,6 +231,7 @@ export default function Statement({
                                         total.currency === folio.currency,
                                 )?.estimate
                             }
+                            taxSource={taxSource}
                         />
                     </section>
                 ))}
@@ -245,6 +249,7 @@ export default function Statement({
                                     summary={total}
                                     currency={total.currency}
                                     estimate={total.estimate}
+                                    taxSource={taxSource}
                                 />
                             </div>
                         ))}

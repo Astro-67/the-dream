@@ -3,8 +3,11 @@
 namespace App\Providers;
 
 use App\Domains\Billing\PreventArchivingWithOpenBalances;
+use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
+use App\Domains\FiscalReceipting\VfmsTranslator;
 use App\Domains\Reports\Policies\ReportPolicy;
 use App\Domains\Reports\PropertyKpis;
+use App\Domains\Reservations\Contracts\LifecycleTranslator;
 use App\Domains\Reservations\PreventArchivingWithFutureReservations;
 use App\Domains\Tenancy\Contracts\PreArchiveCheck;
 use App\Support\Jobs\CallQueuedTenantHandler;
@@ -29,7 +32,13 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(TenancyManager::class);
         $this->app->singleton(Origin::class);
-        $this->app->singleton(DeliveryAdapters::class);
+        $this->app->singleton(DeliveryAdapters::class, function () {
+            $adapters = new DeliveryAdapters;
+            $adapters->register(VfmsAdapter::INTEGRATION, $this->app->make(VfmsAdapter::class));
+
+            return $adapters;
+        });
+        $this->app->tag([VfmsTranslator::class], LifecycleTranslator::TAG);
         $this->app->tag([PreventArchivingWithUnresolvedMessages::class, PreventArchivingWithFutureReservations::class, PreventArchivingWithOpenBalances::class], PreArchiveCheck::TAG);
     }
 

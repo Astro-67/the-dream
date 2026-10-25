@@ -31,6 +31,9 @@ class ReservationGuestController extends Controller
             'canAttach' => $request->user()?->can('attachGuest', $reservation),
             'inHouse' => $reservation->status === ReservationStatus::CheckedIn,
             'canViewIdentity' => Access::allows($request->user(), OrganizationPermission::GuestIdentityView, Tenancy::property()),
+            'leadGuestId' => $reservation->leadGuest()?->id,
+            'departedGuestIds' => ReservationGuest::query()->where('reservation_id', $reservation->id)->whereNotNull('departed_at')->orderBy('id')->pluck('guest_id'),
+            'canRecordDeparture' => $reservation->status === ReservationStatus::CheckedIn && $request->user()?->can('checkOut', $reservation),
         ]);
     }
 

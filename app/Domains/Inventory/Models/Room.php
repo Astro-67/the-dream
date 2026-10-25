@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use LogicException;
 
 /**
  * A physical room of a property. Deactivated rooms are no longer sold but are
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $room_type_id
  * @property string $number
  * @property string|null $floor
+ * @property int $vfms_room_id the room's ID for VFMS: the next whole number in the property, never edited or reused
  * @property CarbonImmutable|null $deactivated_at
  * @property CarbonImmutable|null $created_at
  * @property CarbonImmutable|null $updated_at
@@ -40,7 +42,18 @@ class Room extends Model
      */
     protected function casts(): array
     {
-        return ['deactivated_at' => 'datetime'];
+        return ['deactivated_at' => 'datetime', 'vfms_room_id' => 'integer'];
+    }
+
+    protected static function booted(): void
+    {
+        // Rooms are never deleted, so the highest number is never handed out again; CreateRoom's entitlement lock serializes this.
+        static::creating(fn (self $room) => $room->vfms_room_id ??= (int) self::query()->where('property_id', $room->property_id)->max('vfms_room_id') + 1);
+        static::updating(function (self $room): void {
+            if ($room->isDirty('vfms_room_id')) {
+                throw new LogicException('A VFMS room number is never edited.');
+            }
+        });
     }
 
     /**

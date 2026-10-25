@@ -127,7 +127,13 @@ folios[0].postings = pageOf([
         category: 'other',
         description: 'Sunset boat trip',
     },
-    { ...posting, id: 'legacy', type: 'charge', category: 'minibar' },
+    {
+        ...posting,
+        id: 'legacy',
+        type: 'charge',
+        category: 'minibar',
+        vfms_receipt_number: 'SBX-EXTRA-163',
+    },
     { ...posting, id: 'room', type: 'charge', category: 'room' },
     {
         ...posting,
@@ -220,6 +226,9 @@ function renderPanel(canRecordPayment = true, content?: ReactNode) {
     );
 }
 const panel = renderPanel();
+// protects=the charge shows its VFMS receipt (#163); fails_when=receipt metadata is hidden; no_claim=production fiscal validity.
+assert.match(panel, /VFMS receipt:/);
+assert.match(panel, /Copy SBX-EXTRA-163/);
 assert.match(panel, /Payments received \(1\)/);
 assert.doesNotMatch(panel, /HIDDEN-PAYMENT/);
 assert.equal((panel.match(/<form\b/g) ?? []).length, 0);
@@ -247,6 +256,23 @@ const breakdown = renderToStaticMarkup(
 assert.match(breakdown, /Balance of posted charges/);
 assert.doesNotMatch(breakdown, /Settled/);
 assert.match(breakdown, /Not yet charged: 2 nights/);
+// ADR 0015: at a VFMS property Thedream's tax is an estimate until VFMS answers at check-out.
+const estimated = renderToStaticMarkup(
+    <FolioSummaryList
+        summary={emptySummary}
+        currency="USD"
+        taxSource="estimated"
+    />,
+);
+assert.match(estimated, /Estimated tax: VAT/);
+assert.match(estimated, /Estimated tax: Infrastructure levy/);
+const filed = renderToStaticMarkup(
+    <FolioSummaryList summary={emptySummary} currency="USD" taxSource="vfms" />,
+);
+assert.match(filed, /VAT \(VFMS\)/);
+assert.match(filed, /Infrastructure levy \(VFMS\)/);
+assert.doesNotMatch(filed, /Estimated tax/);
+assert.doesNotMatch(breakdown, /Estimated tax|VFMS/);
 assert.match(panel, /Amina Due/);
 assert.match(panel, /Deluxe Double/);
 assert.match(panel, />Unpaid</);

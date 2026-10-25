@@ -8,6 +8,7 @@ import CreateOrganization from '@/pages/organizations/create';
 import { PropertyFields } from '@/features/tenancy/property-fields';
 import { OnboardingChecklist } from '@/features/tenancy/onboarding-checklist';
 import {
+    VfmsFields,
     PropertySettingsFields,
     propertySettingsTabForErrors,
     propertySettingsTabs,
@@ -111,6 +112,7 @@ function settings(
             },
             canManageTaxes: true,
             canManageCashierShifts,
+            vfms: null,
         });
         if (errors && !returnedErrors) {
             assert.ok(returnValidationErrors(page, errors));
@@ -348,4 +350,66 @@ assert.match(
 const none = settings(true, undefined, 'none');
 assert.doesNotMatch(none, /name="tax_inclusion\[vat\]"/);
 assert.match(none, /href="\/tax-rules"[^>]*>Configure taxes/);
+
+function vfmsSection(vfms: Partial<Parameters<typeof VfmsFields>[0]['vfms']>) {
+    const component = () => (
+        <VfmsFields
+            propertyId="hotel"
+            vfms={{
+                integration_id: null,
+                registration_id: null,
+                token_saved: false,
+                mode: 'sandbox',
+                live_since: null,
+                credentials_refused_at: null,
+                confirmation: 'LIVE',
+                ...vfms,
+            }}
+        />
+    );
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'properties/edit',
+                url: '/properties/hotel/edit',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: { errors: {}, tenant: { property: { id: 'hotel' } } },
+            }}
+            initialComponent={component}
+            resolveComponent={async () => component}
+        />,
+    );
+}
+// A property with nothing saved: Sandbox, token required, Live disabled until all three are saved.
+const fresh = vfmsSection({});
+assert.match(fresh, />Sandbox</);
+assert.match(fresh, /No token saved yet/);
+assert.match(fresh, /type="password"[^>]*id="vfms_token" required=""/);
+assert.match(fresh, /<button[^>]*disabled=""[^>]*>Switch to Live/);
+// Saved: the token field is blank and optional, never prefilled; Live asks for the typed word.
+const saved = vfmsSection({
+    integration_id: 'INT-1',
+    registration_id: 'REG-1',
+    token_saved: true,
+});
+assert.match(saved, /Token saved\. Leave blank to keep it\./);
+assert.doesNotMatch(saved, /id="vfms_token"[^>]*(required|value=)/);
+assert.match(saved, /Type LIVE to confirm/);
+assert.doesNotMatch(saved, /<button[^>]*disabled=""[^>]*>Switch to Live/);
+// Live: switching back needs only a reason; refused credentials are flagged.
+const live = vfmsSection({
+    integration_id: 'INT-1',
+    registration_id: 'REG-1',
+    token_saved: true,
+    mode: 'live',
+    credentials_refused_at: '2026-10-24T08:00:00Z',
+});
+assert.match(live, />Live</);
+assert.match(live, /Credentials refused/);
+assert.match(live, /name="mode" value="sandbox"/);
+assert.doesNotMatch(live, /name="confirmation"/);
+// The section shows only when the server sends it (VFMS properties the member manages).
+assert.doesNotMatch(html, /Save VFMS credentials/);
 console.log('Tabbed property settings and validation destinations: PASS');

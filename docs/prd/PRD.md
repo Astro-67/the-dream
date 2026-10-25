@@ -379,6 +379,15 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
     - a check-out report whose totals match the folio's VFMS taxes.
 - A no-show fee produces a non-fiscal receipt and a fiscal exceptions entry.
 
+**As shipped (spec #156), where it differs from the above:**
+
+- FSC-01: each property also has a **VFMS mode**, Sandbox by default; only a deliberate, audited switch makes it Live (glossary). Sandbox never contacts ZRA and computes no levy of its own: its check-out answer reports the folio as posted.
+- FSC-04: a guest leaving an in-house stay early ("Guest leaves") sends a check-out call for that guest's document; the stay's check-out lists only guests still in-house.
+- FSC-06: before check-out the folio's tax is labelled **Estimated tax**; an accepted check-out replaces it with VFMS's tax and levy through a VFMS adjustment line (ADR 0015).
+- FSC-07: check-out completes and the report page shows "Waiting for VFMS", but a blocked departure is **not yet** put on the exception list.
+- FSC-09: not built (Step 4 spec).
+- Guide v1.6 omits the response fields of the check-out call (§2.8) and the accommodation report (§2.5). Thedream assumes them; the first Live call must confirm them (architecture §5.3).
+
 ### 7.11 Reporting and group oversight (P0)
 
 - **RPT-01:** Property and authorized group views of occupancy, arrivals and departures, booked room value, balances, payments and housekeeping. Every KPI is defined, with the time it was last refreshed.

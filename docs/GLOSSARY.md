@@ -100,6 +100,10 @@ _Avoid_: Customer, client
 The guest whose details are taken with the reservation. Other guests are added to the reservation later.
 _Avoid_: Main guest, primary guest
 
+**Guest departure**:
+One guest other than the lead guest leaving an in-house stay before it checks out ("Guest leaves"). The stay and room stay in-house; at a Zanzibar property VFMS checks out that guest's document, and the stay's check-out lists only the guests still in-house.
+_Avoid_: Partial check-out
+
 **Tour operator**:
 A ZRA-registered company that books a reservation and pays some or all of it: the room, the infrastructure levy, other services, or a combination. A reservation either has one or is paid by the guest directly.
 _Avoid_: Booker, agent, company
@@ -130,7 +134,7 @@ A property moving from setup to live once its go-live gates pass. Before go-live
 _Avoid_: Activation, launch
 
 **Reservation lifecycle event**:
-A record that something happened to a reservation that authorities may need to know about: created, modified, cancelled, no-show confirmed, checked in, room moved, guest added, nightly price changed, checked out.
+A record that something happened to a reservation that authorities may need to know about: created, modified, cancelled, no-show confirmed, checked in, room moved, guest added, guest profile changed (name, country or identity document of an in-house guest), nightly price changed, extra posted, checked out.
 _Avoid_: Booking report (that is ZAN Gateway's message, derived from the event)
 
 **Maintenance ticket**:
@@ -199,6 +203,18 @@ The authority's identifier for a property, separate from its TIN, VRN and full Z
 **Fiscal receipt**:
 A receipt or check-out report issued through VFMS, carrying a VFMS QR code.
 _Avoid_: Invoice, bill, folio
+
+**Estimated tax**:
+The VAT and infrastructure levy Thedream's tax rules put on a Zanzibar folio before check-out. Replaced at check-out by the tax and levy VFMS returns, with any difference posted as a VFMS adjustment line (ADR 0015).
+_Avoid_: Provisional tax, draft tax
+
+**Fiscal check-out report**:
+The guest's fiscal receipt for a whole stay: VFMS's report number, the room charges, extras, VFMS tax and levy, and a QR code for the VFMS portal. Shown once VFMS has accepted every filing of the stay; in Sandbox it is stamped "SANDBOX, NOT FISCAL" and has no QR.
+_Avoid_: Checkout invoice, bill, folio statement
+
+**VFMS mode**:
+Per property, **Sandbox** (the default: filings are answered inside Thedream and never reach ZRA, and the check-out answer reports the folio as posted, with no levy of its own) or **Live** (filed with ZRA's production VFMS). Only an Owner or Property manager switches it, with a reason.
+_Avoid_: Test mode, demo mode
 
 **Fiscal exception**:
 A charge that has no path into VFMS, such as a cancellation or no-show fee, so it gets a non-fiscal receipt and is listed for the property's accountant.

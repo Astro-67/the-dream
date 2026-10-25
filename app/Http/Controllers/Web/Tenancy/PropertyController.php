@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Tenancy;
 
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Guests\Models\IdentityDocument;
 use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Rates\TaxInclusion;
@@ -10,6 +11,7 @@ use App\Domains\Tenancy\Actions\UpdateProperty;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FiscalReceipting\VfmsSettingsRequest;
 use App\Http\Requests\Tenancy\PropertyRequest;
 use App\Models\User;
 use App\Support\Money\Currency;
@@ -127,6 +129,7 @@ class PropertyController extends Controller
             'taxInclusion' => TaxInclusion::of($property),
             'canManageTaxes' => Gate::allows('manageInclusion', [TaxRule::class, $property]),
             'canManageCashierShifts' => Gate::allows('manageCashierShifts', $property),
+            'vfms' => JurisdictionRules::usesVfms($property) && Gate::allows('manageVfms', $property) ? $this->vfms($property) : null,
         ]);
     }
 
@@ -140,6 +143,26 @@ class PropertyController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __(':name saved.', ['name' => $property->name])]);
 
         return redirect()->route('properties.index');
+    }
+
+    /**
+     * The token never leaves the server: the form only learns whether one is saved.
+     *
+     * @return array<string, mixed>
+     */
+    private function vfms(Property $property): array
+    {
+        $credential = VfmsCredential::for($property);
+
+        return [
+            'integration_id' => $credential->integration_id,
+            'registration_id' => $credential->registration_id,
+            'token_saved' => filled($credential->token),
+            'mode' => $credential->mode->value,
+            'live_since' => $credential->live_since?->toIso8601String(),
+            'credentials_refused_at' => $credential->credentials_refused_at?->toIso8601String(),
+            'confirmation' => VfmsSettingsRequest::CONFIRMATION,
+        ];
     }
 
     /**

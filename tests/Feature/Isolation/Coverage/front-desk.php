@@ -3,6 +3,7 @@
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
+use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
@@ -148,6 +149,26 @@ return [
         }
         inTenant($t->b->property, fn () => expect(ReservationGuest::query()->count())->toBe(0)
             ->and($reservation->lifecycleEvents()->where('type', 'guest_added')->exists())->toBeFalse());
+
+        return $responses;
+    }),
+
+    'reservations.guest-leaves' => RouteCoverage::attempt(function (TwoTenants $t) {
+        [$reservation, $link] = inTenant($t->b->property, function () use ($t) {
+            $reservation = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            $reservation->update(['status' => ReservationStatus::CheckedIn]);
+            foreach (['Lead Bravo', 'Second Bravo'] as $name) {
+                $link = ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => app(CreateGuest::class)->handle($t->b->owner, ['name' => $name])->id]);
+            }
+
+            return [$reservation, $link];
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('reservations.guest-leaves', $reservation), ['_property' => $t->a->property->id, 'guest_id' => $link->guest_id])->assertNotFound();
+        }
+        inTenant($t->b->property, fn () => expect($link->fresh()->departed_at)->toBeNull()
+            ->and($reservation->lifecycleEvents()->where('type', 'guest_departed')->exists())->toBeFalse());
 
         return $responses;
     }),

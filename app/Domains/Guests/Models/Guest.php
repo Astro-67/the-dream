@@ -28,6 +28,19 @@ class Guest extends Model
 
     use BelongsToProperty, HasUlids;
 
+    /**
+     * What authorities (VFMS, ZRA) hold about a guest: name, and the first document with its country code.
+     *
+     * @return array{name: string, type: string|null, number: string|null, country: string|null}
+     */
+    public function authorityProfile(): array
+    {
+        /** @var IdentityDocument|null $document */
+        $document = $this->documents()->orderBy('id')->first();
+
+        return ['name' => $this->name, 'type' => $document?->getAttribute('type'), 'number' => $document?->getAttribute('number'), 'country' => $document?->getAttribute('nationality') ?? $this->getAttribute('nationality')];
+    }
+
     /** @return HasMany<IdentityDocument, $this> */
     public function documents(): HasMany
     {

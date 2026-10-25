@@ -84,7 +84,7 @@ class ReservationController extends Controller
                 ]),
                 'postings' => $folio->postings()->with(['actor:id,name', 'receipt:id,posting_id,number', 'related:id,type,category,folio_id', 'cancelledBy:id,type,folio_id,related_posting_id', 'cancelledBy.cancelledBy:id,folio_id,related_posting_id'])
                     ->paginate(50, ['*'], 'postings_page_'.$folio->id)->withQueryString()->through(fn (Posting $posting) => [
-                        ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines']),
+                        ...$posting->only(['id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'tax_lines', 'vfms_receipt_number']),
                         'posted_at' => $posting->posted_at->toIso8601String(), 'actor' => $posting->actor?->name,
                         'related' => $posting->related?->only(['id', 'type', 'category', 'folio_id']),
                         'cancelled_by' => $posting->cancelledBy === null ? null : [
@@ -99,6 +99,7 @@ class ReservationController extends Controller
                     ]),
             ]),
             'totals' => FolioSummary::totals($reservation),
+            'taxSource' => FolioSummary::taxSource($reservation, $property),
             'stay' => $reservation->stay(),
             'checkoutBalances' => FolioSummary::checkoutBalances(collect([$reservation]))[$reservation->id] ?? [],
             'feeProposals' => FeeProposal::query()->where('reservation_id', $reservation->id)->orderBy('created_at')->get()->map(fn (FeeProposal $fee) => [
@@ -147,6 +148,7 @@ class ReservationController extends Controller
     public function statement(Reservation $reservation): Response
     {
         Gate::authorize('view', $reservation);
+        $property = Property::query()->findOrFail($reservation->property_id);
         $folios = FolioSummary::folios($reservation);
 
         return Inertia::render('reservations/statement', [
@@ -160,7 +162,8 @@ class ReservationController extends Controller
                 ])->values(),
             ])->values(),
             'totals' => FolioSummary::totals($reservation, $folios),
-            'property' => Property::query()->findOrFail($reservation->property_id)->only(['name', 'address_line', 'city', 'phone', 'email']),
+            'taxSource' => FolioSummary::taxSource($reservation, $property),
+            'property' => $property->only(['name', 'address_line', 'city', 'phone', 'email']),
         ]);
     }
 }

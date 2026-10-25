@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
+    app()->instance(DeliveryAdapters::class, new DeliveryAdapters);
     config(['queue.default' => 'database']);
 });
 

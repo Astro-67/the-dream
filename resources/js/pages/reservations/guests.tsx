@@ -10,10 +10,20 @@ import {
     usePropertyIntent,
 } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { StatusChip } from '@/components/ui/status-chip';
 import { IdentityFields } from '@/features/guests/identity-documents';
 import type { Contact } from '@/features/guests/contact-pages';
 
@@ -25,12 +35,18 @@ export default function Guests({
     canAttach,
     inHouse,
     canViewIdentity,
+    leadGuestId,
+    departedGuestIds,
+    canRecordDeparture,
 }: {
     reservationNumber: string;
     guests: Paginated<Contact>;
     canAttach: boolean;
     inHouse: boolean;
     canViewIdentity: boolean;
+    leadGuestId: string | null;
+    departedGuestIds: string[];
+    canRecordDeparture: boolean;
 }) {
     const base = `/reservations/${encodeURIComponent(reservationNumber)}`;
     const action = inHouse ? `${base}/add-guest` : `${base}/guests`;
@@ -114,6 +130,21 @@ export default function Guests({
                                             {guest.email ??
                                                 guest.phone ??
                                                 'No contact details'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <GuestStayStatus
+                                                base={base}
+                                                guest={guest}
+                                                isLead={
+                                                    guest.id === leadGuestId
+                                                }
+                                                departed={departedGuestIds.includes(
+                                                    guest.id,
+                                                )}
+                                                canRecordDeparture={
+                                                    canRecordDeparture
+                                                }
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -308,5 +339,78 @@ export default function Guests({
                 )}
             </div>
         </>
+    );
+}
+
+/** Lead guest and departed marks, or the Guest leaves action for anyone else still in-house. */
+function GuestStayStatus({
+    base,
+    guest,
+    isLead,
+    departed,
+    canRecordDeparture,
+}: {
+    base: string;
+    guest: Contact;
+    isLead: boolean;
+    departed: boolean;
+    canRecordDeparture: boolean;
+}) {
+    if (isLead) return <StatusChip tone="info">Lead guest</StatusChip>;
+    if (departed) return <StatusChip tone="unavailable">Left</StatusChip>;
+    if (!canRecordDeparture) return null;
+
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" className="min-h-11">
+                    Guest leaves
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90dvh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>{guest.name} leaves?</DialogTitle>
+                    <DialogDescription>
+                        The stay and the room stay in-house for the other
+                        guests. At a Zanzibar property this sends a check-out
+                        for this guest to VFMS, which stops their infrastructure
+                        levy. It cannot be undone here.
+                    </DialogDescription>
+                </DialogHeader>
+                <Form
+                    action={`${base}/guest-leaves`}
+                    method="post"
+                    disableWhileProcessing
+                >
+                    {({ errors, processing }) => (
+                        <>
+                            <PropertyIntent />
+                            <input
+                                type="hidden"
+                                name="guest_id"
+                                value={guest.id}
+                            />
+                            <InputError
+                                message={
+                                    errors.guest_id ??
+                                    errors.reservation ??
+                                    errors._property
+                                }
+                            />
+                            <DialogFooter>
+                                <Button
+                                    type="submit"
+                                    className="min-h-11"
+                                    disabled={processing}
+                                >
+                                    {processing && <Spinner />}
+                                    Record that {guest.name} left
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </Form>
+            </DialogContent>
+        </Dialog>
     );
 }
