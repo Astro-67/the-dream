@@ -17,15 +17,15 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 use Tests\Support\TenantFixture;
+use Tests\Support\VfmsHttp;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
-    Http::preventStrayRequests();
+    VfmsHttp::fake();
 });
 
 /** Lead guest Anna Berg (P1234567) and Ola Berg (P7654321) in room 101, checked in unless $checkIn is false. */

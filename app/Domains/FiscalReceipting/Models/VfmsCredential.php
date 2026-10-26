@@ -49,7 +49,10 @@ class VfmsCredential extends Model
     /** The property's saved row (the tenant scope narrows the query to it), or an unsaved Sandbox one when nothing is saved yet. */
     public static function for(Property $property): self
     {
-        return Tenancy::within(TenantContext::forProperty($property), fn () => self::query()->first() ?? new self);
+        return Tenancy::within(TenantContext::forProperty($property), fn () => self::query()->first() ?? (new self)->forceFill([
+            'organization_id' => $property->organization_id,
+            'property_id' => $property->id,
+        ]));
     }
 
     public function isComplete(): bool

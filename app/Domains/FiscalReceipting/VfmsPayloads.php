@@ -9,6 +9,7 @@ use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Rates\Enums\ChargeKind;
 use App\Domains\Rates\TaxCalculator;
+use App\Domains\Reservations\Enums\MealPlan;
 use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
@@ -58,9 +59,15 @@ final class VfmsPayloads
         $tourOperator = $reservation->getAttribute('booked_through') === 'tour-operator' && $paysFor instanceof TourOperatorPaysFor;
 
         return [
-            'paymentPackage' => $reservation->getAttribute('meal_plan')?->value,
-            'checkInDate' => $date,
-            'guest' => $this->guests($reservation),
+            'paymentPackage' => match ($reservation->meal_plan) {
+                MealPlan::RoomOnly => 'RO',
+                MealPlan::BedAndBreakfast => 'BB',
+                MealPlan::HalfBoard => 'HB',
+                MealPlan::FullBoard => 'FB',
+                MealPlan::AllInclusive => 'AI',
+            },
+            'checkInDate' => $event->occurred_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
+            'guest' => array_map(fn (array $guest) => [...$guest, 'arrivalDate' => $date], $this->guests($reservation)),
             'roomId' => $room->vfms_room_id,
             'roomName' => $room->number,
             // OTA stays are DIRECT (ADR 0005).
@@ -210,9 +217,9 @@ final class VfmsPayloads
         $profile = $guest->authorityProfile();
 
         return [
-            'documentName' => $profile['type'],
+            'documentName' => $profile['type'] === null ? null : strtoupper($profile['type']),
             'documentNo' => $profile['number'],
-            'country' => Countries::NAMES[$profile['country']] ?? $profile['country'],
+            'country' => $profile['country'] === null ? null : strtoupper(Countries::NAMES[$profile['country']] ?? $profile['country']),
             'fullName' => $profile['name'],
         ];
     }
@@ -252,9 +259,9 @@ final class VfmsPayloads
     {
         return match ($paysFor) {
             TourOperatorPaysFor::RoomOnly => '5',
-            TourOperatorPaysFor::RoomAndLevy => '5,6',
-            TourOperatorPaysFor::RoomAndOtherServices => '5,7',
-            TourOperatorPaysFor::RoomLevyAndOtherServices => '5,6,7',
+            TourOperatorPaysFor::RoomAndLevy => '56',
+            TourOperatorPaysFor::RoomAndOtherServices => '57',
+            TourOperatorPaysFor::RoomLevyAndOtherServices => '567',
         };
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-use App\Domains\FiscalReceipting\Adapters\SandboxVfms;
+use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
@@ -15,15 +15,18 @@ use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 use Tests\Support\TenantFixture;
+use Tests\Support\VfmsHttp;
 
 beforeEach(function () {
-    Http::preventStrayRequests();
+    VfmsHttp::fake();
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
     $this->tenant = TenantFixture::build('RoomChanges');
     $this->tenant->property->update(['business_date' => '2026-12-10']);
@@ -59,7 +62,7 @@ test('night audit files a changed next-night price once on the stay stream', fun
                 'rooms' => [['roomPrice' => $price, 'hotelRoomRoom' => $room->vfms_room_id]],
             ]);
     });
-    Http::assertNothingSent();
+    Http::assertSentCount(2);
 })->with(['USD' => ['USD', 125.5], 'EUR' => ['EUR', 125.5], 'TZS' => ['TZS', 12550.0]]);
 
 // protects=guide §2.2 room moves follow check-in on the stay stream; fails_when=the destination, lead document, price or order is wrong; no_claim=production VFMS acceptance.
@@ -87,23 +90,8 @@ test('a Sandbox room move files the new room and lead document after check-in', 
                 'accommodationDiscount' => 0,
             ]);
     });
-    Http::assertNothingSent();
+    Http::assertSentCount(2);
 })->with(['USD' => ['USD', 'USD', 110.0], 'EUR' => ['EUR', 'EURO', 110.0], 'TZS' => ['TZS', 'TZS', 11000.0]]);
-
-// protects=Sandbox validates guide §2.3 room entries; fails_when=a room without its price or VFMS number is accepted; no_claim=production VFMS validation.
-test('Sandbox rejects missing fields within a changed room price', function (string $field) {
-    inTenant($this->tenant->property, function () use ($field) {
-        $this->reservation->priceLines()->whereDate('date', '2026-12-11')->update(['amount' => 12550]);
-        app(CloseBusinessDate::class)->handle($this->tenant->owner, $this->tenant->property, '2026-12-10');
-        $payload = OutboxMessage::query()->where('integration', 'vfms')->where('event', 'changeRoomPrice')->sole()->payload;
-        data_forget($payload['body'], 'rooms.0.'.$field);
-
-        $result = app(SandboxVfms::class)->send($payload, new VfmsCredential);
-
-        expect($result->outcome)->toBe('rejected')
-            ->and($result->responseBody['missing'])->toContain('rooms.0.'.$field);
-    });
-})->with(['roomPrice', 'hotelRoomRoom']);
 
 // protects=an unchanged nightly price produces no fiscal call; fails_when=closing a steady-price stay files a price change; no_claim=changes outside night audit.
 test('night audit files nothing when the next-night price is unchanged', function () {
@@ -112,6 +100,29 @@ test('night audit files nothing when the next-night price is unchanged', functio
 
         expect(OutboxMessage::query()->where('integration', 'vfms')->pluck('event')->all())->toBe(['accommodation']);
     });
+    Http::assertSentCount(1);
+});
+
+// protects=ref-less price changes are never retried after a timeout (#171); fails_when=delivery or reconciliation resends the price change; no_claim=provider replay safety.
+test('a timed out price change stays unknown after only one call', function () {
+    $calls = 0;
+    Http::fake(['gateway.zanrevenue.org/vfms/api/changeRoomPrice/' => function () use (&$calls) {
+        $calls++;
+
+        throw new ConnectionException('Price change timed out');
+    }]);
+    inTenant($this->tenant->property, function () {
+        VfmsCredential::query()->create(['integration_id' => 'INT-171', 'registration_id' => 'REG-171', 'token' => 'tok', 'mode' => VfmsMode::Live]);
+        $this->reservation->priceLines()->whereDate('date', '2026-12-11')->update(['amount' => 12550]);
+        app(CloseBusinessDate::class)->handle($this->tenant->owner, $this->tenant->property, '2026-12-10');
+        $message = OutboxMessage::query()->where('event', 'changeRoomPrice')->sole();
+        expect($message->status)->toBe('unknown');
+        $this->travel(2)->minutes();
+        app(DeliveryEngine::class)->deliver($message->id);
+        expect($message->fresh()->status)->toBe('unknown')
+            ->and($message->fresh()->attempt_count)->toBe(1);
+    });
+    expect($calls)->toBe(1);
     Http::assertNothingSent();
 });
 
@@ -131,7 +142,7 @@ test('a repriced room move files the destination price', function () {
         expect($message->status)->toBe('delivered')
             ->and($message->payload['body']['accommodationPrice'])->toEqual(160.5);
     });
-    Http::assertNothingSent();
+    Http::assertSentCount(2);
 });
 
 // protects=VFMS receives the next date's tax-inclusive price without the infrastructure levy; fails_when=tax uses the closing date or the levy is added; no_claim=VFMS's own tax assessment.
@@ -154,5 +165,5 @@ test('nightly price changes include next-date tax but leave the levy to VFMS', f
         expect($message->status)->toBe('delivered')
             ->and($message->payload['body']['rooms'][0]['roomPrice'])->toEqual(144.33);
     });
-    Http::assertNothingSent();
+    Http::assertSentCount(2);
 });

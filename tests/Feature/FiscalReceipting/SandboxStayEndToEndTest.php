@@ -17,16 +17,17 @@ use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
+use Tests\Support\VfmsHttp;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
-    Http::preventStrayRequests();
+    VfmsHttp::fake('checkout-stay-legacy.json');
 });
 
-// protects=spec #156 AC 5: a full Sandbox stay driven through the real routes files every step with VFMS in order and ends in a stamped report matching the folio (#166); fails_when=a step files no message, an extra one, out of order or unaccepted, any request leaves the server, or the report differs from the folio; no_claim=VFMS production acceptance or Live figures.
+// protects=spec #156 AC 5: a full Sandbox stay driven through the real routes files every step with VFMS in order and ends in a stamped fixture-based report matching the folio (#166); fails_when=a step files no message, an extra one, out of order or unaccepted, a request targets the Live endpoint, or the report differs from the folio; no_claim=VFMS production acceptance or Live figures.
 // Spec #156 AC 2: fails_when=the property's token (a marker) appears in any outbox payload or attempt body of the stay's VFMS calls.
 // The report also lists only guests still in-house: fails_when=a departed guest (Ola) is named on it.
-test('a full Sandbox stay files six accepted VFMS messages in order and a stamped report matching the folio', function () {
+test('a full Sandbox stay files six accepted VFMS messages in order and a stamped fixture-based report matching the folio', function () {
     $t = twoTenants()->a;
     $property = ['_property' => $t->property->id];
     $marker = 'tok-MARKER-7f3a91';
@@ -63,16 +64,17 @@ test('a full Sandbox stay files six accepted VFMS messages in order and a stampe
         ->and($messages->pluck('stream_key')->unique())->toHaveCount(1)
         ->and($messages[4]->payload['body']['documentNumberList'])->toBe([['documentNumber' => 'P7654321']])
         ->and($messages[5]->payload['body']['documentNumberList'])->toBe([['documentNumber' => 'P1234567']]);
-    Http::assertNothingSent();
+    Http::assertSentCount(6);
+    Http::assertNotSent(fn ($request) => ! str_starts_with($request->url(), VfmsHttp::TEST_URL));
     $attempts = inTenant($t->property, fn () => $messages->flatMap(fn (OutboxMessage $message) => $message->attempts()->get()));
     expect($attempts)->toHaveCount(6)
         ->and(json_encode([$messages->pluck('payload'), $attempts->map->only(['request_body', 'response_body', 'provider_references'])]))->not->toContain($marker);
 
-    // Nights at 110.00 and 125.00, and 20.00 of water.
+    // Legacy normalized fixture: nights at 110.00 and 125.00, and 20.00 of water; not a provider schema claim (#172).
     $this->actingAs($desk)->get(route('reservations.fiscal-report', $reservation))->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('fiscal-receipting/checkout-report')
             ->where('status', 'sandbox')->where('qrSvg', null)->where('guests', ['Anna Berg'])
-            ->where('report.number', fn (string $number) => str_starts_with($number, 'SBX-'))
+            ->where('report.number', 'TEST-STAY-CHECKOUT-169')
             ->where('report.room', 23500)->where('report.extras', 2000)->where('report.total', 25500));
     $this->get(route('reservations.show', $reservation))
         ->assertInertia(fn (Assert $page) => $page->where('taxSource', 'vfms')->where('totals.0.charges', 25500)->where('totals.0.balance', 25500));

@@ -14,6 +14,14 @@ return [
     |
     */
 
+    'vfms' => [
+        'live_url' => env('VFMS_LIVE_URL', 'https://gateway.zanrevenue.org/vfms/api/'),
+        'test_url' => env('VFMS_TEST_URL'),
+        'test_integration_id' => env('VFMS_TEST_INTEGRATION_ID'),
+        'test_token' => env('VFMS_TEST_TOKEN'),
+        'test_viewer_url' => env('VFMS_TEST_VIEWER_URL'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

@@ -13,13 +13,13 @@ use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Http;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
+use Tests\Support\VfmsHttp;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
-    Http::preventStrayRequests();
+    VfmsHttp::fake();
 });
 
 /** A stay in room 101 with lead guest Anna Berg (passport P1234567, DE), checked in unless $checkIn is false. */
@@ -59,11 +59,11 @@ test('adding a guest to an in-house Sandbox stay files one accepted add-guest me
         ->and($message->payload['path'])->toBe('guest/accommodation/')
         ->and($message->payload['body'])->toBe([
             'firstGuestDocument' => 'P1234567',
-            'documentName' => 'passport',
+            'documentName' => 'PASSPORT',
             'documentNo' => 'P7654321',
             'arrivalDate' => '2026-12-10',
             'referenceNumber' => $reservation->reservation_number.'-'.$sequence,
-            'country' => 'Norway',
+            'country' => 'NORWAY',
             'fullName' => 'Ola Berg',
         ]);
 });
@@ -95,9 +95,9 @@ test('correcting an in-house guest files one accepted change-profile message', f
             'referenceNumber' => $reservation->reservation_number.'-'.$sequence,
         ]);
 })->with([
-    'name' => [['name' => 'Anna Berg-Lund'], ['newDocumentNo' => 'P1234567', 'fullName' => 'Anna Berg-Lund', 'documentName' => 'passport', 'country' => 'Germany']],
-    'country' => [['documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'SE']]], ['newDocumentNo' => 'P1234567', 'fullName' => 'Anna Berg', 'documentName' => 'passport', 'country' => 'Sweden']],
-    'document' => [['documents' => [['type' => 'national-id', 'number' => 'X998877', 'nationality' => 'DE']]], ['newDocumentNo' => 'X998877', 'fullName' => 'Anna Berg', 'documentName' => 'national-id', 'country' => 'Germany']],
+    'name' => [['name' => 'Anna Berg-Lund'], ['newDocumentNo' => 'P1234567', 'fullName' => 'Anna Berg-Lund', 'documentName' => 'PASSPORT', 'country' => 'GERMANY']],
+    'country' => [['documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'SE']]], ['newDocumentNo' => 'P1234567', 'fullName' => 'Anna Berg', 'documentName' => 'PASSPORT', 'country' => 'SWEDEN']],
+    'document' => [['documents' => [['type' => 'national-id', 'number' => 'X998877', 'nationality' => 'DE']]], ['newDocumentNo' => 'X998877', 'fullName' => 'Anna Berg', 'documentName' => 'NATIONAL-ID', 'country' => 'GERMANY']],
 ]);
 
 // protects=VFMS hears only about stays it holds and fields it holds (spec #156, #162); fails_when=editing a guest not in house, or a phone or email, files a message or records an event; no_claim=corrections after check-out (VFMS error correction, Step 4).

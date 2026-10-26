@@ -2,7 +2,7 @@
 
 namespace App\Domains\FiscalReceipting\Enums;
 
-/** Sandbox never leaves the server; Live files with ZRA's production VFMS. */
+/** Sandbox files with ZRA's shared test server; Live uses the property's production unit. */
 enum VfmsMode: string
 {
     case Sandbox = 'sandbox';

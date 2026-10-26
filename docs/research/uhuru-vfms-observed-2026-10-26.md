@@ -8,6 +8,10 @@ Observed 26 October 2026 in the owner's Uhuru account (property `the-dream-of-sa
 - ZRA's **test** guide, v1.6 ("Test Environment"). Not in git, because page 33 prints ZRA's shared test credentials; ask the project owner. The production guide is `sources/vfms-hotel-api-guide-v1.6.pdf`.
 - One read-only call each to the test `currencyExchangeRate` and `accommodationReport` endpoints, both HTTP 200.
 
+## Production credential check
+
+On 26 October the pilot property's saved Live integration ID and token were used on the server for one read-only `CURRENCY_EXCHANGE` request to `https://gateway.zanrevenue.org/vfms/api/currencyExchangeRate/`. ZRA returned HTTP 200 with `rateUSD`, `rateEURO` and `rateUSDEURO`. This verifies those credentials for that endpoint only, not accommodation filing, portal visibility or report generation. No credentials were printed, no fiscal calls were replayed and no tax was filed.
+
 ## ZRA test environment
 
 - The test server's base URL ends in `:6060/vfms/api/` (plain HTTP; the full address is in the test guide). **Production is `https://gateway.zanrevenue.org/vfms/api/`**, not the `/api/` the production guide prints: probed without credentials on 26 October, every `/api/…` path returns 404 and every `/vfms/api/…` path answers with ZRA's own field validation.
@@ -73,7 +77,7 @@ One two-guest stay filed by Thedream on 26 October with references `TDREAM179301
 
 - The request type for check-in is `ACCOMMODATION_REQUEST`. A wrong type returns `INVALID REQUEST TYPE PROVIDED`.
 - **Errors come back as HTTP 200** with `{"statusCode": 5000, "statusMessage": …}`. Success is the echoed payload with a `responseNumber`.
-- **A repeated reference is refused**: `Reference number <ref>-5940 already exists`, for both accommodation and services. Resending after an unknown outcome is therefore safe.
+- **A repeated reference is refused**: `Reference number <ref>-5940 already exists`, observed for accommodation and services on the test server only. This does not establish replay safety for Live, checkout or price changes. A duplicate response has no original receipt/report, so it is unresolved rather than delivered until the required fiscal evidence is recovered.
 - **VFMS tracks room occupancy by `roomId`**: checking into a room ID already open in the business unit returns `The Room ID … Is not Empty`. VFMS stores the room as `roomId` followed by the unit ID.
 - Package `BB` was accepted and echoed back as `paymentType`. Package `RO` was accepted but echoed back as `OTHER`, so VFMS has no room-only code of its own; Uhuru sends `RO` anyway.
 - Document names `ZANID` and `NIDA` were accepted. Two Tanzanian guests were each charged the USD 5 levy.

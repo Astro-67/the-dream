@@ -456,7 +456,7 @@ export function VfmsFields({
             <p className="text-sm text-muted-foreground">
                 {live
                     ? `Stays are filed with ZRA's VFMS${vfms.live_since ? ` since ${formatDate(vfms.live_since)}` : ''}.`
-                    : 'Sandbox: stays are answered on this server and nothing reaches ZRA.'}
+                    : "Sandbox: stays are filed with ZRA's shared test server, not your production business unit."}
             </p>
             <Form
                 {...vfmsRoutes.update.form(propertyId)}

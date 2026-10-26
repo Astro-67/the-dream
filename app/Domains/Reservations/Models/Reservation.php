@@ -26,6 +26,7 @@ use Illuminate\Support\Collection;
  * @property string $reservation_number
  * @property CarbonImmutable $arrival
  * @property CarbonImmutable $departure
+ * @property MealPlan $meal_plan
  * @property ReservationStatus $status
  * @property string|null $room_id
  * @property string $payment_collector

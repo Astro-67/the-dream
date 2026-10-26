@@ -347,10 +347,10 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - **FSC-02:** At check-in, send an accommodation request containing:
     - every guest's full name, document type, document number and country;
     - room ID and name;
-    - check-in date;
+    - actual check-in timestamp (UTC ISO-8601), preserved from the check-in lifecycle event, and each guest's arrival date;
     - currency;
     - the **first night's tax-inclusive room price** and any discount;
-    - the meal or package code;
+    - the meal/package code (`RO`, `BB`, `HB`, `FB`, `AI`);
     - a unique reference number for the transaction.
 - **FSC-03:** Use the accommodation source `DIRECT` for direct, walk-in and OTA stays, with the guest as payer and the full tax-inclusive price (ADR 0005). Use `TOUR OPERATOR`, with the operator's ZRA registration number and cost options, only for stays paid by a registered tour operator.
     - The channel's commission never appears on a fiscal receipt.
@@ -381,7 +381,7 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 
 **As shipped (spec #156), where it differs from the above:**
 
-- FSC-01: each property also has a **VFMS mode**, Sandbox by default; only a deliberate, audited switch makes it Live (glossary). Sandbox never contacts ZRA and computes no levy of its own: its check-out answer reports the folio as posted.
+- FSC-01: each property also has a **VFMS mode**, Sandbox by default; only a deliberate, audited switch makes it Live (glossary). Spec #168 replaces the in-process Sandbox with ZRA's shared test server. It uses server-configured test credentials, not the hotel's Live credentials; its reports remain non-fiscal.
 - FSC-04: a guest leaving an in-house stay early ("Guest leaves") sends a check-out call for that guest's document; the stay's check-out lists only guests still in-house.
 - FSC-06: before check-out the folio's tax is labelled **Estimated tax**; an accepted check-out replaces it with VFMS's tax and levy through a VFMS adjustment line (ADR 0015).
 - FSC-07: check-out completes and the report page shows "Waiting for VFMS", but a blocked departure is **not yet** put on the exception list.

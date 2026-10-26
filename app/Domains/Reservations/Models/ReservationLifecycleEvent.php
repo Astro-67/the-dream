@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
+ * @property CarbonImmutable $occurred_at
  * @property CarbonImmutable $business_date
  * @property array<string, mixed> $snapshot
  */
