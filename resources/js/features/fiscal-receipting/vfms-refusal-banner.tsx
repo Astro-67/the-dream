@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
 
 export type VfmsRefusal = {
     message: string;
@@ -66,6 +67,9 @@ export function VfmsRefusalBanner({
                                 disabled={processing}
                                 className="min-h-11"
                             >
+                                <span className="inline-flex size-4 items-center justify-center">
+                                    {processing && <Spinner />}
+                                </span>
                                 {processing
                                     ? 'Queuing filing...'
                                     : 'Re-file with ZRA'}
