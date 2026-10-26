@@ -7,6 +7,7 @@ use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FiscalReceipting\VfmsRefusal;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Inventory\Models\Room;
@@ -72,6 +73,7 @@ class ReservationController extends Controller
         $payments = FolioSummary::payments($folios->getCollection());
 
         return Inertia::render('reservations/show', [
+            'vfmsRefusal' => VfmsRefusal::of($reservation, Gate::allows('recoverVfms', $reservation)),
             'paymentsReportUrl' => Gate::allows('view', PropertyKpis::class)
                 ? route('payments.index', ['reservation' => $reservation->id, 'period' => 'custom', ...FolioSummary::paymentDates($reservation)]) : null,
             'folios' => $folioPage->through(fn (Folio $folio, int $index) => [

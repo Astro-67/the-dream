@@ -4,6 +4,7 @@ use App\Domains\FiscalReceipting\Actions\SaveVfmsCredentials;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Support\Outbox\OutboxMessage;
 use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
@@ -13,7 +14,33 @@ $bravoCredentials = function (TwoTenants $t): void {
     inTenant($t->b->property, fn () => app(SaveVfmsCredentials::class)->handle($t->b->owner, $t->b->property, 'BRAVO-INT', 'BRAVO-REG', 'BRAVO-TOKEN'));
 };
 
+$recoverForeignFiling = function (TwoTenants $t, string $route) {
+    [$reservation, $message] = inTenant($t->b->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+        $message = OutboxMessage::query()->create([
+            'integration' => 'vfms', 'subject_type' => $reservation->getMorphClass(), 'subject_id' => $reservation->id,
+            'sequence' => 1, 'stream_key' => hash('sha256', $reservation->id), 'idempotency_key' => 'isolation:'.$reservation->id,
+            'event' => 'accommodation', 'payload' => ['reservation_id' => $reservation->id], 'status' => 'rejected', 'attempt_count' => 1,
+        ]);
+
+        return [$reservation, $message];
+    });
+    $responses = [];
+    foreach ($t->a->members() as $member) {
+        $responses[] = $this->actingAs($member)->post(route($route, [$reservation, $message]), [
+            '_property' => $t->a->property->id, 'reason' => 'Foreign filing attack',
+        ])->assertNotFound();
+    }
+    inTenant($t->b->property, function () use ($message) {
+        expect($message->fresh()->status)->toBe('rejected')->and($message->revisions()->count())->toBe(0);
+    });
+
+    return $responses;
+};
+
 return [
+    'reservations.vfms.refile' => RouteCoverage::attempt(fn (TwoTenants $t) => $recoverForeignFiling->call($this, $t, 'reservations.vfms.refile')),
+    'reservations.vfms.retry' => RouteCoverage::attempt(fn (TwoTenants $t) => $recoverForeignFiling->call($this, $t, 'reservations.vfms.retry')),
     'properties.vfms.update' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoCredentials) {
         $bravoCredentials($t);
         $form = ['integration_id' => 'ALPHA-INT', 'registration_id' => 'ALPHA-REG', 'token' => 'ALPHA-TOKEN'];

@@ -166,8 +166,28 @@ const stayProps: ComponentProps<typeof Show> = {
     acceptedPaymentMethods: [],
     extraCategories: [],
     paymentsReportUrl: null,
+    vfmsRefusal: null,
 };
 const reservation = render(() => <Show {...stayProps} />);
+// protects=only authorized viewers see the audited re-file form (#173); fails_when=the refusal is hidden, reason is optional or read-only viewers get an action; no_claim=HTTP authorization.
+const refusal = {
+    message: 'The Room ID 101 Is not Empty',
+    refileUrl: '/reservations/R-1042/vfms/message/refile',
+};
+const rejected = render(() => <Show {...stayProps} vfmsRefusal={refusal} />);
+assert.match(rejected, /Not filed with ZRA/);
+assert.match(rejected, /Re-file with ZRA/);
+assert.match(
+    rejected,
+    /name="reason"[^>]*required=""|required=""[^>]*name="reason"/,
+);
+assert.match(rejected, /name="_property"[^>]*value="p-1"/);
+assert.doesNotMatch(
+    render(() => (
+        <Show {...stayProps} vfmsRefusal={{ ...refusal, refileUrl: null }} />
+    )),
+    /Re-file with ZRA|Reason for re-filing/,
+);
 for (const label of [
     'More details',
     'Room assignment',

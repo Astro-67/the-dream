@@ -57,6 +57,10 @@ import {
 } from '@/features/billing/folio-panel';
 import type { TaxSource } from '@/features/billing/folio-summary';
 import { Spinner } from '@/components/ui/spinner';
+import {
+    VfmsRefusalBanner,
+    type VfmsRefusal,
+} from '@/features/fiscal-receipting/vfms-refusal-banner';
 
 type Named = { id: string; name: string };
 type Reservation = {
@@ -115,6 +119,7 @@ export default function Show({
     acceptedPaymentMethods,
     extraCategories,
     paymentsReportUrl,
+    vfmsRefusal,
 }: {
     reservation: Reservation;
     roomType: Named;
@@ -152,11 +157,13 @@ export default function Show({
     acceptedPaymentMethods: string[];
     extraCategories: string[];
     paymentsReportUrl: string | null;
+    vfmsRefusal: VfmsRefusal | null;
 }) {
     return (
         <>
             <Head title={`Reservation ${reservation.reservation_number}`} />
             <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-6">
+                <VfmsRefusalBanner refusal={vfmsRefusal} />
                 <header className="flex flex-wrap items-center gap-3 [&_button]:min-h-11">
                     <h1 className="text-2xl font-semibold">
                         Reservation{' '}
