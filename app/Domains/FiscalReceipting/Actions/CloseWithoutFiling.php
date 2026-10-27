@@ -22,7 +22,11 @@ class CloseWithoutFiling
     public function handle(User $actor, Reservation $reservation, string $reason): void
     {
         Audit::validationRefusal($actor, $reservation, 'Close without filing refused', function () use ($actor, $reservation, $reason): void {
-            Gate::forUser($actor)->authorize('recoverVfms', $reservation);
+            $authorization = Gate::forUser($actor)->inspect('recoverVfms', $reservation);
+            if ($authorization->denied()) {
+                Audit::record($actor, 'refused', $reservation, 'Close without filing refused', ['result' => 'refused', 'stage' => 'authorization']);
+            }
+            $authorization->authorize();
             try {
                 DB::transaction(function () use ($actor, $reservation, $reason): void {
                     $property = Property::query()->whereKey($reservation->property_id)->lockForUpdate()->firstOrFail();

@@ -117,3 +117,16 @@ test('close without filing validates reason and refuses duplicate closure', func
     ])->assertSessionHasErrors('vfms');
     expect(inTenant($tenant->property, fn () => $reservation->fresh()->getAttribute('fiscal_exception_reason')))->toBe('Departed before VFMS filing worked');
 });
+
+// protects=the operator can run the same audited recovery without a browser (#176); fails_when=CLI ignores property/actor/reason or cannot close the stay; no_claim=server deployment.
+test('the close without filing command scopes the reservation number to its requested property', function () {
+    $tenant = twoTenants()->a;
+    $reservation = closeUnfiledStay($tenant, true);
+    $options = ['reservation' => $reservation->reservation_number, '--actor' => $tenant->owner->id, '--property' => $tenant->property->id, '--reason' => 'Departed before VFMS filing worked'];
+    $this->artisan('outbox:close-without-filing', [...$options, '--property' => $tenant->otherProperty->id])->assertFailed();
+    $this->artisan('outbox:close-without-filing', [...$options, '--reason' => ''])->assertFailed();
+    $this->artisan('outbox:close-without-filing', [...$options, '--actor' => $tenant->member(OrganizationRole::Finance)->id])->assertFailed();
+    expect(DB::table('activity_log')->where('event', 'refused')->where('subject_id', $reservation->id)->exists())->toBeTrue();
+    $this->artisan('outbox:close-without-filing', $options)->expectsOutput('Closed '.$reservation->reservation_number.' without filing; fiscal exception recorded.')->assertSuccessful();
+    expect(inTenant($tenant->property, fn () => $reservation->fresh()->getAttribute('fiscal_exception_reason')))->toBe('Departed before VFMS filing worked');
+});
