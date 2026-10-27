@@ -18,7 +18,7 @@ class ReportRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if (Tenancy::property() !== null) {
-            $this->mergeIfMissing(['from' => BusinessDate::current(), 'to' => BusinessDate::current()]);
+            $this->mergeIfMissing(['from' => BusinessDate::current(), 'to' => BusinessDate::current(), 'view' => 'overview']);
         }
     }
 
@@ -29,6 +29,7 @@ class ReportRequest extends FormRequest
             'from' => ['bail', 'required', 'date_format:Y-m-d'],
             'to' => ['bail', 'required', 'date_format:Y-m-d', Rule::when(is_string($this->input('from')), 'after_or_equal:from')],
             'settled' => ['sometimes', 'boolean'],
+            'view' => ['sometimes', Rule::in(['overview', 'filings'])],
         ];
     }
 }
