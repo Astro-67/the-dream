@@ -61,6 +61,10 @@ import {
     VfmsRefusalBanner,
     type VfmsRefusal,
 } from '@/features/fiscal-receipting/vfms-refusal-banner';
+import {
+    VfmsFilingsPanel,
+    type VfmsFiling,
+} from '@/features/fiscal-receipting/vfms-filings-panel';
 
 type Named = { id: string; name: string };
 type Reservation = {
@@ -120,6 +124,7 @@ export default function Show({
     extraCategories,
     paymentsReportUrl,
     vfmsRefusal,
+    vfmsFilings,
 }: {
     reservation: Reservation;
     roomType: Named;
@@ -158,6 +163,7 @@ export default function Show({
     extraCategories: string[];
     paymentsReportUrl: string | null;
     vfmsRefusal: VfmsRefusal | null;
+    vfmsFilings: VfmsFiling[];
 }) {
     return (
         <>
@@ -547,6 +553,7 @@ export default function Show({
                         </CollapsibleContent>
                     </Collapsible>
                 )}
+                <VfmsFilingsPanel filings={vfmsFilings} />
                 <Collapsible>
                     <h2>
                         <CollapsibleTrigger asChild>

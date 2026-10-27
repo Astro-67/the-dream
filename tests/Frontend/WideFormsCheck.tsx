@@ -167,6 +167,7 @@ const stayProps: ComponentProps<typeof Show> = {
     extraCategories: [],
     paymentsReportUrl: null,
     vfmsRefusal: null,
+    vfmsFilings: [],
 };
 const reservation = render(() => <Show {...stayProps} />);
 // protects=only authorized viewers see the audited re-file form (#173); fails_when=the refusal is hidden, reason is optional or read-only viewers get an action; no_claim=HTTP authorization.
@@ -188,6 +189,60 @@ assert.doesNotMatch(
     )),
     /Re-file with ZRA|Reason for re-filing/,
 );
+// protects=the stay shows each ZRA call with its status and refusal, and actions only when the server grants them (#174); fails_when=a status, number or message is missing, or a null URL still renders an action; no_claim=HTTP authorization.
+const filing = {
+    attempts: 1,
+    number: null,
+    message: null,
+    refileUrl: null,
+    retryUrl: null,
+};
+const filings = render(() => (
+    <Show
+        {...stayProps}
+        vfmsFilings={[
+            {
+                ...filing,
+                id: 'a',
+                call: 'Check-in',
+                status: 'filed',
+                number: 'AC-174',
+            },
+            {
+                ...filing,
+                id: 'b',
+                call: 'Extras',
+                status: 'refused',
+                message: 'The Room ID 1 Is not Empty',
+                refileUrl: '/reservations/R-1042/vfms/b/refile',
+            },
+            {
+                ...filing,
+                id: 'c',
+                call: 'Check-out',
+                status: 'waiting',
+                attempts: 0,
+            },
+            { ...filing, id: 'd', call: 'Guest left', status: 'unknown' },
+        ]}
+    />
+));
+for (const text of [
+    'ZRA filings',
+    'Check-in',
+    'Filed',
+    'AC-174',
+    'Extras',
+    'Refused',
+    'The Room ID 1 Is not Empty',
+    'Check-out',
+    'Waiting',
+    'Unknown',
+])
+    assert.ok(filings.includes(text), `Missing ZRA filing text: ${text}`);
+assert.equal(filings.match(/>Re-file</g)?.length, 1);
+assert.doesNotMatch(filings, />Retry</);
+assert.doesNotMatch(reservation, /ZRA filings/);
 for (const label of [
     'More details',
     'Room assignment',
