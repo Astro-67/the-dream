@@ -91,7 +91,7 @@ export default function CheckoutReport({
                     {'@page { size: A4; margin: 12mm; }'}
                 </style>
             </Head>
-            <div className="receipt-print flex max-w-[960px] flex-col gap-6 p-4 md:p-6">
+            <div className="receipt-print flex max-w-[960px] flex-col gap-6 p-4 md:p-6 print:gap-4 print:p-0">
                 <header className="space-y-3">
                     <img
                         src="/images/zra-logo.jpg"
@@ -249,8 +249,8 @@ export default function CheckoutReport({
                     </section>
                 )}
                 {report && serviceReceipts.length > 0 && (
-                    <section className="space-y-2">
-                        <h2 className="font-semibold">
+                    <section className="space-y-2 print:grid print:grid-cols-2 print:gap-4 print:space-y-0">
+                        <h2 className="font-semibold print:col-span-2">
                             Extra service receipts
                         </h2>
                         {serviceReceipts.map((receipt, index) => (
