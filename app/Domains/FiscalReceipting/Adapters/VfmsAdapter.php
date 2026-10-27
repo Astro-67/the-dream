@@ -85,7 +85,14 @@ final class VfmsAdapter implements DeliveryAdapter, OutboxCorrectionAdapter, Res
             throw new RuntimeException('Later guest changes require reconciliation before re-filing this check-in.');
         }
 
-        return [...$message->payload, 'body' => $this->payloads->{$call[2]}($event, $reservation, $property)];
+        $body = $this->payloads->{$call[2]}($event, $reservation, $property);
+        if (($message->event === 'changeRoom' && array_intersect_key($body, array_flip(['accommodationPrice', 'currency', 'accommodationDiscount']))
+                != array_intersect_key($message->payload['body'], array_flip(['accommodationPrice', 'currency', 'accommodationDiscount'])))
+            || ($message->event === 'changeRoomPrice' && $body['rooms'][0]['roomPrice'] != $message->payload['body']['rooms'][0]['roomPrice'])) {
+            throw new RuntimeException('Changed financial history requires reconciliation before re-filing this operation.');
+        }
+
+        return [...$message->payload, 'body' => $body];
     }
 
     public function send(array $messages): array

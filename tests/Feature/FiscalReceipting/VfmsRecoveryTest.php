@@ -115,7 +115,7 @@ test('refiling a rejected check-in rotates its reference and releases its rebuil
 });
 
 // protects=recovery retains each room move's original destination; fails_when=two historical moves both target the current room; no_claim=provider acceptance.
-test('refiling chained room moves retains their historical destinations', function () {
+test('refiling chained room moves retains destinations or refuses changed financial history', function (bool $priceChanged) {
     $tenant = twoTenants()->a;
     Http::fake([
         VfmsHttp::TEST_URL.'accommodation/' => Http::response(['responseNumber' => 'AC-ROOM-CHAIN']),
@@ -139,6 +139,22 @@ test('refiling chained room moves retains their historical destinations', functi
     });
     $messages = inTenant($tenant->property, fn () => OutboxMessage::query()->where('event', 'changeRoom')->orderBy('sequence')->get());
     expect($messages->pluck('status')->all())->toBe(['rejected', 'blocked']);
+    if ($priceChanged) {
+        inTenant($tenant->property, fn () => $reservation->priceLines()->update(['amount' => 20000]));
+        $original = $messages->map->payload->all();
+        $this->actingAs($tenant->owner)->post(route('reservations.vfms.refile', [$reservation, $messages[0]]), [
+            '_property' => $tenant->property->id, 'reason' => 'Later room repricing changed financial history',
+        ])->assertSessionHasErrors('vfms');
+        inTenant($tenant->property, function () use ($messages, $original) {
+            foreach ($messages as $index => $message) {
+                expect($message->fresh()->payload)->toEqual($original[$index])
+                    ->and($message->revisions()->count())->toBe(0);
+            }
+        });
+        Http::assertSentCount(2);
+
+        return;
+    }
 
     $this->actingAs($tenant->owner)->post(route('reservations.vfms.refile', [$reservation, $messages[0]]), [
         '_property' => $tenant->property->id, 'reason' => 'Review original room destinations',
@@ -154,6 +170,34 @@ test('refiling chained room moves retains their historical destinations', functi
             ->and($messages[1]->fresh()->status)->toBe('delivered');
     });
     Http::assertSentCount(4);
+})->with([false, true]);
+
+// protects=price recovery stays attached to the room whose nightly price changed; fails_when=a later move redirects historical prices; no_claim=provider acceptance.
+test('refiling a nightly price change retains the historical room', function () {
+    $tenant = twoTenants()->a;
+    Http::fake([
+        VfmsHttp::TEST_URL.'accommodation/' => Http::response(['responseNumber' => 'AC-PRICE']),
+        VfmsHttp::TEST_URL.'changeRoomPrice/' => Http::response(['statusCode' => 5000, 'statusMessage' => 'Invalid room price']),
+    ]);
+    $reservation = vfmsRecoveryStay($tenant);
+    $originalRoom = inTenant($tenant->property, fn () => Room::query()->sole());
+    inTenant($tenant->property, function () use ($tenant, $reservation) {
+        $reservation->priceLines()->whereDate('date', '2026-12-11')->update(['amount' => 12500]);
+        app(CloseBusinessDate::class)->handle($tenant->owner, $tenant->property->fresh(), '2026-12-10');
+        $room = app(CreateRoom::class)->handle($tenant->owner, InventoryForm::room($reservation->room_type_id, ['number' => '102']));
+        RoomStatus::query()->where('room_id', $room->id)->update(['status' => HousekeepingStatus::Clean]);
+        app(MoveRoom::class)->handle($tenant->owner, $reservation->fresh(), $room->id);
+    });
+    $message = inTenant($tenant->property, fn () => OutboxMessage::query()->where('event', 'changeRoomPrice')->sole());
+    expect($message->status)->toBe('rejected');
+
+    $this->actingAs($tenant->owner)->post(route('reservations.vfms.refile', [$reservation, $message]), [
+        '_property' => $tenant->property->id, 'reason' => 'Keep original nightly price room',
+    ])->assertSessionHasNoErrors();
+
+    expect(inTenant($tenant->property, fn () => $message->fresh()->payload['body']['rooms']))
+        ->toEqual([['roomPrice' => 125.0, 'hotelRoomRoom' => $originalRoom->vfms_room_id]]);
+    Http::assertNotSent(fn (Request $request) => str_ends_with($request->url(), '/change/room/'));
 });
 
 // protects=identity correction history is never guessed during recovery; fails_when=A→B and B→C become incompatible A→C and B→C; no_claim=automatic identity reconciliation.
