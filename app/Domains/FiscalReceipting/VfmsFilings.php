@@ -4,11 +4,11 @@ namespace App\Domains\FiscalReceipting;
 
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\Tenancy\Models\Property;
+use App\Support\Money\Currency;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\LazyCollection;
 
 /**
  * A property's VFMS calls by the business date of the stay event each one files,
@@ -57,10 +57,10 @@ final class VfmsFilings
         ];
     }
 
-    /** @return LazyCollection<int, array{id: string, date: string, reservationNumber: string, call: string, amount: int|null, currency: string|null, status: string, statusLabel: string, zraNumber: string|null}> */
-    public function rows(Property $property, string $from, string $to): LazyCollection
+    /** @return list<array{id: string, date: string, reservationNumber: string, call: string, amount: int|null, currency: string|null, status: string, statusLabel: string, zraNumber: string|null}> */
+    public function rows(Property $property, string $from, string $to): array
     {
-        return $this->query($property, $from, $to)->lazy()->map($this->row(...));
+        return $this->query($property, $from, $to)->get()->map($this->row(...))->values()->all();
     }
 
     public static function label(string $status): string
@@ -110,5 +110,13 @@ final class VfmsFilings
             'statusLabel' => self::label($status),
             'zraNumber' => is_array($numbers) ? implode(', ', $numbers) : ($references['receiptNumber'] ?? $references['reportNo'] ?? $references['responseNumber'] ?? null),
         ];
+    }
+
+    /** Minor units as a plain decimal for CSV: TZS has no decimals, USD and EUR two. */
+    public static function decimal(int $minor, string $currency): string
+    {
+        $decimals = $currency === Currency::TZS->value ? 0 : 2;
+
+        return number_format($minor / 10 ** $decimals, $decimals, '.', '');
     }
 }

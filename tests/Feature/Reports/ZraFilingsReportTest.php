@@ -100,3 +100,34 @@ test('the ZRA filings report counts and lists the property calls in range only',
         ->where('filings.counts.0.count', 0)
         ->has('filings.calls.data', 0));
 });
+
+// protects=the ZRA filings CSV carries the same calls as the report, for the current property only (#174); fails_when=columns drift from the screen or another property's call appears; no_claim=spreadsheet locale handling.
+test('the ZRA filings CSV lists the property calls in range', function () {
+    $tenant = twoTenants()->a;
+    $tenant->otherProperty->update(['jurisdiction_profile' => 'zanzibar', 'zra_hotel_code' => 'ZH-OTHER']);
+    inTenant($tenant->otherProperty, fn () => zraFilingsStays($tenant, ['101']));
+    $filed = inTenant($tenant->property, fn () => zraFilingsStays($tenant, ['101'])[0]);
+
+    $response = $this->actingAs($tenant->member(OrganizationRole::Auditor))
+        ->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reports.filings.csv', ['from' => '2026-12-10', 'to' => '2026-12-10']))
+        ->assertOk()->assertHeader('Content-Type', 'text/csv; charset=UTF-8')
+        ->assertDownload('zra-filings-2026-12-10-2026-12-10.csv');
+
+    expect(array_map('str_getcsv', explode("\n", trim($response->getContent()))))->toBe([
+        ['Business date', 'Reservation', 'Call', 'Currency', 'Amount', 'Status', 'ZRA number'],
+        ['2026-12-10', $filed->reservation_number, 'Check-in', 'USD', '110.00', 'Filed', 'AC-174'],
+    ])->and($response->getContent())->not->toContain('AC-OTHER');
+});
+
+test('the ZRA filings CSV follows report permissions', function (OrganizationRole $role, int $status) {
+    $tenant = twoTenants()->a;
+
+    $this->actingAs($tenant->member($role))
+        ->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reports.filings.csv', ['from' => '2026-12-10', 'to' => '2026-12-10']))
+        ->assertStatus($status);
+})->with([
+    'front desk' => [OrganizationRole::FrontDesk, 403],
+    'auditor' => [OrganizationRole::Auditor, 200],
+]);
