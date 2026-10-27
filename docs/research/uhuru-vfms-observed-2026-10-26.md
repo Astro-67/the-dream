@@ -92,3 +92,29 @@ On 26 October one stay was filed on the test server with main's field names and 
 ## Not observed
 
 Advance payment, room change, price change, add guest, change profile, guest departure, tour-operator source, a failed or unknown call, multi-guest rooms. No Uhuru form was submitted.
+
+## Thedream on ZRA's test server, 27 October
+
+On 27 October 2026 one Sandbox stay was driven through Thedream's real routes and outbox against ZRA's shared test unit (`5940`), with the code on `spec/168-vfms-zra-conformance`. The driver is `tests/Feature/FiscalReceipting/VfmsTestServerStayTest.php` (skipped unless `VFMS_TEST_SERVER_RUN=1`; only the test gateway and test viewer may be reached). Guest documents were fake, unique per run, and are redacted here; no credentials or test hosts are recorded.
+
+The stay: two guests with passports checked into room 7 (wire room ID `128370001`: property prefix plus the room's VFMS sequence), moved to room 8, a third guest added, night audit closing night one with a dearer night two (price change), two extras, the second guest leaving early, night audit closing night two, then check-out. Run `LP4WJR`, references `T12837-RES-000001-<sequence>`:
+
+| #   | Event                        | Request type                | Outcome  | ZRA answer                                                  |
+| --- | ---------------------------- | --------------------------- | -------- | ----------------------------------------------------------- |
+| 1   | `accommodation`              | `ACCOMMODATION_REQUEST`     | accepted | `responseNumber` `…T12837-RES-000001-2-5940`                |
+| 2   | `changeRoom`                 | `ACCOMMODATION_CHANGE_ROOM` | accepted | `responseNumber` `…T12837-RES-000001-3-5940`                |
+| 3   | `addGuest`                   | `ACCOMMODATION_ADD_GUEST`   | accepted | `responseNumber` `…T12837-RES-000001-4-5940`                |
+| 4   | `changeRoomPrice`            | `CHANGEROOM_PRICE`          | accepted | bare list `[{roomPrice: 125, hotelRoomRoom: <roomId>5940}]` |
+| 5   | `services` (WATER 2 x 10.00) | `ACCOMMODATION_ADD_SERVICE` | accepted | receipt `XHE299595`, tax 2.6087 on 20.00                    |
+| 6   | `services` (LUNCH 1 x 15.00) | `ACCOMMODATION_ADD_SERVICE` | accepted | receipt `XHE299596`, tax 1.9565 on 15.00                    |
+| 7   | `guestDeparture`             | `ACCOMMODATION_CHECK_OUT`   | accepted | report `XHE299597` (departed guest)                         |
+| 8   | `checkout`                   | `ACCOMMODATION_CHECK_OUT`   | accepted | reports `XHE299599` (lead), `XHE299602` (added guest)       |
+
+Every message was delivered on its first attempt; no call was refused or unknown, so no code changed. An earlier run the same morning (`3OIK4X`, reports `XHE299587`, `XHE299589`, `XHE299592`, receipts `XHE299585`, `XHE299586`) was also accepted call for call.
+
+- **One report per in-house guest.** Check-out stored `reportNumbers` `XHE299597`, `XHE299599`, `XHE299602`: the early leaver's report from step 7 plus one per guest still in house. Each report repeats the room line, carries only its own services (all extras on the lead guest's document) and charges that guest's USD 5 infrastructure levy.
+- **Folio matches the report.** `CheckoutFigures` counted the shared room once: room 100.00, extras 35.00, tax 17.61 (13.04 room, 4.57 services), levy 15.00, total 150.00. The VFMS adjustment posting has reference `XHE299599`, VAT and levy lines of 17.61 and 15.00, and brings the folio's charges to exactly 150.00.
+- **VFMS bills elapsed time, not business nights.** The run compressed two business nights into about 40 seconds. Every report shows one room line, room `7` (the check-in room, not the room moved to), `days` 1 at the check-in price 100.00. The room move and the price change were accepted but did not appear on the report, and the folio's two nights (225.00) were adjusted down by 110.00 to VFMS's figures. A real multi-night stay is needed to see how VFMS bills a move or a price change.
+- **The report page** (`CheckoutReport`, rendered from the recorded props) is stamped "TEST, NOT FISCAL", shows the test unit's business header, both service receipts and three guest blocks (the early leaver marked "Departed before stay check-out"), each with its own QR code whose label and link are `<test viewer>/checkout-report/guest/<reportNumber>`. A screenshot was taken locally and not committed, because its QR codes encode the test host.
+- **Viewer checks.** A GET on each QR target (`XHE299597`, `XHE299599`, `XHE299602`) returned HTTP 200. The viewer is a single-page app: a made-up number also returns the same 200 page. The data it loads, `:6060/hotel-service/api/v2/checkout/report/<n>?currency=USD`, returned HTTP 503 for all three, for the 26 October report `XHE299346` and for a made-up number, and the page shows "Sorry!" with empty fields. The QR targets resolve, but ZRA's test viewer could not display any report's content on 27 October, as with the production portal on 26 October.
+- **Extras are one line per call.** Thedream files each posted extra as its own `services` call with one line. The guide and the 26 October run accept several lines in one call; Thedream cannot yet send a two-line extra as one receipt.
