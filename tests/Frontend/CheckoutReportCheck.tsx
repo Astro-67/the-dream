@@ -93,7 +93,11 @@ const recorded = render({
     guestReports: ['REPORT-1', 'REPORT-2'].map((number) => ({
         number,
         name: `Guest ${number}`,
-        identity: null,
+        identity: {
+            documentName: 'PASSPORT',
+            country: 'GERMANY',
+            documentNo: 'PRIVATE-DOCUMENT-172',
+        },
         departedEarly: false,
         portalUrl: `https://viewer.example/checkout-report/guest/${number}`,
         qrSvg: `<svg data-qr="${number}"></svg>`,
@@ -120,6 +124,8 @@ assert.match(
     /href="https:\/\/viewer\.example\/receipt-form\/RECEIPT-172"/,
 );
 assert.match(recorded, /Zanzibar Revenue Authority/);
+assert.match(recorded, /PASSPORT.*GERMANY/);
+assert.doesNotMatch(recorded, /PRIVATE-DOCUMENT-172/);
 
 // Until VFMS accepts every filing the report shows no figures.
 const waiting = render({ ...base, status: 'waiting', report: null });

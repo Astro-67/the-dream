@@ -291,7 +291,8 @@ test('recorded checkout stores every report and projects authorized identity onl
         ->where('guestReports.0.number', $numbers[0])
         ->where('guestReports.1.number', $numbers[1])
         ->where('guestReports.0.departedEarly', $earlyDeparture)
-        ->where('guestReports.0.identity.documentNo', $earlyDeparture ? 'P7654321' : 'P1234567')
+        ->missing('guestReports.0.identity.documentNo')->missing('guestReports.1.identity.documentNo')
+        ->where('guestReports.0.identity.documentName', 'PASSPORT')
         ->where('guestReports.0.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[0])
         ->where('guestReports.1.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[1])
         ->where('guestReports.1.qrSvg', fn (string $svg) => str_starts_with($svg, '<svg')));

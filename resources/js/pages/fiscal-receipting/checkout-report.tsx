@@ -47,7 +47,6 @@ export default function CheckoutReport({
         name: string | null;
         identity: {
             documentName?: string;
-            documentNo?: string;
             country?: string;
         } | null;
         departedEarly: boolean;
@@ -305,12 +304,6 @@ export default function CheckoutReport({
                                     {guest.identity && (
                                         <p className="text-sm break-words">
                                             {guest.identity.documentName}{' '}
-                                            <Identifier
-                                                value={
-                                                    guest.identity.documentNo ??
-                                                    ''
-                                                }
-                                            />{' '}
                                             {guest.identity.country}
                                         </p>
                                     )}

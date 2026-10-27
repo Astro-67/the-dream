@@ -57,7 +57,7 @@ final class CheckoutReport
                 $guestReports[] = [
                     'number' => $number,
                     'name' => $entry['guest']['fullName'] ?? null,
-                    'identity' => $viewIdentity ? array_intersect_key($entry['guest'], array_flip(['documentName', 'documentNo', 'country'])) : null,
+                    'identity' => $viewIdentity ? array_intersect_key($entry['guest'], array_flip(['documentName', 'country'])) : null,
                     'departedEarly' => $message->event === 'guestDeparture',
                     'portalUrl' => $guestUrl,
                     'qrSvg' => $guestUrl === null ? null : self::qr($guestUrl),
