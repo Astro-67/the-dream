@@ -3,12 +3,36 @@
 use App\Domains\Billing\Actions\OpenCashierShift;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\FrontDesk\Actions\CheckIn;
+use App\Domains\Guests\Actions\CreateGuest;
+use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
+use Tests\Support\VfmsHttp;
+
+/** Bravo files one check-in with VFMS; its ZRA number is TEST-ACCOMMODATION-171. */
+$bravoFiling = function (TwoTenants $t): void {
+    test()->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
+    VfmsHttp::fake();
+    $t->b->property->update(['business_date' => '2026-12-10']);
+    inTenant($t->b->property, function () use ($t) {
+        $details = BookingForm::details($t->b->owner);
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        $reservation = app(CreateReservation::class)->handle($t->b->owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+        $guest = app(CreateGuest::class)->handle($t->b->owner, ['name' => 'Bravo Filed Guest', 'documents' => [['type' => 'passport', 'number' => 'BRAVO-DOC-174', 'nationality' => 'DE']]]);
+        ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+        app(CheckIn::class)->handle($t->b->owner, $reservation);
+    });
+};
 
 return [
     'payments.index' => RouteCoverage::attempt(function (TwoTenants $t) {
@@ -44,9 +68,10 @@ return [
 
         return $responses;
     }),
-    'reports.index' => RouteCoverage::attempt(function (TwoTenants $t) {
+    'reports.index' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoFiling) {
+        $bravoFiling($t);
         inTenant($t->b->property, function () use ($t) {
-            $stay = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            $stay = Reservation::query()->firstOrFail();
             $stay->setAttribute('fiscal_exception_reason', $t->b->property->name)->save();
         });
         inTenant($t->b->property, function () use ($t) {
@@ -70,6 +95,35 @@ return [
                     ->where('finance.folios.data', [])
                     ->where('finance.payments.rows', [])
                     ->where('fiscalExceptions', in_array($role, [OrganizationRole::Owner->value, OrganizationRole::PropertyManager->value, OrganizationRole::Finance->value], true) ? [] : null));
+            }
+            $responses[] = $response;
+
+            $filings = $this->get(route('reports.index', ['view' => 'filings', 'from' => '2026-12-10', 'to' => '2026-12-10']));
+            if (in_array($role, [OrganizationRole::FrontDesk->value, OrganizationRole::Housekeeping->value], true)) {
+                $filings->assertForbidden();
+            } else {
+                $filings->assertOk()->assertDontSee('TEST-ACCOMMODATION-171')->assertInertia(fn (Assert $page) => $page
+                    ->where('filings.counts.0.count', 0)
+                    ->where('filings.calls.data', []));
+            }
+            $responses[] = $filings;
+        }
+
+        return $responses;
+    }),
+    'reports.filings.csv' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoFiling) {
+        $bravoFiling($t);
+        $responses = [];
+        foreach ($t->a->members() as $role => $member) {
+            $response = $this->actingAs($member)->withSession([
+                'tenancy.organization_id' => $t->b->organization->id,
+                'tenancy.property_id' => $t->b->property->id,
+            ])->get(route('reports.filings.csv', ['from' => '2026-12-10', 'to' => '2026-12-10']));
+            if (in_array($role, [OrganizationRole::FrontDesk->value, OrganizationRole::Housekeeping->value], true)) {
+                $response->assertForbidden();
+            } else {
+                $response->assertOk();
+                expect(trim($response->getContent()))->toBe('"Business date",Reservation,Call,Currency,Amount,Status,"ZRA number"');
             }
             $responses[] = $response;
         }
