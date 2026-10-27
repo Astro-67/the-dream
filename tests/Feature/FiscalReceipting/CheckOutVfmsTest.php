@@ -238,6 +238,7 @@ test('recorded checkout stores every report and projects authorized identity onl
     foreach (['P1234567', 'P7654321'] as $index => $document) {
         $reports[$index]['guest']['documentNo'] = $document;
     }
+    $reports[0]['service']['service'][0]['itemName'] = 'Duplicate room key';
     config(['services.vfms.test_viewer_url' => 'https://vfms-viewer.example']);
     if ($mode === VfmsMode::Live) {
         inTenant($tenant->property, fn () => VfmsCredential::query()->create([

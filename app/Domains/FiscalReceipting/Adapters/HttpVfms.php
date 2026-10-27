@@ -76,7 +76,10 @@ final class HttpVfms
             Tenancy::within(TenantContext::fromIds($credential->organization_id, $credential->property_id), fn () => $credential->forceFill(['credentials_refused_at' => now()])->save());
         }
 
-        if (preg_match('/duplicate|already\s+exists/i', $response->body())) {
+        $errors = is_array($data)
+            ? ($status >= 400 ? $data : array_intersect_key($data, array_flip(['statusMessage', 'error', 'errors'])))
+            : ($status >= 400 ? $response->body() : '');
+        if (preg_match('/duplicate|already\s+exists/i', json_encode($errors, JSON_THROW_ON_ERROR))) {
             return new DeliveryResult('unknown', responseBody: $responseBody);
         }
         if (in_array($status, [400, 401, 403, 404], true)
