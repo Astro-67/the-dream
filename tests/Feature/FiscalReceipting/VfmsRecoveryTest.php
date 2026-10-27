@@ -8,6 +8,7 @@ use App\Domains\FrontDesk\Actions\CheckOut;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\Actions\MoveRoom;
 use App\Domains\Guests\Actions\CreateGuest;
+use App\Domains\Guests\Actions\UpdateGuest;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
@@ -110,6 +111,41 @@ test('refiling a rejected check-in rotates its reference and releases its rebuil
     });
     Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/accommodation/')
         && str_ends_with($request['referenceNumber'], 'R1') && $request['roomName'] === '102');
+});
+
+// protects=identity correction history is never guessed during recovery; fails_when=A→B and B→C become incompatible A→C and B→C; no_claim=automatic identity reconciliation.
+test('refiling chained document corrections refuses atomically without sending', function () {
+    $tenant = twoTenants()->a;
+    Http::fake([
+        VfmsHttp::TEST_URL.'accommodation/' => Http::response(['responseNumber' => 'AC-CHAIN']),
+        VfmsHttp::TEST_URL.'guest/changeProfile/' => Http::response(['statusCode' => 5000, 'statusMessage' => 'Guest Not Found']),
+    ]);
+    $reservation = vfmsRecoveryStay($tenant);
+    inTenant($tenant->property, function () use ($tenant) {
+        foreach (['DOC-B', 'DOC-C'] as $number) {
+            app(UpdateGuest::class)->handle($tenant->owner, Guest::query()->sole(), [
+                'documents' => [['type' => 'passport', 'number' => $number, 'nationality' => 'DE']],
+            ]);
+        }
+    });
+    $messages = inTenant($tenant->property, fn () => OutboxMessage::query()->where('event', 'changeProfile')->orderBy('sequence')->get());
+    expect($messages->pluck('status')->all())->toBe(['rejected', 'blocked']);
+    $original = $messages->map->payload->all();
+
+    $this->actingAs($tenant->owner)->post(route('reservations.vfms.refile', [$reservation, $messages[0]]), [
+        '_property' => $tenant->property->id, 'reason' => 'Review chained document corrections',
+    ])->assertSessionHasErrors('vfms');
+
+    inTenant($tenant->property, function () use ($messages, $original) {
+        foreach ($messages as $index => $message) {
+            expect($message->fresh()->payload)->toEqual($original[$index])
+                ->and($message->revisions()->count())->toBe(0);
+            app(DeliveryEngine::class)->deliver($message->id);
+        }
+        expect($messages[0]->fresh()->status)->toBe('rejected')
+            ->and($messages[1]->fresh()->status)->toBe('blocked');
+    });
+    Http::assertSentCount(2);
 });
 
 // protects=only existing recovery roles may re-file, with refused forms audited (#173); fails_when=Reception/Finance can correct, or a denial has no audit; no_claim=custom roles not in this role matrix.

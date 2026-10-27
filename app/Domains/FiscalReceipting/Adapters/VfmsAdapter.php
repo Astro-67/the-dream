@@ -74,6 +74,11 @@ final class VfmsAdapter implements DeliveryAdapter, OutboxCorrectionAdapter, Res
             || $call[0] !== ($message->payload['request_type'] ?? null) || $call[1] !== ($message->payload['path'] ?? null)) {
             throw new RuntimeException('The original lifecycle evidence is required to rebuild this filing.');
         }
+        // shortcut: profiles have no historical target snapshot; reconcile later identity changes before re-filing.
+        if ($reservation->lifecycleEvents()->where('sequence', '>', $event->sequence)
+            ->where('type', 'guest_profile_changed')->exists()) {
+            throw new RuntimeException('Later guest profile changes require reconciliation before re-filing this operation.');
+        }
         // shortcut: check-in has no guest-membership snapshot; reconstruct that history before supporting later guest changes.
         if ($message->event === 'accommodation' && $reservation->lifecycleEvents()->where('sequence', '>', $event->sequence)
             ->whereIn('type', ['guest_added', 'guest_profile_changed'])->exists()) {
