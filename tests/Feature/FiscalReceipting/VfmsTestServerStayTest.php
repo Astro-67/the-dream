@@ -29,7 +29,8 @@ test('a Sandbox stay is accepted end to end by ZRA\'s test server', function () 
     $testUrl = (string) config('services.vfms.test_url');
     $viewer = rtrim((string) config('services.vfms.test_viewer_url'), '/');
     expect($testUrl)->not->toBe('')->and($viewer)->not->toBe('')
-        ->and($testUrl)->not->toContain('zanrevenue.org');
+        ->and(strtolower($testUrl))->not->toContain('zanrevenue.org')
+        ->and(strtolower($viewer))->not->toContain('zanrevenue.org');
     // Only the test gateway and test viewer may be reached; anything else (Live included) throws.
     Http::allowStrayRequests([rtrim($testUrl, '/').'/*', $viewer.'/*']);
 
