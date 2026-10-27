@@ -1,9 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import { formatDate } from '@/features/platform/format';
+import { PropertyIntent } from '@/components/shared/property-intent';
 import { formatMoney } from '@/lib/utils';
 import { show as showReservation } from '@/routes/reservations';
 
@@ -29,12 +30,16 @@ export default function CheckoutReport({
     business,
     needsAttention,
     serviceReceipts,
+    revealIdentityUrl,
+    identityRevealed = false,
 }: {
     status: 'waiting' | 'sandbox' | 'live';
     report: Report | null;
     portalUrl: string | null;
     qrSvg: string | null;
     needsAttention: boolean;
+    revealIdentityUrl: string | null;
+    identityRevealed?: boolean;
     serviceReceipts: {
         number: string;
         description: string | null;
@@ -48,6 +53,7 @@ export default function CheckoutReport({
         name: string | null;
         identity: {
             documentName?: string;
+            documentNo?: string;
             country?: string;
         } | null;
         departedEarly: boolean;
@@ -310,6 +316,15 @@ export default function CheckoutReport({
                                     {guest.identity && (
                                         <p className="text-sm break-words">
                                             {guest.identity.documentName}{' '}
+                                            {identityRevealed &&
+                                                guest.identity.documentNo && (
+                                                    <Identifier
+                                                        value={
+                                                            guest.identity
+                                                                .documentNo
+                                                        }
+                                                    />
+                                                )}{' '}
                                             {guest.identity.country}
                                         </p>
                                     )}
@@ -340,7 +355,15 @@ export default function CheckoutReport({
                         ))}
                     </section>
                 )}
-                <div className="print:hidden">
+                <div className="flex flex-wrap gap-3 print:hidden">
+                    {report && revealIdentityUrl && !identityRevealed && (
+                        <Form action={revealIdentityUrl} method="post">
+                            <PropertyIntent />
+                            <Button variant="outline" type="submit">
+                                Reveal document numbers for printing (logged)
+                            </Button>
+                        </Form>
+                    )}
                     <Button variant="outline" onClick={() => window.print()}>
                         Print report
                     </Button>

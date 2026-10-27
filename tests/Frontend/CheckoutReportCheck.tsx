@@ -22,6 +22,7 @@ const base: Props = {
     guestReports: [],
     business: null,
     needsAttention: false,
+    revealIdentityUrl: null,
     serviceReceipts: [],
     stay: {
         reservation_number: 'R-1042',
@@ -127,6 +128,33 @@ assert.match(
 assert.match(recorded, /Zanzibar Revenue Authority/);
 assert.match(recorded, /PASSPORT.*GERMANY/);
 assert.doesNotMatch(recorded, /PRIVATE-DOCUMENT-172/);
+
+const revealControl = render({
+    ...base,
+    revealIdentityUrl: '/reservations/R-1042/fiscal-report/reveal-identity',
+});
+assert.match(revealControl, /Reveal document numbers for printing \(logged\)/);
+assert.match(revealControl, /method="post"/);
+const revealed = render({
+    ...base,
+    identityRevealed: true,
+    guestReports: [
+        {
+            number: 'REPORT-1',
+            name: 'Anna Berg',
+            identity: {
+                documentName: 'PASSPORT',
+                documentNo: 'REVEALED-DOCUMENT-172',
+                country: 'GERMANY',
+            },
+            departedEarly: false,
+            portalUrl: null,
+            qrSvg: null,
+        },
+    ],
+});
+assert.match(revealed, /REVEALED-DOCUMENT-172/);
+assert.doesNotMatch(revealed, /Reveal document numbers for printing/);
 
 // Until VFMS accepts every filing the report shows no figures.
 const waiting = render({ ...base, status: 'waiting', report: null });

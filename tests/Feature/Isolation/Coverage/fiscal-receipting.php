@@ -5,6 +5,7 @@ use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Support\Outbox\OutboxMessage;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
@@ -39,6 +40,18 @@ $recoverForeignFiling = function (TwoTenants $t, string $route) {
 };
 
 return [
+    'reservations.fiscal-report.reveal-identity' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $reservation = inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('reservations.fiscal-report.reveal-identity', $reservation), [
+                '_property' => $t->a->property->id,
+            ])->assertNotFound();
+        }
+        expect(DB::table('activity_log')->where('subject_id', $reservation->id)->where('event', 'fiscal_identity_revealed')->exists())->toBeFalse();
+
+        return $responses;
+    }),
     'reservations.vfms.close-without-filing' => RouteCoverage::attempt(function (TwoTenants $t) {
         $reservation = inTenant($t->b->property, function () use ($t) {
             $stay = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));

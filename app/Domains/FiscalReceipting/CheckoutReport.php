@@ -23,7 +23,7 @@ final class CheckoutReport
     public const PORTAL_URL = 'https://portalvfms.zanrevenue.org/checkout-report/guest/';
 
     /** @return array<string, mixed> */
-    public static function of(Reservation $reservation, bool $viewIdentity = false): array
+    public static function of(Reservation $reservation, bool $viewIdentity = false, bool $revealIdentity = false): array
     {
         $messages = OutboxMessage::query()->where('integration', VfmsAdapter::INTEGRATION)
             ->where('subject_type', $reservation->getMorphClass())->where('subject_id', $reservation->id)
@@ -57,7 +57,7 @@ final class CheckoutReport
                 $guestReports[] = [
                     'number' => $number,
                     'name' => $entry['guest']['fullName'] ?? null,
-                    'identity' => $viewIdentity ? array_intersect_key($entry['guest'], array_flip(['documentName', 'country'])) : null,
+                    'identity' => $viewIdentity ? array_intersect_key($entry['guest'], array_flip(['documentName', 'country', ...($revealIdentity ? ['documentNo'] : [])])) : null,
                     'departedEarly' => $message->event === 'guestDeparture',
                     'portalUrl' => $guestUrl,
                     'qrSvg' => $guestUrl === null ? null : self::qr($guestUrl),
@@ -67,6 +67,7 @@ final class CheckoutReport
 
         return [
             'status' => $live ? 'live' : 'sandbox',
+            'identityRevealed' => $viewIdentity && $revealIdentity,
             'report' => [
                 'number' => $references['reportNo'] ?? null, 'currency' => $currency->value,
                 'room' => isset($references['roomAmount']) ? $payloads->minor($references['roomAmount'], $currency) : ($summary['room'] ?? 0),

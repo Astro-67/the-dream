@@ -16,6 +16,7 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(function () {
+    Route::post('reservations/{reservation:reservation_number}/fiscal-report/reveal-identity', [CheckoutReportController::class, 'reveal'])->name('reservations.fiscal-report.reveal-identity');
     Route::post('reservations/{reservation:reservation_number}/vfms/close-without-filing', CloseWithoutFilingController::class)->name('reservations.vfms.close-without-filing');
     Route::post('reservations/{reservation:reservation_number}/vfms/{message}/refile', RecoverVfmsFilingController::class)->name('reservations.vfms.refile');
     Route::post('reservations/{reservation:reservation_number}/vfms/{message}/retry', RecoverVfmsFilingController::class)->name('reservations.vfms.retry');

@@ -25,6 +25,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
@@ -230,6 +231,22 @@ test('only users who can view the stay open its fiscal report', function (Organi
 
     $allowed ? $response->assertOk() : $response->assertForbidden();
 })->with(array_map(fn (OrganizationRole $role) => [$role, $role !== OrganizationRole::Housekeeping], OrganizationRole::cases()));
+
+// protects=identity disclosure is deliberate, permission-gated and audited without persisting reveal state; fails_when=GET reveals, Finance can reveal, or audit contains numbers; no_claim=provider identity accuracy.
+test('fiscal report identity reveal is explicit and audited without changing later GET', function () {
+    $tenant = twoTenants()->a;
+    $reservation = checkOutOnDeparture($tenant, inHouseForCheckOut($tenant));
+    $url = '/reservations/'.$reservation->reservation_number.'/fiscal-report/reveal-identity';
+    fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page->missing('guestReports.0.identity.documentNo'));
+
+    $this->actingAs($tenant->member(OrganizationRole::FrontDesk))->post($url, ['_property' => $tenant->property->id])
+        ->assertOk()->assertInertia(fn (Assert $page) => $page->where('guestReports.0.identity.documentNo', 'P1234567'));
+    $audit = DB::table('activity_log')->where('subject_id', $reservation->id)->where('event', 'fiscal_identity_revealed')->sole();
+    expect($audit->properties)->not->toContain('P1234567', 'P7654321');
+    fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page->missing('guestReports.0.identity.documentNo'));
+    $this->actingAs($tenant->member(OrganizationRole::Finance))->post($url, ['_property' => $tenant->property->id])->assertForbidden();
+    expect(DB::table('activity_log')->where('subject_id', $reservation->id)->where('event', 'refused')->exists())->toBeTrue();
+});
 
 // protects=each receipt verifies in its own recorded environment; fails_when=Live checkout redirects a Sandbox service receipt to the Live portal; no_claim=provider resolution.
 test('service receipt verification retains its accepted filing mode across a mode switch', function () {
