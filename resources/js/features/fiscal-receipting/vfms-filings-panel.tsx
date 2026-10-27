@@ -189,11 +189,7 @@ function RecoverFiling({
                             <InputError message={errors.vfms} />
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        disabled={processing}
-                                    >
+                                    <Button type="button" variant="outline">
                                         Cancel
                                     </Button>
                                 </DialogClose>
