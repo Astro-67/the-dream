@@ -78,7 +78,7 @@ test('the ZRA filings report counts and lists the property calls in range only',
         ->get(route('reports.index', ['view' => 'filings', 'from' => '2026-12-10', 'to' => '2026-12-10']))
         ->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('reports/index')
-        ->where('filters.view', 'filings')
+        ->where('filters.view', 'filings')->where('filingsAvailable', true)
         ->where('filings.counts', [
             ['status' => 'filed', 'label' => 'Filed', 'count' => 1],
             ['status' => 'refused', 'label' => 'Refused', 'count' => 1],
