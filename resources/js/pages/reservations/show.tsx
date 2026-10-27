@@ -125,6 +125,8 @@ export default function Show({
     paymentsReportUrl,
     vfmsRefusal,
     vfmsFilings,
+    vfmsCloseWithoutFilingUrl,
+    vfmsFiscalExceptionReason,
 }: {
     reservation: Reservation;
     roomType: Named;
@@ -164,6 +166,8 @@ export default function Show({
     paymentsReportUrl: string | null;
     vfmsRefusal: VfmsRefusal | null;
     vfmsFilings: VfmsFiling[];
+    vfmsCloseWithoutFilingUrl?: string | null;
+    vfmsFiscalExceptionReason?: string | null;
 }) {
     return (
         <>
@@ -553,7 +557,11 @@ export default function Show({
                         </CollapsibleContent>
                     </Collapsible>
                 )}
-                <VfmsFilingsPanel filings={vfmsFilings} />
+                <VfmsFilingsPanel
+                    filings={vfmsFilings}
+                    closeUrl={vfmsCloseWithoutFilingUrl}
+                    fiscalExceptionReason={vfmsFiscalExceptionReason}
+                />
                 <Collapsible>
                     <h2>
                         <CollapsibleTrigger asChild>

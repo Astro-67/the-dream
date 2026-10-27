@@ -19,6 +19,7 @@ use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\DeliveryEngine;
+use App\Support\Outbox\OutboxCorrectionContext;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Factory;
@@ -365,4 +366,40 @@ test('refiling check-in with later guest additions requires reconciliation', fun
     ])->assertSessionHasErrors('vfms');
     Http::assertSentCount(1);
     expect(inTenant($tenant->property, fn () => $message->revisions()->count()))->toBe(0);
+});
+
+// protects=the pilot's Live rejection from the old URL is rebuilt with current wire formats (#176); fails_when=refile reuses the old body or endpoint; no_claim=ZRA production acceptance.
+test('a Live check-in rejected at the old gateway URL is rebuilt while staying Live', function () {
+    $tenant = twoTenants()->a;
+    inTenant($tenant->property, fn () => VfmsCredential::query()->create([
+        'mode' => VfmsMode::Live, 'integration_id' => 'INT-176', 'registration_id' => 'REG-176', 'token' => 'TOKEN-176',
+    ]));
+    config(['services.vfms.live_url' => 'https://gateway.zanrevenue.org/api/']);
+    Http::fake([
+        'https://gateway.zanrevenue.org/api/*' => Http::response('Not Found', 404),
+        'https://gateway.zanrevenue.org/vfms/api/accommodation/' => Http::response(['responseNumber' => 'AC-176']),
+    ]);
+    $reservation = vfmsRecoveryStay($tenant);
+    $message = vfmsRecoveryMessage($tenant);
+    expect($message->status)->toBe('rejected');
+    // Reproduce the stored pre-conformance body, not a mode switch.
+    inTenant($tenant->property, function () use ($message) {
+        app(OutboxCorrectionContext::class)->run(function () use ($message) {
+            $payload = $message->payload;
+            $payload['body']['paymentPackage'] = 'room-only';
+            $payload['body']['checkInDate'] = '2026-12-10';
+            unset($payload['body']['guest'][0]['arrivalDate']);
+            $message->payload = $payload;
+            $message->save();
+        });
+    });
+    config(['services.vfms.live_url' => 'https://gateway.zanrevenue.org/vfms/api/']);
+    $this->actingAs($tenant->owner)->post(route('reservations.vfms.refile', [$reservation, $message]), [
+        '_property' => $tenant->property->id, 'reason' => 'Corrected VFMS gateway URL and payload formats',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    inTenant($tenant->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    expect(inTenant($tenant->property, fn () => $message->fresh()->status))->toBe('delivered');
+    Http::assertSent(fn (Request $request) => $request->url() === 'https://gateway.zanrevenue.org/vfms/api/accommodation/'
+        && $request['paymentPackage'] === 'RO' && $request['checkInDate'] === '2026-12-10T06:00:00.000Z'
+        && $request['guest'][0]['arrivalDate'] === '2026-12-10');
 });

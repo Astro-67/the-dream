@@ -3,6 +3,7 @@
 namespace App\Domains\FiscalReceipting;
 
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Money\Currency;
@@ -23,8 +24,18 @@ final class VfmsFilings
         'guestDeparture' => 'Guest left', 'checkout' => 'Check-out',
     ];
 
+    /** @param list<array<string, mixed>> $filings */
+    public static function closeWithoutFilingUrl(Reservation $reservation, bool $canRecover, array $filings): ?string
+    {
+        return $canRecover && $reservation->status === ReservationStatus::CheckedOut
+            && $reservation->getAttribute('fiscal_exception_reason') === null
+            && collect($filings)->contains(fn (array $filing) => $filing['status'] === 'refused' || $filing['status'] === 'waiting')
+            && ! collect($filings)->contains(fn (array $filing) => in_array($filing['status'], ['filed', 'unknown', 'closed'], true))
+                ? route('reservations.vfms.close-without-filing', $reservation) : null;
+    }
+
     /** Filing statuses in display order, with their labels. */
-    private const STATUSES = ['filed' => 'Filed', 'refused' => 'Refused', 'unknown' => 'Unknown', 'waiting' => 'Waiting'];
+    private const STATUSES = ['filed' => 'Filed', 'refused' => 'Refused', 'unknown' => 'Unknown', 'waiting' => 'Waiting', 'sandbox' => 'Sandbox — not fiscal', 'closed' => 'Closed without filing'];
 
     /** @return list<array{id: string, call: string, status: string, attempts: int, number: string|null, message: string|null, refileUrl: string|null, retryUrl: string|null}> */
     public static function of(Reservation $reservation, bool $canRecover): array
@@ -39,7 +50,7 @@ final class VfmsFilings
                 return [
                     'id' => $message->id,
                     'call' => self::call($message),
-                    'status' => self::status($message->status),
+                    'status' => self::status($message->status, $message->getAttribute('provider_references')['mode'] ?? null),
                     'attempts' => (int) $message->attempt_count,
                     'number' => $number === null ? null : (string) $number,
                     'message' => $message->status === 'rejected' ? VfmsRefusal::summary($message) : null,
@@ -64,6 +75,9 @@ final class VfmsFilings
         foreach ($byOutboxStatus as $status => $calls) {
             $counts[self::status((string) $status)] += (int) $calls;
         }
+        $counts['sandbox'] = $this->query($property, $from, $to)->where('outbox_messages.status', 'delivered')
+            ->where('outbox_messages.provider_references->mode', 'sandbox')->count();
+        $counts['filed'] -= $counts['sandbox'];
 
         return [
             'counts' => array_map(fn (string $status) => ['status' => $status, 'label' => __(self::STATUSES[$status]), 'count' => $counts[$status]], array_keys(self::STATUSES)),
@@ -85,10 +99,11 @@ final class VfmsFilings
         return number_format($minor / 10 ** $decimals, $decimals, '.', '');
     }
 
-    private static function status(string $outboxStatus): string
+    private static function status(string $outboxStatus, ?string $mode = null): string
     {
         return match ($outboxStatus) {
-            'delivered' => 'filed',
+            'delivered' => $mode === 'sandbox' ? 'sandbox' : 'filed',
+            'superseded' => 'closed',
             'rejected' => 'refused',
             'unknown', 'exhausted_unknown' => 'unknown',
             default => 'waiting',
@@ -111,8 +126,6 @@ final class VfmsFilings
             ->join('reservations', 'reservations.id', '=', 'outbox_messages.subject_id')
             ->where('outbox_messages.property_id', $property->id)->where('events.property_id', $property->id)->where('reservations.property_id', $property->id)
             ->where('outbox_messages.integration', VfmsAdapter::INTEGRATION)
-            // Superseded messages were replaced by a later one and were never filed.
-            ->where('outbox_messages.status', '!=', 'superseded')
             ->whereDate('events.business_date', '>=', $from)->whereDate('events.business_date', '<=', $to)
             ->select('outbox_messages.*', 'events.business_date as filed_on', 'reservations.reservation_number')
             ->orderBy('events.business_date')->orderBy('reservations.reservation_number')->orderBy('outbox_messages.sequence');
@@ -121,7 +134,7 @@ final class VfmsFilings
     /** @return array{id: string, date: string, reservationNumber: string, call: string, amount: int|null, currency: string|null, status: string, statusLabel: string, zraNumber: string|null} */
     private function row(OutboxMessage $message): array
     {
-        $status = self::status($message->status);
+        $status = self::status($message->status, $message->getAttribute('provider_references')['mode'] ?? null);
         $references = $message->getAttribute('provider_references') ?? [];
         $body = $message->payload['body'] ?? [];
         $payloads = app(VfmsPayloads::class);

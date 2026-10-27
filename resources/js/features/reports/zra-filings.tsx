@@ -17,7 +17,13 @@ import { csv } from '@/routes/reports/filings';
 import { show } from '@/routes/reservations';
 import type { Paginated } from '@/types';
 
-export type FilingStatus = 'filed' | 'refused' | 'unknown' | 'waiting';
+export type FilingStatus =
+    | 'filed'
+    | 'refused'
+    | 'unknown'
+    | 'waiting'
+    | 'sandbox'
+    | 'closed';
 
 export type ZraFilingsData = {
     counts: { status: FilingStatus; label: string; count: number }[];
@@ -36,6 +42,8 @@ export type ZraFilingsData = {
 
 export const filingTones: Record<FilingStatus, StatusTone> = {
     filed: 'success',
+    sandbox: 'info',
+    closed: 'unavailable',
     refused: 'error',
     unknown: 'warning',
     waiting: 'info',

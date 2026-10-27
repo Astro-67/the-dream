@@ -39,6 +39,23 @@ $recoverForeignFiling = function (TwoTenants $t, string $route) {
 };
 
 return [
+    'reservations.vfms.close-without-filing' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $reservation = inTenant($t->b->property, function () use ($t) {
+            $stay = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            $stay->update(['status' => 'checked_out']);
+
+            return $stay;
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('reservations.vfms.close-without-filing', $reservation), [
+                '_property' => $t->a->property->id, 'reason' => 'Foreign stay attack',
+            ])->assertNotFound();
+        }
+        expect(inTenant($t->b->property, fn () => $reservation->fresh()->getAttribute('fiscal_exception_reason')))->toBeNull();
+
+        return $responses;
+    }),
     'reservations.vfms.refile' => RouteCoverage::attempt(fn (TwoTenants $t) => $recoverForeignFiling->call($this, $t, 'reservations.vfms.refile')),
     'reservations.vfms.retry' => RouteCoverage::attempt(fn (TwoTenants $t) => $recoverForeignFiling->call($this, $t, 'reservations.vfms.retry')),
     'properties.vfms.update' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoCredentials) {

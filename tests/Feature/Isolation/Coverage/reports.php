@@ -10,6 +10,7 @@ use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -70,6 +71,10 @@ return [
     'reports.index' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoFiling) {
         $bravoFiling($t);
         inTenant($t->b->property, function () use ($t) {
+            $stay = Reservation::query()->firstOrFail();
+            $stay->setAttribute('fiscal_exception_reason', $t->b->property->name)->save();
+        });
+        inTenant($t->b->property, function () use ($t) {
             app(OpenCashierShift::class)->handle($t->b->owner, ['USD' => 0]);
             app(RecordPayment::class)->handle($t->b->owner, Folio::query()->firstOrFail(), ['method' => 'cash', 'amount' => 700, 'currency' => 'USD']);
         });
@@ -88,7 +93,8 @@ return [
                     ->where('kpis.soldRoomNights', 0)
                     ->where('kpis.currencies.0.bookedRoomValue', 0)
                     ->where('finance.folios.data', [])
-                    ->where('finance.payments.rows', []));
+                    ->where('finance.payments.rows', [])
+                    ->where('fiscalExceptions', in_array($role, [OrganizationRole::Owner->value, OrganizationRole::PropertyManager->value, OrganizationRole::Finance->value], true) ? [] : null));
             }
             $responses[] = $response;
 

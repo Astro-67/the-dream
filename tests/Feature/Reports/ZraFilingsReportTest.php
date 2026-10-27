@@ -81,15 +81,17 @@ test('the ZRA filings report counts and lists the property calls in range only',
         ->component('reports/index')
         ->where('filters.view', 'filings')->where('filingsAvailable', true)
         ->where('filings.counts', [
-            ['status' => 'filed', 'label' => 'Filed', 'count' => 1],
+            ['status' => 'filed', 'label' => 'Filed', 'count' => 0],
             ['status' => 'refused', 'label' => 'Refused', 'count' => 1],
             ['status' => 'unknown', 'label' => 'Unknown', 'count' => 1],
             ['status' => 'waiting', 'label' => 'Waiting', 'count' => 1],
+            ['status' => 'sandbox', 'label' => 'Sandbox — not fiscal', 'count' => 1],
+            ['status' => 'closed', 'label' => 'Closed without filing', 'count' => 0],
         ])
         ->has('filings.calls.data', 4)
         ->where('filings.calls.data.0', fn ($row) => $row->only(['date', 'reservationNumber', 'call', 'amount', 'currency', 'status', 'statusLabel', 'zraNumber'])->all() === [
             'date' => '2026-12-10', 'reservationNumber' => $filed->reservation_number, 'call' => 'Check-in',
-            'amount' => 11000, 'currency' => 'USD', 'status' => 'filed', 'statusLabel' => 'Filed', 'zraNumber' => 'AC-174',
+            'amount' => 11000, 'currency' => 'USD', 'status' => 'sandbox', 'statusLabel' => 'Sandbox — not fiscal', 'zraNumber' => 'AC-174',
         ])
         ->where('filings.calls.data.1.call', 'Extras')->where('filings.calls.data.1.status', 'refused')->where('filings.calls.data.1.amount', 2000)
         ->where('filings.calls.data.2.call', 'Extras')->where('filings.calls.data.2.status', 'waiting')
@@ -117,7 +119,7 @@ test('the ZRA filings CSV lists the property calls in range', function () {
 
     expect(array_map('str_getcsv', explode("\n", trim($response->getContent()))))->toBe([
         ['Business date', 'Reservation', 'Call', 'Currency', 'Amount', 'Status', 'ZRA number'],
-        ['2026-12-10', $filed->reservation_number, 'Check-in', 'USD', '110.00', 'Filed', 'AC-174'],
+        ['2026-12-10', $filed->reservation_number, 'Check-in', 'USD', '110.00', 'Sandbox — not fiscal', 'AC-174'],
     ])->and($response->getContent())->not->toContain('AC-OTHER');
 });
 
