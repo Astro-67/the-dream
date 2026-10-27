@@ -285,6 +285,8 @@ test('recorded checkout stores every report and projects authorized identity onl
         ->where('report.room', 10000)->where('report.extras', 2000)
         ->where('report.vat', 1565)->where('report.levy', 1000)->where('report.total', 13000)
         ->where('serviceReceipts.0.number', 'RECEIPT-172')->where('serviceReceipts.0.amount', 2000)
+        ->where('serviceReceipts.0.portalUrl', $viewer.'/receipt-form/RECEIPT-172')
+        ->where('serviceReceipts.0.qrSvg', fn (string $svg) => str_starts_with($svg, '<svg'))
         ->has('guestReports', 2)
         ->where('guestReports.0.number', $numbers[0])
         ->where('guestReports.1.number', $numbers[1])

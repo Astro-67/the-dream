@@ -50,15 +50,9 @@ final class CheckoutReport
             if (! is_array($body) || app(CheckoutFigures::class)->of($body, $message->payload['body']) === null) {
                 continue;
             }
-            $viewer = ($message->getAttribute('provider_references')['mode'] ?? null) === 'live'
-                ? self::PORTAL_URL
-                : (filled($base = config('services.vfms.test_viewer_url')) ? rtrim($base, '/').'/checkout-report/guest/' : null);
-            if ($viewer !== null && ! in_array(parse_url($viewer, PHP_URL_SCHEME), ['http', 'https'], true)) {
-                $viewer = null;
-            }
             foreach ($body as $entry) {
                 $number = $entry['reportNumber'];
-                $guestUrl = $viewer === null ? null : $viewer.rawurlencode($number);
+                $guestUrl = self::viewerUrl(($message->getAttribute('provider_references')['mode'] ?? null) === 'live', 'checkout-report/guest', $number);
                 $business ??= array_filter(array_intersect_key($entry, array_flip(['businessName', 'street', 'tinNumber', 'vrnNumber', 'znumber'])), is_scalar(...));
                 $guestReports[] = [
                     'number' => $number,
@@ -87,10 +81,25 @@ final class CheckoutReport
             'needsAttention' => false,
             'serviceReceipts' => Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
                 ->where('currency', $currency->value)->whereNotNull('vfms_receipt_number')->orderBy('posted_at')->orderBy('id')->get()
-                ->map(fn (Posting $posting) => [
-                    'number' => $posting->vfms_receipt_number, 'description' => $posting->description, 'amount' => $posting->amount,
-                ])->all(),
+                ->map(function (Posting $posting) use ($live) {
+                    $receiptUrl = self::viewerUrl($live, 'receipt-form', $posting->vfms_receipt_number);
+
+                    return [
+                        'number' => $posting->vfms_receipt_number, 'description' => $posting->description, 'amount' => $posting->amount,
+                        'portalUrl' => $receiptUrl, 'qrSvg' => $receiptUrl === null ? null : self::qr($receiptUrl),
+                    ];
+                })->all(),
         ];
+    }
+
+    private static function viewerUrl(bool $live, string $path, string $number): ?string
+    {
+        $base = $live ? 'https://portalvfms.zanrevenue.org' : config('services.vfms.test_viewer_url');
+        if (blank($base) || ! in_array(parse_url($base, PHP_URL_SCHEME), ['http', 'https'], true)) {
+            return null;
+        }
+
+        return rtrim($base, '/').'/'.$path.'/'.rawurlencode($number);
     }
 
     private static function qr(string $url): string

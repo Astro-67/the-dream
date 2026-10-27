@@ -39,6 +39,8 @@ export default function CheckoutReport({
         number: string;
         description: string | null;
         amount: number;
+        portalUrl: string | null;
+        qrSvg: string | null;
     }[];
     guestReports: {
         number: string;
@@ -248,18 +250,38 @@ export default function CheckoutReport({
                         {serviceReceipts.map((receipt, index) => (
                             <div
                                 key={`${receipt.number}-${index}`}
-                                className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-sm"
+                                className="flex break-inside-avoid items-start justify-between gap-4 border-t pt-2 text-sm"
                             >
-                                <span>
-                                    {receipt.description ?? 'Extra service'}
-                                </span>
-                                <Identifier value={receipt.number} />
-                                <span className="tabular-nums">
-                                    {formatMoney(
-                                        receipt.amount,
-                                        report.currency,
+                                <div className="min-w-0 space-y-1 break-words">
+                                    <p>
+                                        {receipt.description ?? 'Extra service'}
+                                    </p>
+                                    <Identifier value={receipt.number} />
+                                    <p className="tabular-nums">
+                                        {formatMoney(
+                                            receipt.amount,
+                                            report.currency,
+                                        )}
+                                    </p>
+                                    {receipt.portalUrl && (
+                                        <a
+                                            href={receipt.portalUrl}
+                                            className="block underline underline-offset-4"
+                                        >
+                                            Verify receipt with ZRA
+                                        </a>
                                     )}
-                                </span>
+                                </div>
+                                {receipt.qrSvg && receipt.portalUrl && (
+                                    <div
+                                        role="img"
+                                        aria-label={`VFMS QR code for ${receipt.portalUrl}`}
+                                        className="size-28 shrink-0 [&_svg]:size-full"
+                                        dangerouslySetInnerHTML={{
+                                            __html: receipt.qrSvg,
+                                        }}
+                                    />
+                                )}
                             </div>
                         ))}
                     </section>

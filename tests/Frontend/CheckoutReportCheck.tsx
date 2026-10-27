@@ -99,7 +99,13 @@ const recorded = render({
         qrSvg: `<svg data-qr="${number}"></svg>`,
     })),
     serviceReceipts: [
-        { number: 'RECEIPT-172', description: 'Water', amount: 2000 },
+        {
+            number: 'RECEIPT-172',
+            description: 'Water',
+            amount: 2000,
+            portalUrl: 'https://viewer.example/receipt-form/RECEIPT-172',
+            qrSvg: '<svg data-qr="RECEIPT-172"></svg>',
+        },
     ],
 });
 assert.match(recorded, /ZRA Test Hotel/);
@@ -108,6 +114,11 @@ assert.match(recorded, /TEST, NOT FISCAL/);
 assert.match(recorded, /data-qr="REPORT-1"/);
 assert.match(recorded, /data-qr="REPORT-2"/);
 assert.match(recorded, /RECEIPT-172/);
+assert.match(recorded, /data-qr="RECEIPT-172"/);
+assert.match(
+    recorded,
+    /href="https:\/\/viewer\.example\/receipt-form\/RECEIPT-172"/,
+);
 assert.match(recorded, /Zanzibar Revenue Authority/);
 
 // Until VFMS accepts every filing the report shows no figures.
