@@ -113,6 +113,48 @@ test('refiling a rejected check-in rotates its reference and releases its rebuil
         && str_ends_with($request['referenceNumber'], 'R1') && $request['roomName'] === '102');
 });
 
+// protects=recovery retains each room move's original destination; fails_when=two historical moves both target the current room; no_claim=provider acceptance.
+test('refiling chained room moves retains their historical destinations', function () {
+    $tenant = twoTenants()->a;
+    Http::fake([
+        VfmsHttp::TEST_URL.'accommodation/' => Http::response(['responseNumber' => 'AC-ROOM-CHAIN']),
+        VfmsHttp::TEST_URL.'change/room/' => fn (Request $request) => Http::response(
+            str_ends_with($request['referenceNumber'], 'R1') || $request['roomName'] === '103'
+                ? ['responseNumber' => 'MOVE-CHAIN']
+                : ['statusCode' => 5000, 'statusMessage' => 'The Room ID Is not Empty'],
+        ),
+    ]);
+    $reservation = vfmsRecoveryStay($tenant);
+    $rooms = inTenant($tenant->property, function () use ($tenant, $reservation) {
+        $rooms = [];
+        foreach (['102', '103'] as $number) {
+            $room = app(CreateRoom::class)->handle($tenant->owner, InventoryForm::room($reservation->room_type_id, ['number' => $number]));
+            RoomStatus::query()->where('room_id', $room->id)->update(['status' => HousekeepingStatus::Clean]);
+            app(MoveRoom::class)->handle($tenant->owner, $reservation->fresh(), $room->id);
+            $rooms[] = $room;
+        }
+
+        return $rooms;
+    });
+    $messages = inTenant($tenant->property, fn () => OutboxMessage::query()->where('event', 'changeRoom')->orderBy('sequence')->get());
+    expect($messages->pluck('status')->all())->toBe(['rejected', 'blocked']);
+
+    $this->actingAs($tenant->owner)->post(route('reservations.vfms.refile', [$reservation, $messages[0]]), [
+        '_property' => $tenant->property->id, 'reason' => 'Review original room destinations',
+    ])->assertSessionHasNoErrors();
+
+    inTenant($tenant->property, function () use ($messages, $rooms) {
+        foreach ($messages as $index => $message) {
+            expect($message->fresh()->payload['body']['roomId'])->toBe($rooms[$index]->vfms_room_id)
+                ->and($message->fresh()->payload['body']['roomName'])->toBe($rooms[$index]->number);
+            app(DeliveryEngine::class)->deliver($message->id);
+        }
+        expect($messages[0]->fresh()->status)->toBe('delivered')
+            ->and($messages[1]->fresh()->status)->toBe('delivered');
+    });
+    Http::assertSentCount(4);
+});
+
 // protects=identity correction history is never guessed during recovery; fails_when=A→B and B→C become incompatible A→C and B→C; no_claim=automatic identity reconciliation.
 test('refiling chained document corrections refuses atomically without sending', function () {
     $tenant = twoTenants()->a;

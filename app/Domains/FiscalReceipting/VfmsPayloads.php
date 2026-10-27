@@ -82,7 +82,7 @@ final class VfmsPayloads
     /** @return array<string, mixed> */
     public function changeRoom(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
     {
-        $room = Room::query()->findOrFail($reservation->room_id);
+        $room = Room::query()->where('property_id', $property->id)->findOrFail($event->snapshot['room_id'] ?? null);
 
         return [
             'roomName' => $room->number,
