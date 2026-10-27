@@ -5,7 +5,6 @@ use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\ProposeFee;
 use App\Domains\Billing\Actions\ResolveFee;
 use App\Domains\Billing\Models\Folio;
-use App\Domains\FiscalReceipting\Adapters\SandboxVfms;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FiscalReceipting\VfmsPayloads;
@@ -26,10 +25,11 @@ use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
+use Tests\Support\VfmsHttp;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
-    Http::preventStrayRequests();
+    VfmsHttp::fake();
 });
 
 function extraVfmsStay(TenantFixture $tenant, bool $checkIn = true): Reservation
@@ -72,7 +72,7 @@ test('an in-house extra files one Sandbox services message with its receipt', fu
                 'currency' => 'USD',
             ])
             ->and(app(VfmsPayloads::class)->services($event, $reservation, $tenant->property)['service'][0]['price'])->toBeFloat()
-            ->and($posting->fresh()->vfms_receipt_number)->toStartWith('SBX-')
+            ->and($posting->fresh()->vfms_receipt_number)->toBe('TEST-RECEIPT-169')
             ->and($posting->fresh()->vfms_receipt_number)->toBe($message->getAttribute('provider_references')['receiptNumber']);
 
         return [$reservation, $posting->fresh()];
@@ -81,7 +81,7 @@ test('an in-house extra files one Sandbox services message with its receipt', fu
         ->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
         ->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('folios.data.0.postings.data.0.vfms_receipt_number', $posting->vfms_receipt_number));
-    Http::assertNothingSent();
+    Http::assertSentCount(2);
 });
 
 // protects=retrying one submission does not double-file extras (#163); fails_when=the same key creates another event or services message; no_claim=unknown-outcome reconciliation (#165).
@@ -95,7 +95,7 @@ test('a repeated extra submission records one event and one services message', f
         $again = app(PostExtraCharge::class)->handle($tenant->owner, $folio, $details);
 
         expect($again->id)->toBe($first->id)
-            ->and($again->vfms_receipt_number)->toStartWith('SBX-')
+            ->and($again->vfms_receipt_number)->toBe('TEST-RECEIPT-169')
             ->and($reservation->lifecycleEvents()->where('type', 'extra_posted')->count())->toBe(1)
             ->and(OutboxMessage::query()->where('integration', 'vfms')->where('event', 'services')->count())->toBe(1);
     });
@@ -156,7 +156,7 @@ test('live services save a receipt only for an accepted outcome', function (int 
     inTenant($tenant->property, function () use ($tenant, $status, $outcome) {
         extraVfmsStay($tenant);
         VfmsCredential::query()->create(['integration_id' => 'INT-1001', 'registration_id' => 'REG-2002', 'token' => 'secret', 'mode' => VfmsMode::Live]);
-        Http::fake(['gateway.zanrevenue.org/api/service/' => Http::response(['receiptNumber' => 'FISCAL-163'], $status)]);
+        Http::fake(['gateway.zanrevenue.org/vfms/api/service/' => Http::response(['receiptNumber' => 'FISCAL-163'], $status)]);
         $posting = app(PostExtraCharge::class)->handle($tenant->owner, Folio::query()->sole(), ['quantity' => 1, 'unit_price' => 500]);
 
         expect(OutboxMessage::query()->where('event', 'services')->sole()->status)->toBe($outcome)
@@ -164,6 +164,25 @@ test('live services save a receipt only for an accepted outcome', function (int 
     });
     Http::assertSentCount(1);
 })->with([[200, 'delivered'], [201, 'delivered'], [400, 'rejected'], [503, 'unknown']]);
+
+// protects=duplicate service references cannot fabricate receipts or release later filings (#171); fails_when=the duplicate is delivered/rejected or its successor is sent; no_claim=original receipt recovery.
+test('a duplicate service stays unknown without a receipt and blocks successors', function () {
+    $tenant = twoTenants()->a;
+    inTenant($tenant->property, function () use ($tenant) {
+        extraVfmsStay($tenant);
+        VfmsCredential::query()->create(['integration_id' => 'INT-171', 'registration_id' => 'REG-171', 'token' => 'tok', 'mode' => VfmsMode::Live]);
+        Http::fake(['gateway.zanrevenue.org/vfms/api/service/' => Http::response([
+            'statusCode' => 5000, 'statusMessage' => 'Reference number OTHER-5940 already exists',
+        ])]);
+        $first = app(PostExtraCharge::class)->handle($tenant->owner, Folio::query()->sole(), ['quantity' => 1, 'unit_price' => 500]);
+        $second = app(PostExtraCharge::class)->handle($tenant->owner, Folio::query()->sole(), ['quantity' => 1, 'unit_price' => 600]);
+
+        expect(OutboxMessage::query()->where('event', 'services')->orderBy('sequence')->pluck('status')->all())->toBe(['unknown', 'blocked'])
+            ->and($first->fresh()->vfms_receipt_number)->toBeNull()
+            ->and($second->fresh()->vfms_receipt_number)->toBeNull();
+    });
+    Http::assertSentCount(1);
+});
 
 // protects=all supported extras use the charge currency and guide units (#163, §2.11); fails_when=a category is skipped or TZS/EURO is converted incorrectly; no_claim=currency conversion.
 test('every extra category uses the folio currency and major-unit price', function (string $currency, string $vfmsCurrency, int $price) {
@@ -173,7 +192,7 @@ test('every extra category uses the folio currency and major-unit price', functi
         $folio = app(OpenFolio::class)->handle($tenant->owner, $reservation, $currency);
         foreach (PostExtraCharge::CATEGORIES as $category) {
             $posting = app(PostExtraCharge::class)->handle($tenant->owner, $folio, ['category' => $category, 'quantity' => 1, 'unit_price' => 1000]);
-            expect($posting->fresh()->vfms_receipt_number)->toStartWith('SBX-');
+            expect($posting->fresh()->vfms_receipt_number)->toBe('TEST-RECEIPT-169');
         }
         $messages = OutboxMessage::query()->where('event', 'services')->orderBy('sequence')->get();
         expect($messages)->toHaveCount(count(PostExtraCharge::CATEGORIES));
@@ -203,32 +222,3 @@ test('recording a fiscal receipt changes only receipt metadata and cannot replac
         expect(fn () => $posting->save())->toThrow(LogicException::class, 'append-only');
     });
 });
-
-// protects=Sandbox rejects malformed services instead of certifying invalid guide §2.11 requests; fails_when=missing fields or wrong types are accepted; no_claim=undocumented VFMS validation.
-test('Sandbox validates services and their item fields', function (array $override) {
-    $tenant = twoTenants()->a;
-    $result = app(SandboxVfms::class)->send([
-        'request_type' => 'ACCOMMODATION_ADD_SERVICE', 'path' => 'service/',
-        'body' => [
-            'documentNumber' => 'P1234567',
-            'service' => [['itemName' => 'Water', 'price' => 10.0, 'quantity' => 2, 'discount' => 0.0]],
-            'referenceNumber' => 'R-163-3', 'type' => 'CS', 'currency' => 'USD',
-            ...$override,
-        ],
-    ], VfmsCredential::for($tenant->property));
-
-    expect($result->outcome)->toBe('rejected');
-})->with([
-    'missing document' => [['documentNumber' => null]],
-    'wrong services type' => [['type' => 'WS']],
-    'empty services' => [['service' => []]],
-    'missing name' => [['service' => [['price' => 10.0, 'quantity' => 2, 'discount' => 0.0]]]],
-    'missing discount' => [['service' => [['itemName' => 'Water', 'price' => 10.0, 'quantity' => 2]]]],
-    'string price' => [['service' => [['itemName' => 'Water', 'price' => '10', 'quantity' => 2, 'discount' => 0.0]]]],
-    'fractional quantity' => [['service' => [['itemName' => 'Water', 'price' => 10.0, 'quantity' => 1.5, 'discount' => 0.0]]]],
-    'negative discount' => [['service' => [['itemName' => 'Water', 'price' => 10.0, 'quantity' => 2, 'discount' => -1.0]]]],
-    'non-array services' => [['service' => 'Water']],
-    'non-object item' => [['service' => ['Water']]],
-    'zero quantity' => [['service' => [['itemName' => 'Water', 'price' => 10.0, 'quantity' => 0, 'discount' => 0.0]]]],
-    'negative price' => [['service' => [['itemName' => 'Water', 'price' => -1.0, 'quantity' => 2, 'discount' => 0.0]]]],
-]);

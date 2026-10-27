@@ -82,4 +82,14 @@ class ReservationPolicy
     {
         return Access::inProperty($user, P::ReservationsView, $reservation);
     }
+
+    public function revealFiscalIdentity(User $user, Reservation $reservation): bool
+    {
+        return $this->view($user, $reservation) && Access::allows($user, P::GuestIdentityView, $reservation);
+    }
+
+    public function recoverVfms(User $user, Reservation $reservation): bool
+    {
+        return $this->view($user, $reservation) && Access::allows($user, P::OutboxRecover, $reservation);
+    }
 }

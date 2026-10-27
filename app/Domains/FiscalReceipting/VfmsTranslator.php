@@ -21,7 +21,7 @@ use App\Support\Tenancy\TenantContext;
 final class VfmsTranslator implements LifecycleTranslator
 {
     /** Lifecycle event => [VFMS request type, gateway path, payload builder]. Later calls add rows. */
-    private const CALLS = [
+    public const CALLS = [
         'checked_in' => ['ACCOMMODATION_REQUEST', 'accommodation/', 'accommodation'],
         'checked_out' => ['ACCOMMODATION_CHECK_OUT', 'guest/checkout/', 'checkout'],
         'extra_posted' => ['ACCOMMODATION_ADD_SERVICE', 'service/', 'services'],

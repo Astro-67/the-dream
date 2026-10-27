@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\FiscalReceipting\Actions\CloseWithoutFiling;
 use App\Domains\FrontDesk\Actions\RunAutomaticCheckout;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Jobs\CloseDueBusinessDate;
@@ -9,6 +10,7 @@ use App\Domains\Inventory\Exceptions\InventoryRefused;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Reservations\Actions\CancelUnpaidReservations;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Subscriptions\Actions\AdvanceSubscription;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
@@ -144,6 +146,31 @@ Artisan::command('outbox:resume {--actor=} {--property=} {--reason=}', function 
 Artisan::command('outbox:sweep', function (OutboxSweeper $sweeper): void {
     $this->info('Queued '.$sweeper->sweep().' outbox messages.');
 })->purpose('Recover pending outbox delivery');
+
+Artisan::command('outbox:close-without-filing {reservation : Full reservation number} {--actor=} {--property=} {--reason=}', function (CloseWithoutFiling $close): int {
+    $actor = User::query()->find($this->option('actor'));
+    $property = app(OutboxPropertyLookup::class)->find((string) $this->option('property'));
+    $reason = trim((string) $this->option('reason'));
+    if ($actor === null || $property === null || $reason === '') {
+        $this->error('Actor, property and reason are required.');
+
+        return self::FAILURE;
+    }
+    try {
+        $number = (string) $this->argument('reservation');
+        Tenancy::within(TenantContext::forProperty($property), function () use ($actor, $property, $reason, $number, $close): void {
+            $reservation = Reservation::query()->where('property_id', $property->id)->where('reservation_number', $number)->firstOrFail();
+            $close->handle($actor, $reservation, $reason);
+        });
+        $this->info('Closed '.$number.' without filing; fiscal exception recorded.');
+
+        return self::SUCCESS;
+    } catch (Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return self::FAILURE;
+    }
+})->purpose('Close a departed unfiled stay and record its fiscal exception');
 
 Artisan::command('outbox:retry {message} {--actor=} {--property=} {--reason=}', function (OutboxRecovery $recovery): int {
     $actor = User::query()->find($this->option('actor'));

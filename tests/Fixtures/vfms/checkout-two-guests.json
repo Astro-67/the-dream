@@ -1,0 +1,123 @@
+[
+    {
+        "room": {
+            "room": [
+                {
+                    "roomName": "101",
+                    "days": 1.0,
+                    "amount": 100.0,
+                    "tax": 13.04,
+                    "accommodationPrice": 100.0,
+                    "accommodationDiscount": 0.0,
+                    "dateIn": "2026-10-26T14:05:00.000+03:00"
+                }
+            ],
+            "subtotal": {
+                "totalAmount": 100.0,
+                "totalTax": 13.04
+            }
+        },
+        "guest": {
+            "documentName": "PASSPORT",
+            "documentNo": "TEST-DOC-1",
+            "country": "TANZANIA",
+            "fullName": "Test Guest 1"
+        },
+        "service": {
+            "service": [
+                {
+                    "itemName": "WATER",
+                    "amount": 20.0,
+                    "tax": 2.61,
+                    "price": 10.0,
+                    "quantity": 2.0,
+                    "discount": 0.0
+                }
+            ],
+            "subTotal": {
+                "totalAmount": 20.0,
+                "totalTax": 2.61
+            }
+        },
+        "accommodation": {
+            "paymentType": "BB",
+            "openDate": "2026-10-26T14:05:00.000+03:00",
+            "closeDate": "2026-10-26T14:05:38.493+03:00",
+            "currency": "USD"
+        },
+        "accommoDetail": {
+            "accommodationSource": "DIRECT",
+            "tourRegNo": null,
+            "costOptions": null,
+            "tourName": null
+        },
+        "reportNumber": "TEST-REPORT-1",
+        "total": {
+            "totalAmount": 120.0,
+            "totalTax": 15.65
+        },
+        "days": 1.0,
+        "totalInfrastructure": 5.0,
+        "businessName": "Test Hotel",
+        "tinNumber": "TEST-TIN",
+        "vrnNumber": "TEST-VRN",
+        "street": "Test Street",
+        "znumber": "TEST-Z"
+    },
+    {
+        "room": {
+            "room": [
+                {
+                    "roomName": "101",
+                    "days": 1.0,
+                    "amount": 100.0,
+                    "tax": 13.04,
+                    "accommodationPrice": 100.0,
+                    "accommodationDiscount": 0.0,
+                    "dateIn": "2026-10-26T14:05:00.000+03:00"
+                }
+            ],
+            "subtotal": {
+                "totalAmount": 100.0,
+                "totalTax": 13.04
+            }
+        },
+        "guest": {
+            "documentName": "PASSPORT",
+            "documentNo": "TEST-DOC-2",
+            "country": "TANZANIA",
+            "fullName": "Test Guest 2"
+        },
+        "service": {
+            "service": [],
+            "subTotal": {
+                "totalAmount": 0.0,
+                "totalTax": 0.0
+            }
+        },
+        "accommodation": {
+            "paymentType": "BB",
+            "openDate": "2026-10-26T14:05:00.000+03:00",
+            "closeDate": "2026-10-26T14:05:38.548+03:00",
+            "currency": "USD"
+        },
+        "accommoDetail": {
+            "accommodationSource": "DIRECT",
+            "tourRegNo": null,
+            "costOptions": null,
+            "tourName": null
+        },
+        "reportNumber": "TEST-REPORT-2",
+        "total": {
+            "totalAmount": 100.0,
+            "totalTax": 13.04
+        },
+        "days": 1.0,
+        "totalInfrastructure": 5.0,
+        "businessName": "Test Hotel",
+        "tinNumber": "TEST-TIN",
+        "vrnNumber": "TEST-VRN",
+        "street": "Test Street",
+        "znumber": "TEST-Z"
+    }
+]

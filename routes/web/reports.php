@@ -3,10 +3,12 @@
 use App\Http\Controllers\Web\Reports\GroupReportController;
 use App\Http\Controllers\Web\Reports\PaymentsController;
 use App\Http\Controllers\Web\Reports\PropertyReportController;
+use App\Http\Controllers\Web\Reports\ZraFilingsCsvController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::get('payments', PaymentsController::class)->name('payments.index');
     Route::get('reports', PropertyReportController::class)->name('reports.index');
+    Route::get('reports/zra-filings.csv', ZraFilingsCsvController::class)->name('reports.filings.csv');
     Route::get('reports/group', GroupReportController::class)->name('reports.group');
 });

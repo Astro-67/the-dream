@@ -209,16 +209,19 @@ The VAT and infrastructure levy Thedream's tax rules put on a Zanzibar folio bef
 _Avoid_: Provisional tax, draft tax
 
 **Fiscal check-out report**:
-The guest's fiscal receipt for a whole stay: VFMS's report number, the room charges, extras, VFMS tax and levy, and a QR code for the VFMS portal. Shown once VFMS has accepted every filing of the stay; in Sandbox it is stamped "SANDBOX, NOT FISCAL" and has no QR.
+The guest's fiscal receipt for a whole stay: each guest's VFMS report number, room charges, extras, VFMS tax and levy, and a QR code for the VFMS viewer. Shown once VFMS has accepted every filing of the stay, including early guest departures. In Sandbox it is stamped "TEST, NOT FISCAL"; QR codes use only the configured ZRA test viewer, never the production portal. Identity documents appear only for staff with permission to view guest identity.
 _Avoid_: Checkout invoice, bill, folio statement
 
 **VFMS mode**:
-Per property, **Sandbox** (the default: filings are answered inside Thedream and never reach ZRA, and the check-out answer reports the folio as posted, with no levy of its own) or **Live** (filed with ZRA's production VFMS). Only an Owner or Property manager switches it, with a reason.
+Per property, **Sandbox** (the default: filings go to ZRA's shared test business unit, never the hotel's production unit) or **Live** (filed with ZRA's production VFMS under the hotel's own business unit). Only an Owner or Property manager switches it, with a reason. Sandbox reports are not fiscal.
 _Avoid_: Test mode, demo mode
 
 **Fiscal exception**:
-A charge that has no path into VFMS, such as a cancellation or no-show fee, so it gets a non-fiscal receipt and is listed for the property's accountant.
+A charge with no VFMS path, such as a cancellation or no-show fee, or a departed stay closed without filing. Listed with its reason for the property's accountant; an unfiled stay must be declared in the property's VAT return.
 _Avoid_: Unreceipted charge, tax gap
+
+**Close without filing**:
+An audited, reason-required decision to close a departed stay whose VFMS filings never reached ZRA. It remains a fiscal exception for the property's VAT return, not a fiscal receipt.
 
 **No-show**:
 A reservation whose guest never arrived by the end of the arrival business date. Reported to ZAN Gateway as a cancellation with zero guests, but kept as a no-show in Thedream.

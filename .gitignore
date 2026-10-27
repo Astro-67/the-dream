@@ -43,3 +43,4 @@ yarn-error.log
 /.scratch
 *.sqlite
 /.playwright-mcp
+docs/research/sources/vfms-hotel-api-guide-v1.6-test.pdf

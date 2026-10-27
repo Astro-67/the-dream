@@ -1,9 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import { formatDate } from '@/features/platform/format';
+import { PropertyIntent } from '@/components/shared/property-intent';
 import { formatMoney } from '@/lib/utils';
 import { show as showReservation } from '@/routes/reservations';
 
@@ -25,11 +26,47 @@ export default function CheckoutReport({
     stay,
     guests,
     property,
+    guestReports,
+    business,
+    needsAttention,
+    serviceReceipts,
+    revealIdentityUrl,
+    identityRevealed = false,
 }: {
     status: 'waiting' | 'sandbox' | 'live';
     report: Report | null;
     portalUrl: string | null;
     qrSvg: string | null;
+    needsAttention: boolean;
+    revealIdentityUrl: string | null;
+    identityRevealed?: boolean;
+    serviceReceipts: {
+        number: string;
+        description: string | null;
+        amount: number;
+        mode: 'sandbox' | 'live' | null;
+        portalUrl: string | null;
+        qrSvg: string | null;
+    }[];
+    guestReports: {
+        number: string;
+        name: string | null;
+        identity: {
+            documentName?: string;
+            documentNo?: string;
+            country?: string;
+        } | null;
+        departedEarly: boolean;
+        portalUrl: string | null;
+        qrSvg: string | null;
+    }[];
+    business: {
+        businessName?: string;
+        street?: string;
+        tinNumber?: string;
+        vrnNumber?: string;
+        znumber?: string;
+    } | null;
     stay: {
         reservation_number: string;
         room: string | null;
@@ -54,8 +91,28 @@ export default function CheckoutReport({
                     {'@page { size: A4; margin: 12mm; }'}
                 </style>
             </Head>
-            <div className="receipt-print flex max-w-[960px] flex-col gap-6 p-4 md:p-6">
+            <div className="receipt-print flex max-w-[960px] flex-col gap-6 p-4 md:p-6 print:gap-4 print:p-0">
                 <header className="space-y-3">
+                    <img
+                        src="/images/zra-logo.jpg"
+                        alt="Zanzibar Revenue Authority"
+                        width={80}
+                        height={96}
+                        className="h-24 w-20 object-contain"
+                    />
+                    {business && (
+                        <div>
+                            <p className="text-lg font-semibold">
+                                {business.businessName}
+                            </p>
+                            <p>{business.street}</p>
+                            <p className="text-sm text-muted-foreground">
+                                TIN {business.tinNumber} / VRN{' '}
+                                {business.vrnNumber} / Z-number{' '}
+                                {business.znumber}
+                            </p>
+                        </div>
+                    )}
                     <p className="text-sm text-muted-foreground">
                         {property.name}, {property.address_line},{' '}
                         {property.city}. {property.phone}, {property.email}
@@ -64,9 +121,7 @@ export default function CheckoutReport({
                         FISCAL CHECK-OUT REPORT
                     </h1>
                     {status === 'sandbox' && (
-                        <StatusChip tone="warning">
-                            SANDBOX, NOT FISCAL
-                        </StatusChip>
+                        <StatusChip tone="warning">TEST, NOT FISCAL</StatusChip>
                     )}
                 </header>
                 <dl className="grid gap-4 sm:grid-cols-3">
@@ -105,7 +160,13 @@ export default function CheckoutReport({
                     ))}
                 </dl>
                 {report === null ? (
-                    <EmptyState message="Waiting for VFMS. The report appears once VFMS has accepted every filing of this stay." />
+                    <EmptyState
+                        message={
+                            needsAttention
+                                ? 'Needs attention: ZRA returned no verifiable check-out report. Review the filing before retrying.'
+                                : 'Waiting for VFMS. The report appears once VFMS has accepted every filing of this stay.'
+                        }
+                    />
                 ) : (
                     <section className="flex flex-wrap items-start gap-8">
                         <dl className="grid flex-1 grid-cols-[1fr_auto] gap-x-6 gap-y-1">
@@ -120,7 +181,7 @@ export default function CheckoutReport({
                                         />,
                                     ],
                                     [
-                                        'Room charges',
+                                        'Accommodation (tax inclusive)',
                                         formatMoney(
                                             report.room,
                                             report.currency,
@@ -134,7 +195,7 @@ export default function CheckoutReport({
                                         ),
                                     ],
                                     [
-                                        'VAT (VFMS)',
+                                        'Of which VAT (VFMS)',
                                         formatMoney(
                                             report.vat,
                                             report.currency,
@@ -172,7 +233,7 @@ export default function CheckoutReport({
                                 </div>
                             ))}
                         </dl>
-                        {qrSvg && portalUrl && (
+                        {guestReports.length === 0 && qrSvg && portalUrl && (
                             <figure className="space-y-2">
                                 <div
                                     role="img"
@@ -187,7 +248,122 @@ export default function CheckoutReport({
                         )}
                     </section>
                 )}
-                <div className="print:hidden">
+                {report && serviceReceipts.length > 0 && (
+                    <section className="space-y-2 print:grid print:grid-cols-2 print:gap-4 print:space-y-0">
+                        <h2 className="font-semibold print:col-span-2">
+                            Extra service receipts
+                        </h2>
+                        {serviceReceipts.map((receipt, index) => (
+                            <div
+                                key={`${receipt.number}-${index}`}
+                                className="flex break-inside-avoid items-start justify-between gap-4 border-t pt-2 text-sm"
+                            >
+                                <div className="min-w-0 space-y-1 break-words">
+                                    <p>
+                                        {receipt.description ?? 'Extra service'}
+                                    </p>
+                                    <Identifier value={receipt.number} />
+                                    {receipt.mode === 'sandbox' && (
+                                        <StatusChip tone="warning">
+                                            TEST, NOT FISCAL
+                                        </StatusChip>
+                                    )}
+                                    <p className="tabular-nums">
+                                        {formatMoney(
+                                            receipt.amount,
+                                            report.currency,
+                                        )}
+                                    </p>
+                                    {receipt.portalUrl && (
+                                        <a
+                                            href={receipt.portalUrl}
+                                            className="block underline underline-offset-4"
+                                        >
+                                            Verify receipt with ZRA
+                                        </a>
+                                    )}
+                                </div>
+                                {receipt.qrSvg && receipt.portalUrl && (
+                                    <div
+                                        role="img"
+                                        aria-label={`VFMS QR code for ${receipt.portalUrl}`}
+                                        className="size-28 shrink-0 [&_svg]:size-full"
+                                        dangerouslySetInnerHTML={{
+                                            __html: receipt.qrSvg,
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        ))}
+                    </section>
+                )}
+                {report && guestReports.length > 0 && (
+                    <section className="grid gap-4 sm:grid-cols-2 print:grid-cols-2">
+                        {guestReports.map((guest) => (
+                            <article
+                                key={guest.number}
+                                className="flex break-inside-avoid items-start justify-between gap-4 border-t pt-4"
+                            >
+                                <div className="min-w-0 space-y-1">
+                                    <h2 className="font-semibold">
+                                        {guest.name ?? 'Guest report'}
+                                    </h2>
+                                    {guest.departedEarly && (
+                                        <p className="text-sm text-muted-foreground">
+                                            Departed before stay check-out
+                                        </p>
+                                    )}
+                                    {guest.identity && (
+                                        <p className="text-sm break-words">
+                                            {guest.identity.documentName}{' '}
+                                            {identityRevealed &&
+                                                guest.identity.documentNo && (
+                                                    <Identifier
+                                                        value={
+                                                            guest.identity
+                                                                .documentNo
+                                                        }
+                                                    />
+                                                )}{' '}
+                                            {guest.identity.country}
+                                        </p>
+                                    )}
+                                    <p className="text-sm text-muted-foreground">
+                                        ZRA report number
+                                    </p>
+                                    <Identifier value={guest.number} copyable />
+                                    {guest.portalUrl && (
+                                        <a
+                                            href={guest.portalUrl}
+                                            className="block text-sm underline underline-offset-4"
+                                        >
+                                            Verify with ZRA
+                                        </a>
+                                    )}
+                                </div>
+                                {guest.qrSvg && guest.portalUrl && (
+                                    <div
+                                        role="img"
+                                        aria-label={`VFMS QR code for ${guest.portalUrl}`}
+                                        className="size-28 shrink-0 [&_svg]:size-full"
+                                        dangerouslySetInnerHTML={{
+                                            __html: guest.qrSvg,
+                                        }}
+                                    />
+                                )}
+                            </article>
+                        ))}
+                    </section>
+                )}
+                <div className="flex flex-wrap gap-3 print:hidden">
+                    {report && revealIdentityUrl && !identityRevealed && (
+                        <Form action={revealIdentityUrl} method="post">
+                            <PropertyIntent />
+                            <Button variant="outline" type="submit">
+                                Reveal document numbers for printing (logged)
+                            </Button>
+                        </Form>
+                    )}
                     <Button variant="outline" onClick={() => window.print()}>
                         Print report
                     </Button>

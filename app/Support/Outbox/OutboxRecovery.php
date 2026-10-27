@@ -133,6 +133,26 @@ final class OutboxRecovery
         });
     }
 
+    /** Resolve a confirmed-unfiled operation without claiming provider acceptance or releasing successors. */
+    public function supersede(User $actor, string $propertyId, string $messageId, string $reason): void
+    {
+        $this->authorized($actor, $propertyId, $messageId, 'outbox_recovery_refused', $reason, false, function (OutboxMessage $message) use ($actor, $reason): void {
+            DB::transaction(function () use ($message, $actor, $reason): void {
+                Property::query()->whereKey($message->property_id)->lockForUpdate()->firstOrFail();
+                app(RestoreGate::class)->assertOpen($message->property_id);
+                $locked = OutboxMessage::query()->whereKey($message->id)->lockForUpdate()->firstOrFail();
+                if ($locked->claim_token !== null || ($locked->claim_expires_at !== null && CarbonImmutable::parse($locked->claim_expires_at)->isFuture()) || $locked->attempts()->where('outcome', 'sending')->exists()) {
+                    throw new RuntimeException('An active delivery attempt prevents recovery.');
+                }
+                if (! in_array($locked->status, ['rejected', 'blocked'], true)) {
+                    throw new RuntimeException('Only rejected or blocked delivery can be closed without filing.');
+                }
+                $locked->forceFill(['status' => 'superseded', 'next_attempt_at' => null, 'dispatch_claim_token' => null, 'dispatch_claim_expires_at' => null])->save();
+                Audit::record($actor, 'outbox_recovery', $locked, 'Closed outbox operation without filing', ['reason' => $reason, 'outcome' => 'superseded']);
+            });
+        });
+    }
+
     public function confirmAccepted(User $actor, string $propertyId, string $messageId, string $reason, string $evidence): void
     {
         if (trim($evidence) === '') {

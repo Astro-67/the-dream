@@ -19,6 +19,11 @@ const base: Props = {
     },
     portalUrl: null,
     qrSvg: null,
+    guestReports: [],
+    business: null,
+    needsAttention: false,
+    revealIdentityUrl: null,
+    serviceReceipts: [],
     stay: {
         reservation_number: 'R-1042',
         room: '101',
@@ -55,7 +60,7 @@ const render = (props: Props) =>
 // A Sandbox report is stamped and carries no portal QR.
 const sandbox = render(base);
 assert.match(sandbox, /FISCAL CHECK-OUT REPORT/);
-assert.match(sandbox, /SANDBOX, NOT FISCAL/);
+assert.match(sandbox, /TEST, NOT FISCAL/);
 assert.match(sandbox, /SBX-1A2B/);
 assert.match(sandbox, /Anna Berg, Ola Berg/);
 assert.match(sandbox, /USD 239\.00/);
@@ -74,11 +79,90 @@ assert.match(
     /VFMS QR code for https:\/\/portalvfms\.zanrevenue\.org\/checkout-report\/guest\/CO-778/,
 );
 assert.match(live, /data-qr="1"/);
-assert.doesNotMatch(live, /SANDBOX/);
+assert.doesNotMatch(live, /TEST, NOT FISCAL/);
+
+// protects=each recorded guest report is printable with its own verification link (#172); fails_when=one report or the test stamp disappears; no_claim=physical A4 layout.
+const recorded = render({
+    ...base,
+    business: {
+        businessName: 'ZRA Test Hotel',
+        street: 'Test Street',
+        tinNumber: 'TEST-TIN',
+        vrnNumber: 'TEST-VRN',
+        znumber: 'TEST-Z',
+    },
+    guestReports: ['REPORT-1', 'REPORT-2'].map((number) => ({
+        number,
+        name: `Guest ${number}`,
+        identity: {
+            documentName: 'PASSPORT',
+            country: 'GERMANY',
+            documentNo: 'PRIVATE-DOCUMENT-172',
+        },
+        departedEarly: false,
+        portalUrl: `https://viewer.example/checkout-report/guest/${number}`,
+        qrSvg: `<svg data-qr="${number}"></svg>`,
+    })),
+    serviceReceipts: [
+        {
+            number: 'RECEIPT-172',
+            description: 'Water',
+            amount: 2000,
+            mode: 'sandbox',
+            portalUrl: 'https://viewer.example/receipt-form/RECEIPT-172',
+            qrSvg: '<svg data-qr="RECEIPT-172"></svg>',
+        },
+    ],
+});
+assert.match(recorded, /ZRA Test Hotel/);
+assert.match(recorded, /TIN TEST-TIN/);
+assert.match(recorded, /TEST, NOT FISCAL/);
+assert.match(recorded, /data-qr="REPORT-1"/);
+assert.match(recorded, /data-qr="REPORT-2"/);
+assert.match(recorded, /RECEIPT-172/);
+assert.match(recorded, /data-qr="RECEIPT-172"/);
+assert.match(
+    recorded,
+    /href="https:\/\/viewer\.example\/receipt-form\/RECEIPT-172"/,
+);
+assert.match(recorded, /Zanzibar Revenue Authority/);
+assert.match(recorded, /PASSPORT.*GERMANY/);
+assert.doesNotMatch(recorded, /PRIVATE-DOCUMENT-172/);
+
+const revealControl = render({
+    ...base,
+    revealIdentityUrl: '/reservations/R-1042/fiscal-report/reveal-identity',
+});
+assert.match(revealControl, /Reveal document numbers for printing \(logged\)/);
+assert.match(revealControl, /method="post"/);
+const revealed = render({
+    ...base,
+    identityRevealed: true,
+    guestReports: [
+        {
+            number: 'REPORT-1',
+            name: 'Anna Berg',
+            identity: {
+                documentName: 'PASSPORT',
+                documentNo: 'REVEALED-DOCUMENT-172',
+                country: 'GERMANY',
+            },
+            departedEarly: false,
+            portalUrl: null,
+            qrSvg: null,
+        },
+    ],
+});
+assert.match(revealed, /REVEALED-DOCUMENT-172/);
+assert.doesNotMatch(revealed, /Reveal document numbers for printing/);
 
 // Until VFMS accepts every filing the report shows no figures.
 const waiting = render({ ...base, status: 'waiting', report: null });
 assert.match(waiting, /Waiting for VFMS/);
 assert.doesNotMatch(waiting, /SBX-1A2B|USD 239\.00/);
+assert.match(
+    render({ ...base, status: 'waiting', report: null, needsAttention: true }),
+    /Needs attention: ZRA returned no verifiable check-out report/,
+);
 
 console.log('Fiscal check-out report: PASS');
