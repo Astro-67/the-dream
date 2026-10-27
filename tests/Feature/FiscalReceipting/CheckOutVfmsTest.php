@@ -231,6 +231,28 @@ test('only users who can view the stay open its fiscal report', function (Organi
     $allowed ? $response->assertOk() : $response->assertForbidden();
 })->with(array_map(fn (OrganizationRole $role) => [$role, $role !== OrganizationRole::Housekeeping], OrganizationRole::cases()));
 
+// protects=each receipt verifies in its own recorded environment; fails_when=Live checkout redirects a Sandbox service receipt to the Live portal; no_claim=provider resolution.
+test('service receipt verification retains its accepted filing mode across a mode switch', function () {
+    $tenant = twoTenants()->a;
+    config(['services.vfms.test_viewer_url' => 'https://vfms-viewer.example']);
+    $reservation = inHouseForCheckOut($tenant);
+    inTenant($tenant->property, function () use ($tenant, $reservation) {
+        app(PostExtraCharge::class)->handle($tenant->owner, Folio::query()->where('reservation_id', $reservation->id)->sole(), [
+            'category' => 'bar', 'description' => 'Water', 'quantity' => 2, 'unit_price' => 1000,
+        ]);
+        VfmsCredential::query()->create(['mode' => VfmsMode::Live, 'integration_id' => 'LIVE-ID', 'registration_id' => 'LIVE-REG', 'token' => 'LIVE-TOKEN']);
+    });
+    Http::fake([
+        'gateway.zanrevenue.org/vfms/api/guest/checkout/' => Http::response(json_decode(file_get_contents(__DIR__.'/../../Fixtures/vfms/checkout.json'), true, flags: JSON_THROW_ON_ERROR)),
+    ]);
+    checkOutOnDeparture($tenant, $reservation);
+
+    fiscalReport($tenant, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('status', 'live')
+        ->where('serviceReceipts.0.portalUrl', 'https://vfms-viewer.example/receipt-form/TEST-RECEIPT-169')
+        ->where('serviceReceipts.0.mode', 'sandbox'));
+});
+
 // protects=recorded guest reports settle shared room VAT once and keep identity encrypted (#172); fails_when=a report is lost, VAT doubles, or Finance sees documents; no_claim=live acceptance or print pagination.
 test('recorded checkout stores every report and projects authorized identity only', function (VfmsMode $mode, bool $earlyDeparture) {
     $tenant = twoTenants()->a;

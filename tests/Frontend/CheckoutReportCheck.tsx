@@ -107,6 +107,7 @@ const recorded = render({
             number: 'RECEIPT-172',
             description: 'Water',
             amount: 2000,
+            mode: 'sandbox',
             portalUrl: 'https://viewer.example/receipt-form/RECEIPT-172',
             qrSvg: '<svg data-qr="RECEIPT-172"></svg>',
         },

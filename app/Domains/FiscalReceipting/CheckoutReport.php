@@ -81,12 +81,17 @@ final class CheckoutReport
             'needsAttention' => false,
             'serviceReceipts' => Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
                 ->where('currency', $currency->value)->whereNotNull('vfms_receipt_number')->orderBy('posted_at')->orderBy('id')->get()
-                ->map(function (Posting $posting) use ($live) {
-                    $receiptUrl = self::viewerUrl($live, 'receipt-form', $posting->vfms_receipt_number);
+                ->map(function (Posting $posting) use ($messages) {
+                    $service = $messages->first(fn (OutboxMessage $message) => $message->event === 'services'
+                        && ($message->payload['posting_id'] ?? null) === $posting->id
+                        && ($message->getAttribute('provider_references')['receiptNumber'] ?? null) === $posting->vfms_receipt_number);
+                    $mode = $service?->getAttribute('provider_references')['mode'] ?? null;
+                    $receiptUrl = in_array($mode, ['live', 'sandbox'], true)
+                        ? self::viewerUrl($mode === 'live', 'receipt-form', $posting->vfms_receipt_number) : null;
 
                     return [
                         'number' => $posting->vfms_receipt_number, 'description' => $posting->description, 'amount' => $posting->amount,
-                        'portalUrl' => $receiptUrl, 'qrSvg' => $receiptUrl === null ? null : self::qr($receiptUrl),
+                        'mode' => $mode, 'portalUrl' => $receiptUrl, 'qrSvg' => $receiptUrl === null ? null : self::qr($receiptUrl),
                     ];
                 })->all(),
         ];

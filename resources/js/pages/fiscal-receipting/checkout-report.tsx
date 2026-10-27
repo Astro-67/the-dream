@@ -39,6 +39,7 @@ export default function CheckoutReport({
         number: string;
         description: string | null;
         amount: number;
+        mode: 'sandbox' | 'live' | null;
         portalUrl: string | null;
         qrSvg: string | null;
     }[];
@@ -256,6 +257,11 @@ export default function CheckoutReport({
                                         {receipt.description ?? 'Extra service'}
                                     </p>
                                     <Identifier value={receipt.number} />
+                                    {receipt.mode === 'sandbox' && (
+                                        <StatusChip tone="warning">
+                                            TEST, NOT FISCAL
+                                        </StatusChip>
+                                    )}
                                     <p className="tabular-nums">
                                         {formatMoney(
                                             receipt.amount,
