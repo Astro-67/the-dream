@@ -12,6 +12,7 @@ use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Factory;
@@ -68,4 +69,42 @@ test('the stay lists its ZRA filings with status, number and refusal message', f
         ->where('vfmsFilings.2.call', 'Check-out')
         ->where('vfmsFilings.2.status', 'waiting')
         ->where('vfmsFilings.2.attempts', 0));
+});
+
+// protects=Re-file and Retry reach only the recovery roles from #173 (#174); fails_when=Reception or Finance get an action URL; no_claim=HTTP refusal of the action (VfmsRecoveryTest).
+test('ZRA filing actions appear only for recovery roles', function (OrganizationRole $role) {
+    $tenant = twoTenants()->a;
+    $reservation = vfmsPanelStay($tenant);
+    $actor = $role === OrganizationRole::Owner ? $tenant->owner : $tenant->member($role);
+    $allowed = in_array($role, [OrganizationRole::Owner, OrganizationRole::PropertyManager], true);
+
+    $this->actingAs($actor)->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reservations.show', $reservation))->assertOk()->assertDontSee('PANEL-DOC-174')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('vfmsFilings.1.message', 'The Room ID 1 Is not Empty')
+            ->where('vfmsFilings.1.refileUrl', $allowed ? route('reservations.vfms.refile', [$reservation, $page->toArray()['props']['vfmsFilings'][1]['id']]) : null));
+})->with([
+    OrganizationRole::Owner, OrganizationRole::PropertyManager, OrganizationRole::GroupOperationsManager,
+    OrganizationRole::FrontDesk, OrganizationRole::Finance, OrganizationRole::Auditor,
+]);
+
+// protects=an unknown outcome is never offered re-file or retry, while a stopped delivery can be retried (#173, #174); fails_when=an unknown call gets an action or a retryable one does not; no_claim=reconciliation UI.
+test('unknown filings get no action and stopped deliveries offer retry', function () {
+    $tenant = twoTenants()->a;
+    $reservation = vfmsPanelStay($tenant);
+    inTenant($tenant->property, function () {
+        [$checkIn, $extra] = OutboxMessage::query()->where('integration', 'vfms')->orderBy('sequence')->get()->all();
+        $checkIn->forceFill(['status' => 'exhausted_unknown'])->save();
+        $extra->forceFill(['status' => 'exhausted'])->save();
+    });
+
+    $this->actingAs($tenant->owner)->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('vfmsFilings.0.status', 'unknown')
+        ->where('vfmsFilings.0.refileUrl', null)
+        ->where('vfmsFilings.0.retryUrl', null)
+        ->where('vfmsFilings.1.status', 'waiting')
+        ->where('vfmsFilings.1.message', null)
+        ->where('vfmsFilings.1.refileUrl', null)
+        ->where('vfmsFilings.1.retryUrl', route('reservations.vfms.retry', [$reservation, $page->toArray()['props']['vfmsFilings'][1]['id']])));
 });
