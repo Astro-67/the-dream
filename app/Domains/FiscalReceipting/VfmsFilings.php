@@ -59,7 +59,7 @@ final class VfmsFilings
     public function forProperty(Property $property, string $from, string $to): array
     {
         $counts = array_fill_keys(array_keys(self::STATUSES), 0);
-        $byOutboxStatus = $this->query($property, $from, $to)->reorder()->groupBy('outbox_messages.status')
+        $byOutboxStatus = $this->query($property, $from, $to)->select([])->reorder()->groupBy('outbox_messages.status')
             ->selectRaw('outbox_messages.status, COUNT(*) as calls')->toBase()->pluck('calls', 'status');
         foreach ($byOutboxStatus as $status => $calls) {
             $counts[self::status((string) $status)] += (int) $calls;
