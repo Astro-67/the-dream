@@ -6,9 +6,13 @@ use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\OutboxMessage;
+use App\Support\Outbox\OutboxSweeper;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
 
@@ -189,3 +193,55 @@ test('fiscal exceptions lists posted fee candidates and closed stays only for ex
     [OrganizationRole::Auditor, false],
     [OrganizationRole::GroupOperationsManager, false],
 ]);
+
+// protects=closing one stay cannot resolve its neighbours and terminal calls are never dispatched (#176); fails_when=another stay changes or the sweeper requeues closed calls; no_claim=worker infrastructure.
+test('closing a stay leaves other stays untouched and never dispatches its superseded calls', function () {
+    $tenants = twoTenants();
+    $tenant = $tenants->a;
+    $reservation = closeUnfiledStay($tenant);
+    $other = inTenant($tenant->property, function () use ($reservation) {
+        $other = $reservation->replicate();
+        $other->reservation_number = 'R-NEIGHBOUR-176';
+        $other->save();
+        foreach (OutboxMessage::query()->where('subject_id', $reservation->id)->get() as $message) {
+            $copy = $message->replicate();
+            $copy->forceFill(['subject_id' => $other->id, 'stream_key' => hash('sha256', $other->id), 'idempotency_key' => $message->idempotency_key.':other'])->save();
+        }
+
+        return $other;
+    });
+    $foreign = closeUnfiledStay($tenants->b);
+    Queue::fake();
+    $this->actingAs($tenant->owner)->post(route('reservations.vfms.close-without-filing', $reservation), [
+        '_property' => $tenant->property->id, 'reason' => 'Departed before VFMS filing worked',
+    ])->assertSessionHasNoErrors();
+    inTenant($tenant->property, function () use ($reservation, $other) {
+        foreach (OutboxMessage::query()->where('subject_id', $reservation->id)->get() as $message) {
+            app(DeliveryEngine::class)->deliver($message->id);
+            expect($message->fresh()->status)->toBe('superseded');
+        }
+        expect(OutboxMessage::query()->where('subject_id', $other->id)->orderBy('sequence')->pluck('status')->all())->toBe(['rejected', 'blocked']);
+    });
+    expect(app(OutboxSweeper::class)->sweep())->toBe(0);
+    Queue::assertNothingPushed();
+    expect(DB::table('outbox_messages')->where('subject_id', $foreign->id)->orderBy('sequence')->pluck('status')->all())->toBe(['rejected', 'blocked']);
+});
+
+// protects=an audit storage failure rolls back every status and the exception together (#176); fails_when=partial resolution survives a failing final audit; no_claim=database disaster recovery.
+test('close without filing rolls back all messages if its final audit cannot be stored', function () {
+    $tenant = twoTenants()->a;
+    $reservation = closeUnfiledStay($tenant);
+    Activity::creating(function ($activity) {
+        if ($activity->event === 'closed_without_filing') {
+            throw new RuntimeException('Audit unavailable');
+        }
+    });
+    $this->actingAs($tenant->owner)->post(route('reservations.vfms.close-without-filing', $reservation), [
+        '_property' => $tenant->property->id, 'reason' => 'Departed before VFMS filing worked',
+    ])->assertSessionHasErrors('vfms');
+    inTenant($tenant->property, function () use ($reservation) {
+        expect(OutboxMessage::query()->where('subject_id', $reservation->id)->orderBy('sequence')->pluck('status')->all())->toBe(['rejected', 'blocked'])
+            ->and($reservation->fresh()->getAttribute('fiscal_exception_reason'))->toBeNull();
+    });
+    expect(DB::table('activity_log')->where('event', 'outbox_recovery')->exists())->toBeFalse();
+});
