@@ -1,0 +1,60 @@
+[
+    {
+        "reportNumber": "TEST-CHECKOUT-169",
+        "guest": {
+            "fullName": "Anna Berg",
+            "documentName": "PASSPORT",
+            "documentNo": "P1234567",
+            "country": "GERMANY"
+        },
+        "accommodation": { "currency": "USD" },
+        "room": {
+            "room": [
+                {
+                    "roomName": "101",
+                    "dateIn": "2026-12-10T06:00:00.000Z",
+                    "days": 2,
+                    "amount": 220,
+                    "tax": 0,
+                    "accommodationPrice": 110,
+                    "accommodationDiscount": 0
+                }
+            ]
+        },
+        "service": {
+            "service": [],
+            "subTotal": { "totalAmount": 0, "totalTax": 0 }
+        },
+        "total": { "totalAmount": 220, "totalTax": 0 },
+        "totalInfrastructure": 0
+    },
+    {
+        "reportNumber": "TEST-CHECKOUT-169-2",
+        "guest": {
+            "fullName": "Ola Berg",
+            "documentName": "PASSPORT",
+            "documentNo": "P7654321",
+            "country": "NORWAY"
+        },
+        "accommodation": { "currency": "USD" },
+        "room": {
+            "room": [
+                {
+                    "roomName": "101",
+                    "dateIn": "2026-12-10T06:00:00.000Z",
+                    "days": 2,
+                    "amount": 220,
+                    "tax": 0,
+                    "accommodationPrice": 110,
+                    "accommodationDiscount": 0
+                }
+            ]
+        },
+        "service": {
+            "service": [],
+            "subTotal": { "totalAmount": 0, "totalTax": 0 }
+        },
+        "total": { "totalAmount": 220, "totalTax": 0 },
+        "totalInfrastructure": 0
+    }
+]

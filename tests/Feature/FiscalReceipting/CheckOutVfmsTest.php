@@ -112,6 +112,7 @@ test('an incomplete or uncertain checkout never adjusts the folio or replays', f
         ->where('needsAttention', true)->where('report', null)->where('guestReports', []));
     Http::assertNotSent(fn (Request $request) => str_ends_with($request->url(), '/accommodationReport/'));
 })->with([
+    'scalar without guest evidence' => [fn () => Http::response(['reportNo' => 'CO-171', 'totalAmount' => 100, 'totalTax' => 999, 'infrastructureTax' => 5])],
     'missing totals' => [fn () => Http::response(['reportNo' => 'CO-171'])],
     'missing levy' => [fn () => Http::response(['reportNo' => 'CO-171', 'totalAmount' => 220, 'totalTax' => 0])],
     'negative total' => [fn () => Http::response(['reportNo' => 'CO-171', 'totalAmount' => -1, 'totalTax' => 0, 'infrastructureTax' => 0])],
@@ -124,7 +125,12 @@ test('an accepted check-out replaces the estimated tax with VFMS tax and levy', 
     $t = twoTenants();
     inTenant($t->a->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'live_since' => now()]));
     // Two nights at 110.00 with no tax rules in Thedream; VFMS assesses 1.00 levy per guest per night.
-    Http::fake(['gateway.zanrevenue.org/vfms/api/guest/checkout/' => Http::response(['reportNo' => 'CO-778', 'totalAmount' => 224.0, 'totalTax' => 0.0, 'infrastructureTax' => 4.0]), 'gateway.zanrevenue.org/vfms/api/*' => Http::response(['responseNumber' => 'VFMS-171'])]);
+    Http::fake(['gateway.zanrevenue.org/vfms/api/guest/checkout/' => Http::response(array_map(function (array $report, int $index) {
+        $report['reportNumber'] = 'CO-'.(778 + $index);
+        $report['totalInfrastructure'] = 2;
+
+        return $report;
+    }, json_decode(file_get_contents(__DIR__.'/../../Fixtures/vfms/checkout.json'), true, flags: JSON_THROW_ON_ERROR), [0, 1])), 'gateway.zanrevenue.org/vfms/api/*' => Http::response(['responseNumber' => 'VFMS-171'])]);
     $reservation = inHouseForCheckOut($t->a);
 
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.show', $reservation))
@@ -143,7 +149,7 @@ test('an accepted check-out replaces the estimated tax with VFMS tax and levy', 
 });
 
 // protects=Sandbox applies the HTTP checkout totals to the folio (#169); fails_when=the fixture totals are not retained; no_claim=real VFMS response schema (decoder changes in #172).
-test('a Sandbox check-out applies the legacy HTTP fixture totals', function () {
+test('a Sandbox check-out applies validated per-guest HTTP fixture totals', function () {
     $t = twoTenants();
     $reservation = checkOutOnDeparture($t->a, inHouseForCheckOut($t->a));
 
@@ -185,7 +191,12 @@ test('a Sandbox fiscal report is stamped and carries no portal QR', function () 
 test('a Live fiscal report shows the portal QR for its report number', function () {
     $t = twoTenants();
     inTenant($t->a->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'live_since' => now()]));
-    Http::fake(['gateway.zanrevenue.org/vfms/api/guest/checkout/' => Http::response(['reportNo' => 'CO-778', 'totalAmount' => 224.0, 'totalTax' => 0.0, 'infrastructureTax' => 4.0]), 'gateway.zanrevenue.org/vfms/api/*' => Http::response(['responseNumber' => 'VFMS-171'])]);
+    Http::fake(['gateway.zanrevenue.org/vfms/api/guest/checkout/' => Http::response(array_map(function (array $report, int $index) {
+        $report['reportNumber'] = 'CO-'.(778 + $index);
+        $report['totalInfrastructure'] = 2;
+
+        return $report;
+    }, json_decode(file_get_contents(__DIR__.'/../../Fixtures/vfms/checkout.json'), true, flags: JSON_THROW_ON_ERROR), [0, 1])), 'gateway.zanrevenue.org/vfms/api/*' => Http::response(['responseNumber' => 'VFMS-171'])]);
     $reservation = checkOutOnDeparture($t->a, inHouseForCheckOut($t->a));
 
     fiscalReport($t->a, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page

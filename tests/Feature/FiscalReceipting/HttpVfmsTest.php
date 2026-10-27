@@ -167,7 +167,7 @@ test('VFMS validates operation-specific success evidence and retains the answer'
     'invalid rates' => ['CURRENCY_EXCHANGE', ['rateUSD' => 'NaN', 'rateEURO' => 2800, 'rateUSDEURO' => 0.93], 'unknown', []],
     'negative rates' => ['CURRENCY_EXCHANGE', ['rateUSD' => -1, 'rateEURO' => 2800, 'rateUSDEURO' => 0.93], 'unknown', []],
     'nonfinite rates' => ['CURRENCY_EXCHANGE', '{"rateUSD":1e999,"rateEURO":2800,"rateUSDEURO":0.93}', 'unknown', []],
-    'legacy checkout' => ['ACCOMMODATION_CHECK_OUT', ['reportNo' => 'CO-171', 'totalAmount' => 220, 'totalTax' => 0, 'infrastructureTax' => 0], 'accepted', ['reportNo' => 'CO-171', 'totalAmount' => 220, 'totalTax' => 0, 'infrastructureTax' => 0]],
+    'legacy checkout' => ['ACCOMMODATION_CHECK_OUT', ['reportNo' => 'CO-171', 'totalAmount' => 220, 'totalTax' => 0, 'infrastructureTax' => 0], 'unknown', []],
     'checkout missing totals' => ['ACCOMMODATION_CHECK_OUT', ['reportNo' => 'CO-171'], 'unknown', []],
     'checkout missing levy' => ['ACCOMMODATION_CHECK_OUT', ['reportNo' => 'CO-171', 'totalAmount' => 220, 'totalTax' => 0], 'unknown', []],
     'checkout invalid totals' => ['ACCOMMODATION_CHECK_OUT', ['reportNo' => 'CO-171', 'totalAmount' => 'NaN', 'totalTax' => 0, 'infrastructureTax' => 0], 'unknown', []],

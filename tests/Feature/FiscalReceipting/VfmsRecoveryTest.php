@@ -8,6 +8,7 @@ use App\Domains\FrontDesk\Actions\CheckOut;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\Actions\MoveRoom;
 use App\Domains\Guests\Actions\CreateGuest;
+use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
@@ -63,7 +64,10 @@ test('refiling a rejected check-in rotates its reference and releases its rebuil
                 ? ['responseNumber' => 'AC-173']
                 : ['statusCode' => 5000, 'statusMessage' => 'The Room ID 1 Is not Empty'],
         ),
-        VfmsHttp::TEST_URL.'guest/checkout/' => Http::response(['reportNo' => 'CO-173', 'totalAmount' => 220, 'totalTax' => 0, 'infrastructureTax' => 0]),
+        VfmsHttp::TEST_URL.'guest/checkout/' => Http::response([[
+            ...json_decode(file_get_contents(__DIR__.'/../../Fixtures/vfms/checkout.json'), true, flags: JSON_THROW_ON_ERROR)[0],
+            'guest' => ['fullName' => 'Recovery Guest', 'documentName' => 'PASSPORT', 'documentNo' => 'RECOVERY-DOC-173', 'country' => 'GERMANY'],
+        ]]),
         VfmsHttp::TEST_URL.'change/room/' => Http::response(['responseNumber' => 'MOVE-173']),
     ]);
     $reservation = vfmsRecoveryStay($tenant);

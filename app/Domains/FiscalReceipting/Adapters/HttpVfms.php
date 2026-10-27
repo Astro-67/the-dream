@@ -131,16 +131,8 @@ final class HttpVfms
                     'infrastructureTax' => $payloads->amount($figures['levy'], $currency),
                 ];
             }
-            if (! $this->number($response['reportNo'] ?? null)) {
-                return null;
-            }
-            foreach (['totalAmount', 'totalTax', 'infrastructureTax'] as $field) {
-                if (! $this->amount($response[$field] ?? null)) {
-                    return null;
-                }
-            }
 
-            return array_intersect_key($response, array_flip(['reportNo', 'totalAmount', 'totalTax', 'infrastructureTax']));
+            return null;
         }
         if ($operation === 'CURRENCY_EXCHANGE') {
             foreach (['rateUSD', 'rateEURO', 'rateUSDEURO'] as $field) {

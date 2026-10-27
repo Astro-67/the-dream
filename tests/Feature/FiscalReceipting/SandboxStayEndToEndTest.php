@@ -21,7 +21,7 @@ use Tests\Support\VfmsHttp;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
-    VfmsHttp::fake('checkout-stay-legacy.json');
+    VfmsHttp::fake('checkout-stay.json');
 });
 
 // protects=spec #156 AC 5: a full Sandbox stay driven through the real routes files every step with VFMS in order and ends in a stamped fixture-based report matching the folio (#166); fails_when=a step files no message, an extra one, out of order or unaccepted, a request targets the Live endpoint, or the report differs from the folio; no_claim=VFMS production acceptance or Live figures.
@@ -70,7 +70,7 @@ test('a full Sandbox stay files six accepted VFMS messages in order and a stampe
     expect($attempts)->toHaveCount(6)
         ->and(json_encode([$messages->pluck('payload'), $attempts->map->only(['request_body', 'response_body', 'provider_references'])]))->not->toContain($marker);
 
-    // Legacy normalized fixture: nights at 110.00 and 125.00, and 20.00 of water; not a provider schema claim (#172).
+    // Per-guest reports repeat the shared room; water belongs only to Anna's report.
     $this->actingAs($desk)->get(route('reservations.fiscal-report', $reservation))->assertOk()
         ->assertInertia(fn (Assert $page) => $page->component('fiscal-receipting/checkout-report')
             ->where('status', 'sandbox')->where('qrSvg', null)->where('guests', ['Anna Berg'])
