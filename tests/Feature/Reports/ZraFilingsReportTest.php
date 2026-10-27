@@ -12,6 +12,7 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Models\Property;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Http;
@@ -131,3 +132,13 @@ test('the ZRA filings CSV follows report permissions', function (OrganizationRol
     'front desk' => [OrganizationRole::FrontDesk, 403],
     'auditor' => [OrganizationRole::Auditor, 200],
 ]);
+
+test('demo properties cannot appear in the filings report or CSV', function () {
+    $tenant = twoTenants()->a;
+    $this->actingAs($tenant->owner)->post(route('properties.demo.store'), ['_property' => $tenant->property->id])->assertRedirect();
+    $demo = inTenant($tenant->organization, fn () => Property::query()->where('demo', true)->sole());
+
+    $this->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $demo->id]);
+    $this->get(route('reports.index', ['view' => 'filings']))->assertNotFound();
+    $this->get(route('reports.filings.csv'))->assertNotFound();
+});

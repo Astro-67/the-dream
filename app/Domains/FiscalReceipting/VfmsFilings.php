@@ -103,6 +103,8 @@ final class VfmsFilings
     /** @return Builder<OutboxMessage> */
     private function query(Property $property, string $from, string $to): Builder
     {
+        $property = Property::query()->real()->findOrFail($property->id);
+
         // The idempotency key starts "vfms:{lifecycle event ULID}" (VfmsTranslator), kept across re-filing.
         return OutboxMessage::query()
             ->join('reservation_lifecycle_events as events', DB::raw('SUBSTR(outbox_messages.idempotency_key, 6, 26)'), '=', 'events.id')
