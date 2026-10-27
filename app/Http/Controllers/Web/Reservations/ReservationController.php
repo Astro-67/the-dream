@@ -75,7 +75,9 @@ class ReservationController extends Controller
 
         return Inertia::render('reservations/show', [
             'vfmsRefusal' => VfmsRefusal::of($reservation, $canRecoverVfms = Gate::allows('recoverVfms', $reservation)),
-            'vfmsFilings' => VfmsFilings::of($reservation, $canRecoverVfms),
+            'vfmsFilings' => $vfmsFilings = VfmsFilings::of($reservation, $canRecoverVfms),
+            'vfmsCloseWithoutFilingUrl' => VfmsFilings::closeWithoutFilingUrl($reservation, $canRecoverVfms, $vfmsFilings),
+            'vfmsFiscalExceptionReason' => $reservation->getAttribute('fiscal_exception_reason'),
             'paymentsReportUrl' => Gate::allows('view', PropertyKpis::class)
                 ? route('payments.index', ['reservation' => $reservation->id, 'period' => 'custom', ...FolioSummary::paymentDates($reservation)]) : null,
             'folios' => $folioPage->through(fn (Folio $folio, int $index) => [

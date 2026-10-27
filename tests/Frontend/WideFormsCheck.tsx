@@ -242,6 +242,33 @@ for (const text of [
     assert.ok(filings.includes(text), `Missing ZRA filing text: ${text}`);
 assert.equal(filings.match(/>Re-file</g)?.length, 1);
 assert.doesNotMatch(filings, />Retry</);
+const closedFilings = render(() => (
+    <Show
+        {...stayProps}
+        vfmsFiscalExceptionReason="Departed before VFMS filing worked"
+        vfmsFilings={[
+            { ...filing, id: 'sandbox', call: 'Check-in', status: 'sandbox' },
+            { ...filing, id: 'closed', call: 'Check-out', status: 'closed' },
+        ]}
+    />
+));
+assert.match(closedFilings, /Sandbox — not fiscal/);
+assert.match(closedFilings, /Closed without filing/);
+assert.match(
+    closedFilings,
+    /Fiscal exception: Departed before VFMS filing worked/,
+);
+assert.doesNotMatch(closedFilings, />Re-file<|>Retry<|>Waiting</);
+const closeableFilings = render(() => (
+    <Show
+        {...stayProps}
+        vfmsCloseWithoutFilingUrl="/reservations/R-1042/vfms/close-without-filing"
+        vfmsFilings={[
+            { ...filing, id: 'rejected', call: 'Check-in', status: 'refused' },
+        ]}
+    />
+));
+assert.match(closeableFilings, />Close without filing</);
 assert.doesNotMatch(reservation, /ZRA filings/);
 for (const label of [
     'More details',

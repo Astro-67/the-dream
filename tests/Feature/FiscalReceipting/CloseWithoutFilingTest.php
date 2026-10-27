@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Billing\Models\FeeProposal;
+use App\Domains\Billing\Models\Folio;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -130,3 +132,60 @@ test('the close without filing command scopes the reservation number to its requ
     $this->artisan('outbox:close-without-filing', $options)->expectsOutput('Closed '.$reservation->reservation_number.' without filing; fiscal exception recorded.')->assertSuccessful();
     expect(inTenant($tenant->property, fn () => $reservation->fresh()->getAttribute('fiscal_exception_reason')))->toBe('Departed before VFMS filing worked');
 });
+
+// protects=departed stays expose closure and never label resolved calls as waiting (#176); fails_when=the action is absent or still offered after closure; no_claim=browser rendering.
+test('the departed stay offers close without filing then shows its fiscal exception', function () {
+    $tenant = twoTenants()->a;
+    $reservation = closeUnfiledStay($tenant, true);
+    $this->actingAs($tenant->owner)->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('vfmsCloseWithoutFilingUrl', route('reservations.vfms.close-without-filing', $reservation)));
+    $this->post(route('reservations.vfms.close-without-filing', $reservation), [
+        '_property' => $tenant->property->id, 'reason' => 'Departed before VFMS filing worked',
+    ])->assertSessionHasNoErrors();
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('vfmsCloseWithoutFilingUrl', null)
+        ->where('vfmsFiscalExceptionReason', 'Departed before VFMS filing worked')
+        ->where('vfmsFilings.0.status', 'sandbox')
+        ->where('vfmsFilings.1.status', 'closed'));
+});
+
+// protects=the existing fee candidates and closed stays share the accountant list and permission (#176); fails_when=fees disappear, other properties leak, or report-only roles see exceptions; no_claim=tax-return preparation.
+test('fiscal exceptions lists posted fee candidates and closed stays only for exception reviewers', function (OrganizationRole $role, bool $allowed) {
+    $tenant = twoTenants()->a;
+    $reservation = closeUnfiledStay($tenant);
+    inTenant($tenant->property, function () use ($reservation) {
+        $reservation->setAttribute('fiscal_exception_reason', 'Departed before VFMS filing worked')->save();
+        foreach ([['cancellation', true, 'posted'], ['no_show', false, 'waived']] as [$kind, $candidate, $status]) {
+            FeeProposal::query()->create([
+                'reservation_id' => $reservation->id, 'folio_id' => Folio::query()->sole()->id,
+                'kind' => $kind, 'amount' => 2500, 'currency' => 'USD', 'status' => $status,
+                'reason' => 'Late cancellation', 'fiscal_exception_candidate' => $candidate,
+            ]);
+        }
+    });
+    $other = inTenant($tenant->otherProperty, function () use ($tenant) {
+        $stay = app(CreateReservation::class)->handle($tenant->owner, BookingForm::details($tenant->owner));
+        $stay->setAttribute('fiscal_exception_reason', 'Other property exception')->save();
+
+        return $stay;
+    });
+    $actor = $role === OrganizationRole::Owner ? $tenant->owner : $tenant->member($role);
+    $this->actingAs($actor)->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reports.index'))->assertDontSee('Other property exception')->assertInertia(function (Assert $page) use ($allowed, $reservation) {
+            if (! $allowed) {
+                return $page->where('fiscalExceptions', null);
+            }
+
+            return $page->has('fiscalExceptions', 2)
+                ->where('fiscalExceptions.0.reservationNumber', $reservation->reservation_number)
+                ->where('fiscalExceptions.0.reason', 'Departed before VFMS filing worked')
+                ->where('fiscalExceptions.1.kind', 'Cancellation fee')->where('fiscalExceptions.1.reason', 'Late cancellation');
+        });
+})->with([
+    [OrganizationRole::Owner, true],
+    [OrganizationRole::PropertyManager, true],
+    [OrganizationRole::Finance, true],
+    [OrganizationRole::Auditor, false],
+    [OrganizationRole::GroupOperationsManager, false],
+]);

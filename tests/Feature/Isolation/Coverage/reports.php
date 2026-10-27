@@ -45,7 +45,10 @@ return [
         return $responses;
     }),
     'reports.index' => RouteCoverage::attempt(function (TwoTenants $t) {
-        inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
+        inTenant($t->b->property, function () use ($t) {
+            $stay = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            $stay->setAttribute('fiscal_exception_reason', $t->b->property->name)->save();
+        });
         inTenant($t->b->property, function () use ($t) {
             app(OpenCashierShift::class)->handle($t->b->owner, ['USD' => 0]);
             app(RecordPayment::class)->handle($t->b->owner, Folio::query()->firstOrFail(), ['method' => 'cash', 'amount' => 700, 'currency' => 'USD']);
@@ -65,7 +68,8 @@ return [
                     ->where('kpis.soldRoomNights', 0)
                     ->where('kpis.currencies.0.bookedRoomValue', 0)
                     ->where('finance.folios.data', [])
-                    ->where('finance.payments.rows', []));
+                    ->where('finance.payments.rows', [])
+                    ->where('fiscalExceptions', in_array($role, [OrganizationRole::Owner->value, OrganizationRole::PropertyManager->value, OrganizationRole::Finance->value], true) ? [] : null));
             }
             $responses[] = $response;
         }

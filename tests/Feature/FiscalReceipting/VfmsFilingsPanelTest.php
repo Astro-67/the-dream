@@ -63,7 +63,7 @@ test('the stay lists its ZRA filings with status, number and refusal message', f
     $this->actingAs($tenant->owner)->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
         ->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->has('vfmsFilings', 3)
-        ->where('vfmsFilings.0', ['id' => $checkIn->id, 'call' => 'Check-in', 'status' => 'filed', 'attempts' => 1, 'number' => 'AC-174', 'message' => null, 'refileUrl' => null, 'retryUrl' => null])
+        ->where('vfmsFilings.0', ['id' => $checkIn->id, 'call' => 'Check-in', 'status' => 'sandbox', 'attempts' => 1, 'number' => 'AC-174', 'message' => null, 'refileUrl' => null, 'retryUrl' => null])
         ->where('vfmsFilings.1', ['id' => $extra->id, 'call' => 'Extras', 'status' => 'refused', 'attempts' => 1, 'number' => null, 'message' => 'The Room ID 1 Is not Empty',
             'refileUrl' => route('reservations.vfms.refile', [$reservation, $extra]), 'retryUrl' => null])
         ->where('vfmsFilings.2.call', 'Check-out')

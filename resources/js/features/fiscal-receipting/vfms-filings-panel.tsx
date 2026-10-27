@@ -35,7 +35,7 @@ import {
 export type VfmsFiling = {
     id: string;
     call: string;
-    status: 'filed' | 'refused' | 'unknown' | 'waiting';
+    status: 'filed' | 'sandbox' | 'closed' | 'refused' | 'unknown' | 'waiting';
     attempts: number;
     number: string | null;
     message: string | null;
@@ -45,12 +45,22 @@ export type VfmsFiling = {
 
 const statuses: Record<VfmsFiling['status'], [string, StatusTone]> = {
     filed: ['Filed', 'success'],
+    sandbox: ['Sandbox — not fiscal', 'info'],
+    closed: ['Closed without filing', 'unavailable'],
     refused: ['Refused', 'error'],
     unknown: ['Unknown', 'warning'],
     waiting: ['Waiting', 'info'],
 };
 
-export function VfmsFilingsPanel({ filings }: { filings: VfmsFiling[] }) {
+export function VfmsFilingsPanel({
+    filings,
+    closeUrl,
+    fiscalExceptionReason,
+}: {
+    filings: VfmsFiling[];
+    closeUrl?: string | null;
+    fiscalExceptionReason?: string | null;
+}) {
     if (filings.length === 0) return null;
 
     return (
@@ -110,14 +120,16 @@ export function VfmsFilingsPanel({ filings }: { filings: VfmsFiling[] }) {
                                     <TableCell>
                                         {filing.refileUrl && (
                                             <RecoverFiling
-                                                filing={filing}
+                                                id={filing.id}
+                                                call={filing.call}
                                                 url={filing.refileUrl}
                                                 action="Re-file"
                                             />
                                         )}
                                         {filing.retryUrl && (
                                             <RecoverFiling
-                                                filing={filing}
+                                                id={filing.id}
+                                                call={filing.call}
                                                 url={filing.retryUrl}
                                                 action="Retry"
                                             />
@@ -128,21 +140,40 @@ export function VfmsFilingsPanel({ filings }: { filings: VfmsFiling[] }) {
                         })}
                     </TableBody>
                 </Table>
+                {fiscalExceptionReason && (
+                    <p className="mt-4 text-sm">
+                        Fiscal exception: {fiscalExceptionReason}. The property
+                        must declare this stay in its VAT return.
+                    </p>
+                )}
+                {closeUrl && (
+                    <div className="mt-4">
+                        <RecoverFiling
+                            id="stay"
+                            call=""
+                            url={closeUrl}
+                            action="Close without filing"
+                        />
+                    </div>
+                )}
             </CollapsibleContent>
         </Collapsible>
     );
 }
 
 function RecoverFiling({
-    filing,
+    id: filingId,
+    call,
     url,
     action,
 }: {
-    filing: VfmsFiling;
+    id: string;
+    call: string;
     url: string;
-    action: 'Re-file' | 'Retry';
+    action: 'Re-file' | 'Retry' | 'Close without filing';
 }) {
-    const id = `vfms-${action === 'Retry' ? 'retry' : 'refile'}-${filing.id}`;
+    const id = `vfms-${action === 'Close without filing' ? 'close' : action === 'Retry' ? 'retry' : 'refile'}-${filingId}`;
+    const closing = action === 'Close without filing';
 
     return (
         <Dialog>
@@ -154,12 +185,16 @@ function RecoverFiling({
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>
-                        {action} {filing.call} with ZRA?
+                        {closing
+                            ? 'Close this stay without filing?'
+                            : `${action} ${call} with ZRA?`}
                     </DialogTitle>
                     <DialogDescription>
-                        {action === 'Retry'
-                            ? 'This sends the same filing to ZRA again.'
-                            : 'This sends corrected stay details to ZRA. Only a confirmed rejection can be re-filed; an unknown outcome needs reconciliation.'}
+                        {closing
+                            ? 'Nothing will be filed with ZRA. This departed stay becomes a fiscal exception which the property must declare in its VAT return. Existing filing evidence is kept.'
+                            : action === 'Retry'
+                              ? 'This sends the same filing to ZRA again.'
+                              : 'This sends corrected stay details to ZRA. Only a confirmed rejection can be re-filed; an unknown outcome needs reconciliation.'}
                     </DialogDescription>
                 </DialogHeader>
                 <Form
@@ -176,6 +211,11 @@ function RecoverFiling({
                                 <Input
                                     id={id}
                                     name="reason"
+                                    defaultValue={
+                                        closing
+                                            ? 'Departed before VFMS filing worked'
+                                            : undefined
+                                    }
                                     required
                                     maxLength={500}
                                     aria-invalid={Boolean(errors.reason)}
@@ -195,7 +235,7 @@ function RecoverFiling({
                                 </DialogClose>
                                 <Button type="submit" disabled={processing}>
                                     {processing && <Spinner />}
-                                    {action} with ZRA
+                                    {closing ? action : `${action} with ZRA`}
                                 </Button>
                             </DialogFooter>
                         </>

@@ -3,6 +3,7 @@
 namespace App\Domains\FiscalReceipting;
 
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Support\Outbox\OutboxMessage;
 
@@ -14,6 +15,16 @@ final class VfmsFilings
         'addGuest' => 'Guest added', 'changeProfile' => 'Profile corrected', 'services' => 'Extras',
         'guestDeparture' => 'Guest left', 'checkout' => 'Check-out',
     ];
+
+    /** @param list<array<string, mixed>> $filings */
+    public static function closeWithoutFilingUrl(Reservation $reservation, bool $canRecover, array $filings): ?string
+    {
+        return $canRecover && $reservation->status === ReservationStatus::CheckedOut
+            && $reservation->getAttribute('fiscal_exception_reason') === null
+            && collect($filings)->contains(fn (array $filing) => $filing['status'] === 'refused' || $filing['status'] === 'waiting')
+            && ! collect($filings)->contains(fn (array $filing) => in_array($filing['status'], ['filed', 'unknown', 'closed'], true))
+                ? route('reservations.vfms.close-without-filing', $reservation) : null;
+    }
 
     /** @return list<array{id: string, call: string, status: string, attempts: int, number: string|null, message: string|null, refileUrl: string|null, retryUrl: string|null}> */
     public static function of(Reservation $reservation, bool $canRecover): array
@@ -29,7 +40,8 @@ final class VfmsFilings
                     'id' => $message->id,
                     'call' => self::CALLS[$message->event] ?? $message->event,
                     'status' => match ($message->status) {
-                        'delivered' => 'filed',
+                        'delivered' => ($references['mode'] ?? null) === 'sandbox' ? 'sandbox' : 'filed',
+                        'superseded' => 'closed',
                         'rejected' => 'refused',
                         'unknown', 'exhausted_unknown' => 'unknown',
                         default => 'waiting',
