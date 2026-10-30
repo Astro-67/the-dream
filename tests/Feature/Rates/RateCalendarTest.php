@@ -9,11 +9,13 @@ use App\Domains\Rates\Actions\DeactivateRatePlan;
 use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Rates\Actions\SetRateRestrictions;
 use App\Domains\Rates\Models\RatePlan;
+use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 
 beforeEach(function () {
@@ -68,6 +70,30 @@ test('the calendar shows sellable, out of service, every active plan\'s prices a
         ->where('roomTypes.0.plans.1.code', 'NR')->where('roomTypes.0.plans.1.derived', true)
         ->where('roomTypes.0.plans.1.prices', ['2026-10-09' => 9000, '2026-10-10' => 9000, '2026-10-11' => null])
         ->where('roomTypes.0.plans.1.restrictions', ['2026-10-09' => null, '2026-10-10' => null, '2026-10-11' => null]));
+});
+
+test('available rooms fall when booked and return when cancelled without changing sellable rooms', function () {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '103']));
+
+        return app(CreateReservation::class)->handle($t->a->owner, $details);
+    });
+    $calendar = route('rate-calendar', ['from' => '2026-12-09', 'to' => '2026-12-12']);
+
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get($calendar)
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('roomTypes.0.sellable', ['2026-12-09' => 3, '2026-12-10' => 3, '2026-12-11' => 3, '2026-12-12' => 3])
+        ->where('roomTypes.0.available', ['2026-12-09' => 3, '2026-12-10' => 2, '2026-12-11' => 2, '2026-12-12' => 3]));
+
+    $this->post(route('reservations.cancel', $reservation), ['_property' => $t->a->property->id, 'reason' => 'Guest changed plans'])
+        ->assertSessionHasNoErrors()->assertRedirect(route('reservations.show', $reservation));
+
+    $this->get($calendar)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('roomTypes.0.sellable', ['2026-12-09' => 3, '2026-12-10' => 3, '2026-12-11' => 3, '2026-12-12' => 3])
+        ->where('roomTypes.0.available', ['2026-12-09' => 3, '2026-12-10' => 3, '2026-12-11' => 3, '2026-12-12' => 3]));
 });
 
 test('a rates manager bulk edits prices and restrictions from the calendar, audited like the rate plan pages', function () {
