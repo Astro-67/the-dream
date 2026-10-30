@@ -343,33 +343,39 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 
 ### 7.10 VFMS fiscal receipting (P0, Zanzibar)
 
-- **FSC-01:** Each property's VFMS business unit credentials are stored per property, separate from the ZAN Gateway supplier key, and are never shown after saving.
+- **FSC-01:** Each property's VFMS business unit credentials are stored per property, separate from the ZAN Gateway supplier key, and are never shown after saving. Each property has a **VFMS mode** (fake, ZRA test or production); filing cannot be switched off (ADR 0017). The property manager enters the integration ID and token in fiscal settings; switching to production needs both and a successful exchange-rate call as a connection test.
 - **FSC-02:** At check-in, send an accommodation request containing:
     - every guest's full name, document type, document number and country;
-    - room ID and name;
+    - the room's numeric VFMS room ID (a property prefix plus the room's sequence, never reused, as Uhuru does, because VFMS refuses a room ID already occupied in the business unit) and its number as the room name;
     - check-in date;
     - currency;
     - the **first night's tax-inclusive room price** and any discount;
-    - the meal or package code;
+    - the package code: `RO`, `BB`, `HB`, `FB` or `AI` for room only, bed and breakfast, half board, full board or all-inclusive;
     - a unique reference number for the transaction.
 - **FSC-03:** Use the accommodation source `DIRECT` for direct, walk-in and OTA stays, with the guest as payer and the full tax-inclusive price (ADR 0005). Use `TOUR OPERATOR`, with the operator's ZRA registration number and cost options, only for stays paid by a registered tour operator.
     - The channel's commission never appears on a fiscal receipt.
 - **FSC-04:** During the stay:
-    - a room move sends a change-room call;
+    - a room move sends a change-room call first, and the guest moves only once VFMS accepts it, so Thedream and VFMS never disagree about the room (as Uhuru does);
     - an added guest sends an add-guest call;
     - corrected guest details send a change-profile call;
+    - a guest who leaves before the room checks out gets a check-out call for their document only, so the infrastructure levy stops for them while the stay continues;
     - at night audit, if the next night's rate differs, a change-room-price call is sent.
-- **FSC-05:** Extras charged to the room folio (free-text items such as restaurant, minibar or laundry) are sent through the extra-services call, and the fiscal receipt number is stored against the folio charge.
-- **FSC-06:** At checkout, send the check-out call and issue the **fiscal check-out report** with the VFMS QR code. Store the report number and totals.
-- **FSC-07:** When VFMS is unavailable:
-    - check-in, room moves and charges still go ahead in Thedream, and VFMS calls retry from a queue in order;
+- **FSC-05:** Extras charged to the room folio (free-text items such as restaurant, minibar or laundry, VAT-inclusive, whole-number quantities) are drafted by staff and filed together when staff send them, one extra-services call and one fiscal receipt per send (as Uhuru does), under the document of the guest the accommodation request was opened with, and the fiscal receipt number is stored against the folio charge.
+- **FSC-06:** At checkout, send the check-out call listing every guest still in-house in the room, and issue the **fiscal check-out report** with the VFMS QR code. Store the report number and totals.
+- **FSC-07:** When VFMS refuses a call (for example an occupied room ID or a bad document), the stay goes ahead in Thedream and is marked **not filed with ZRA**. Staff correct the details and re-file, which rebuilds the call from current details under a new reference. A refused check-out leaves the guest checked out and the stay on the manager's exception list until re-filed.
+- **FSC-07a:** When VFMS is unavailable:
+    - check-in, charges and check-out still go ahead in Thedream, and VFMS calls retry from a queue in order. A room move waits for VFMS (FSC-04);
+    - a call keeps one reference number across every retry, and VFMS refuses a reference it already holds. A timeout or server error is an unknown outcome and is resent with the same reference; "already exists" means VFMS accepted the first attempt. When that loses a number Thedream needs (a service receipt or check-out report), the call goes to the compliance operator;
+    - VFMS reports errors as HTTP 200 with a status code and message; Thedream treats those as refusals, not successes;
     - the final fiscal check-out report cannot be issued until every VFMS call for the stay is accepted;
     - a departure blocked this way goes to the manager's exception list.
-- **FSC-08:** **Fiscal exceptions** are charges with no VFMS path: cancellation fees, no-show fees, and any charge to a guest who never checked in.
+- **FSC-08:** **Fiscal exceptions** are charges with no VFMS path: cancellation fees, no-show fees, and any charge to a guest who never checked in. A stay whose guest left without ever being checked in is closed without filing and listed for the property's VAT return; a late check-in is never filed.
     - They are posted to the folio and get a receipt clearly labelled **non-fiscal**.
     - They are listed in a fiscal exceptions report for the property's accountant.
 - **FSC-09:** Fetch and store the VFMS exchange rate when VFMS calculates in a currency different from the folio, and show the rate and date wherever it is used.
-- **FSC-10:** Store every VFMS request and response, including response numbers and receipt numbers, linked to the stay, for audit.
+- **FSC-10:** The fiscal check-out report lists one VFMS report per guest, each with its own number and QR code, and is shown to staff only, because it carries the price the hotel declared. Store every VFMS request and response, including response numbers and receipt numbers, linked to the stay, for audit.
+- **FSC-11:** Check-in at a Zanzibar property is refused while the same document number is already in-house at that property, naming the other room. After check-in VFMS identifies a guest only by document number.
+- **FSC-12:** The first slice files check-in, room move, added guest, guest departure, corrected guest details, extra services and check-out, with the exchange-rate and accommodation-report calls. Until the change-room-price call ships, the rate of a filed stay cannot be changed (as Uhuru does). P0 uses the accommodation, change-room, change-room-price, add-guest, change-profile, extra-services, check-out, exchange-rate and accommodation-report calls, plus advance-payment booking and advance-payment accommodation, because pilot hotels take tour-operator deposits before arrival. Error correction follows in a second slice; until then a wrong fiscal receipt is corrected in the VFMS portal.
 
 **Acceptance criteria:**
 
@@ -514,14 +520,14 @@ The channel manager's per-property cost is either built into Zanzibar property p
 
 ## 14. Delivery sequence and release gates
 
-| Milestone                    | Scope                                                                                                                     | Exit criteria                                                                                                                                                            |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| M0: Validate                 | Pilot hotel interviews, workflow mapping, **channel manager selection**, **ZRA vendor registration** and VFMS test access | Pilot cohort agreed, channel manager contracted, ZRA staging key and VFMS test credentials obtained                                                                      |
-| M1: Tenant foundation        | Organizations, memberships, property context, authorization, audit, integration queue foundation                          | Isolation suite passes                                                                                                                                                   |
-| M2: Core PMS                 | Rooms, rates, reservations, check-in and check-out, folios, housekeeping, night audit, onboarding, subscriptions          | P0 PMS and finance acceptance criteria pass                                                                                                                              |
-| M3: Zanzibar compliance pack | Channel connectivity, ZAN Gateway reporting, VFMS receipting, compliance dashboard, reconciliation                        | Booking.com end-to-end lifecycle (§8) passes in staging. Latency, retry and outage tests pass                                                                            |
-| M4: Pilot                    | Live pilot properties                                                                                                     | All P0 acceptance criteria pass. No unresolved critical security or data defects. Restore exercise passes. A Zanzibar pilot property completes full cycles in production |
-| M5: Expansion                | P1 scope                                                                                                                  | Each provider passes contract and failure-recovery tests                                                                                                                 |
+| Milestone                    | Scope                                                                                                                            | Exit criteria                                                                                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M0: Validate                 | Pilot hotel interviews, workflow mapping, **channel manager selection**, **ZRA vendor registration** and VFMS test access        | Pilot cohort agreed, channel manager contracted, ZRA staging key and VFMS test credentials obtained                                                                      |
+| M1: Tenant foundation        | Organizations, memberships, property context, authorization, audit, integration queue foundation                                 | Isolation suite passes                                                                                                                                                   |
+| M2: Core PMS                 | Rooms, rates, reservations, check-in and check-out, folios, housekeeping, night audit, onboarding, subscriptions                 | P0 PMS and finance acceptance criteria pass                                                                                                                              |
+| M3: Zanzibar compliance pack | VFMS receipting first, then ZAN Gateway reporting on the same outbox, channel connectivity, compliance dashboard, reconciliation | Booking.com end-to-end lifecycle (§8) passes in staging. Latency, retry and outage tests pass                                                                            |
+| M4: Pilot                    | Live pilot properties                                                                                                            | All P0 acceptance criteria pass. No unresolved critical security or data defects. Restore exercise passes. A Zanzibar pilot property completes full cycles in production |
+| M5: Expansion                | P1 scope                                                                                                                         | Each provider passes contract and failure-recovery tests                                                                                                                 |
 
 **Pilot cohort:** two independent hotels, one small multi-property group, and selected properties from one larger chain. At least one pilot property must be **in Zanzibar and selling on Booking.com through the channel manager**.
 
@@ -562,18 +568,20 @@ Analytics events never contain identity documents, card data or full reservation
 
 Thedream relies on its reading of the ZRA documents and has not asked ZRA to confirm. Each interpretation below is implemented as configuration where practical.
 
-| #    | Topic                         | Interpretation                                                                   | Basis                                                                      |
-| ---- | ----------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| I-1  | VFMS source for OTA stays     | `DIRECT`: the guest is payer, full tax-inclusive price, no commission (ADR 0005) | VFMS guide §2.1. Booking.com guest-invoice guidance                        |
-| I-2  | No-show                       | ZAN `Cancel`/`Cancel`, guest count 0, `CancelDate` = no-show date                | ZAN OpenAPI: "explicit 0 allowed for cancel/no-show"                       |
-| I-3  | Channel field                 | Not sent. Neither ZRA document defines one                                       | ZAN OpenAPI schema                                                         |
-| I-4  | `guest_country`               | Sent, as an ISO code                                                             | ZAN GW guide §7 example                                                    |
-| I-5  | Rate limit                    | Design for 100 per minute for the whole platform                                 | ZAN GW guide §9 (stricter than the spec's 500)                             |
-| I-6  | 5-minute window               | Measured from the event in Thedream, with a 1-minute target                      | ZAN GW guide §4 Step 4                                                     |
-| I-7  | Varying nightly rates         | First night at check-in, then a change-room-price call when the rate changes     | VFMS guide §2.1, §2.3                                                      |
-| I-8  | Cancellation and no-show fees | Non-fiscal receipt, plus the fiscal exceptions report                            | VFMS guide: no endpoint for a guest who never checked in                   |
-| I-9  | Historical data               | Future reservations only. Completed stays stay with the previous supplier        | ZAN GW guide §4 Step 3, read as applying to the supplier's own bookings    |
-| I-10 | Corrections                   | Re-send the full current state for the same reservation number                   | ZAN OpenAPI: identity is hotel code + reservation number; ZAN GW guide §11 |
+| #    | Topic                         | Interpretation                                                                   | Basis                                                                                  |
+| ---- | ----------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| I-1  | VFMS source for OTA stays     | `DIRECT`: the guest is payer, full tax-inclusive price, no commission (ADR 0005) | VFMS guide §2.1. Booking.com guest-invoice guidance                                    |
+| I-2  | No-show                       | ZAN `Cancel`/`Cancel`, guest count 0, `CancelDate` = no-show date                | ZAN OpenAPI: "explicit 0 allowed for cancel/no-show"                                   |
+| I-3  | Channel field                 | Not sent. Neither ZRA document defines one                                       | ZAN OpenAPI schema                                                                     |
+| I-4  | `guest_country`               | Sent, as an ISO code                                                             | ZAN GW guide §7 example                                                                |
+| I-5  | Rate limit                    | Design for 100 per minute for the whole platform                                 | ZAN GW guide §9 (stricter than the spec's 500)                                         |
+| I-6  | 5-minute window               | Measured from the event in Thedream, with a 1-minute target                      | ZAN GW guide §4 Step 4                                                                 |
+| I-7  | Varying nightly rates         | First night at check-in, then a change-room-price call when the rate changes     | VFMS guide §2.1, §2.3                                                                  |
+| I-8  | Cancellation and no-show fees | Non-fiscal receipt, plus the fiscal exceptions report                            | VFMS guide: no endpoint for a guest who never checked in                               |
+| I-9  | Historical data               | Future reservations only. Completed stays stay with the previous supplier        | ZAN GW guide §4 Step 3, read as applying to the supplier's own bookings                |
+| I-10 | Corrections                   | Re-send the full current state for the same reservation number                   | ZAN OpenAPI: identity is hotel code + reservation number; ZAN GW guide §11             |
+| I-11 | VFMS retries                  | One reference number per call; resend with the same reference                    | ZRA test environment, 26 Oct 2026: a repeated reference is refused as "already exists" |
+| I-12 | VFMS guest identity           | The document number identifies an in-house guest; no duplicates in-house         | VFMS guide §2.2, §2.8, §2.11: no stay or room reference after check-in                 |
 
 ## 18. Definition of done for the first paid release
 

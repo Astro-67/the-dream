@@ -26,6 +26,13 @@ _Avoid_: Group block, multi-room reservation
 The in-house phase of a reservation, from check-in to check-out. Not a separate record from the reservation.
 _Avoid_: Visit
 
+**Sellable rooms**:
+The rooms of a room type that can be sold for a date: active rooms that are not out of order. Booking a reservation does not change it.
+
+**Available rooms**:
+Sellable rooms minus rooms sold for a date. Falls when a reservation is booked and rises when one is cancelled.
+_Avoid_: Free rooms, sellable (for what is left after sales)
+
 **Booked occupancy**:
 Rooms sold divided by sellable rooms for a date, counting reservations whether or not guests have arrived. Valid for future dates.
 _Avoid_: Occupancy (unqualified, for future dates)
@@ -120,7 +127,18 @@ _Avoid_: Sandbox, test property
 Clearing an unpaid folio balance as uncollectable. Needs a permission and a reason, and a second approver above the property's threshold.
 
 **Receipt**:
-A Thedream-numbered record of payment, always labelled non-fiscal. Distinct from a fiscal receipt, which VFMS issues.
+A Thedream-numbered record of one payment, always labelled non-fiscal. Distinct from a fiscal receipt, which VFMS issues.
+
+**Folio statement**:
+The printable summary of a folio for the guest: the stay, room charges, taxes, levy, other charges, payments and the balance due. Not a receipt, fiscal or otherwise.
+_Avoid_: Bill, invoice, guest receipt
+
+**Room status**:
+What the front desk sees for a room today, combining housekeeping and bookings: out of order, occupied, reserved (a guest arrives today and has not checked in), inspection required, dirty or available, in that order of precedence. A reserved room still shows whether it needs cleaning or inspection.
+
+**Out of order**:
+A specific room taken out of inventory for a range of dates, with a reason, until it is returned to service. It lowers sellable rooms.
+_Avoid_: Out of service, stop-sell (a stop-sell is a restriction on a rate plan, not a room)
 
 **Restriction**:
 A selling rule on a rate plan and date: minimum stay, closed to arrival or stop-sell. Binding for channels; staff may override with a reason. Never overrides inventory.
@@ -199,6 +217,14 @@ The authority's identifier for a property, separate from its TIN, VRN and full Z
 **Fiscal receipt**:
 A receipt or check-out report issued through VFMS, carrying a VFMS QR code.
 _Avoid_: Invoice, bill, folio
+
+**VFMS mode**:
+Where a property's fiscal calls go: Thedream's fake VFMS, ZRA's shared test environment, or production. Filing itself is never off at a Zanzibar property.
+_Avoid_: Sandbox, test mode, live mode
+
+**Guest departure**:
+One guest leaving before the rest of their room checks out. VFMS stops charging the infrastructure levy for that guest; the stay continues.
+_Avoid_: Partial check-out, early check-out (an early check-out ends the whole stay)
 
 **Fiscal exception**:
 A charge that has no path into VFMS, such as a cancellation or no-show fee, so it gets a non-fiscal receipt and is listed for the property's accountant.
