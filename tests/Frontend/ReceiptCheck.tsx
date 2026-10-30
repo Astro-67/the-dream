@@ -9,7 +9,6 @@ const base = {
         id: 'rc-1',
         number: 'RCT-000007',
         label: 'Non-fiscal receipt',
-        vfms_receipt_number: null,
         issued_at: '2026-12-10T09:00:00Z',
         amount: 2000,
         currency: 'USD',

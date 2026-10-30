@@ -13,18 +13,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
 /**
- * Thedream's proof of one payment (glossary: Receipt). Always non-fiscal: a VFMS
- * fiscal receipt number (M3) is stored separately, never in $number.
+ * Thedream's proof of one payment (glossary: Receipt). Always non-fiscal: VFMS
+ * numbers belong to fiscal transactions, never to a payment receipt.
  *
  * @property string $id
  * @property string $posting_id
  * @property int $sequence gap-free per property
  * @property string $number the property's receipt prefix plus the sequence
- * @property string|null $vfms_receipt_number
  * @property CarbonImmutable $issued_at
  * @property array<string, mixed>|null $summary the paid folio's posted totals right after this payment; null before snapshots existed
  */
-#[Fillable(['posting_id', 'sequence', 'number', 'vfms_receipt_number', 'issued_at', 'summary'])]
+#[Fillable(['posting_id', 'sequence', 'number', 'issued_at', 'summary'])]
 #[UsePolicy(ReceiptPolicy::class)]
 class Receipt extends Model
 {
@@ -36,9 +35,8 @@ class Receipt extends Model
 
     protected static function booted(): void
     {
-        // Proof of a past payment: only the VFMS number may be added later.
-        static::updating(fn (Receipt $receipt) => $receipt->isDirty(['posting_id', 'sequence', 'number', 'issued_at', 'summary'])
-            ? throw new LogicException('A receipt and its folio summary are never rewritten.') : null);
+        // Proof of a past payment.
+        static::updating(fn () => throw new LogicException('A receipt and its folio summary are never rewritten.'));
     }
 
     /** @return array<string, string> */
