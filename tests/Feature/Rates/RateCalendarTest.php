@@ -48,7 +48,7 @@ function calendarSetup(Property $property, User $owner): array
     });
 }
 
-test('the calendar shows sellable, out of service, every active plan\'s prices and restrictions for the chosen dates and room types', function () {
+test('the calendar shows sellable, available, out of service, every active plan\'s prices and restrictions for the chosen dates and room types', function () {
     $t = twoTenants();
     $s = calendarSetup($t->a->property, $t->a->owner);
 
@@ -62,6 +62,7 @@ test('the calendar shows sellable, out of service, every active plan\'s prices a
         ->has('roomTypes', 1)
         ->where('roomTypes.0.id', $s['deluxe']->id)
         ->where('roomTypes.0.sellable', ['2026-10-09' => 2, '2026-10-10' => 1, '2026-10-11' => 1])
+        ->where('roomTypes.0.available', ['2026-10-09' => 2, '2026-10-10' => 1, '2026-10-11' => 1])
         ->where('roomTypes.0.outOfService', ['2026-10-09' => 0, '2026-10-10' => 1, '2026-10-11' => 1])
         ->has('roomTypes.0.plans', 2)
         ->where('roomTypes.0.plans.0.code', 'BB')->where('roomTypes.0.plans.0.derived', false)->where('roomTypes.0.plans.0.currency', 'USD')
@@ -70,6 +71,11 @@ test('the calendar shows sellable, out of service, every active plan\'s prices a
         ->where('roomTypes.0.plans.1.code', 'NR')->where('roomTypes.0.plans.1.derived', true)
         ->where('roomTypes.0.plans.1.prices', ['2026-10-09' => 9000, '2026-10-10' => 9000, '2026-10-11' => null])
         ->where('roomTypes.0.plans.1.restrictions', ['2026-10-09' => null, '2026-10-10' => null, '2026-10-11' => null]));
+
+    $this->get(route('rate-calendar', ['from' => '2026-10-09', 'to' => '2026-10-11', 'room_type_ids' => [$s['garden']->id]]))
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('roomTypes.0.sellable', ['2026-10-09' => 0, '2026-10-10' => 0, '2026-10-11' => 0])
+        ->where('roomTypes.0.available', ['2026-10-09' => 0, '2026-10-10' => 0, '2026-10-11' => 0]));
 });
 
 test('available rooms fall when booked and return when cancelled without changing sellable rooms', function () {
@@ -86,6 +92,9 @@ test('available rooms fall when booked and return when cancelled without changin
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get($calendar)
         ->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('roomTypes.0.sellable', ['2026-12-09' => 3, '2026-12-10' => 3, '2026-12-11' => 3, '2026-12-12' => 3])
+        ->where('roomTypes.0.available', ['2026-12-09' => 3, '2026-12-10' => 2, '2026-12-11' => 2, '2026-12-12' => 3]));
+
+    $this->get($calendar.'&search=NoMatchingGuest')->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('roomTypes.0.available', ['2026-12-09' => 3, '2026-12-10' => 2, '2026-12-11' => 2, '2026-12-12' => 3]));
 
     $this->post(route('reservations.cancel', $reservation), ['_property' => $t->a->property->id, 'reason' => 'Guest changed plans'])
