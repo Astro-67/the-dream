@@ -7,6 +7,7 @@ import {
     TableCell,
 } from '@/components/ui/table';
 import { Form, Head } from '@inertiajs/react';
+import { useState } from 'react';
 import { X } from 'lucide-react';
 import StaffController from '@/actions/App/Http/Controllers/Web/Platform/StaffController';
 import InputError from '@/components/input-error';
@@ -49,8 +50,9 @@ function RemoveRole({
     role: PlatformRole;
     label: string;
 }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <button
                     type="button"
@@ -70,6 +72,7 @@ function RemoveRole({
                 </DialogDescription>
                 <Form
                     {...StaffController.destroy.form({ user: member.id, role })}
+                    onSuccess={() => setOpen(false)}
                     options={{ preserveScroll: true }}
                 >
                     {({ processing, errors }) => (

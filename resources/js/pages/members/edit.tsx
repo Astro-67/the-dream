@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -49,8 +50,9 @@ function TransferOwnership({
     roles: RoleOption[];
     properties: SelectOption[];
 }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="secondary">Transfer ownership</Button>
             </DialogTrigger>
@@ -64,6 +66,7 @@ function TransferOwnership({
                 </DialogDescription>
                 <Form
                     {...transferOwnership.form(member.id)}
+                    onSuccess={() => setOpen(false)}
                     disableWhileProcessing
                     options={{ preserveScroll: true }}
                     className="flex flex-col gap-6"
