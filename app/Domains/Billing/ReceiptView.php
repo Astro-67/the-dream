@@ -25,7 +25,7 @@ final class ReceiptView
 
         return [
             'receipt' => [
-                'id' => $receipt->id, 'number' => $receipt->number, 'label' => __(Receipt::LABEL), 'vfms_receipt_number' => $receipt->vfms_receipt_number,
+                'id' => $receipt->id, 'number' => $receipt->number, 'label' => __(Receipt::LABEL),
                 'issued_at' => $receipt->issued_at->toIso8601String(),
                 'amount' => -$payment->amount, 'currency' => $payment->currency->value, 'deposit' => $payment->category === 'deposit',
                 'method' => $payment->method, 'reference' => $payment->reference, 'card_last_four' => $payment->card_last_four, 'card_brand' => $payment->card_brand,

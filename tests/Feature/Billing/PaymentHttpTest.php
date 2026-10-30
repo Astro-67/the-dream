@@ -69,7 +69,7 @@ test('a recorded payment redirects to its receipt, labelled non-fiscal', functio
         ->component('receipts/show')
         ->where('receipt.number', 'RCT-000001')->where('receipt.label', 'Non-fiscal receipt')
         ->where('receipt.amount', 2500)->where('receipt.currency', 'USD')->where('receipt.method', 'card')
-        ->where('receipt.card_last_four', '4242')->where('receipt.vfms_receipt_number', null));
+        ->where('receipt.card_last_four', '4242')->missing('receipt.vfms_receipt_number'));
 });
 
 test('a resubmitted payment form posts once and issues one receipt', function () {

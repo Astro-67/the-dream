@@ -17,7 +17,6 @@ type Receipt = {
     id: string;
     number: string;
     label: string;
-    vfms_receipt_number: string | null;
     issued_at: string;
     amount: number;
     currency: string;
@@ -166,14 +165,6 @@ export default function Show({
                                       [
                                           'Payment collector',
                                           reservation.payment_collector,
-                                      ],
-                                  ]
-                                : []),
-                            ...(receipt.vfms_receipt_number
-                                ? [
-                                      [
-                                          'VFMS receipt number',
-                                          receipt.vfms_receipt_number,
                                       ],
                                   ]
                                 : []),
