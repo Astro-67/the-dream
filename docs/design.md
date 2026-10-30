@@ -106,7 +106,7 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
     - **Tags and filters** use a 4px radius, Background fill and Text Secondary text. Active filters use Primary Tint with Primary text.
 - **Tooltips:** the shadcn/Radix Tooltip, which works with a keyboard and on touch. Never put essential information only in a tooltip, and never use native `title` tooltips.
 - **Dialogs and confirmations:** shadcn Dialog. Destructive confirmations name the object ("Cancel reservation R-1042?"), explain the consequence, and put the destructive button last. Any action that reports to ZRA says so ("This sends a cancellation to ZAN Gateway").
-- **Toasts:** bottom-right on desktop, top on mobile. Success, info and default toasts disappear after 4 seconds; error and warning toasts after 8 seconds. Hovering or focusing the toaster pauses dismissal. Every toast has a close button and is announced to assistive technology.
+- **Toasts:** bottom-right on desktop, top on mobile. Success, info and default toasts disappear after 4 seconds; error and warning toasts after 8 seconds. Hovering pauses dismissal. Every toast has a close button and is announced to assistive technology.
 - **Empty states:** a one-line explanation plus the next action ("No arrivals today. Create a reservation"). No illustrations.
 - **Navigation:** the starter kit's collapsible sidebar on desktop and tablet, which becomes a sheet on mobile.
     - **Organization and property switcher** at the top of the sidebar, always showing the current organization and property (PRD §4).
