@@ -12,6 +12,7 @@ use App\Domains\Tenancy\Enums\PropertyStatus;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 
 test('the selected setup property shows a checklist derived from its data', function () {
     [$owner, , $property] = organizationWithOwner();
@@ -49,6 +50,40 @@ test('the selected setup property shows a checklist derived from its data', func
             ->where('onboarding.items.7.completed', false)
             ->has('onboarding.gates', 9)
             ->where('onboarding.canGoLive', false));
+});
+
+test('room setup substeps track adding a room type and an active room', function () {
+    [$owner, , $property] = organizationWithOwner();
+    $property->forceFill(['status' => PropertyStatus::Setup])->save();
+    $this->actingAs($owner);
+
+    $this->post(route('room-types.store'), InventoryForm::roomType(['_property' => $property->id]))
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('room-types.index'));
+    $roomTypeId = $this->get(route('room-types.index'))->inertiaProps('roomTypes.0.id');
+
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('onboarding.items.2.completed', false)
+        ->where('onboarding.items.2.items.0.completed', true)
+        ->where('onboarding.items.2.items.1.completed', false));
+
+    $this->post(route('rooms.store'), InventoryForm::room($roomTypeId, ['_property' => $property->id]))
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('rooms.index'));
+    $roomId = $this->get(route('rooms.index'))->inertiaProps('rooms.0.id');
+
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('onboarding.items.2.completed', true)
+        ->where('onboarding.items.2.items.0.completed', true)
+        ->where('onboarding.items.2.items.1.completed', true));
+
+    $this->post(route('rooms.deactivate', $roomId), ['_property' => $property->id])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('onboarding.items.2.completed', false)
+        ->where('onboarding.items.2.items.0.completed', true)
+        ->where('onboarding.items.2.items.1.completed', false));
 });
 
 test('setup progress survives leaving and returning and offers go-live only after the gates pass', function () {
@@ -168,6 +203,8 @@ test('an empty profile and another property data cannot complete the selected pr
         ->where('onboarding.propertyId', $property->id)
         ->where('onboarding.items.1.completed', false)
         ->where('onboarding.items.2.completed', false)
+        ->where('onboarding.items.2.items.0.completed', false)
+        ->where('onboarding.items.2.items.1.completed', false)
         ->where('onboarding.items.3.completed', false)
         ->where('onboarding.items.4.completed', false)
         ->where('onboarding.items.5.completed', false)
@@ -187,6 +224,10 @@ test('an unauthorized member sees progress but is not offered setup mutations', 
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
             ->where('onboarding.gates.3.passed', true)
+            ->where('onboarding.items.2.items.0.completed', true)
+            ->where('onboarding.items.2.items.0.href', null)
+            ->where('onboarding.items.2.items.1.completed', true)
+            ->where('onboarding.items.2.items.1.href', null)
             ->where('onboarding.canGoLive', false)
             ->where('onboarding.canReviewTaxes', false));
 });
