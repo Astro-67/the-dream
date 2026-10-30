@@ -40,9 +40,11 @@ type Stay = {
 export function AmendmentForm({
     reservation,
     options,
+    onSuccess,
 }: {
     reservation: Stay;
     options: AmendmentOptions;
+    onSuccess: () => void;
 }) {
     const [type, setType] = useState(reservation.room_type_id);
     const [warnings, setWarnings] = useState<string[] | null>(null);
@@ -52,6 +54,7 @@ export function AmendmentForm({
         <section className="max-w-[720px] space-y-3">
             <Form
                 {...amend.form(reservation.reservation_number)}
+                onSuccess={onSuccess}
                 className="space-y-4"
                 onChange={(event) => {
                     if (
