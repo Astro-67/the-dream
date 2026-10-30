@@ -1,4 +1,5 @@
 import { Form, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ export function CheckOutDialog({
     balances: CheckoutBalance[];
     canOverride: boolean;
 }) {
+    const [dialogOpen, setDialogOpen] = useState(false);
     const open = balances.filter((total) => total.balance !== 0);
     const { blockCheckoutIfUnpaid = true } = usePage<{
         blockCheckoutIfUnpaid?: boolean;
@@ -61,7 +63,7 @@ export function CheckOutDialog({
     }
 
     return (
-        <Dialog>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
                 <Button>Check out</Button>
             </DialogTrigger>
@@ -86,7 +88,11 @@ export function CheckOutDialog({
                         </div>
                     ))}
                 </dl>
-                <Form {...checkOut.form(number)} className="space-y-4">
+                <Form
+                    {...checkOut.form(number)}
+                    onSuccess={() => setDialogOpen(false)}
+                    className="space-y-4"
+                >
                     {({ errors, processing }) => (
                         <>
                             <PropertyIntent />
