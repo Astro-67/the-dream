@@ -24,6 +24,7 @@ export type Checklist = {
         passed: boolean;
         href: string | null;
     }[];
+    goLiveRequested: boolean;
     canGoLive: boolean;
     canReviewTaxes: boolean;
     receiptNotice: string | null;
@@ -231,6 +232,11 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                         </li>
                     ))}
                 </ul>
+                {checklist.goLiveRequested && (
+                    <StatusChip tone="warning">
+                        Go-live requested, waiting for Thedream
+                    </StatusChip>
+                )}
                 {checklist.canGoLive && (
                     <Form
                         {...goLive.form(checklist.propertyId)}
@@ -246,7 +252,7 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                                 <InputError message={errors.go_live} />
                                 <Button type="submit">
                                     {processing && <Spinner />}
-                                    Go live
+                                    Request go-live
                                 </Button>
                             </div>
                         )}

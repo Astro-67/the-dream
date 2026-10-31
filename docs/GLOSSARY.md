@@ -134,8 +134,12 @@ A Thedream-numbered record of payment, always labelled non-fiscal. Distinct from
 A selling rule on a rate plan and date: minimum stay, closed to arrival or stop-sell. Binding for channels; staff may override with a reason. Never overrides inventory.
 
 **Go-live**:
-A property moving from setup to live once its go-live gates pass. Before go-live, a property can be configured and take test reservations but cannot check guests in, and nothing is reported to authorities.
+A property moving from setup to live. The owner sends a go-live request once its go-live gates pass; a platform administrator approves it after Thedream is paid. Before go-live, a property can be configured and take test reservations but cannot check guests in, and nothing is reported to authorities. A Zanzibar property also needs VFMS credentials saved and set to Live.
 _Avoid_: Activation, launch
+
+**Go-live request**:
+A property owner's request, recorded with when and by whom, for Thedream to take a property live. Refused while any go-live gate fails, and always for a demo property. The property stays in setup while the request waits; requesting again changes nothing.
+_Avoid_: Activation request
 
 **Reservation lifecycle event**:
 A record that something happened to a reservation that authorities may need to know about: created, modified, cancelled, no-show confirmed, checked in, room moved, guest added, guest profile changed (name, country or identity document of an in-house guest), nightly price changed, extra posted, checked out.

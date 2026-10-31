@@ -304,3 +304,16 @@ test('going live again changes nothing', function () {
 
     expect($t->a->property->fresh()->only(['status', 'went_live_at']))->toEqual($before);
 });
+
+test('the property list shows a property waiting for go-live approval', function () {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->forceFill(['status' => PropertyStatus::Setup, 'taxes_reviewed_at' => now()])->save();
+    inTenant($property, fn () => BookingForm::details($t->a->owner));
+    vfmsLive($property);
+    $requested = fn (Assert $page) => collect($page->toArray()['props']['properties'])->firstWhere('id', $property->id)['goLiveRequested'];
+
+    $this->actingAs($t->a->owner)->get(route('properties.index'))->assertInertia(fn (Assert $page) => expect($requested($page))->toBeFalse());
+    $this->post(route('properties.go-live', $property), ['_property' => $property->id])->assertSessionHasNoErrors();
+    $this->get(route('properties.index'))->assertInertia(fn (Assert $page) => expect($requested($page))->toBeTrue());
+});

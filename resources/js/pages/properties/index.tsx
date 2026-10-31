@@ -45,6 +45,7 @@ type PropertyRow = {
     jurisdictionProfile: JurisdictionProfile;
     jurisdictionLabel: string;
     demo: boolean;
+    goLiveRequested: boolean;
     can: { update: boolean; archive: boolean; delete: boolean };
 };
 
@@ -322,6 +323,15 @@ export default function PropertiesIndex({
                                     <TableCell className="font-medium">
                                         {property.name}
                                         {property.demo && <DemoChip />}
+                                        {property.goLiveRequested && (
+                                            <StatusChip
+                                                tone="warning"
+                                                className="ml-2"
+                                            >
+                                                Go-live requested, waiting for
+                                                Thedream
+                                            </StatusChip>
+                                        )}
                                         {property.id ===
                                             tenant.property?.id && (
                                             <Tag
