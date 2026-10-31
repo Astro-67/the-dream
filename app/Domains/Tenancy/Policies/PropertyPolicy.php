@@ -21,6 +21,11 @@ use App\Support\Tenancy\Access;
  */
 class PropertyPolicy
 {
+    public function approveGoLive(User $user): bool
+    {
+        return $user->hasPlatformRole(PlatformRole::Administrator);
+    }
+
     public function declineGoLive(User $user): bool
     {
         return $user->hasPlatformRole(PlatformRole::Administrator);

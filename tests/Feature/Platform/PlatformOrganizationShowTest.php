@@ -128,7 +128,7 @@ test('setup and archived properties remain visible and incomplete VFMS credentia
             ->has('organization', fn (Assert $organization) => $organization->hasAll(['id', 'name', 'owners']))
             ->has('properties', 2)
             ->has('properties.1', fn (Assert $property) => $property->hasAll([
-                'id', 'name', 'email', 'phone', 'status', 'statusLabel', 'archived', 'gates', 'vfmsMode', 'credentialsSaved',
+                'id', 'name', 'email', 'phone', 'status', 'statusLabel', 'archived', 'gates', 'vfmsMode', 'credentialsSaved', 'zraCheck', 'zraCheckedAt',
             ]))
             ->where('properties.1.status', 'setup')
             ->where('properties.1.archived', true)
@@ -144,7 +144,7 @@ test('the organization page shows each property and its own gates without creden
         Room::query()->create(InventoryForm::room($roomType->id));
         VfmsCredential::query()->create([
             'integration_id' => 'secret-integration-id', 'registration_id' => 'secret-registration-id',
-            'token' => 'secret-vfms-token', 'mode' => 'live',
+            'token' => 'secret-vfms-token', 'mode' => 'live', 'zra_check' => 'accepted', 'zra_checked_at' => '2026-10-31 09:00:00',
         ]);
     });
 
@@ -156,16 +156,20 @@ test('the organization page shows each property and its own gates without creden
             ->where('properties.0.status', 'live')
             ->where('properties.0.vfmsMode', 'sandbox')
             ->where('properties.0.credentialsSaved', false)
+            ->where('properties.0.zraCheck', null)
+            ->where('properties.0.zraCheckedAt', null)
             ->where('properties.0.gates.0.passed', false)
             ->where('properties.1.name', 'Alpha Stone Town Inn')
             ->where('properties.1.status', 'go_live_requested')
             ->where('properties.1.email', 'stonetown@alpha.test')
             ->where('properties.1.vfmsMode', 'live')
             ->where('properties.1.credentialsSaved', true)
+            ->where('properties.1.zraCheck', 'accepted')
+            ->where('properties.1.zraCheckedAt', '2026-10-31T09:00:00+00:00')
             ->where('properties.1.gates.0', ['key' => 'room_type', 'label' => 'At least one room type', 'passed' => true])
             ->where('properties.1.gates.1.passed', true)
             ->where('properties.1.gates.2.passed', false)
-            ->where('properties.1.gates.8', ['key' => 'vfms', 'label' => 'VFMS credentials saved and set to Live', 'passed' => true])
+            ->where('properties.1.gates.8', ['key' => 'vfms', 'label' => 'VFMS credentials accepted by ZRA and set to Live', 'passed' => true])
             ->missing('guests')->missing('reservations')->missing('folios'));
 
     foreach (['secret-integration-id', 'secret-registration-id', 'secret-vfms-token', 'Bravo'] as $secret) {

@@ -11,7 +11,7 @@ import { StatusChip } from '@/components/ui/status-chip';
 import vfmsRoutes from '@/routes/properties/vfms';
 import { formatDate } from '@/features/platform/format';
 import { index as taxRules } from '@/routes/tax-rules';
-import { formatTime } from '@/lib/utils';
+import { ZraCheckStatus } from '@/features/tenancy/zra-check-status';
 
 export type Settings = Record<
     string,
@@ -426,12 +426,6 @@ export type VfmsSettings = {
     confirmation: string;
 };
 
-const zraCheckChips = {
-    accepted: { tone: 'success', label: 'Accepted by ZRA' },
-    refused: { tone: 'error', label: 'Refused by ZRA' },
-    unreachable: { tone: 'warning', label: 'Could not reach ZRA' },
-} as const;
-
 /**
  * VFMS credentials and the Sandbox/Live switch. Its own forms, so it sits outside
  * the property form; the server sends it only for VFMS properties the member manages.
@@ -553,23 +547,11 @@ export function VfmsFields({
                 {({ processing, errors }) => (
                     <>
                         <PropertyIntent propertyId={propertyId} />
-                        {vfms.zra_check && vfms.zra_checked_at ? (
-                            <>
-                                <StatusChip
-                                    tone={zraCheckChips[vfms.zra_check].tone}
-                                >
-                                    {zraCheckChips[vfms.zra_check].label}
-                                </StatusChip>
-                                <span className="text-sm text-muted-foreground">
-                                    {formatDate(vfms.zra_checked_at, timeZone)}{' '}
-                                    {formatTime(vfms.zra_checked_at, timeZone)}
-                                </span>
-                            </>
-                        ) : (
-                            <span className="text-sm text-muted-foreground">
-                                Not checked with ZRA yet.
-                            </span>
-                        )}
+                        <ZraCheckStatus
+                            outcome={vfms.zra_check}
+                            checkedAt={vfms.zra_checked_at}
+                            timeZone={timeZone}
+                        />
                         <Button
                             type="submit"
                             variant="secondary"

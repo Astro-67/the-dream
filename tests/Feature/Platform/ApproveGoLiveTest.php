@@ -7,6 +7,7 @@ use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Property;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
@@ -47,6 +48,16 @@ test('a platform administrator approves a waiting go-live request and the proper
         ->and($property->went_live_at)->not->toBeNull();
     $audit = Activity::query()->where('event', 'went_live')->sole();
     expect($audit->causer_id)->toBe($admin->id)->and($audit->subject_id)->toBe($property->id);
+});
+
+test('go-live approval respects a policy authorization refusal', function () {
+    $t = twoTenants();
+    $property = waitingForApproval($t);
+    Gate::before(fn ($user, string $ability) => $ability === 'approveGoLive' ? false : null);
+
+    $this->actingAs(platformStaff())->post(route('platform.properties.go-live.approve', $property->id))->assertForbidden();
+
+    expect($property->fresh()->status)->toBe(PropertyStatus::Setup);
 });
 
 test('approval is refused unless the subscription is Active', function (string $status, string $label) {

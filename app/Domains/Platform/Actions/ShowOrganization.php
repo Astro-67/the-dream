@@ -61,6 +61,8 @@ final class ShowOrganization
                             ], JurisdictionRules::goLiveGates($property)),
                             'vfmsMode' => $credential->mode->value,
                             'credentialsSaved' => $credential->isComplete(),
+                            'zraCheck' => $credential->zra_check,
+                            'zraCheckedAt' => $credential->zra_checked_at?->toIso8601String(),
                         ];
                     }))->all(),
             ];

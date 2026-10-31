@@ -20,6 +20,7 @@ import type { PaymentSlip } from '@/features/subscriptions/payment-slips';
 import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
+import { ZraCheckStatus } from '@/features/tenancy/zra-check-status';
 import { index } from '@/routes/platform/organizations';
 import { show as showInvoice } from '@/routes/platform/invoices';
 import type { Paginated, PlatformOrganizationOwner } from '@/types';
@@ -67,6 +68,8 @@ type Props = {
         gates: { key: string; label: string; passed: boolean }[];
         vfmsMode: 'sandbox' | 'live';
         credentialsSaved: boolean;
+        zraCheck: 'accepted' | 'refused' | 'unreachable' | null;
+        zraCheckedAt: string | null;
     }[];
 };
 
@@ -403,6 +406,14 @@ export default function PlatformOrganizationShow({
                                                 {property.credentialsSaved
                                                     ? 'Yes'
                                                     : 'No'}
+                                            </div>
+                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                <ZraCheckStatus
+                                                    outcome={property.zraCheck}
+                                                    checkedAt={
+                                                        property.zraCheckedAt
+                                                    }
+                                                />
                                             </div>
                                         </TableCell>
                                     </TableRow>

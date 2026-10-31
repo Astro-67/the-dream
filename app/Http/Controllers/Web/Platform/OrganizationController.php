@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Web\Platform;
 use App\Domains\Platform\Actions\ApproveGoLive;
 use App\Domains\Platform\Actions\ListOrganizations;
 use App\Domains\Platform\Actions\ShowOrganization;
+use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -31,6 +33,8 @@ class OrganizationController extends Controller
 
     public function approveGoLive(Request $request, string $property, ApproveGoLive $approve): RedirectResponse
     {
+        Gate::authorize('approveGoLive', Property::class);
+
         /** @var User $actor */
         $actor = $request->user();
         $approved = $approve->handle($actor, $property);
