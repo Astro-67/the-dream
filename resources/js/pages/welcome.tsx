@@ -8,7 +8,6 @@ import {
     Users,
 } from 'lucide-react';
 import { useState } from 'react';
-import AppLogoIcon from '@/components/app-logo-icon';
 import BrandLogo from '@/components/brand-logo';
 import { AppearanceToggle } from '@/components/appearance-toggle';
 import { Button } from '@/components/ui/button';
@@ -245,12 +244,8 @@ export default function Welcome({
                         aria-label="Main"
                         className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6"
                     >
-                        <Link
-                            href="/"
-                            className="flex items-center gap-2 font-semibold"
-                        >
-                            <AppLogoIcon className="size-8 fill-primary" />
-                            <span>{name}</span>
+                        <Link href="/" className="flex shrink-0 items-center">
+                            <BrandLogo className="h-auto w-32 sm:w-44" />
                         </Link>
                         <div className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
                             <a
@@ -300,7 +295,6 @@ export default function Welcome({
                 <main>
                     <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:px-6 md:py-24 lg:grid-cols-[1fr_1.1fr]">
                         <div className="space-y-6">
-                            <BrandLogo className="w-64" />
                             <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">
                                 Your property. Every stay. One system.
                             </h1>

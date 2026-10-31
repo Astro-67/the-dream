@@ -55,6 +55,9 @@ function sidebar(
 }
 
 const administrator = sidebar(['platform_administrator']);
+assert.match(administrator, /src="\/karafuu-logo\.png"/);
+assert.match(administrator, /src="\/karafuu-logo-dark\.png"/);
+assert.match(administrator, /alt="Karafuu PMS, The Heart of Hospitality"/);
 assert.equal(
     /<a\b[^>]*href="\/platform\/organizations"[^>]*>Platform administration<\/a>/.test(
         administrator,

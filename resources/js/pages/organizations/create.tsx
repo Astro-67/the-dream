@@ -1,5 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
+import BrandLogo from '@/components/brand-logo';
 import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -100,7 +100,7 @@ export default function CreateOrganization({
             <div className="min-h-svh bg-background px-4 py-10 md:px-6 md:py-16">
                 <div className="mx-auto flex w-full max-w-[720px] flex-col gap-8">
                     <header className="flex flex-col gap-4">
-                        <AppLogoIcon className="size-9 fill-current text-foreground" />
+                        <BrandLogo className="h-auto w-48" />
                         <div className="space-y-2">
                             <p className="text-sm font-medium text-muted-foreground">
                                 Last step before your setup checklist
