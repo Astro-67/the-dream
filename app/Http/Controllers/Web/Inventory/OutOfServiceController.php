@@ -23,7 +23,7 @@ class OutOfServiceController extends Controller
         $user = $request->user();
 
         /** @var array{starts_on: string, returns_on: string, reason: string} $details */
-        $details = $request->validated();
+        $details = $request->safe()->only(['starts_on', 'returns_on', 'reason']);
         $takeOutOfService->handle($user, $room, $details);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Room :number taken out of order.', ['number' => $room->number])]);
@@ -37,7 +37,7 @@ class OutOfServiceController extends Controller
         $user = $request->user();
 
         /** @var array{starts_on: string, returns_on: string, reason: string} $details */
-        $details = $request->validated();
+        $details = $request->safe()->only(['starts_on', 'returns_on', 'reason']);
         $changePeriod->handle($user, $period, $details);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Out-of-order period saved.')]);

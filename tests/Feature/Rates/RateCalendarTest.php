@@ -184,8 +184,17 @@ test('a rates manager bulk edits prices and restrictions from the calendar, audi
 test('front desk sees the calendar read-only and the server refuses their edits', function (OrganizationRole $role) {
     $t = twoTenants();
     $s = calendarSetup($t->a->property, $t->a->owner);
-    $this->actingAs($t->a->member($role))->get(route('rate-calendar'))->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('canManage', false)->has('dates', 15)->where('from', '2026-10-08')->has('roomTypes', 2));
+    $response = $this->actingAs($t->a->member($role))->get(route('rate-calendar'))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('canManage', false)->has('dates', 15)->where('from', '2026-10-08')->has('roomTypes', 2)
+            ->where('roomTypes.0.rooms.0.canManageOutOfOrder', false)
+            ->where('roomTypes.0.rooms.0.outOfServicePeriods.0.reason', 'Leak'));
+    $room = $response->inertiaProps('roomTypes.0.rooms.0');
+    $outOfOrder = ['_property' => $t->a->property->id, 'calendar' => true, 'starts_on' => '2026-10-10', 'returns_on' => '2026-10-10', 'reason' => 'Leak'];
+    $this->post(route('out-of-service.store', $room['id']), [...$outOfOrder, 'returns_on' => '2026-10-12'])->assertForbidden();
+    $this->put(route('out-of-service.update', $room['outOfServicePeriods'][0]['id']), $outOfOrder)->assertForbidden();
+    $this->get(route('rate-calendar'))->assertInertia(fn (Assert $page) => $page
+        ->where('roomTypes.0.sellable.2026-10-10', 1)
+        ->where('roomTypes.0.available.2026-10-10', 1));
 
     $this->put(route('rate-calendar.prices', $s['base']), ['_property' => $t->a->property->id, 'room_type_id' => $s['deluxe']->id, 'from' => '2026-10-09', 'to' => '2026-10-09', 'weekdays' => [5], 'base_price' => 1, 'extra_adult' => 0, 'extra_child' => 0])->assertForbidden();
     $this->put(route('rate-calendar.restrictions', $s['base']), ['_property' => $t->a->property->id, 'room_type_id' => $s['deluxe']->id, 'from' => '2026-10-09', 'to' => '2026-10-09', 'weekdays' => [5], 'min_stay' => 9])->assertForbidden();
