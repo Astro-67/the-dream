@@ -176,9 +176,11 @@ test('derived plans keep base currency and room types when either plan is edited
 
         return [$base, $derived, $room, $other];
     });
-    $this->actingAs($t->a->owner)->put(route('rate-plans.update', $derived), ['_property' => $t->a->property->id, 'name' => 'Renamed', 'code' => 'D', 'currency' => 'USD', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors();
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->put(route('rate-plans.update', $derived), ['_property' => $t->a->property->id, 'name' => 'Renamed', 'code' => 'D', 'currency' => 'USD', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors();
     expect(inTenant($t->a->property, fn () => $derived->fresh()->roomTypes()->pluck('room_types.id')->all()))->toBe([$room->id]);
-    $this->put(route('rate-plans.update', $base), ['_property' => $t->a->property->id, 'name' => 'Breakfast', 'code' => 'BB', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors();
+    $this->put(route('rate-plans.update', $base), ['_property' => $t->a->property->id, 'name' => 'Breakfast', 'code' => 'BB', 'room_type_ids' => [$other->id], 'adjustment_kind' => 'percent', 'adjustment' => 10])->assertSessionHasNoErrors();
+    $this->get(route('rate-plans.edit', $base))->assertOk()->assertInertia(fn (Assert $page) => $page->where('plan.adjustment_kind', null)->where('plan.adjustment', null));
+    $this->get(route('rate-plans.edit', $derived))->assertInertia(fn (Assert $page) => $page->where('plan.adjustment_kind', 'percent')->where('plan.adjustment', -10));
     expect(inTenant($t->a->property, fn () => $derived->fresh()->roomTypes()->pluck('room_types.id')->all()))->toBe([$other->id])
         ->and(inTenant($t->a->property, fn () => $derived->fresh()->currency->value))->toBe('EUR');
 });
@@ -251,6 +253,18 @@ test('editing only a derived adjustment updates its prices and audit', function 
     $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get(route('rate-plans.edit', $derived))->assertInertia(fn (Assert $page) => $page
         ->where('plan.adjustment_kind', 'percent')->where('plan.adjustment', 10));
     $form = ['_property' => $t->a->property->id, 'name' => 'Derived', 'code' => 'D', 'adjustment_kind' => $kind, 'adjustment' => (string) $adjustment];
+    foreach ([
+        [['adjustment_kind' => 'markup'], 'adjustment_kind'],
+        [['adjustment_kind' => 'percent', 'adjustment' => -101], 'adjustment'],
+        [['adjustment_kind' => 'percent', 'adjustment' => 1001], 'adjustment'],
+        [['adjustment_kind' => 'amount', 'adjustment' => -1000000001], 'adjustment'],
+        [['adjustment_kind' => 'amount', 'adjustment' => 1000000001], 'adjustment'],
+        [['adjustment' => 2.5], 'adjustment'],
+        [['adjustment_kind' => null], 'adjustment_kind'],
+        [['adjustment' => null], 'adjustment'],
+    ] as [$invalid, $error]) {
+        $this->put(route('rate-plans.update', $derived), [...$form, ...$invalid])->assertSessionHasErrors($error);
+    }
     $this->put(route('rate-plans.update', $derived), $form)->assertSessionHasNoErrors();
     $this->get(route('rate-plans.edit', $derived))->assertInertia(fn (Assert $page) => $page
         ->where('plan.adjustment_kind', $kind)->where('plan.adjustment', $adjustment));
