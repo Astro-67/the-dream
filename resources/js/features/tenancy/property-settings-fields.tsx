@@ -11,6 +11,7 @@ import { StatusChip } from '@/components/ui/status-chip';
 import vfmsRoutes from '@/routes/properties/vfms';
 import { formatDate } from '@/features/platform/format';
 import { index as taxRules } from '@/routes/tax-rules';
+import { formatTime } from '@/lib/utils';
 
 export type Settings = Record<
     string,
@@ -420,8 +421,16 @@ export type VfmsSettings = {
     mode: 'sandbox' | 'live';
     live_since: string | null;
     credentials_refused_at: string | null;
+    zra_check: 'accepted' | 'refused' | 'unreachable' | null;
+    zra_checked_at: string | null;
     confirmation: string;
 };
+
+const zraCheckChips = {
+    accepted: { tone: 'success', label: 'Accepted by ZRA' },
+    refused: { tone: 'error', label: 'Refused by ZRA' },
+    unreachable: { tone: 'warning', label: 'Could not reach ZRA' },
+} as const;
 
 /**
  * VFMS credentials and the Sandbox/Live switch. Its own forms, so it sits outside
@@ -430,9 +439,11 @@ export type VfmsSettings = {
 export function VfmsFields({
     propertyId,
     vfms,
+    timeZone,
 }: {
     propertyId: string;
     vfms: VfmsSettings;
+    timeZone: string;
 }) {
     const live = vfms.mode === 'live';
     const complete =
@@ -530,6 +541,48 @@ export function VfmsFields({
                                 Save VFMS credentials
                             </Button>
                         </div>
+                    </>
+                )}
+            </Form>
+            <Form
+                {...vfmsRoutes.check.form(propertyId)}
+                disableWhileProcessing
+                options={{ preserveScroll: true }}
+                className="flex flex-wrap items-center gap-3"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        <PropertyIntent propertyId={propertyId} />
+                        {vfms.zra_check && vfms.zra_checked_at ? (
+                            <>
+                                <StatusChip
+                                    tone={zraCheckChips[vfms.zra_check].tone}
+                                >
+                                    {zraCheckChips[vfms.zra_check].label}
+                                </StatusChip>
+                                <span className="text-sm text-muted-foreground">
+                                    {formatDate(vfms.zra_checked_at, timeZone)}{' '}
+                                    {formatTime(vfms.zra_checked_at, timeZone)}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="text-sm text-muted-foreground">
+                                Not checked with ZRA yet.
+                            </span>
+                        )}
+                        <Button
+                            type="submit"
+                            variant="secondary"
+                            className="ml-auto"
+                            disabled={!complete}
+                        >
+                            {processing && <Spinner />}
+                            Check with ZRA
+                        </Button>
+                        <InputError
+                            message={errors.zra_check}
+                            className="basis-full"
+                        />
                     </>
                 )}
             </Form>
