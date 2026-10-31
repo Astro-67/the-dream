@@ -65,9 +65,7 @@ export function GroupMemberActions({
                         <DialogHeader>
                             <DialogTitle>
                                 Pay reservation{' '}
-                                <Identifier>
-                                    {member.reservation_number}
-                                </Identifier>
+                                <Identifier value={member.reservation_number} />
                             </DialogTitle>
                             <DialogDescription>
                                 {due?.label}: {due?.amount}
