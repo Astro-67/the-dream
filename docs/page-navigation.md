@@ -5,6 +5,8 @@ ancestor has an explicit internal destination; the final item is current-page
 text. The sidebar layout shows **Back to [immediate ancestor]** before page
 content, including on direct entry. Single-item trails have no return link.
 Return navigation is hidden in print and does not change Cancel or submission.
+Record-level return links can therefore differ from legacy Cancel destinations;
+the exceptions below deliberately preserve the existing form behaviour.
 
 Paths below are relative to `resources/js/pages/`. Braces enumerate files.
 
@@ -59,3 +61,28 @@ contract (34 destinations including the two invoice contexts) and checks roots.
 sidebar states, linked ancestors, current labels, context, Cancel and form intent.
 Existing page checks cover the underlying workflows; browser checks establish
 geometry, responsive overflow, focus and actual navigation.
+
+### Verification on 1 November 2026
+
+- All registered frontend checks, TypeScript and the production build pass.
+- Affected Pest suites: 190 tests, 2,710 assertions, including contact forms,
+  inventory, rates, reservation creation, invoices, properties, tenant switching
+  and property intent.
+- Browser widths: 390px, 820px, 1280px and 1440px; light/dark themes,
+  expanded/collapsed sidebar and mobile navigation sheet.
+- Bounded Booker form centre offset: 152px before, 0px after, measured relative
+  to the remaining workspace in both desktop sidebar states and on tablet.
+- Direct-entry detail/edit return chain, original Cancel destination, native
+  required-field feedback, keyboard focus ring and parent-link-to-Name tab order
+  confirmed. Parent and ancestor links are at least 44px high.
+- A 200-character unbroken parent label wraps without horizontal overflow or
+  spilling outside its link. Its link grows to 136px for 118.5px of text.
+- Mobile Bookers table: 433px inside a 356px scroll container. Tablet calendar:
+  1773px inside a 514px scroll container. Neither causes body overflow.
+- Reservation creation remains wide (1136px form in an 1184px workspace);
+  account settings retain navigation and a 720px form column.
+
+These are representative browser checks, not a visual pass over every inventory
+entry. Full integrated contrast, physical print and accessibility qualification
+remain with #208. Browser data is disposable worktree SQLite; serve with
+`--no-reload` so Artisan preserves exported database settings.
