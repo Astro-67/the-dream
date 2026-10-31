@@ -159,6 +159,10 @@ _Avoid_: Account, licence
 A request for payment from Thedream to an organization for one subscription billing period. Separate from guest folios, non-fiscal receipts and fiscal receipts.
 _Avoid_: Folio, guest invoice, fiscal receipt
 
+**Billing details**:
+Thedream's business name, address, contacts, TIN and VRN, and the bank and mobile-money accounts it accepts, kept by platform administrators. Each SaaS invoice keeps a copy of them from the moment it was issued.
+_Avoid_: Company profile, bank details (when mobile money is meant too)
+
 ## Jurisdiction and compliance
 
 **Jurisdiction profile**:
