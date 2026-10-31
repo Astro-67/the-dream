@@ -32,6 +32,7 @@ return [
             $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
             app(CreateRoom::class)->handle(null, InventoryForm::room($type->id));
         });
+        withBillingDetails();
         $bravoInvoice = inTenant($t->b->organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
         $responses = array_values(array_map(fn ($member) => $this->actingAs($member)->get(route('subscription.show')), $t->a->members()));
 
@@ -81,6 +82,7 @@ return [
     }),
 
     'platform.invoices.payments.store' => RouteCoverage::attempt(function (TwoTenants $t) {
+        withBillingDetails();
         $invoice = inTenant($t->b->organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
 
         $responses = [

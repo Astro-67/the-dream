@@ -19,6 +19,8 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 
+beforeEach(fn () => withBillingDetails());
+
 function saasInvoiceFor(Organization $organization): SaasInvoice
 {
     return inTenant($organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));

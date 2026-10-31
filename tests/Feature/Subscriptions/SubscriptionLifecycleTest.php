@@ -13,6 +13,7 @@ use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
     Notification::fake();
+    withBillingDetails();
     $this->travelTo(now()->setDate(2026, 10, 14)->startOfHour());
 });
 
