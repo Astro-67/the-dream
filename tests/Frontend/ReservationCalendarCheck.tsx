@@ -5,6 +5,9 @@ import {
     type CalendarReservation,
 } from '@/features/reservations/calendar-rows';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { App } from '@inertiajs/react';
+import { Dialog } from '@/components/ui/dialog';
+import { CalendarOutOfOrder } from '@/features/rates/calendar-out-of-order';
 
 const departure = renderToStaticMarkup(
     <TooltipProvider>
@@ -183,4 +186,62 @@ for (const canManageOutOfOrder of [true, false]) {
 }
 console.log(
     'Out-of-order room periods remain visible alongside stays, read-only for front desk: PASS',
+);
+
+for (const startsOn of [undefined, '2026-12-10', '2026-12-15']) {
+    const Page = () => (
+        <Dialog open>
+            <CalendarOutOfOrder
+                editing={{
+                    room: { id: 'room', number: '101', reservations: [] },
+                    date: '2026-12-12',
+                    period: startsOn
+                        ? {
+                              id: 'period',
+                              startsOn,
+                              returnsOn: '2026-12-20',
+                              reason: 'Leaking shower',
+                              started: startsOn <= '2026-12-12',
+                          }
+                        : undefined,
+                }}
+                businessDate="2026-12-12"
+                onDone={() => {}}
+            />
+        </Dialog>
+    );
+    const html = renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'calendar',
+                url: '/rate-calendar',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: { errors: {}, tenant: { property: { id: 'property' } } },
+            }}
+            initialComponent={Page}
+            resolveComponent={async () => Page}
+        />,
+    );
+    assert.match(html, /name="_property" value="property"/);
+    assert.match(html, /name="calendar" value="1"/);
+    if (startsOn) {
+        assert.match(html, /Return room 101 to service/);
+        assert.match(html, /Leaking shower/);
+        assert.match(
+            html,
+            new RegExp(
+                `name="returns_on" value="${startsOn > '2026-12-12' ? startsOn : '2026-12-12'}"`,
+            ),
+        );
+    } else {
+        assert.match(html, /Take room 101 out of order/);
+        assert.match(html, /name="starts_on"[^>]*value="2026-12-12"/);
+        assert.match(html, /name="returns_on"[^>]*value="2026-12-13"/);
+        assert.match(html, /required[^>]*name="reason"/);
+    }
+}
+console.log(
+    'Calendar out-of-order dialog submits scoped dates for taking and returning rooms: PASS',
 );

@@ -1,6 +1,10 @@
 import { NativeSelect } from '@/components/ui/select';
 import { RestrictionFields } from '@/features/rates/restriction-fields';
 import {
+    CalendarOutOfOrder,
+    type OutOfOrderEditing,
+} from '@/features/rates/calendar-out-of-order';
+import {
     CalendarRoomRows,
     type CalendarRoom,
 } from '@/features/reservations/calendar-rows';
@@ -96,6 +100,9 @@ export default function RateCalendar({
     businessDate: string;
 }) {
     const [editing, setEditing] = useState<Editing | null>(null);
+    const [outOfOrder, setOutOfOrder] = useState<OutOfOrderEditing | null>(
+        null,
+    );
     const [rangeFrom, setRangeFrom] = useState(from);
     const [rangeTo, setRangeTo] = useState(to);
     const rangeDays =
@@ -316,6 +323,14 @@ export default function RateCalendar({
                                     <CalendarRoomRows
                                         rooms={room.rooms}
                                         dates={dates}
+                                        businessDate={businessDate}
+                                        onOutOfOrder={(room, date, period) =>
+                                            setOutOfOrder({
+                                                room,
+                                                date,
+                                                period,
+                                            })
+                                        }
                                     />
                                     <tr>
                                         <th scope="row" className={label}>
@@ -403,6 +418,20 @@ export default function RateCalendar({
                             from={from}
                             to={to}
                             onDone={() => setEditing(null)}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+            <Dialog
+                open={outOfOrder !== null}
+                onOpenChange={(open) => !open && setOutOfOrder(null)}
+            >
+                <DialogContent>
+                    {outOfOrder && (
+                        <CalendarOutOfOrder
+                            editing={outOfOrder}
+                            businessDate={businessDate}
+                            onDone={() => setOutOfOrder(null)}
                         />
                     )}
                 </DialogContent>

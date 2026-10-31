@@ -38,14 +38,16 @@ type Errors = Partial<Record<string, string>>;
 /** Dates are the property's calendar dates, so format them without shifting. */
 const day = (date: string) => formatDate(date, 'UTC');
 
-function PeriodFields({
+export function PeriodFields({
     today,
     period,
     errors,
+    initialDates,
 }: {
     today: string;
     period?: OutOfServicePeriod;
     errors: Errors;
+    initialDates?: { startsOn: string; returnsOn: string };
 }) {
     return (
         <>
@@ -69,7 +71,9 @@ function PeriodFields({
                         min={period?.started ? undefined : today}
                         readOnly={period?.started}
                         className="tabular-nums"
-                        defaultValue={period?.startsOn ?? today}
+                        defaultValue={
+                            period?.startsOn ?? initialDates?.startsOn ?? today
+                        }
                     />
                 </Field>
                 <Field
@@ -85,7 +89,9 @@ function PeriodFields({
                         required
                         min={today}
                         className="tabular-nums"
-                        defaultValue={period?.returnsOn}
+                        defaultValue={
+                            period?.returnsOn ?? initialDates?.returnsOn
+                        }
                     />
                 </Field>
                 <Field
