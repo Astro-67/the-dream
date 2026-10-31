@@ -56,7 +56,7 @@ export function balanceLabel(
     return estimate ? 'Balance of posted charges' : 'Settled';
 }
 
-/** Whose tax the folio shows (ADR 0015); null where Thedream's tax rules are the tax. */
+/** Whose tax the folio shows (ADR 0015); null where Karafuu's tax rules are the tax. */
 export type TaxSource = 'estimated' | 'vfms' | null;
 
 function taxLabel(name: string, source: TaxSource): string {

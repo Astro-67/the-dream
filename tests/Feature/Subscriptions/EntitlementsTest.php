@@ -50,13 +50,13 @@ test('room capacity and displayed usage cover every real property even in proper
     $second = inTenant($organization, fn () => app(CreateProperty::class)->handle($owner, PropertyDetails::fromArray(organizationSetupPayload(), 'property_name')));
     $firstType = inTenant($property, fn () => app(CreateRoomType::class)->handle($owner, InventoryForm::roomType()));
     $secondType = inTenant($second, fn () => app(CreateRoomType::class)->handle($owner, InventoryForm::roomType()));
-    Plan::default()->update(['room_limit' => 2]);
+    inTenant($organization, fn () => Subscription::current()->update(['rooms' => 2]));
     inTenant($property, fn () => app(CreateRoom::class)->handle($owner, InventoryForm::room($firstType->id)));
     $room = inTenant($second, fn () => app(CreateRoom::class)->handle($owner, InventoryForm::room($secondType->id)));
     $this->actingAs($owner)->withSession(['tenancy.organization_id' => $organization->id, 'tenancy.property_id' => $property->id]);
     $this->postJson(route('rooms.store'), InventoryForm::room($firstType->id, ['number' => '102', '_property' => $property->id]))
         ->assertUnprocessable()->assertJsonValidationErrors('room')
-        ->assertJsonPath('errors.room.0', 'Your plan allows 2 active rooms. Deactivate rooms or change your plan before adding more.');
+        ->assertJsonPath('errors.room.0', 'Your subscription covers 2 active rooms. Deactivate rooms or subscribe to more before adding another.');
     $this->get(route('subscription.show'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('usage', ['properties' => 2, 'rooms' => 2]));
     expect(inTenant($organization, fn () => Room::query()->count()))->toBe(2)
         ->and(Activity::query()->where('description', 'Room creation refused')->sole()->getExtraProperty('result'))->toBe('refused');
@@ -68,7 +68,8 @@ test('room capacity and displayed usage cover every real property even in proper
 
 test('demo properties consume no capacity but suspension blocks demo creation rooms and reservations', function (SubscriptionStatus $status) {
     [$owner, $organization, $property] = organizationWithOwner();
-    Plan::default()->update(['property_limit' => 1, 'room_limit' => 1]);
+    Plan::default()->update(['property_limit' => 1]);
+    inTenant($organization, fn () => Subscription::current()->update(['rooms' => 1]));
     $this->actingAs($owner)->post(route('properties.demo.store'), ['_property' => $property->id])->assertSessionHasNoErrors();
     $demo = inTenant($organization, fn () => Property::query()->where('demo', true)->sole());
     expect(inTenant($demo, fn () => Room::query()->count()))->toBe(5)
@@ -146,7 +147,8 @@ test('restoring a property checks both its property slot and all of its active r
         app(CreateRoom::class)->handle($owner, InventoryForm::room($type->id, ['number' => '102']));
     });
     inTenant($organization, fn () => app(ArchiveProperty::class)->handle($owner, $archived));
-    Plan::default()->update(['property_limit' => $propertyLimit, 'room_limit' => $roomLimit]);
+    Plan::default()->update(['property_limit' => $propertyLimit]);
+    inTenant($organization, fn () => Subscription::current()->update(['rooms' => $roomLimit]));
     $this->actingAs($owner)->withSession(['tenancy.organization_id' => $organization->id, 'tenancy.property_id' => $property->id]);
     $response = $this->deleteJson(route('properties.restore', $archived), ['_property' => $property->id]);
     if ($error !== null) {
@@ -180,8 +182,9 @@ test('a downgrade below usage deletes nothing and only blocks further additions'
     $plan = Plan::default();
     $this->actingAs(platformStaff())->put(route('platform.plans.update', $plan), [
         ...$plan->only(Plan::FIELDS), 'billing_period' => $plan->billing_period->value, 'currency' => $plan->currency->value,
-        'property_limit' => 1, 'room_limit' => 1,
+        'property_limit' => 1,
     ])->assertSessionHasNoErrors();
+    inTenant($organization, fn () => Subscription::current()->update(['rooms' => 1]));
     $this->actingAs($owner)->withSession(['tenancy.organization_id' => $organization->id, 'tenancy.property_id' => $property->id]);
     $this->postJson(route('properties.store'), [...organizationSetupPayload(), 'name' => 'Blocked', '_property' => $property->id])
         ->assertUnprocessable()->assertJsonValidationErrors('property');

@@ -7,7 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Saves Thedream's billing details and payment accounts. Platform data, so it
+ * Saves Karafuu's billing details and payment accounts. Platform data, so it
  * is logged under `platform`. Issued invoices keep their own snapshot.
  */
 class SaveBillingDetails

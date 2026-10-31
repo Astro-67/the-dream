@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
 /**
- * Thedream's proof of one payment (glossary: Receipt). Always non-fiscal: VFMS
+ * Karafuu's proof of one payment (glossary: Receipt). Always non-fiscal: VFMS
  * numbers belong to fiscal transactions, never to a payment receipt.
  *
  * @property string $id

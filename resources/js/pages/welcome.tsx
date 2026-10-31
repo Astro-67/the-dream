@@ -8,7 +8,7 @@ import {
     Users,
 } from 'lucide-react';
 import { useState } from 'react';
-import AppLogoIcon from '@/components/app-logo-icon';
+import BrandLogo from '@/components/brand-logo';
 import { AppearanceToggle } from '@/components/appearance-toggle';
 import { Button } from '@/components/ui/button';
 import { useAppearance } from '@/hooks/use-appearance';
@@ -20,8 +20,6 @@ type Plan = {
     price: number;
     currency: string;
     period: 'monthly' | 'yearly';
-    propertyLimit: number;
-    roomLimit: number;
     trialDays: number;
 };
 
@@ -161,12 +159,12 @@ function PlanCard({ plan }: { plan: Plan }) {
                 </span>
                 <span className="text-sm text-muted-foreground">
                     {' '}
-                    / {plan.period === 'monthly' ? 'month' : 'year'}
+                    per room / {plan.period === 'monthly' ? 'month' : 'year'}
                 </span>
             </p>
             <ul className="space-y-2 text-sm">
                 {[
-                    `Up to ${plan.propertyLimit} properties and ${plan.roomLimit} rooms`,
+                    'Pay only for the rooms you choose',
                     'Front desk, rooms, rates and housekeeping',
                     'Billing, night audit and basic reports',
                     'Staff roles and permissions',
@@ -246,12 +244,8 @@ export default function Welcome({
                         aria-label="Main"
                         className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6"
                     >
-                        <Link
-                            href="/"
-                            className="flex items-center gap-2 font-semibold"
-                        >
-                            <AppLogoIcon className="size-8 fill-primary" />
-                            <span>{name}</span>
+                        <Link href="/" className="flex shrink-0 items-center">
+                            <BrandLogo className="h-auto w-32 sm:w-44" />
                         </Link>
                         <div className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
                             <a
@@ -408,7 +402,7 @@ export default function Welcome({
                                         </figcaption>
                                         <Screenshot
                                             name={feature.screen}
-                                            label={`${feature.previewTitle} in Thedream, using sample property data`}
+                                            label={`${feature.previewTitle} in Karafuu, using sample property data`}
                                         />
                                         <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
                                             <span>Actual product screen</span>
@@ -506,7 +500,7 @@ export default function Welcome({
                                     Built for East Africa, compliance included
                                 </h2>
                                 <p className="text-muted-foreground">
-                                    Thedream is built around how hotels in
+                                    Karafuu is built around how hotels in
                                     Tanzania and Zanzibar work: TZS, USD and EUR
                                     side by side, business dates and night
                                     audit, and the reporting Zanzibar properties

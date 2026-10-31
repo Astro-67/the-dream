@@ -73,7 +73,7 @@ Read from Uhuru's served scripts (`/app/reservations.js`, `/app/rooms.js`, `/app
 
 ## ZRA test environment behaviour
 
-One two-guest stay filed by Thedream on 26 October with references `TDREAM1793012693…` (test business unit `5940`), then checked out:
+One two-guest stay filed by Karafuu on 26 October with references `TDREAM1793012693…` (test business unit `5940`), then checked out:
 
 - The request type for check-in is `ACCOMMODATION_REQUEST`. A wrong type returns `INVALID REQUEST TYPE PROVIDED`.
 - **Errors come back as HTTP 200** with `{"statusCode": 5000, "statusMessage": …}`. Success is the echoed payload with a `responseNumber`.
@@ -85,7 +85,7 @@ One two-guest stay filed by Thedream on 26 October with references `TDREAM179301
 - **Check-out of two guests returns one report per guest**, each with its own report number (`XHE299346`, `XHE299349`). Each repeats the room line in full (USD 100, tax 13.04), carries only that guest's services, and charges that guest's infrastructure levy (USD 5). The business name, TIN, VRN, street and Z-number come from the business unit.
 - The extra service returned receipt `XHE299345` with tax 2.61 on USD 20 (VAT taken out of the inclusive price).
 
-## A full stay with Thedream's field names
+## A full stay with Karafuu's field names
 
 On 26 October one stay was filed on the test server with main's field names and paths (references `TDF…`): check-in (two guests, ISO timestamp), add guest (`NIDA`), change room, change room price (`changeRoomPrice/`, `rooms[].hotelRoomRoom`), change profile, extra services (two lines in one call), one guest's departure, and check-out of the rest. **Every call was accepted.** Check-out of a document already out returns `Guest Document … Not Found`. The change-room-price answer is a bare list with no response number.
 
@@ -93,9 +93,9 @@ On 26 October one stay was filed on the test server with main's field names and 
 
 Advance payment, room change, price change, add guest, change profile, guest departure, tour-operator source, a failed or unknown call, multi-guest rooms. No Uhuru form was submitted.
 
-## Thedream on ZRA's test server, 27 October
+## Karafuu on ZRA's test server, 27 October
 
-On 27 October 2026 one Sandbox stay was driven through Thedream's real routes and outbox against ZRA's shared test unit (`5940`), with the code on `spec/168-vfms-zra-conformance`. The driver is `tests/Feature/FiscalReceipting/VfmsTestServerStayTest.php` (skipped unless `VFMS_TEST_SERVER_RUN=1`; only the test gateway and test viewer may be reached). Guest documents were fake, unique per run, and are redacted here; no credentials or test hosts are recorded.
+On 27 October 2026 one Sandbox stay was driven through Karafuu's real routes and outbox against ZRA's shared test unit (`5940`), with the code on `spec/168-vfms-zra-conformance`. The driver is `tests/Feature/FiscalReceipting/VfmsTestServerStayTest.php` (skipped unless `VFMS_TEST_SERVER_RUN=1`; only the test gateway and test viewer may be reached). Guest documents were fake, unique per run, and are redacted here; no credentials or test hosts are recorded.
 
 The stay: two guests with passports checked into room 7 (wire room ID `128370001`: property prefix plus the room's VFMS sequence), moved to room 8, a third guest added, night audit closing night one with a dearer night two (price change), two extras, the second guest leaving early, night audit closing night two, then check-out. Run `LP4WJR`, references `T12837-RES-000001-<sequence>`:
 
@@ -118,7 +118,7 @@ Every message was delivered on its first attempt; no call was refused or unknown
 - **The report page** (`CheckoutReport`, rendered from the recorded props) is stamped "TEST, NOT FISCAL", shows the test unit's business header, both service receipts and three guest blocks (the early leaver marked "Departed before stay check-out"), each with its own QR code whose label and link are `<test viewer>/checkout-report/guest/<reportNumber>`. A screenshot was taken locally and not committed, because its QR codes encode the test host.
 - **A4 software print check.** The recorded report HTML, with embedded CSS and logo, was opened through gstack and printed by Chromium to PDF. The final valid PDF is one A4 page (`595.92 x 842.88` points), including all three guest QR codes and the early-departure marker; the screenshot was visually inspected and the browser reported no console errors. This verifies software pagination only: physical paper printing and scanner readability remain unchecked. The PDF and screenshot remain local because their QR codes encode the test host; the initial blank PDF from a failed navigation was overwritten and is not evidence. This does not resolve the viewer's HTTP 503 or complete #175.
 - **Viewer checks.** A GET on each QR target (`XHE299597`, `XHE299599`, `XHE299602`) returned HTTP 200. The viewer is a single-page app: a made-up number also returns the same 200 page. The data it loads, `:6060/hotel-service/api/v2/checkout/report/<n>?currency=USD`, returned HTTP 503 for all three, for the 26 October report `XHE299346` and for a made-up number, and the page shows "Sorry!" with empty fields. The QR targets resolve, but ZRA's test viewer could not display any report's content on 27 October, as with the production portal on 26 October.
-- **Extras are one line per call.** Thedream files each posted extra as its own `services` call with one line. The guide and the 26 October run accept several lines in one call; Thedream cannot yet send a two-line extra as one receipt.
+- **Extras are one line per call.** Karafuu files each posted extra as its own `services` call with one line. The guide and the 26 October run accept several lines in one call; Karafuu cannot yet send a two-line extra as one receipt.
 
 ## Live at the pilot hotel, 27–31 October
 

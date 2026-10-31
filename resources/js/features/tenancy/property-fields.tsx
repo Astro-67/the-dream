@@ -48,7 +48,7 @@ const jurisdictionHints: Record<JurisdictionProfile, string> = {
     zanzibar:
         'ZRA rules apply: booking reports to ZAN Gateway and fiscal receipts through VFMS.',
     mainland_tanzania:
-        'No ZRA reporting. Thedream issues non-fiscal receipts for mainland properties.',
+        'No ZRA reporting. Karafuu issues non-fiscal receipts for mainland properties.',
 };
 
 function Field({

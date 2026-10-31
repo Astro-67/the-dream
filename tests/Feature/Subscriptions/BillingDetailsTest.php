@@ -39,11 +39,11 @@ test('the hourly renewal skips issuing, with an audited reason, while no payment
 function billingDetailsPayload(array $overrides = []): array
 {
     return [
-        'business_name' => 'Thedream Ltd', 'address' => 'Mlandege Street, Zanzibar', 'phone' => '+255 777 000 111',
+        'business_name' => 'Karafuu Ltd', 'address' => 'Mlandege Street, Zanzibar', 'phone' => '+255 777 000 111',
         'email' => 'billing@thedream.test', 'tin' => '100-200-300', 'vrn' => '',
         'accounts' => [
-            ['type' => 'bank', 'bank' => 'CRDB Bank', 'branch' => 'Stone Town', 'swift' => '', 'account_name' => 'Thedream Ltd', 'account_number' => '0150123456700'],
-            ['type' => 'mobile_money', 'provider' => 'M-Pesa', 'account_name' => 'Thedream Ltd', 'account_number' => '0777000111'],
+            ['type' => 'bank', 'bank' => 'CRDB Bank', 'branch' => 'Stone Town', 'swift' => '', 'account_name' => 'Karafuu Ltd', 'account_number' => '0150123456700'],
+            ['type' => 'mobile_money', 'provider' => 'M-Pesa', 'account_name' => 'Karafuu Ltd', 'account_number' => '0777000111'],
         ],
         ...$overrides,
     ];
@@ -62,12 +62,12 @@ test('a platform administrator saves the billing details, and a new invoice keep
     ]))->assertSessionHasNoErrors();
 
     $snapshot = inTenant($organization, fn () => SaasInvoice::query()->sole()->billing_snapshot);
-    expect($snapshot['business_name'])->toBe('Thedream Ltd')
+    expect($snapshot['business_name'])->toBe('Karafuu Ltd')
         ->and($snapshot['organization_name'])->toBe($organization->name)
         ->and($snapshot['vrn'])->toBeNull()
         ->and($snapshot['accounts'])->toEqual([
-            ['type' => 'bank', 'bank' => 'CRDB Bank', 'branch' => 'Stone Town', 'swift' => null, 'account_name' => 'Thedream Ltd', 'account_number' => '0150123456700'],
-            ['type' => 'mobile_money', 'provider' => 'M-Pesa', 'account_name' => 'Thedream Ltd', 'account_number' => '0777000111'],
+            ['type' => 'bank', 'bank' => 'CRDB Bank', 'branch' => 'Stone Town', 'swift' => null, 'account_name' => 'Karafuu Ltd', 'account_number' => '0150123456700'],
+            ['type' => 'mobile_money', 'provider' => 'M-Pesa', 'account_name' => 'Karafuu Ltd', 'account_number' => '0777000111'],
         ])
         ->and(Activity::query()->where('event', 'billing_details_updated')->count())->toBe(2);
 
@@ -79,7 +79,7 @@ test('a platform administrator saves the billing details, and a new invoice keep
 test('billing details are validated per account type', function () {
     $this->actingAs(platformStaff())->put(route('platform.billing-details.update'), billingDetailsPayload([
         'email' => 'not-an-email',
-        'accounts' => [['type' => 'bank', 'account_name' => 'Thedream Ltd', 'account_number' => '1'], ['type' => 'cash']],
+        'accounts' => [['type' => 'bank', 'account_name' => 'Karafuu Ltd', 'account_number' => '1'], ['type' => 'cash']],
     ]))->assertSessionHasErrors(['email', 'accounts.0.bank', 'accounts.1.type']);
 
     expect(Activity::query()->where('event', 'refused')->where('properties->action', 'platform.billing-details.update')->exists())->toBeTrue();
@@ -106,7 +106,7 @@ test('owners and platform administrators open the invoice from its snapshot; oth
     $page = fn (Assert $page) => $page->component('subscription/invoice')
         ->where('invoice.number', $invoice->number)
         ->where('invoice.balance', $invoice->amount)
-        ->where('billing.business_name', 'Thedream Ltd')
+        ->where('billing.business_name', 'Karafuu Ltd')
         ->where('billing.organization_name', $organization->name)
         ->has('billing.accounts', 2)
         ->has('payments.data', 0);

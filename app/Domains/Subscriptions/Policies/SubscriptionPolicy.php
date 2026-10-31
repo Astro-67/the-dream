@@ -2,6 +2,7 @@
 
 namespace App\Domains\Subscriptions\Policies;
 
+use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Models\User;
 use App\Support\Tenancy\Access;
@@ -12,5 +13,11 @@ class SubscriptionPolicy
     public function view(User $user): bool
     {
         return Access::allows($user, OrganizationPermission::OrganizationManage);
+    }
+
+    /** Platform administrators set any organization's subscribed rooms. */
+    public function manageRooms(User $user): bool
+    {
+        return $user->hasPlatformRole(PlatformRole::Administrator);
     }
 }

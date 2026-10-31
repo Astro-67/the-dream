@@ -1,6 +1,6 @@
 # Uhuru PMS is the reference front-desk flow
 
-The project owner runs hotels in Zanzibar and asked for changes (October 2026) that match UhuruPMS, the only PMS ZRA has accepted for VFMS filing so far. Where Thedream's earlier design differs from Uhuru on the front-desk flow, settings or VFMS behaviour, we follow Uhuru, because ZRA has already accepted it and staff already know it.
+The project owner runs hotels in Zanzibar and asked for changes (October 2026) that match UhuruPMS, the only PMS ZRA has accepted for VFMS filing so far. Where Karafuu's earlier design differs from Uhuru on the front-desk flow, settings or VFMS behaviour, we follow Uhuru, because ZRA has already accepted it and staff already know it.
 
 This replaces three earlier positions:
 
@@ -8,7 +8,7 @@ This replaces three earlier positions:
 - **Staff may overbook** up to a per-property percentage, zero by default.
 - **Automatic check-out** runs daily at the property's time, with property switches for unpaid folios and overstays, and emails a summary. Night audit still never checks guests out.
 
-For Zanzibar properties, the tax and infrastructure levy VFMS returns are what the folio shows. Thedream's tax rules only estimate them before check-in.
+For Zanzibar properties, the tax and infrastructure levy VFMS returns are what the folio shows. Karafuu's tax rules only estimate them before check-in.
 
 ## Considered options
 

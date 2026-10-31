@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\DB;
  */
 class StartTrial
 {
-    public function handle(?User $actor): Subscription
+    public function handle(?User $actor, int $rooms = 1): Subscription
     {
-        return DB::transaction(function () use ($actor) {
+        return DB::transaction(function () use ($actor, $rooms) {
             $existing = Subscription::query()->first();
             if ($existing !== null) {
                 return $existing;
@@ -26,11 +26,12 @@ class StartTrial
             $plan = Plan::default();
             $subscription = Subscription::query()->create([
                 'plan_id' => $plan->id,
+                'rooms' => $rooms,
                 'status' => SubscriptionStatus::Trial,
                 'trial_ends_at' => now()->addDays($plan->trial_days),
             ]);
             $subscription->stateChanges()->create(['from' => null, 'to' => SubscriptionStatus::Trial, 'reason' => __('Trial started with the organization'), 'actor_id' => $actor?->id]);
-            Audit::record($actor, 'subscription_started', $subscription, 'Subscription trial started', ['attributes' => ['plan' => $plan->code, 'trial_ends_at' => $subscription->trial_ends_at?->toIso8601String()]]);
+            Audit::record($actor, 'subscription_started', $subscription, 'Subscription trial started', ['attributes' => ['plan' => $plan->code, 'rooms' => $rooms, 'trial_ends_at' => $subscription->trial_ends_at?->toIso8601String()]]);
 
             return $subscription;
         });

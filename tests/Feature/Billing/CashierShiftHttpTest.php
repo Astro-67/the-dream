@@ -108,7 +108,7 @@ test('finance sees the shift list with expected, counted and variance per curren
     default => 'forbidden',
 }], OrganizationRole::cases()));
 
-test('a cashier sees their own open shift with what Thedream expects', function () {
+test('a cashier sees their own open shift with what Karafuu expects', function () {
     $t = twoTenants();
     $cashier = $t->a->member(OrganizationRole::FrontDesk);
     inTenant($t->a->property, fn () => app(OpenCashierShift::class)->handle($cashier, ['USD' => 10000]));

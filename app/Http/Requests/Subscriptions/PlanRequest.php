@@ -26,8 +26,7 @@ class PlanRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:32', 'regex:/^[A-Z0-9_-]+$/', Rule::unique('plans', 'code')->ignore($plan instanceof Plan ? $plan->id : null)],
-            'property_limit' => ['required', 'integer', 'min:1', 'max:10000'],
-            'room_limit' => ['required', 'integer', 'min:1', 'max:100000'],
+            'property_limit' => ['nullable', 'integer', 'min:1', 'max:10000'],
             'trial_days' => ['required', 'integer', 'min:0', 'max:365'],
             'grace_days' => ['required', 'integer', 'min:0', 'max:90'],
             'billing_period' => ['required', Rule::enum(BillingPeriod::class)],

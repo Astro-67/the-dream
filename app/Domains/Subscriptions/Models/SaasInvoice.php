@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Thedream's invoice to an organization for one billing period (SUB-01).
+ * Karafuu's invoice to an organization for one billing period (SUB-01).
  * Kept apart from guest folios: its own table, its own platform-wide numbering.
  *
  * @property string $id
@@ -28,13 +28,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable $period_ends_at
  * @property CarbonImmutable $due_at
  * @property int $amount minor units of $currency
+ * @property int|null $rooms subscribed rooms charged; null before per-room billing
+ * @property int|null $unit_price price per room in minor units; null before per-room billing
  * @property Currency $currency
  * @property SaasInvoiceStatus $status
  * @property CarbonImmutable|null $paid_at
  * @property array<string, mixed>|null $billing_snapshot BillingDetails fields and organization_name at issue; null before billing details existed
  * @property Subscription $subscription
  */
-#[Fillable(['subscription_id', 'sequence', 'number', 'period_starts_at', 'period_ends_at', 'due_at', 'amount', 'currency', 'status', 'paid_at', 'billing_snapshot'])]
+#[Fillable(['subscription_id', 'sequence', 'number', 'period_starts_at', 'period_ends_at', 'due_at', 'rooms', 'unit_price', 'amount', 'currency', 'status', 'paid_at', 'billing_snapshot'])]
 #[UsePolicy(SaasInvoicePolicy::class)]
 class SaasInvoice extends Model
 {
@@ -46,7 +48,7 @@ class SaasInvoice extends Model
     protected function casts(): array
     {
         return [
-            'sequence' => 'integer', 'amount' => 'integer', 'currency' => Currency::class, 'status' => SaasInvoiceStatus::class,
+            'sequence' => 'integer', 'rooms' => 'integer', 'unit_price' => 'integer', 'amount' => 'integer', 'currency' => Currency::class, 'status' => SaasInvoiceStatus::class,
             'period_starts_at' => 'immutable_datetime', 'period_ends_at' => 'immutable_datetime',
             'due_at' => 'immutable_datetime', 'paid_at' => 'immutable_datetime',
             'billing_snapshot' => 'array',
@@ -70,13 +72,13 @@ class SaasInvoice extends Model
             'number' => $this->number, 'status' => $this->status->value, 'statusLabel' => $this->status->label(),
             'overdue' => $this->status === SaasInvoiceStatus::Open && $this->due_at->isPast(),
             'periodStartsAt' => $this->period_starts_at->toIso8601String(), 'periodEndsAt' => $this->period_ends_at->toIso8601String(),
-            'dueAt' => $this->due_at->toIso8601String(), 'amount' => $this->amount,
+            'dueAt' => $this->due_at->toIso8601String(), 'rooms' => $this->rooms, 'unitPrice' => $this->unit_price, 'amount' => $this->amount,
             'balance' => $this->amount - (int) ($this->getAttribute('payments_sum_amount') ?? 0), 'currency' => $this->currency->value,
         ];
     }
 
     /**
-     * The printable invoice page: Thedream's details come only from the
+     * The printable invoice page: Karafuu's details come only from the
      * snapshot taken at issue, null on invoices issued before it existed.
      *
      * @return array<string, mixed>

@@ -109,5 +109,5 @@ export default function Invitation({
 
 Invitation.layout = {
     title: "You're invited",
-    description: 'Join an organization on Thedream.',
+    description: 'Join an organization on Karafuu.',
 };

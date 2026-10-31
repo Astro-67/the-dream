@@ -1,6 +1,6 @@
-# The Dream
+# Karafuu PMS
 
-Thedream PMS: a multi-tenant hotel management SaaS for Zanzibar and mainland Tanzania, with Booking.com distribution through a channel manager and Zanzibar Revenue Authority reporting (ZAN Gateway and VFMS).
+Karafuu PMS: a multi-tenant hotel management SaaS for Zanzibar and mainland Tanzania, with Booking.com distribution through a channel manager and Zanzibar Revenue Authority reporting (ZAN Gateway and VFMS).
 
 > This repository is a skeleton. Domain features are built from tickets derived from the [PRD](docs/prd/PRD.md).
 

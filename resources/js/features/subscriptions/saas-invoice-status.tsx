@@ -9,6 +9,8 @@ export type SaasInvoice = {
     periodStartsAt: string;
     periodEndsAt: string;
     dueAt: string;
+    rooms: number | null;
+    unitPrice: number | null;
     amount: number;
     balance: number;
     currency: string;

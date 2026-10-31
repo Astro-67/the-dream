@@ -115,7 +115,7 @@ final class FolioSummary
     }
 
     /**
-     * Whose tax the folio shows (ADR 0015): null where Thedream's tax rules are the tax,
+     * Whose tax the folio shows (ADR 0015): null where Karafuu's tax rules are the tax,
      * 'estimated' at a VFMS property until VFMS's check-out figures are posted, then 'vfms'.
      */
     public static function taxSource(Reservation $reservation, Property $property): ?string

@@ -25,7 +25,11 @@ export function SidebarTenant() {
 
     if (!tenant.organization) {
         return (
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton
+                size="lg"
+                className="h-auto py-3 group-data-[collapsible=icon]:hidden"
+                asChild
+            >
                 <Link
                     href={dashboard()}
                     prefetch

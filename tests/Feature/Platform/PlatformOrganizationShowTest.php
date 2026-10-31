@@ -86,8 +86,8 @@ test('the organization page shows only its invoices and recorded payments', func
             ->has('invoices.data', 1)
             ->where('invoices.data.0.id', $invoice->id)
             ->where('invoices.data.0.status', 'open')
-            ->where('invoices.data.0.amount', 4900)
-            ->where('invoices.data.0.balance', 3000)
+            ->where('invoices.data.0.amount', 735000)
+            ->where('invoices.data.0.balance', 733100)
             ->where('invoices.data.0.currency', 'USD')
             ->has('invoices.data.0.payments.data', 1)
             ->where('invoices.data.0.payments.data.0.amount', 1900)
@@ -141,7 +141,7 @@ test('invoice payments and slips are independently paginated and balances includ
     $this->actingAs(platformStaff())->get(route('platform.organizations.show', $tenants->a->organization->id, absolute: false).'?'.$paymentsPage.'=2')
         ->assertInertia(fn (Assert $page) => $page
             ->where('invoices.total', 1)
-            ->where('invoices.data.0.balance', 4390)
+            ->where('invoices.data.0.balance', 734490)
             ->has('invoices.data.0.payments.data', 10)
             ->where('invoices.data.0.payments.total', 51)
             ->where('invoices.data.0.payments.current_page', 2)
@@ -150,7 +150,7 @@ test('invoice payments and slips are independently paginated and balances includ
             ->where('invoices.data.0.slips.current_page', 1));
     $this->get(route('platform.invoices.show', $invoice->id).'?payments=2')
         ->assertInertia(fn (Assert $page) => $page
-            ->where('invoice.balance', 4390)->has('payments.data', 1)->where('payments.total', 51)
+            ->where('invoice.balance', 734490)->has('payments.data', 1)->where('payments.total', 51)
             ->where('payments.current_page', 2)->has('slips.data', 50)->where('slips.current_page', 1));
     $this->get(route('platform.organizations.show', $tenants->a->organization->id).'?'.$slipsPage.'=6')
         ->assertInertia(fn (Assert $page) => $page->has('invoices.data.0.slips.data', 1)
@@ -158,7 +158,7 @@ test('invoice payments and slips are independently paginated and balances includ
 
     $this->actingAs($tenants->a->owner)->get(route('subscription.invoices.show', $invoice->id).'?slips=2')
         ->assertInertia(fn (Assert $page) => $page
-            ->where('invoice.balance', 4390)->has('payments.data', 50)->has('slips.data', 1)
+            ->where('invoice.balance', 734490)->has('payments.data', 50)->has('slips.data', 1)
             ->where('slips.current_page', 2)->where('slips.total', 51)
             ->where('slips.data.0.url', fn ($url) => str_contains($url, '/subscription/slips/')));
     $this->get(route('subscription.invoices.show', $other->id).'?payments=2&slips=2')->assertNotFound();

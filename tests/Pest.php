@@ -72,6 +72,7 @@ function organizationSetupPayload(array $overrides = []): array
         'organization_name' => 'Spice Island Hotels',
         'country' => 'TZ',
         'property_name' => 'Stone Town Inn',
+        'rooms' => 150,
         'property_type' => 'hotel',
         'address_line' => 'Kenyatta Road 12',
         'city' => 'Zanzibar City',
@@ -159,7 +160,7 @@ function platformStaff(PlatformRole $role = PlatformRole::Administrator, bool $t
 }
 
 /**
- * Thedream's billing details with one bank and one mobile-money account, which
+ * Karafuu's billing details with one bank and one mobile-money account, which
  * issuing a SaaS invoice requires.
  *
  * @param  array<string, mixed>  $overrides
@@ -167,11 +168,11 @@ function platformStaff(PlatformRole $role = PlatformRole::Administrator, bool $t
 function withBillingDetails(array $overrides = []): BillingDetails
 {
     return BillingDetails::query()->create([
-        'business_name' => 'Thedream Ltd', 'address' => 'Mlandege Street, Zanzibar', 'phone' => '+255 777 000 111',
+        'business_name' => 'Karafuu Ltd', 'address' => 'Mlandege Street, Zanzibar', 'phone' => '+255 777 000 111',
         'email' => 'billing@thedream.test', 'tin' => '100-200-300', 'vrn' => '40-001234-X',
         'accounts' => [
-            ['type' => 'bank', 'bank' => 'CRDB Bank', 'branch' => 'Stone Town', 'swift' => 'CORUTZTZ', 'account_name' => 'Thedream Ltd', 'account_number' => '0150123456700'],
-            ['type' => 'mobile_money', 'provider' => 'M-Pesa', 'account_name' => 'Thedream Ltd', 'account_number' => '0777000111'],
+            ['type' => 'bank', 'bank' => 'CRDB Bank', 'branch' => 'Stone Town', 'swift' => 'CORUTZTZ', 'account_name' => 'Karafuu Ltd', 'account_number' => '0150123456700'],
+            ['type' => 'mobile_money', 'provider' => 'M-Pesa', 'account_name' => 'Karafuu Ltd', 'account_number' => '0777000111'],
         ],
         ...$overrides,
     ]);

@@ -137,7 +137,7 @@ export default function PlatformInvoices({
                         SaaS invoices
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Thedream's invoices to organizations, one per billing
+                        Karafuu's invoices to organizations, one per billing
                         period. Separate from guest folios and receipts.
                         Settling an organization's open invoice makes its
                         subscription active.

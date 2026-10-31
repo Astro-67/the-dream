@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * A payment an organization made to Thedream against a SaaS invoice, recorded
+ * A payment an organization made to Karafuu against a SaaS invoice, recorded
  * by a platform administrator. Never a folio posting.
  *
  * @property string $id

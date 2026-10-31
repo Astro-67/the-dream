@@ -1,4 +1,4 @@
-# Thedream PMS design system
+# Karafuu PMS design system
 
 ## Overview
 
@@ -197,7 +197,7 @@ Colours come only from theme tokens (`bg-primary`, `bg-primary-tint`, `text-mute
 
 ## Marketing surfaces
 
-Public pages that sell Thedream (the landing page at `/`) follow every rule above, with these exceptions. PMS screens keep the strict rules.
+Public pages that sell Karafuu (the landing page at `/`) follow every rule above, with these exceptions. PMS screens keep the strict rules.
 
 - **Photography:** photorealistic images of warm East-African boutique hotels, each with one small indigo accent so they relate to the UI. They live in `public/images/marketing/` as WebP under 350 KB. No people's faces, no text or logos, and no image that implies a real customer.
 - **Product screenshots:** real screens from the showcase data, in the visitor's active theme. Never a mock-up that shows a feature the product lacks.

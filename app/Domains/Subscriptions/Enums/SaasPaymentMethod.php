@@ -2,7 +2,7 @@
 
 namespace App\Domains\Subscriptions\Enums;
 
-/** How an organization paid Thedream; online payment through a provider is out of scope for M2. */
+/** How an organization paid Karafuu; online payment through a provider is out of scope for M2. */
 enum SaasPaymentMethod: string
 {
     case BankTransfer = 'bank_transfer';

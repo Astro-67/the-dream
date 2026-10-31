@@ -65,7 +65,7 @@ export function PaymentSlips({
                             <>
                                 <p className="text-sm text-muted-foreground">
                                     Uploading proof of payment does not mark the
-                                    invoice paid. Thedream verifies the payment
+                                    invoice paid. Karafuu verifies the payment
                                     separately.
                                 </p>
                                 <div className="space-y-2">

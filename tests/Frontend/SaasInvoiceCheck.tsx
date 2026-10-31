@@ -19,7 +19,7 @@ const invoice = {
     plan: 'Standard',
 };
 const billing = {
-    business_name: 'Thedream Ltd',
+    business_name: 'Karafuu Ltd',
     address: 'Mlandege Street, Zanzibar',
     phone: '+255 777 000 111',
     email: 'billing@thedream.test',
@@ -32,13 +32,13 @@ const billing = {
             bank: 'CRDB Bank',
             branch: 'Stone Town',
             swift: 'CORUTZTZ',
-            account_name: 'Thedream Ltd',
+            account_name: 'Karafuu Ltd',
             account_number: '0150123456700',
         },
         {
             type: 'mobile_money' as const,
             provider: 'M-Pesa',
-            account_name: 'Thedream Ltd',
+            account_name: 'Karafuu Ltd',
             account_number: '0777000111',
         },
     ],
@@ -110,7 +110,7 @@ const render = (
 
 const html = render(billing);
 for (const text of [
-    'Thedream Ltd',
+    'Karafuu Ltd',
     'Mlandege Street, Zanzibar',
     'billing@thedream.test',
     'TIN 100-200-300',

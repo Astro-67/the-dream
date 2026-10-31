@@ -1,4 +1,4 @@
-# Thedream PMS: Product Requirements Document
+# Karafuu PMS: Product Requirements Document
 
 - **Version:** 1.1 (draft for product and engineering review). Replaces the v1.0 draft (`PRD.pdf`), which is kept as input only.
 - **Date:** 6 October 2026
@@ -14,7 +14,7 @@
 - Research and sources: [`docs/research/booking-com-integration.md`](../research/booking-com-integration.md), and the ZAN Gateway API spec at [`docs/research/sources/zan-gateway-openapi.yaml`](../research/sources/zan-gateway-openapi.yaml).
 - ZRA documents: the ZAN Gateway PMS Integration Guide v1.3 ("ZAN GW guide") and the VFMS Hotel API Guide v1.6 ("VFMS guide").
 
-> **Security:** The two ZRA PDFs in this folder print credentials issued to other parties. Do not share them further, and do not copy any credential into code, tickets or documents. Thedream obtains its own credentials through ZRA vendor registration.
+> **Security:** The two ZRA PDFs in this folder print credentials issued to other parties. Do not share them further, and do not copy any credential into code, tickets or documents. Karafuu obtains its own credentials through ZRA vendor registration.
 
 ---
 
@@ -22,7 +22,7 @@
 
 Hotel businesses register online, set up one or many properties, invite their staff, and run their hotels from one secure platform. Each organization controls its own data, permissions, subscription and property settings. Group owners oversee their portfolio, and hotel teams work within the properties they are assigned to.
 
-For properties in Zanzibar, Thedream is also the hotel's route to legal compliance. Every booking from every channel is reported to the Zanzibar Revenue Authority (ZRA), and every stay is fiscally receipted, without staff re-keying anything.
+For properties in Zanzibar, Karafuu is also the hotel's route to legal compliance. Every booking from every channel is reported to the Zanzibar Revenue Authority (ZRA), and every stay is fiscally receipted, without staff re-keying anything.
 
 The product should reduce manual work, keep room availability accurate across channels, make guest billing traceable, and give clear operational reporting. These are intended outcomes, not claims about an existing product.
 
@@ -32,7 +32,7 @@ The product should reduce manual work, keep room availability accurate across ch
 
 Integrated hospitality suites such as Yanolja Cloud Solution combine PMS, channel distribution, direct booking, payments and point of sale. This informs scope only. It does not establish feature parity, partnerships or architecture.
 
-Thedream's proposed differentiation:
+Karafuu's proposed differentiation:
 
 - practical local onboarding;
 - English-only interfaces for this version;
@@ -44,7 +44,7 @@ Thedream's proposed differentiation:
 
 ZRA runs two systems a Zanzibar PMS must integrate with. They do different jobs:
 
-| System          | Purpose                                                                        | When Thedream calls it                                         |
+| System          | Purpose                                                                        | When Karafuu calls it                                          |
 | --------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
 | **ZAN Gateway** | Booking reporting: every reservation event from every channel                  | On every booking, change, cancellation, check-in and check-out |
 | **VFMS**        | Fiscal receipting: tax per guest per night, and fiscal receipts with a QR code | From check-in to check-out, plus extra services                |
@@ -60,7 +60,7 @@ The compliance deadlines published by ZRA have passed, so these obligations are 
 
 ### 2.3 Distribution context: Booking.com
 
-Booking.com has paused onboarding of new connectivity partners "until further notice" ([connect.booking.com](https://connect.booking.com/)). Thedream therefore reaches Booking.com and other OTAs through a **channel manager** (ADR 0001).
+Booking.com has paused onboarding of new connectivity partners "until further notice" ([connect.booking.com](https://connect.booking.com/)). Karafuu therefore reaches Booking.com and other OTAs through a **channel manager** (ADR 0001).
 
 ## 3. Goals, scope and priorities
 
@@ -93,7 +93,7 @@ Booking.com has paused onboarding of new connectivity partners "until further no
 - conferences and events;
 - maintenance;
 - group blocks and advanced rate controls;
-- channel content and promotions management from inside Thedream.
+- channel content and promotions management from inside Karafuu.
 
 **P2 includes:**
 
@@ -106,7 +106,7 @@ Booking.com has paused onboarding of new connectivity partners "until further no
 
 - **Mainland Tanzania fiscal receipting (TRA).** Mainland properties receive non-fiscal receipts in P0, and onboarding tells them so.
 - Full accounting or ERP, payroll, a consumer travel marketplace, native mobile apps, and offline reservation writes.
-- PCI certification. Thedream does not handle raw card data (ADR 0004).
+- PCI certification. Karafuu does not handle raw card data (ADR 0004).
 
 ## 4. Tenancy and multi-property model
 
@@ -181,10 +181,10 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
     - the property is registered with ZAN Gateway (hotel info accepted);
     - its VFMS business unit is registered and has passed a test check-in.
 
-    Thedream records who confirmed the channel list and when.
+    Karafuu records who confirmed the channel list and when.
 
-- **REG-06:** Importing from a previous system brings in **future reservations only**. On go-live, Thedream reports each imported reservation to ZAN Gateway as new. Completed historical stays remain the previous supplier's responsibility.
-- **REG-07 (mainland):** Onboarding states plainly that Thedream issues non-fiscal receipts for mainland properties.
+- **REG-06:** Importing from a previous system brings in **future reservations only**. On go-live, Karafuu reports each imported reservation to ZAN Gateway as new. Completed historical stays remain the previous supplier's responsibility.
+- **REG-07 (mainland):** Onboarding states plainly that Karafuu issues non-fiscal receipts for mainland properties.
 
 **Acceptance criteria:**
 
@@ -204,7 +204,7 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 ### 7.3 Subscriptions and platform administration (P0)
 
 - **SUB-01:** SaaS subscription invoices are separate from guest folios. Subscription states are trial, active, past due, suspended and cancelled, with an audited transition policy.
-- **SUB-02:** Configurable plans, property and room limits, trial length, module entitlements and billing periods.
+- **SUB-02:** Configurable plans priced per subscribed room (ADR 0018), an optional property limit, trial length, module entitlements and billing periods.
 - **SUB-03:** Entitlements are enforced on the server. A downgrade never silently deletes rooms or properties.
 - **SUB-04:** Non-payment: reminders and a grace period, then new sales are blocked. Existing guests can still check out, and data can still be exported.
     - **Zanzibar:** booking reports and VFMS calls for existing stays continue during suspension. A suspended account must never cause a compliance gap.
@@ -254,9 +254,9 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
     - When the channel collected, the reservation also records the **channel-collected amount**, including any per-person fees the channel took.
 - **FIN-05:** The channel-collected amount is posted as a payment from the channel against the folio.
     - **Zanzibar:** the folio always shows the taxes VFMS calculated, including infrastructure tax. Any difference between what the channel collected and what is owed shows as an open balance owed by the guest, or as a reconciliation item. Nothing is netted off silently.
-- **FIN-06:** Thedream never receives, stores or displays raw card numbers or security codes from any channel (ADR 0004).
+- **FIN-06:** Karafuu never receives, stores or displays raw card numbers or security codes from any channel (ADR 0004).
     - Staff see masked card details only.
-    - Virtual cards are charged outside Thedream, and the charge is recorded as a payment with a reference.
+    - Virtual cards are charged outside Karafuu, and the charge is recorded as a payment with a reference.
 - **FIN-07 (P1):** A locally supported payment provider for cards and mobile money, using hosted or tokenized collection.
 
 **Acceptance criteria:**
@@ -274,8 +274,8 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 
 ### 7.8 Channel distribution and Booking.com (P0 for Zanzibar, P1 elsewhere)
 
-- **DST-01:** Thedream connects to one selected **channel manager** (selection criteria in §9). Booking.com is the named launch channel. Any other OTA the channel manager supports may be connected.
-- **DST-02:** Thedream controls availability, rates and restrictions, and sends every change to the channel manager.
+- **DST-01:** Karafuu connects to one selected **channel manager** (selection criteria in §9). Booking.com is the named launch channel. Any other OTA the channel manager supports may be connected.
+- **DST-02:** Karafuu controls availability, rates and restrictions, and sends every change to the channel manager.
     - Room descriptions, photos and promotions are managed on each OTA's own partner site (for Booking.com, the Extranet) in P0.
 - **DST-03:** Map property, room type and rate plan identifiers explicitly for each channel. An unmapped room type or rate plan blocks that channel's go-live.
 - **DST-04:** Receive new, modified and cancelled reservations from the channel manager.
@@ -284,7 +284,7 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
     - Every message is acknowledged only after it is stored.
 - **DST-05:** Reject a channel reservation in a currency the property's jurisdiction profile does not allow. Raise an alert so the mapping can be fixed.
 - **DST-06:** Show each channel connection's health, last successful message, delivery failures and retries. Saved credentials are never shown as proof of a working connection.
-- **DST-07:** A daily reconciliation compares Thedream's reservations with the channel manager's for each property. It lists:
+- **DST-07:** A daily reconciliation compares Karafuu's reservations with the channel manager's for each property. It lists:
     - reservations missing on either side;
     - mismatched dates, guests or amounts;
     - every booking received outside integration.
@@ -292,28 +292,28 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 
 **Acceptance criteria:**
 
-- A Booking.com test reservation appears in Thedream with its channel reference, payment collector and amounts.
-- A change to availability in Thedream reaches the channel manager.
+- A Booking.com test reservation appears in Karafuu with its channel reference, payment collector and amounts.
+- A change to availability in Karafuu reaches the channel manager.
 - The product does not promise that overbooking across channels is impossible. Conflicts surface as reconciliation items. Staff may sell up to the property's overbooking allowance, zero by default (ADR 0015).
 
 ### 7.9 ZAN Gateway booking reporting (P0, Zanzibar)
 
-- **ZAN-01:** Thedream reports as the single **PMS supplier** using one platform-held key (ADR 0003). Properties never enter ZRA credentials.
+- **ZAN-01:** Karafuu reports as the single **PMS supplier** using one platform-held key (ADR 0003). Properties never enter ZRA credentials.
 - **ZAN-02:** Each property's profile is sent to the hotel-info endpoint at go-live and whenever it changes. Required fields:
     - `Hotel_Code`, `Hotel_Name`, `City`, `State`, `Zipcode`;
     - `Country`, `Property_Type`, `Address`, `CurrencyCode`;
     - optional `tax_region` and `star_rating`.
 - **ZAN-03:** Every reservation event produces a **booking report** keyed by the property's ZRA hotel code and the **reservation number**:
 
-| Thedream event                                                   | `Status`             | `CurrentStatus`         | Notes                                                                                            |
-| ---------------------------------------------------------------- | -------------------- | ----------------------- | ------------------------------------------------------------------------------------------------ |
-| Reservation created (any channel, including outside integration) | `New`                | `Confirmed Reservation` |                                                                                                  |
-| Reservation modified                                             | `Modify`             | `Confirmed Reservation` | Send the full current state                                                                      |
-| Guest checked in                                                 | `Modify`             | `Checked In`            | Send immediately                                                                                 |
-| Guest checked out                                                | `Modify`             | `Checked Out`           | Send immediately                                                                                 |
-| Reservation cancelled                                            | `Cancel`             | `Cancel`                | Include `CancelDate`                                                                             |
-| **No-show** confirmed                                            | `Cancel`             | `Cancel`                | Guest count 0, with `CancelDate` set to the no-show business date. Kept as a no-show in Thedream |
-| Reservation created in error                                     | `Modify` or `Cancel` | `Void`                  | Requires manager permission and a reason                                                         |
+| Karafuu event                                                    | `Status`             | `CurrentStatus`         | Notes                                                                                           |
+| ---------------------------------------------------------------- | -------------------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
+| Reservation created (any channel, including outside integration) | `New`                | `Confirmed Reservation` |                                                                                                 |
+| Reservation modified                                             | `Modify`             | `Confirmed Reservation` | Send the full current state                                                                     |
+| Guest checked in                                                 | `Modify`             | `Checked In`            | Send immediately                                                                                |
+| Guest checked out                                                | `Modify`             | `Checked Out`           | Send immediately                                                                                |
+| Reservation cancelled                                            | `Cancel`             | `Cancel`                | Include `CancelDate`                                                                            |
+| **No-show** confirmed                                            | `Cancel`             | `Cancel`                | Guest count 0, with `CancelDate` set to the no-show business date. Kept as a no-show in Karafuu |
+| Reservation created in error                                     | `Modify` or `Cancel` | `Void`                  | Requires manager permission and a reason                                                        |
 
 - **ZAN-04:** Each booking report includes:
     - the reservation number;
@@ -325,10 +325,10 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
     - currency and tax-inclusive total, with tax and exclusive totals where known;
     - `guest_country`, as shown in the ZAN GW guide's example.
 
-    Thedream does not send fields that neither ZRA document defines. In particular, no channel field is sent. The channel stays on Thedream's own records.
+    Karafuu does not send fields that neither ZRA document defines. In particular, no channel field is sent. The channel stays on Karafuu's own records.
 
 - **ZAN-05:** Reports go through a central queue that batches by property, one property per request, and respects a **100 requests per minute** limit for the whole platform.
-    - Targets, measured from the event in Thedream: delivered within **1 minute**, an alert at **3 minutes**, and a **compliance incident** at **5 minutes**.
+    - Targets, measured from the event in Karafuu: delivered within **1 minute**, an alert at **3 minutes**, and a **compliance incident** at **5 minutes**.
 - **ZAN-06:** Handle partial acceptance. A 200 response can still contain rejected bookings, so check `rejected_booking_count` and `validation_errors` for each booking.
     - Retry 429 and 502 responses with backoff.
     - Send 400 and validation errors to the compliance operator and the property manager with the reason.
@@ -362,7 +362,7 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - **FSC-05:** Extras charged to the room folio (free-text items such as restaurant, minibar or laundry) are sent through the extra-services call, and the fiscal receipt number is stored against the folio charge.
 - **FSC-06:** At checkout, send the check-out call and issue the **fiscal check-out report** with the VFMS QR code. Store the report number and totals.
 - **FSC-07:** When VFMS is unavailable:
-    - check-in, room moves and charges still go ahead in Thedream, and VFMS calls retry from a queue in order;
+    - check-in, room moves and charges still go ahead in Karafuu, and VFMS calls retry from a queue in order;
     - the final fiscal check-out report cannot be issued until every VFMS call for the stay is accepted;
     - a departure blocked this way goes to the manager's exception list.
 - **FSC-08:** **Fiscal exceptions** are charges with no VFMS path: cancellation fees, no-show fees, and any charge to a guest who never checked in.
@@ -386,7 +386,7 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - FSC-06: before check-out the folio's tax is labelled **Estimated tax**; an accepted check-out replaces it with VFMS's tax and levy through a VFMS adjustment line (ADR 0015).
 - FSC-07: check-out completes and the report page shows "Waiting for VFMS", but a blocked departure is **not yet** put on the exception list.
 - FSC-09: not built (Step 4 spec).
-- Guide v1.6 omits the response fields of the check-out call (§2.8) and the accommodation report (§2.5). Thedream assumes them; the first Live call must confirm them (architecture §5.3).
+- Guide v1.6 omits the response fields of the check-out call (§2.8) and the accommodation report (§2.5). Karafuu assumes them; the first Live call must confirm them (architecture §5.3).
 
 ### 7.11 Reporting and group oversight (P0)
 
@@ -421,35 +421,35 @@ Restaurant and outlet sales, menus, tables and kitchen workflow, conference venu
 
 ## 8. Booking.com reservation lifecycle
 
-This is how one Booking.com reservation moves through Thedream and both ZRA systems at a Zanzibar property.
+This is how one Booking.com reservation moves through Karafuu and both ZRA systems at a Zanzibar property.
 
-| Step                          | Thedream                                                                                                                                            | ZAN Gateway                                      | VFMS                                                        |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
-| 1. Guest books on Booking.com | Channel manager delivers the reservation. Thedream creates it with the channel reference, payment collector and amounts, and sends availability out | `New` / `Confirmed Reservation` within 1 minute  | none                                                        |
-| 2. Guest changes the booking  | Reservation updated, with amendment history                                                                                                         | `Modify` / `Confirmed Reservation`               | none                                                        |
-| 3a. Guest cancels             | Reservation cancelled. Any fee is a fiscal exception                                                                                                | `Cancel` / `Cancel` with `CancelDate`            | none                                                        |
-| 3b. Guest does not arrive     | Night audit proposes a no-show; the manager confirms it. Any fee is a fiscal exception                                                              | `Cancel` / `Cancel`, guest count 0, `CancelDate` | none                                                        |
-| 4. Guest arrives              | Identity documents captured for every guest, room assigned, checked in                                                                              | `Modify` / `Checked In`, immediately             | Accommodation request (`DIRECT`, first night's rate)        |
-| 5. During the stay            | Room moves, extras, rate changes at night audit                                                                                                     | `Modify` on changes to dates, guests or room     | Change room, add guest, services, change room price         |
-| 6. Guest departs              | Folio settled against the channel-collected amount and VFMS taxes                                                                                   | `Modify` / `Checked Out`, immediately            | Check-out call; fiscal check-out report with QR code issued |
+| Step                          | Karafuu                                                                                                                                            | ZAN Gateway                                      | VFMS                                                        |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
+| 1. Guest books on Booking.com | Channel manager delivers the reservation. Karafuu creates it with the channel reference, payment collector and amounts, and sends availability out | `New` / `Confirmed Reservation` within 1 minute  | none                                                        |
+| 2. Guest changes the booking  | Reservation updated, with amendment history                                                                                                        | `Modify` / `Confirmed Reservation`               | none                                                        |
+| 3a. Guest cancels             | Reservation cancelled. Any fee is a fiscal exception                                                                                               | `Cancel` / `Cancel` with `CancelDate`            | none                                                        |
+| 3b. Guest does not arrive     | Night audit proposes a no-show; the manager confirms it. Any fee is a fiscal exception                                                             | `Cancel` / `Cancel`, guest count 0, `CancelDate` | none                                                        |
+| 4. Guest arrives              | Identity documents captured for every guest, room assigned, checked in                                                                             | `Modify` / `Checked In`, immediately             | Accommodation request (`DIRECT`, first night's rate)        |
+| 5. During the stay            | Room moves, extras, rate changes at night audit                                                                                                    | `Modify` on changes to dates, guests or room     | Change room, add guest, services, change room price         |
+| 6. Guest departs              | Folio settled against the channel-collected amount and VFMS taxes                                                                                  | `Modify` / `Checked Out`, immediately            | Check-out call; fiscal check-out report with QR code issued |
 
 **If the channel connection fails**, Booking.com may email the reservation to the property after 30 minutes without acknowledgement ([Reservations overview](https://developers.booking.com/connectivity/docs/reservations-api/reservations-overview)).
 
-- Staff enter it as a **booking received outside integration** (PMS-07). Thedream reports it from that moment.
+- Staff enter it as a **booking received outside integration** (PMS-07). Karafuu reports it from that moment.
 - The outage is logged (DST-08), and the daily reconciliation confirms nothing was missed (DST-07).
 
 ## 9. Channel manager selection criteria
 
 Choosing the channel manager is a launch dependency for Zanzibar (ADR 0001). A candidate must meet all of these:
 
-1. **A PMS-facing API.** Thedream sends availability, rates and restrictions, and receives new, modified and cancelled reservations.
-2. **Fast reservation delivery.** Push or near-real-time pull, so Thedream can report within ZRA's 5-minute window with room to spare.
+1. **A PMS-facing API.** Karafuu sends availability, rates and restrictions, and receives new, modified and cancelled reservations.
+2. **Fast reservation delivery.** Push or near-real-time pull, so Karafuu can report within ZRA's 5-minute window with room to spare.
 3. **Certified Booking.com connection**, plus the other OTAs Zanzibar hotels sell on.
-4. **Card handling without Thedream receiving card data** (ADR 0004): secure card storage, plus a way for the property to view or charge cards.
+4. **Card handling without Karafuu receiving card data** (ADR 0004): secure card storage, plus a way for the property to view or charge cards.
 5. **Payment details on each reservation:** who collected payment, the amounts collected, and any fees the channel took.
 6. **An API to list a property's reservations**, so the daily reconciliation (DST-07) can work.
 7. **Commercial terms that work per property**, for pricing Zanzibar plans (§13).
-8. **Not itself in conflict with ZRA.** The channel manager also falls under ZRA's integration rules (ZAN GW guide §2). Its reporting must not duplicate or contradict Thedream's.
+8. **Not itself in conflict with ZRA.** The channel manager also falls under ZRA's integration rules (ZAN GW guide §2). Its reporting must not duplicate or contradict Karafuu's.
 
 Booking.com's direct connectivity programme should be monitored, so a direct connection can be considered if it reopens (P2).
 
@@ -496,7 +496,7 @@ All relationships must prevent links across organizations, including a reservati
 
 ## 12. Property go-live (replaces migration)
 
-Thedream is built new, so there is no data migration from a previous Thedream system. A property goes live as follows:
+Karafuu is built new, so there is no data migration from a previous Karafuu system. A property goes live as follows:
 
 1. Complete onboarding (§7.1) and choose the jurisdiction profile.
 2. Configure rooms, rate plans, taxes and currencies.
@@ -507,7 +507,7 @@ Thedream is built new, so there is no data migration from a previous Thedream sy
     4. Run a test reservation through every declared channel.
     5. Run a test VFMS check-in and check-out.
 4. Import future reservations from the previous system, with a preview first and errors shown per row. **Zanzibar:** imported reservations are reported to ZAN Gateway as new on go-live.
-5. Stop selling in the previous system, then switch channels to Thedream. Run the first daily reconciliation on the following day.
+5. Stop selling in the previous system, then switch channels to Karafuu. Run the first daily reconciliation on the following day.
 
 Imports require templates, a dry run, duplicate detection, errors per row, and processing that is safe to repeat.
 
@@ -569,7 +569,7 @@ Analytics events never contain identity documents, card data or full reservation
 
 ## 17. Interpretations of ZRA documents
 
-Thedream relies on its reading of the ZRA documents and has not asked ZRA to confirm. Each interpretation below is implemented as configuration where practical.
+Karafuu relies on its reading of the ZRA documents and has not asked ZRA to confirm. Each interpretation below is implemented as configuration where practical.
 
 | #    | Topic                         | Interpretation                                                                   | Basis                                                                      |
 | ---- | ----------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -578,7 +578,7 @@ Thedream relies on its reading of the ZRA documents and has not asked ZRA to con
 | I-3  | Channel field                 | Not sent. Neither ZRA document defines one                                       | ZAN OpenAPI schema                                                         |
 | I-4  | `guest_country`               | Sent, as an ISO code                                                             | ZAN GW guide §7 example                                                    |
 | I-5  | Rate limit                    | Design for 100 per minute for the whole platform                                 | ZAN GW guide §9 (stricter than the spec's 500)                             |
-| I-6  | 5-minute window               | Measured from the event in Thedream, with a 1-minute target                      | ZAN GW guide §4 Step 4                                                     |
+| I-6  | 5-minute window               | Measured from the event in Karafuu, with a 1-minute target                       | ZAN GW guide §4 Step 4                                                     |
 | I-7  | Varying nightly rates         | First night at check-in, then a change-room-price call when the rate changes     | VFMS guide §2.1, §2.3                                                      |
 | I-8  | Cancellation and no-show fees | Non-fiscal receipt, plus the fiscal exceptions report                            | VFMS guide: no endpoint for a guest who never checked in                   |
 | I-9  | Historical data               | Future reservations only. Completed stays stay with the previous supplier        | ZAN GW guide §4 Step 3, read as applying to the supplier's own bookings    |

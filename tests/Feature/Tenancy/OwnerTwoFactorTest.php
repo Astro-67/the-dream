@@ -84,6 +84,7 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
             new InvitationDetails('pending@example.test', MembershipGrant::properties(OrganizationRole::FrontDesk, [$property->id]), CarbonImmutable::now()->addWeek()),
         ))), $intent],
         'members.index', 'subscription.show' => ['GET', route($routeName)],
+        'subscription.rooms.update' => ['PUT', route($routeName), ['rooms' => 150]],
         'subscription.invoices.show' => ['GET', route($routeName, ownSaasInvoice($property))],
         'subscription.invoices.slips.store' => ['POST', route($routeName, ownSaasInvoice($property))],
         'subscription.slips.show' => ['GET', route($routeName, inTenant($property, fn () => SaasInvoice::query()

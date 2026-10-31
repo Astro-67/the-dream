@@ -155,7 +155,7 @@ final class JurisdictionRules
     public static function onboardingReceiptNotice(Property $property): ?string
     {
         return $property->jurisdiction_profile === JurisdictionProfile::MainlandTanzania
-            ? __('Thedream issues non-fiscal receipts for mainland properties.')
+            ? __('Karafuu issues non-fiscal receipts for mainland properties.')
             : null;
     }
 
