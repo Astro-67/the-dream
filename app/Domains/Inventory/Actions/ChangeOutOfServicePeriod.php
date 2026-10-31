@@ -24,7 +24,7 @@ class ChangeOutOfServicePeriod
      */
     public function handle(?User $actor, OutOfServicePeriod $period, array $details): OutOfServicePeriod
     {
-        return InventoryRefused::audited($actor, $period, 'Out-of-service change refused', fn () => DB::transaction(function () use ($actor, $period, $details) {
+        return InventoryRefused::audited($actor, $period, 'Out-of-order change refused', fn () => DB::transaction(function () use ($actor, $period, $details) {
             $room = Room::query()->whereKey($period->room_id)->lockForUpdate()->firstOrFail();
             $period = OutOfServicePeriod::query()->whereKey($period->id)->lockForUpdate()->firstOrFail();
             $period->setRelation('room', $room);
@@ -47,7 +47,7 @@ class ChangeOutOfServicePeriod
             app(RecalculateInventory::class)->handle($type);
             app(SyncRoomServiceStatus::class)->handle($actor, $room);
 
-            Audit::record($actor, 'updated', $period, 'Out-of-service period changed', ['old' => $old, 'attributes' => $period->details()]);
+            Audit::record($actor, 'updated', $period, 'Out-of-order period changed', ['old' => $old, 'attributes' => $period->details()]);
 
             return $period;
         }));

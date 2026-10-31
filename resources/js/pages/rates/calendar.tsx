@@ -364,7 +364,7 @@ export default function RateCalendar({
                                     </tr>
                                     <tr>
                                         <th scope="row" className={label}>
-                                            Out of service
+                                            Out of order
                                         </th>
                                         {dates.map((date) => (
                                             <td

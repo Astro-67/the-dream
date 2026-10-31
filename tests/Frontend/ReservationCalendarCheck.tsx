@@ -8,6 +8,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { App } from '@inertiajs/react';
 import { Dialog } from '@/components/ui/dialog';
 import { CalendarOutOfOrder } from '@/features/rates/calendar-out-of-order';
+import { OutOfService } from '@/features/inventory/out-of-service';
 
 const departure = renderToStaticMarkup(
     <TooltipProvider>
@@ -191,6 +192,7 @@ console.log(
 for (const startsOn of [undefined, '2026-12-10', '2026-12-15']) {
     const Page = () => (
         <Dialog open>
+            <OutOfService roomId="room" periods={[]} today="2026-12-12" />
             <CalendarOutOfOrder
                 editing={{
                     room: { id: 'room', number: '101', reservations: [] },
@@ -226,6 +228,7 @@ for (const startsOn of [undefined, '2026-12-10', '2026-12-15']) {
     );
     assert.match(html, /name="_property" value="property"/);
     assert.match(html, /name="calendar" value="1"/);
+    assert.doesNotMatch(html.replace(/<[^>]+>/g, ''), /out.of.service/i);
     if (startsOn) {
         assert.match(html, /Return room 101 to service/);
         assert.match(html, /Leaking shower/);

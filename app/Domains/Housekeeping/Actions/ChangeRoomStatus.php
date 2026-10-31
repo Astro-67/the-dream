@@ -29,7 +29,7 @@ class ChangeRoomStatus
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             $from = $status->status;
             if ($source !== TransitionSource::ServicePeriod && app(SyncRoomServiceStatus::class)->activePeriod($room) !== null) {
-                throw ValidationException::withMessages(['status' => __('The room is out of service. Change its service period before changing housekeeping status.')]);
+                throw ValidationException::withMessages(['status' => __('The room is out of order. Change its service period before changing housekeeping status.')]);
             }
             if ($source === TransitionSource::Housekeeping && $from === HousekeepingStatus::InspectionRequired) {
                 if ($to === HousekeepingStatus::Dirty && trim($reason) === '') {

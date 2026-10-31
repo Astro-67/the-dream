@@ -59,6 +59,10 @@ _Avoid_: Room revenue (a report figure)
 **Ready room**:
 A room clean enough to check a guest into. Only a clean room is ready, unless the property skips inspection or a manager overrides with a reason.
 
+**Out of order**:
+A specific room removed from sellable inventory for a range of nights, with a reason. The back-in-service date is the first night it can be sold again.
+_Avoid_: Out of service
+
 **Overbooking conflict**:
 A channel reservation that arrived when its room type had no inventory left on some night, beyond the property's overbooking allowance. It is accepted and flagged for staff, never refused.
 _Avoid_: Overbooking (as a feature)

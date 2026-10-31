@@ -59,7 +59,7 @@ test('a property manager takes a room out of service and sellable drops on those
     expect(sellableOn($t->a->property, $type, ['2026-10-09', '2026-10-10', '2026-10-11', '2026-10-12']))
         ->toBe(['2026-10-09' => 2, '2026-10-10' => 1, '2026-10-11' => 1, '2026-10-12' => 2]);
 
-    $audit = Activity::query()->where('description', 'Room taken out of service')->sole();
+    $audit = Activity::query()->where('description', 'Room taken out of order')->sole();
     expect($audit->getExtraProperty('attributes'))->toEqual(['room_id' => $room->id, 'starts_on' => '2026-10-10', 'returns_on' => '2026-10-12', 'reason' => 'Leaking shower']);
 });
 
@@ -71,8 +71,8 @@ test('out-of-service periods of one room never overlap', function () {
 
     $this->post(route('out-of-service.store', $room), [...$p, 'starts_on' => '2026-10-10', 'returns_on' => '2026-10-15'])->assertSessionHasNoErrors();
     $this->post(route('out-of-service.store', $room), [...$p, 'starts_on' => '2026-10-14', 'returns_on' => '2026-10-20'])
-        ->assertSessionHasErrors(['starts_on' => 'Room 101 is already out of service from 2026-10-10 until 2026-10-15.']);
-    expect(Activity::query()->where('description', 'Room out of service refused')->sole()->getExtraProperty('result'))->toBe('refused');
+        ->assertSessionHasErrors(['starts_on' => 'Room 101 is already out of order from 2026-10-10 until 2026-10-15.']);
+    expect(Activity::query()->where('description', 'Room out of order refused')->sole()->getExtraProperty('result'))->toBe('refused');
     // Back in service on the 15th, so another period can start that day.
     $this->post(route('out-of-service.store', $room), [...$p, 'starts_on' => '2026-10-15', 'returns_on' => '2026-10-20'])->assertSessionHasNoErrors();
 
@@ -93,7 +93,7 @@ test('taking a room out of service is refused when fewer rooms would be sellable
         ->and(sellableOn($t->a->property, $type, ['2026-10-11']))->toBe(['2026-10-11' => 2]);
 
     $refusal = Activity::query()->where('event', 'refused')->sole();
-    expect($refusal->description)->toBe('Room out of service refused')
+    expect($refusal->description)->toBe('Room out of order refused')
         ->and($refusal->getExtraProperty('result'))->toBe('refused');
 });
 
@@ -131,7 +131,7 @@ test('a property manager changes a period and ends it early, and sellable follow
     expect(sellableOn($t->a->property, $type, ['2026-10-08', '2026-10-09', '2026-10-10', '2026-10-19']))
         ->toBe(['2026-10-08' => 1, '2026-10-09' => 1, '2026-10-10' => 2, '2026-10-19' => 2]);
 
-    $audit = Activity::query()->where('description', 'Out-of-service period changed')->sole();
+    $audit = Activity::query()->where('description', 'Out-of-order period changed')->sole();
     expect($audit->getExtraProperty('old'))->toEqual(['room_id' => $room->id, 'starts_on' => '2026-10-08', 'returns_on' => '2026-10-20', 'reason' => 'Renovation'])
         ->and($audit->getExtraProperty('attributes'))->toEqual(['room_id' => $room->id, 'starts_on' => '2026-10-08', 'returns_on' => '2026-10-10', 'reason' => 'Renovation finished early']);
 });

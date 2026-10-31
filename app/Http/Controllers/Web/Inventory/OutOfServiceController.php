@@ -26,7 +26,7 @@ class OutOfServiceController extends Controller
         $details = $request->validated();
         $takeOutOfService->handle($user, $room, $details);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Room :number taken out of service.', ['number' => $room->number])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Room :number taken out of order.', ['number' => $room->number])]);
 
         return $request->boolean('calendar') ? back(fallback: route('rate-calendar')) : redirect()->route('rooms.edit', $room);
     }
@@ -40,7 +40,7 @@ class OutOfServiceController extends Controller
         $details = $request->validated();
         $changePeriod->handle($user, $period, $details);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Out-of-service period saved.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Out-of-order period saved.')]);
 
         return $request->boolean('calendar') ? back(fallback: route('rate-calendar')) : redirect()->route('rooms.edit', $period->room_id);
     }

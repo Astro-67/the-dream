@@ -55,7 +55,7 @@ export function PeriodFields({
             <div className="grid gap-6 sm:grid-cols-2">
                 <Field
                     id={`starts_on-${period?.id ?? 'new'}`}
-                    label="Out of service from"
+                    label="Out of order from"
                     error={errors.starts_on}
                     hint={
                         period?.started
@@ -128,7 +128,7 @@ function ChangePeriod({
                 </Button>
             </DialogTrigger>
             <DialogContent>
-                <DialogTitle>Change out-of-service period</DialogTitle>
+                <DialogTitle>Change out-of-order period</DialogTitle>
                 <DialogDescription>
                     To end it early, set an earlier back-in-service date.
                 </DialogDescription>
@@ -183,7 +183,7 @@ export function OutOfService({
                     id="out-of-service"
                     className="text-lg font-semibold tracking-tight"
                 >
-                    Out of service
+                    Out of order
                 </h2>
                 <p className="text-sm text-muted-foreground">
                     The room is not sold on these dates. Refused if it would
@@ -241,7 +241,7 @@ export function OutOfService({
                         <div className="flex justify-end">
                             <Button type="submit" variant="secondary">
                                 {processing && <Spinner />}
-                                Take out of service
+                                Take out of order
                             </Button>
                         </div>
                     </>
