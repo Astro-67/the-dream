@@ -3,4 +3,9 @@ export default function Edit({ record }: { record: Contact }) {
     return <ContactForm record={record} base="/bookers" title="Edit booker" />;
 }
 
-Edit.layout = { breadcrumbs: [{ title: 'Bookers', href: '/bookers' }] };
+Edit.layout = {
+    breadcrumbs: [
+        { title: 'Bookers', href: '/bookers' },
+        { title: 'Edit booker', href: '/bookers' },
+    ],
+};

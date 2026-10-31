@@ -5,4 +5,9 @@ export default function Show(
     return <ContactShow {...props} base="/bookers" title="booker" />;
 }
 
-Show.layout = { breadcrumbs: [{ title: 'Bookers', href: '/bookers' }] };
+Show.layout = {
+    breadcrumbs: [
+        { title: 'Bookers', href: '/bookers' },
+        { title: 'Booker details', href: '/bookers' },
+    ],
+};
