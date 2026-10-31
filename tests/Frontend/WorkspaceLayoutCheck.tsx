@@ -220,7 +220,9 @@ for (const sidebarOpen of [true, false]) {
         assert.doesNotMatch(markup, new RegExp(`<a[^>]*>${current}</a>`));
         assert.match(
             markup,
-            /<a[^>]*href="\/bookers"[^>]*>[\s\S]*?Back to Bookers<\/a>/,
+            Page === BookerEdit
+                ? /<a[^>]*href="\/bookers\/booker-207"[^>]*>[\s\S]*?Back to Coastal travel partner with a long name<\/a>/
+                : /<a[^>]*href="\/bookers"[^>]*>[\s\S]*?Back to Bookers<\/a>/,
         );
         assert.match(
             markup,

@@ -8,7 +8,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { AdjustmentFields } from '@/features/rates/adjustment-fields';
 import { CancellationPolicyFields } from '@/features/rates/cancellation-policy-fields';
 import type { CancellationPolicy } from '@/features/rates/cancellation-policy-fields';
-import { index, update } from '@/routes/rate-plans';
+import { index, prices, update } from '@/routes/rate-plans';
 
 export default function EditRatePlan({
     plan,
@@ -129,9 +129,10 @@ export default function EditRatePlan({
     );
 }
 
-EditRatePlan.layout = {
+EditRatePlan.layout = ({ plan }: { plan: { id: string } }) => ({
     breadcrumbs: [
         { title: 'Rate plans', href: index() },
+        { title: 'Prices', href: prices(plan.id) },
         { title: 'Edit rate plan', href: '#' },
     ],
-};
+});

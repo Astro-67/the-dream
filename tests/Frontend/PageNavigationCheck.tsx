@@ -6,12 +6,17 @@ import AppLayout from '@/layouts/app-layout';
 
 const cases = [
     ['bookers/create', 'Bookers', '/bookers', 'Add booker'],
-    ['bookers/edit', 'Bookers', '/bookers', 'Edit booker'],
+    ['bookers/edit', 'Amina Said', '/bookers/contact-207', 'Edit booker'],
     ['bookers/show', 'Bookers', '/bookers', 'Booker details'],
     ['guests/create', 'Guests', '/guests', 'Add guest'],
-    ['guests/edit', 'Guests', '/guests', 'Edit guest'],
+    ['guests/edit', 'Amina Said', '/guests/contact-207', 'Edit guest'],
     ['guests/show', 'Guests', '/guests', 'Guest details'],
-    ['guests/merge', 'Guests', '/guests', 'Merge duplicate guests'],
+    [
+        'guests/merge',
+        'Amina Said',
+        '/guests/contact-207',
+        'Merge duplicate guests',
+    ],
     ['properties/create', 'Properties', '/properties', 'Add property'],
     ['properties/edit', 'Properties', '/properties', 'Edit property'],
     ['members/edit', 'Staff', '/members', 'Edit access'],
@@ -31,7 +36,7 @@ const cases = [
     ['inventory/rooms/create', 'Rooms', '/rooms', 'Add room'],
     ['inventory/rooms/edit', 'Rooms', '/rooms', 'Edit room'],
     ['rates/create', 'Rate plans', '/rate-plans', 'Add rate plan'],
-    ['rates/edit', 'Rate plans', '/rate-plans', 'Edit rate plan'],
+    ['rates/edit', 'Prices', '/rate-plans/plan-207/prices', 'Edit rate plan'],
     ['rates/prices', 'Rate plans', '/rate-plans', 'Prices'],
     [
         'rates/restrictions',
@@ -98,6 +103,8 @@ const shared = {
         properties: [],
     },
     plan: { id: 'plan-207' },
+    record: { id: 'contact-207', name: 'Amina Said' },
+    guest: { id: 'contact-207', name: 'Amina Said' },
     reservation: { reservation_number: 'R-207' },
     stay: { reservation_number: 'R-207' },
     reservationNumber: 'R-207',

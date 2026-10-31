@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table';
 import type { Paginated } from '@/types';
 import { Spinner } from '@/components/ui/spinner';
+import { show } from '@/routes/guests';
 
 type Candidate = {
     id: string;
@@ -192,16 +193,14 @@ export default function Merge({
                         <Pagination page={candidates} />
                     </div>
                 )}
-                <Button variant="ghost" asChild>
-                    <Link href={`/guests/${guest.id}`}>Back to guest</Link>
-                </Button>
             </div>
         </>
     );
 }
-Merge.layout = {
+Merge.layout = ({ guest }: { guest: { id: string; name: string } }) => ({
     breadcrumbs: [
         { title: 'Guests', href: '/guests' },
+        { title: guest.name, href: show(guest.id) },
         { title: 'Merge duplicate guests', href: '/guests' },
     ],
-};
+});

@@ -10,13 +10,16 @@ Paths below are relative to `resources/js/pages/`. Braces enumerate files.
 
 | Nested surfaces                                      | Intended immediate parent               | Placement                                                                             |
 | ---------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------- |
-| `bookers/{create,edit,show}`                         | Bookers `/bookers`                      | Bounded forms; readable detail                                                        |
-| `guests/{create,edit,show,merge}`                    | Guests `/guests`                        | Bounded forms; detail/stay history and merge comparison retain composition            |
+| `bookers/{create,show}`                              | Bookers `/bookers`                      | Bounded create; readable detail                                                       |
+| `bookers/edit`                                       | Named booker `/bookers/{id}`            | Bounded form; Cancel retains `/bookers`                                               |
+| `guests/{create,show}`                               | Guests `/guests`                        | Bounded create; detail/stay history retains composition                               |
+| `guests/{edit,merge}`                                | Named guest `/guests/{id}`              | Bounded edit (Cancel retains `/guests`); merge comparison retains composition         |
 | `properties/{create,edit}`                           | Properties `/properties`                | Bounded create; multi-section edit retains composition                                |
 | `invitations/create`, `members/edit`                 | Staff `/members`                        | Bounded invitation; access/ownership/removal sections retain composition              |
 | `inventory/room-types/{create,edit}`                 | Room types `/room-types`                | Bounded forms                                                                         |
 | `inventory/rooms/{create,edit}`                      | Rooms `/rooms`                          | Bounded forms                                                                         |
-| `rates/{create,edit}`                                | Rate plans `/rate-plans`                | Bounded forms, policy sections retained                                               |
+| `rates/create`                                       | Rate plans `/rate-plans`                | Bounded form, policy sections retained                                                |
+| `rates/edit`                                         | Prices `/rate-plans/{plan}/prices`      | Bounded form; Cancel retains `/rate-plans`                                            |
 | `rates/prices`                                       | Rate plans `/rate-plans`                | Wide table plus bounded editor                                                        |
 | `rates/{restrictions,quote}`                         | Prices `/rate-plans/{plan}/prices`      | Wide results plus bounded editor                                                      |
 | `rates/tax-preview`                                  | Tax rules `/tax-rules`                  | Bounded input plus results                                                            |
