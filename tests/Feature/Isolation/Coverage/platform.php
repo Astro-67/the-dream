@@ -14,6 +14,11 @@ use Tests\Support\TwoTenants;
  * tests/Feature/Platform.
  */
 return [
+    'platform.organizations.show' => RouteCoverage::attempt(fn (TwoTenants $t) => array_values(array_map(
+        fn ($member) => $this->actingAs($member)->get(route('platform.organizations.show', $t->b->organization->id))->assertForbidden(),
+        $t->a->members(),
+    ))),
+
     'platform.organizations.index' => RouteCoverage::attempt(fn (TwoTenants $t) => array_values(array_map(
         fn ($member) => $this->actingAs($member)->get(route('platform.organizations.index'))->assertForbidden(),
         $t->a->members(),

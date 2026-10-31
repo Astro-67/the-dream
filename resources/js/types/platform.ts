@@ -20,4 +20,5 @@ export type PlatformOrganization = {
     owners: PlatformOrganizationOwner[];
     propertyCount: number;
     createdAt: string | null;
+    goLiveRequested: boolean;
 };

@@ -3,9 +3,13 @@
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Subscriptions\Actions\IssueSaasInvoice;
 use App\Domains\Subscriptions\Models\SaasPayment;
 use App\Domains\Subscriptions\Models\Subscription;
+use App\Domains\Tenancy\Models\Organization;
+use App\Support\Tenancy\Tenancy;
+use App\Support\Tenancy\TenantContext;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\InventoryForm;
@@ -34,6 +38,31 @@ test('a platform administrator opens an organization with its owners and subscri
     $entry = Activity::query()->where('log_name', 'platform')->where('event', 'platform_context_entered')->sole();
     expect($entry->causer?->is($admin))->toBeTrue()
         ->and($entry->getExtraProperty('reason'))->toBe('Platform administrator viewed organization '.$tenants->a->organization->id);
+});
+
+test('only platform administrators with two-factor authentication can open organization details', function () {
+    $tenants = twoTenants();
+    $url = route('platform.organizations.show', $tenants->b->organization->id);
+    foreach ($tenants->a->members() as $member) {
+        $this->actingAs($member)->get($url)->assertForbidden();
+    }
+    $this->actingAs(platformStaff(PlatformRole::ComplianceOperator))->get($url)->assertForbidden();
+    $this->actingAs(platformStaff(twoFactor: false))->get($url)->assertRedirect(route('security.edit'));
+});
+
+test('missing organizations return not found and empty organizations render safely', function () {
+    $this->actingAs(platformStaff())->get(route('platform.organizations.show', 'missing'))->assertNotFound();
+    $organization = Tenancy::within(
+        TenantContext::platform('Seed an empty organization'),
+        fn () => Organization::factory()->create(),
+    );
+
+    $this->get(route('platform.organizations.show', $organization->id))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('organization.owners', [])
+            ->where('subscription', null)
+            ->has('invoices.data', 0)
+            ->has('properties', 0));
 });
 
 test('the organization page shows only its invoices and recorded payments', function () {
