@@ -43,8 +43,24 @@ const billing = {
         },
     ],
 };
-const render = (details: typeof billing | null) => {
-    const props = { invoice, billing: details, payments: [] };
+const render = (
+    details: typeof billing | null,
+    uploadSlipsUrl: string | null = null,
+) => {
+    const props = {
+        invoice,
+        billing: details,
+        payments: [],
+        uploadSlipsUrl,
+        slips: [
+            {
+                id: 'slip-1',
+                name: 'transfer.pdf',
+                reference: 'BANK-123',
+                url: '/subscription/slips/slip-1',
+            },
+        ],
+    };
 
     return renderToStaticMarkup(
         <App
@@ -84,4 +100,15 @@ const old = render(null);
 assert.ok(old.includes('SAAS-000042'));
 assert.ok(!old.includes('How to pay'));
 assert.ok(!old.includes('Use the invoice number'));
+assert.ok(html.includes('transfer.pdf'));
+assert.ok(html.includes('/subscription/slips/slip-1'));
+assert.ok(html.includes('BANK-123'));
+assert.ok(!html.includes('type="file"'));
+const owner = render(billing, '/subscription/invoices/inv-1/slips');
+assert.ok(owner.includes('name="files[]"'));
+assert.ok(owner.includes('multiple'));
+assert.ok(owner.includes('name="reference"'));
+assert.ok(owner.includes('Upload payment slips'));
+assert.ok(owner.includes('5 MB'));
+assert.ok(owner.includes('does not mark the invoice paid'));
 console.log('SaaS invoice: PASS');

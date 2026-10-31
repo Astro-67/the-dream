@@ -13,6 +13,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
+import { PaymentSlips } from '@/features/subscriptions/payment-slips';
+import type { PaymentSlip } from '@/features/subscriptions/payment-slips';
 import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
@@ -42,6 +44,7 @@ type Props = {
     } | null;
     invoices: Paginated<
         SaasInvoice & {
+            slips: PaymentSlip[];
             payments: {
                 id: string;
                 amount: number;
@@ -169,6 +172,7 @@ export default function PlatformOrganizationShow({
                                         <TableHead numeric>Amount</TableHead>
                                         <TableHead numeric>Balance</TableHead>
                                         <TableHead>Payments</TableHead>
+                                        <TableHead>Payment slips</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -266,6 +270,11 @@ export default function PlatformOrganizationShow({
                                                         )}
                                                     </ul>
                                                 )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <PaymentSlips
+                                                    slips={invoice.slips}
+                                                />
                                             </TableCell>
                                         </TableRow>
                                     ))}

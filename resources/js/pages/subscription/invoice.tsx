@@ -10,6 +10,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
+import { PaymentSlips } from '@/features/subscriptions/payment-slips';
+import type { PaymentSlip } from '@/features/subscriptions/payment-slips';
 import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
@@ -39,9 +41,13 @@ export default function SaasInvoiceShow({
     invoice,
     billing,
     payments,
+    slips,
+    uploadSlipsUrl,
 }: {
     invoice: SaasInvoice & { plan: string; issuedAt: string | null };
     billing: Billing | null;
+    slips: PaymentSlip[];
+    uploadSlipsUrl: string | null;
     payments: {
         id: string;
         method: string;
@@ -197,6 +203,19 @@ export default function SaasInvoiceShow({
                         </Table>
                     </section>
                 )}
+
+                <section
+                    aria-labelledby="payment-slips-heading"
+                    className="space-y-3 print:hidden"
+                >
+                    <h2
+                        id="payment-slips-heading"
+                        className="text-lg font-semibold"
+                    >
+                        Payment slips
+                    </h2>
+                    <PaymentSlips slips={slips} uploadUrl={uploadSlipsUrl} />
+                </section>
 
                 <div className="print:hidden">
                     <Button variant="outline" onClick={() => window.print()}>
