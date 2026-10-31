@@ -1,5 +1,4 @@
 import { Link } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
 
@@ -17,10 +16,11 @@ export default function AuthSimpleLayout({
                             href={home()}
                             className="flex flex-col items-center gap-2 font-medium"
                         >
-                            <div className="mb-1 flex h-9 w-9 items-center justify-center rounded-md">
-                                <AppLogoIcon className="size-9 fill-primary" />
-                            </div>
-                            <span className="sr-only">{title}</span>
+                            <img
+                                src="/karafuu-logo.jpg"
+                                alt="Karafuu PMS, The Heart of Hospitality"
+                                className="mb-1 w-56 rounded-lg bg-white"
+                            />
                         </Link>
 
                         <div className="space-y-2 text-center">
