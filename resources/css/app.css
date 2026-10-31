@@ -82,6 +82,9 @@
     --color-status-error-dot: var(--status-error-dot);
     --color-status-success-dot: var(--status-success-dot);
     --color-status-warning-dot: var(--status-warning-dot);
+
+    --shadow-panel: var(--elevation-panel);
+    --shadow-primary: var(--elevation-primary);
 }
 
 :root {
@@ -135,6 +138,10 @@
     --status-occupied-tint: #f0f9ff;
     --status-inspection: #6d28d9;
     --status-inspection-tint: #f5f3ff;
+    --elevation-panel:
+        0 1px 2px rgb(17 26 46 / 0.05), 0 2px 8px rgb(17 26 46 / 0.04);
+    --elevation-primary:
+        inset 0 1px 0 rgb(255 255 255 / 0.14), 0 1px 2px rgb(17 26 46 / 0.2);
     --brand-accent: #3f8a1e;
     --status-error-dot: #ef4444;
     --status-success-dot: #10b981;
@@ -191,6 +198,9 @@
     --status-occupied-tint: color-mix(in srgb, #38bdf8 15%, var(--card));
     --status-inspection: #a78bfa;
     --status-inspection-tint: color-mix(in srgb, #a78bfa 15%, var(--card));
+    --elevation-panel: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.25);
+    --elevation-primary:
+        inset 0 1px 0 rgb(255 255 255 / 0.3), 0 1px 2px rgb(0 0 0 / 0.5);
     --brand-accent: #7cc957;
     --status-error-dot: #f87171;
     --status-success-dot: #34d399;
@@ -218,10 +228,6 @@
         font-weight: 600;
         letter-spacing: -0.02em;
     }
-}
-
-@utility shadow-lift {
-    box-shadow: 0 8px 30px rgb(0 0 0 / 0.08);
 }
 
 @media print {

@@ -139,3 +139,21 @@ const [r, , b] = resolve(block(':root'), 'background');
 assert.ok(r > b, 'light --background must be a warm neutral');
 
 console.log('Theme tokens contrast and brand direction: PASS');
+
+for (const selector of [':root', '\\.dark']) {
+    const t = block(selector);
+    for (const name of ['elevation-panel', 'elevation-primary']) {
+        assert.ok(t[name], `${selector}: --${name} elevation token missing`);
+        assert.doesNotMatch(
+            t[name],
+            /gradient/,
+            'elevation must not be a gradient',
+        );
+    }
+}
+assert.match(
+    css,
+    /@media print[^]*box-shadow: none !important/,
+    'print surfaces must drop screen elevation',
+);
+console.log('Elevation tokens: PASS');
