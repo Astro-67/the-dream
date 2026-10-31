@@ -31,7 +31,7 @@ export default function AppSidebarLayout({
                             <Button
                                 variant="ghost"
                                 asChild
-                                className="-ml-3 min-h-11 max-w-full justify-start text-left whitespace-normal"
+                                className="-ml-3 min-h-11 max-w-full justify-start text-left wrap-anywhere whitespace-normal"
                             >
                                 <Link href={parent.href}>
                                     <ArrowLeft aria-hidden="true" />
