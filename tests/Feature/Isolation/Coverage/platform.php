@@ -1,7 +1,9 @@
 <?php
 
 use App\Domains\Platform\Enums\PlatformRole;
+use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Enums\PropertyStatus;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
@@ -18,6 +20,21 @@ return [
         fn ($member) => $this->actingAs($member)->get(route('platform.organizations.show', $t->b->organization->id))->assertForbidden(),
         $t->a->members(),
     ))),
+
+    'platform.properties.go-live.approve' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $property = $t->b->property;
+        $property->forceFill(['status' => PropertyStatus::Setup, 'went_live_at' => null, 'go_live_requested_at' => now()])->save();
+        inTenant($t->b->organization, fn () => Subscription::current()->update(['status' => 'active']));
+
+        $responses = array_values(array_map(
+            fn ($member) => $this->actingAs($member)->post(route('platform.properties.go-live.approve', $property->id))->assertForbidden(),
+            $t->a->members(),
+        ));
+
+        expect($property->fresh()->status)->toBe(PropertyStatus::Setup);
+
+        return $responses;
+    }),
 
     'platform.organizations.index' => RouteCoverage::attempt(fn (TwoTenants $t) => array_values(array_map(
         fn ($member) => $this->actingAs($member)->get(route('platform.organizations.index'))->assertForbidden(),
