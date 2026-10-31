@@ -1,13 +1,20 @@
 <?php
 
+use App\Domains\Guests\Actions\CreateGuest;
+use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Reservations\Actions\AssignRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Reservations\Models\ReservationNumberSequence;
 use App\Domains\Reservations\Models\ReservationPriceLine;
+use App\Domains\Tenancy\Enums\OrganizationRole;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +22,66 @@ use Inertia\Testing\AssertableInertia;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
+use Tests\Support\TenantFixture;
+
+function bookingGroupMembers(TenantFixture $tenant): array
+{
+    return inTenant($tenant->property, function () use ($tenant) {
+        $details = BookingForm::details($tenant->owner);
+        app(CreateRoom::class)->handle($tenant->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        app(CreateReservation::class)->handle($tenant->owner, [...$details, 'rooms' => 2]);
+
+        return Reservation::query()->orderBy('reservation_number')->get()->all();
+    });
+}
+
+test('group members offer their permitted arrival actions and checking in one leaves the other confirmed', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
+    $t = twoTenants();
+    [$member, $sibling] = bookingGroupMembers($t->a);
+    inTenant($t->a->property, function () use ($t, $sibling) {
+        $room = Room::query()->orderBy('number')->first();
+        app(AssignRoom::class)->handle($t->a->owner, $sibling, $room->id);
+        RoomStatus::query()->where('room_id', $room->id)->update(['status' => HousekeepingStatus::Clean]);
+        $guest = app(CreateGuest::class)->handle($t->a->owner, ['name' => 'Group guest', 'documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE']]]);
+        ReservationGuest::query()->create(['reservation_id' => $sibling->id, 'guest_id' => $guest->id]);
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->owner)->get(route('reservations.show', $member))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('groupMembers.0.reservation_number', $sibling->reservation_number)
+            ->where('groupMembers.0.can.checkIn', true)
+            ->where('groupMembers.0.can.checkOut', false));
+    $this->post(route('reservations.check-in', $sibling), ['_property' => $t->a->property->id])->assertSessionHasNoErrors()->assertRedirect();
+    $this->get(route('reservations.show', $member))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('reservation.status', 'confirmed')
+            ->where('groupMembers.0.status', 'checked_in')
+            ->where('groupMembers.0.can.checkIn', false)
+            ->where('groupMembers.0.can.checkOut', true)
+            ->has('groupMembers.0.checkoutBalances', 1));
+    $this->get(route('reservations.show', $sibling))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('reservation.status', 'checked_in')
+            ->where('groupMembers.0.reservation_number', $member->reservation_number)
+            ->where('groupMembers.0.status', 'confirmed'));
+});
+
+test('group arrival actions respect business date and staff permissions', function (OrganizationRole $role, string $date, bool $allowed) {
+    $this->travelTo(CarbonImmutable::parse('2026-12-09 09:00:00', 'Africa/Dar_es_Salaam'));
+    $t = twoTenants();
+    [$member] = bookingGroupMembers($t->a);
+    $t->a->property->update(['business_date' => $date]);
+    $this->actingAs($t->a->member($role))->get(route('reservations.show', $member))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('groupMembers.0.can.checkIn', $allowed)
+            ->where('groupMembers.0.can.checkOut', false));
+})->with([
+    [OrganizationRole::FrontDesk, '2026-12-10', true],
+    [OrganizationRole::Auditor, '2026-12-10', false],
+    [OrganizationRole::FrontDesk, '2026-12-09', false],
+    [OrganizationRole::FrontDesk, '2026-12-12', false],
+]);
 
 test('front desk books several rooms with one booker and separate numbers prices and created events', function () {
     $t = twoTenants();
