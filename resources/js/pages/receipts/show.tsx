@@ -51,7 +51,16 @@ export default function Show({
     corrections: later,
 }: {
     receipt: Receipt;
-    summary: (FolioSummary & { currency: string }) | null;
+    summary:
+        | (FolioSummary & {
+              currency: string;
+              estimate?: {
+                  nights: number;
+                  amount: number;
+                  currency: string;
+              } | null;
+          })
+        | null;
     stay: Stay;
     corrections: {
         id: string;
@@ -202,6 +211,30 @@ export default function Show({
                                 summary={summary}
                                 currency={summary.currency}
                             />
+                            {summary.estimate && (
+                                <>
+                                    <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1">
+                                        <dt className="text-muted-foreground">
+                                            Room charges (estimated,{' '}
+                                            {summary.estimate.nights}{' '}
+                                            {summary.estimate.nights === 1
+                                                ? 'night'
+                                                : 'nights'}
+                                            )
+                                        </dt>
+                                        <dd className="text-right tabular-nums">
+                                            {formatMoney(
+                                                summary.estimate.amount,
+                                                summary.estimate.currency,
+                                            )}
+                                        </dd>
+                                    </dl>
+                                    <p className="text-sm text-muted-foreground">
+                                        Not yet charged, before added taxes. Not
+                                        included in the posted totals above.
+                                    </p>
+                                </>
+                            )}
                         </>
                     ) : (
                         <p className="text-sm text-muted-foreground">
