@@ -70,6 +70,7 @@ assert.equal(
 const row = {
     id: 'r-1',
     reservation_number: 'R-1042',
+    booking_group_id: 'group-1',
     arrival: '2026-12-10',
     departure: '2026-12-12',
     status: 'checked_in',
@@ -95,6 +96,7 @@ const props = {
                 ...row,
                 id: 'r-2',
                 reservation_number: 'R-1043',
+                booking_group_id: null,
                 channel_reference: null,
                 guest_name: null,
                 room_number: null,
@@ -154,4 +156,5 @@ assert.doesNotMatch(html, /USD 150\.00/);
 assert.match(html, /Not yet charged<\/span>EUR/);
 assert.match(html, /No guest added/);
 assert.match(html, /Unassigned/);
+assert.equal([...html.matchAll(/>Booking group<\/span>/g)].length, 1);
 console.log('Guest-first reservation list: PASS');

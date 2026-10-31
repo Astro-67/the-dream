@@ -36,9 +36,11 @@ test('bulk prices select weekdays and audit once with the range and minor units'
 test('a property manager creates a rate plan for a room type and sees it listed', function () {
     $t = twoTenants();
     $room = inTenant($t->a->property, fn () => app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType()));
-    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
+    $response = $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
         ->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Bed and breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id]])
-        ->assertRedirect(route('rate-plans.index'));
+        ->assertSessionHasNoErrors();
+    $plan = inTenant($t->a->property, fn () => RatePlan::query()->sole());
+    $response->assertRedirect(route('rate-plans.prices', $plan));
     $this->get(route('rate-plans.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('rates/index')->has('ratePlans', 1)->where('ratePlans.0.code', 'BB')->where('ratePlans.0.currency', 'USD')->where('canManage', true));
 });
@@ -69,7 +71,7 @@ test('only owners, group operations and property managers manage rates', functio
     $response = $this->actingAs($role === OrganizationRole::Owner ? $t->a->owner : $t->a->member($role))
         ->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Bed and breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id]]);
 
-    $manages ? $response->assertSessionHasNoErrors()->assertRedirect(route('rate-plans.index')) : $response->assertForbidden();
+    $manages ? $response->assertSessionHasNoErrors()->assertRedirect() : $response->assertForbidden();
 })->with([
     'owner' => [OrganizationRole::Owner, true],
     'group operations manager' => [OrganizationRole::GroupOperationsManager, true],
@@ -104,11 +106,12 @@ test('a derived plan takes its base plan\'s currency and room types and derives 
     $derived = ['_property' => $t->a->property->id, 'name' => 'Non-refundable', 'code' => 'NR', 'base_rate_plan_id' => $base->id, 'adjustment_kind' => 'percent', 'adjustment' => -10];
 
     // Currency and room types sent alongside a base are ignored, never converted or widened.
-    $this->post(route('rate-plans.store'), [...$derived, 'currency' => 'USD', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors()->assertRedirect(route('rate-plans.index'));
+    $response = $this->post(route('rate-plans.store'), [...$derived, 'currency' => 'USD', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors();
     $this->get(route('rate-plans.index'))->assertInertia(fn (Assert $page) => $page
         ->where('ratePlans.1.code', 'NR')->where('ratePlans.1.currency', 'EUR')->where('ratePlans.1.roomTypes.0.id', $room->id)->has('ratePlans.1.roomTypes', 1)
         ->where('ratePlans.1.base', ['id' => $base->id, 'name' => 'Breakfast', 'adjustmentKind' => 'percent', 'adjustment' => -10]));
     $nonRefundable = inTenant($t->a->property, fn () => RatePlan::query()->where('code', 'NR')->sole());
+    $response->assertRedirect(route('rate-plans.prices', $nonRefundable));
 
     $this->post(route('rate-plans.store'), [...$derived, 'code' => 'NR2', 'base_rate_plan_id' => $nonRefundable->id])->assertSessionHasErrors('base_rate_plan_id');
     $this->post(route('rate-plans.store'), [...$derived, 'code' => 'NR3', 'adjustment_kind' => 'markup'])->assertSessionHasErrors('adjustment_kind');
@@ -173,9 +176,11 @@ test('derived plans keep base currency and room types when either plan is edited
 
         return [$base, $derived, $room, $other];
     });
-    $this->actingAs($t->a->owner)->put(route('rate-plans.update', $derived), ['_property' => $t->a->property->id, 'name' => 'Renamed', 'code' => 'D', 'currency' => 'USD', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors();
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->put(route('rate-plans.update', $derived), ['_property' => $t->a->property->id, 'name' => 'Renamed', 'code' => 'D', 'currency' => 'USD', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors();
     expect(inTenant($t->a->property, fn () => $derived->fresh()->roomTypes()->pluck('room_types.id')->all()))->toBe([$room->id]);
-    $this->put(route('rate-plans.update', $base), ['_property' => $t->a->property->id, 'name' => 'Breakfast', 'code' => 'BB', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors();
+    $this->put(route('rate-plans.update', $base), ['_property' => $t->a->property->id, 'name' => 'Breakfast', 'code' => 'BB', 'room_type_ids' => [$other->id], 'adjustment_kind' => 'percent', 'adjustment' => 10])->assertSessionHasNoErrors();
+    $this->get(route('rate-plans.edit', $base))->assertOk()->assertInertia(fn (Assert $page) => $page->where('plan.adjustment_kind', null)->where('plan.adjustment', null));
+    $this->get(route('rate-plans.edit', $derived))->assertInertia(fn (Assert $page) => $page->where('plan.adjustment_kind', 'percent')->where('plan.adjustment', -10));
     expect(inTenant($t->a->property, fn () => $derived->fresh()->roomTypes()->pluck('room_types.id')->all()))->toBe([$other->id])
         ->and(inTenant($t->a->property, fn () => $derived->fresh()->currency->value))->toBe('EUR');
 });
@@ -199,3 +204,77 @@ test('a rates manager sets a cancellation policy and no-show fee on a plan with 
         ->assertSessionHasErrors(['cancellation_charge', 'no_show_percent', 'cancellation_free_days']);
     $this->put(route('rate-plans.update', $plan), [...$form, 'cancellation_percent' => 101])->assertSessionHasErrors(['cancellation_percent']);
 });
+
+test('a rates manager creates a plan with its cancellation policy and no-show fee', function (bool $derived) {
+    $t = twoTenants();
+    [$room, $base] = inTenant($t->a->property, function () {
+        $room = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+
+        return [$room, app(CreateRatePlan::class)->handle(null, ['name' => 'Base', 'code' => 'BASE', 'currency' => 'USD', 'room_type_ids' => [$room->id]])];
+    });
+    $policy = ['cancellation_free_days' => 7, 'cancellation_charge' => 'percent', 'cancellation_percent' => 50, 'no_show_charge' => 'first_night', 'no_show_percent' => null];
+    $form = ['_property' => $t->a->property->id, 'name' => 'Breakfast', 'code' => 'BB', ...$policy,
+        ...($derived ? ['base_rate_plan_id' => $base->id, 'adjustment_kind' => 'percent', 'adjustment' => 10] : ['currency' => 'USD', 'room_type_ids' => [$room->id]])];
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager));
+    $this->post(route('rate-plans.store'), [...$form, 'no_show_charge' => 'percent', 'no_show_percent' => null, 'cancellation_free_days' => -1])
+        ->assertSessionHasErrors(['no_show_percent', 'cancellation_free_days']);
+    $response = $this->post(route('rate-plans.store'), [...$form, 'no_show_percent' => 80])->assertSessionHasNoErrors();
+    $plan = inTenant($t->a->property, fn () => RatePlan::query()->where('code', 'BB')->sole());
+    $response->assertRedirect(route('rate-plans.prices', $plan));
+    $this->get(route('rate-plans.edit', $plan))->assertInertia(fn (Assert $page) => $page
+        ->where('plan.cancellation_free_days', 7)->where('plan.cancellation_charge', 'percent')->where('plan.cancellation_percent', 50)
+        ->where('plan.no_show_charge', 'first_night')->where('plan.no_show_percent', null));
+    expect(Activity::query()->where('description', 'Rate plan created')->where('subject_id', $plan->id)->sole()->getExtraProperty('attributes'))->toMatchArray($policy);
+})->with(['base' => false, 'derived' => true]);
+
+test('creating a plan without changing its policy keeps the displayed defaults', function () {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, fn () => app(CreateRoomType::class)->handle(null, InventoryForm::roomType()));
+    $defaults = ['cancellation_free_days' => null, 'cancellation_charge' => null, 'cancellation_percent' => null, 'no_show_charge' => null, 'no_show_percent' => null];
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get(route('rate-plans.create'))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('rates/create')->where('policyDefaults', $defaults));
+    $this->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id], ...$defaults])
+        ->assertSessionHasNoErrors();
+    $plan = inTenant($t->a->property, fn () => RatePlan::query()->sole());
+    $this->get(route('rate-plans.edit', $plan))->assertInertia(fn (Assert $page) => $page
+        ->where('plan.cancellation_free_days', null)->where('plan.cancellation_charge', null)->where('plan.cancellation_percent', null)
+        ->where('plan.no_show_charge', null)->where('plan.no_show_percent', null));
+});
+
+test('editing only a derived adjustment updates its prices and audit', function (string $kind, int $adjustment, int $extraAdult, int $extraChild) {
+    $t = twoTenants();
+    [$base, $derived] = inTenant($t->a->property, function () {
+        $room = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+        $base = app(CreateRatePlan::class)->handle(null, ['name' => 'Base', 'code' => 'BASE', 'currency' => 'USD', 'room_type_ids' => [$room->id]]);
+        app(SetRatePrices::class)->handle(null, $base, ['room_type_id' => $room->id, 'from' => '2026-12-01', 'to' => '2026-12-01', 'weekdays' => [2], 'base_price' => 10000, 'extra_adult' => 2000, 'extra_child' => 1000]);
+
+        return [$base, app(CreateRatePlan::class)->handle(null, ['name' => 'Derived', 'code' => 'D', 'base_rate_plan_id' => $base->id, 'adjustment_kind' => 'percent', 'adjustment' => 10])];
+    });
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get(route('rate-plans.edit', $derived))->assertInertia(fn (Assert $page) => $page
+        ->where('plan.adjustment_kind', 'percent')->where('plan.adjustment', 10));
+    $form = ['_property' => $t->a->property->id, 'name' => 'Derived', 'code' => 'D', 'adjustment_kind' => $kind, 'adjustment' => (string) $adjustment];
+    foreach ([
+        [['adjustment_kind' => 'markup'], 'adjustment_kind'],
+        [['adjustment_kind' => 'percent', 'adjustment' => -101], 'adjustment'],
+        [['adjustment_kind' => 'percent', 'adjustment' => 1001], 'adjustment'],
+        [['adjustment_kind' => 'amount', 'adjustment' => -1000000001], 'adjustment'],
+        [['adjustment_kind' => 'amount', 'adjustment' => 1000000001], 'adjustment'],
+        [['adjustment' => 2.5], 'adjustment'],
+        [['adjustment_kind' => null], 'adjustment_kind'],
+        [['adjustment' => null], 'adjustment'],
+    ] as [$invalid, $error]) {
+        $this->put(route('rate-plans.update', $derived), [...$form, ...$invalid])->assertSessionHasErrors($error);
+    }
+    $this->put(route('rate-plans.update', $derived), $form)->assertSessionHasNoErrors();
+    $this->get(route('rate-plans.edit', $derived))->assertInertia(fn (Assert $page) => $page
+        ->where('plan.adjustment_kind', $kind)->where('plan.adjustment', $adjustment));
+    $this->get(route('rate-plans.prices', $derived))->assertInertia(fn (Assert $page) => $page
+        ->where('prices.0.base_price', 9500)->where('prices.0.extra_adult', $extraAdult)->where('prices.0.extra_child', $extraChild));
+    $this->get(route('rate-plans.prices', $base))->assertInertia(fn (Assert $page) => $page
+        ->where('prices.0.base_price', 10000)->where('prices.0.extra_adult', 2000)->where('prices.0.extra_child', 1000));
+    $audit = Activity::query()->where('description', 'Rate plan updated')->sole();
+    expect($audit->getExtraProperty('old'))->toMatchArray(['adjustment_kind' => 'percent', 'adjustment' => 10])
+        ->and($audit->getExtraProperty('attributes'))->toMatchArray(['adjustment_kind' => $kind, 'adjustment' => $adjustment]);
+    $this->put(route('rate-plans.update', $derived), $form)->assertSessionHasNoErrors();
+    expect(Activity::query()->where('description', 'Rate plan updated')->count())->toBe(1);
+})->with(['percentage' => ['percent', -5, 1900, 950], 'fixed amount' => ['amount', -500, 2000, 1000]]);

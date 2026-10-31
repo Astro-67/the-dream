@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
@@ -52,8 +53,9 @@ function ChangeStatus({
     to: string;
     label: string;
 }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="secondary" className="pointer-coarse:min-h-11">
                     {label}
@@ -68,9 +70,10 @@ function ChangeStatus({
                 </DialogDescription>
                 <Form
                     {...status.form(room.id)}
+                    onSuccess={() => setOpen(false)}
                     options={{ preserveScroll: true }}
                 >
-                    {({ processing, errors, wasSuccessful }) => (
+                    {({ processing, errors }) => (
                         <div className="grid gap-4">
                             <PropertyIntent />
                             <input type="hidden" name="status" value={to} />
@@ -91,19 +94,9 @@ function ChangeStatus({
                                     errors._property
                                 }
                             />
-                            {wasSuccessful && (
-                                <p role="status">
-                                    Status updated. Close this dialog to return
-                                    to the board.
-                                </p>
-                            )}
                             <Button
                                 type="submit"
-                                disabled={
-                                    processing ||
-                                    wasSuccessful ||
-                                    !navigator.onLine
-                                }
+                                disabled={processing || !navigator.onLine}
                             >
                                 <span className="size-4">
                                     {processing && <Spinner />}
@@ -119,8 +112,9 @@ function ChangeStatus({
 }
 
 function ReadyOverride({ room }: { room: RoomRow }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="secondary" className="pointer-coarse:min-h-11">
                     Override ready
@@ -137,9 +131,10 @@ function ReadyOverride({ room }: { room: RoomRow }) {
                 </DialogDescription>
                 <Form
                     {...overrideReady.form(room.id)}
+                    onSuccess={() => setOpen(false)}
                     options={{ preserveScroll: true }}
                 >
-                    {({ processing, errors, wasSuccessful }) => (
+                    {({ processing, errors }) => (
                         <div className="grid gap-4">
                             <PropertyIntent />
                             <Label htmlFor={`override-reason-${room.id}`}>
@@ -155,18 +150,9 @@ function ReadyOverride({ room }: { room: RoomRow }) {
                             <InputError
                                 message={errors.reason ?? errors._property}
                             />
-                            {wasSuccessful && (
-                                <p role="status">
-                                    Readiness overridden for this business date.
-                                </p>
-                            )}
                             <Button
                                 type="submit"
-                                disabled={
-                                    processing ||
-                                    wasSuccessful ||
-                                    !navigator.onLine
-                                }
+                                disabled={processing || !navigator.onLine}
                             >
                                 <span className="size-4">
                                     {processing && <Spinner />}

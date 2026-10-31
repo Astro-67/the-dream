@@ -20,7 +20,7 @@ class OverrideRoomReady
             $room = Room::query()->whereKey($room->id)->lockForUpdate()->sole();
             $status = RoomStatus::query()->where('room_id', $room->id)->lockForUpdate()->sole();
             if ($status->status === HousekeepingStatus::Unavailable || app(SyncRoomServiceStatus::class)->activePeriod($room) !== null) {
-                throw ValidationException::withMessages(['reason' => __('An out-of-service room cannot be made ready. Return it to service first.')]);
+                throw ValidationException::withMessages(['reason' => __('An out-of-order room cannot be made ready. Return it to service first.')]);
             }
             $date = BusinessDate::forPropertyId($room->property_id);
             $override = new StatusChange([

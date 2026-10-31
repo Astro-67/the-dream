@@ -28,10 +28,11 @@ export function StayLengthActions({
     departure: string;
 }) {
     const [departOpen, setDepartOpen] = useState(false);
+    const [extendOpen, setExtendOpen] = useState(false);
 
     return (
         <div className="flex flex-wrap gap-2">
-            <Dialog>
+            <Dialog open={extendOpen} onOpenChange={setExtendOpen}>
                 <DialogTrigger asChild>
                     <Button variant="outline">Extend stay</Button>
                 </DialogTrigger>
@@ -43,7 +44,11 @@ export function StayLengthActions({
                             from the rate plan.
                         </DialogDescription>
                     </DialogHeader>
-                    <Form {...extend.form(number)} className="space-y-4">
+                    <Form
+                        {...extend.form(number)}
+                        onSuccess={() => setExtendOpen(false)}
+                        className="space-y-4"
+                    >
                         {({ errors, processing }) => (
                             <>
                                 <PropertyIntent />

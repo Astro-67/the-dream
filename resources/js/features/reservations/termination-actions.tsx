@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -24,13 +25,20 @@ export function TerminationActions({
     number: string;
     can: { cancel: boolean; void: boolean };
 }) {
+    const [openAction, setOpenAction] = useState<string | null>(null);
     return (
         <div className="flex flex-wrap gap-2">
             {(['cancel', 'void'] as const).map((action) => {
                 if (!can[action]) return null;
                 const label = action === 'cancel' ? 'Cancel' : 'Void';
                 return (
-                    <Dialog key={action}>
+                    <Dialog
+                        key={action}
+                        open={openAction === action}
+                        onOpenChange={(open) =>
+                            setOpenAction(open ? action : null)
+                        }
+                    >
                         <DialogTrigger asChild>
                             <Button variant="outline">
                                 {label} reservation
@@ -48,6 +56,7 @@ export function TerminationActions({
                                 </DialogDescription>
                             </DialogHeader>
                             <Form
+                                onSuccess={() => setOpenAction(null)}
                                 {...(action === 'cancel'
                                     ? cancel
                                     : voidMethod

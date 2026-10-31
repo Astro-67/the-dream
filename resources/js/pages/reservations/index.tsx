@@ -6,7 +6,7 @@ import { Identifier } from '@/components/ui/identifier';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
-import { StatusChip } from '@/components/ui/status-chip';
+import { StatusChip, Tag } from '@/components/ui/status-chip';
 import {
     Table,
     TableBody,
@@ -33,6 +33,7 @@ import type { Paginated } from '@/types';
 type Reservation = {
     id: string;
     reservation_number: string;
+    booking_group_id: string | null;
     arrival: string;
     departure: string;
     status: string;
@@ -255,6 +256,11 @@ export default function Index({
                                                             reservation.channel_reference
                                                         }
                                                     />
+                                                </div>
+                                            )}
+                                            {reservation.booking_group_id && (
+                                                <div className="mt-1">
+                                                    <Tag>Booking group</Tag>
                                                 </div>
                                             )}
                                         </TableCell>

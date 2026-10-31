@@ -9,6 +9,7 @@ import {
     TableCell,
 } from '@/components/ui/table';
 import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import { AlertCircle, FlaskConical, Plus } from 'lucide-react';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -60,8 +61,9 @@ type ArchivedPropertyRow = {
 };
 
 function ArchiveProperty({ property }: { property: PropertyRow }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="sm">
                     Archive
@@ -76,6 +78,7 @@ function ArchiveProperty({ property }: { property: PropertyRow }) {
                 </DialogDescription>
                 <Form
                     {...archive.form(property.id)}
+                    onSuccess={() => setOpen(false)}
                     options={{ preserveScroll: true }}
                 >
                     {({ processing, errors }) => (
@@ -117,8 +120,9 @@ function ArchiveProperty({ property }: { property: PropertyRow }) {
 }
 
 function DeleteDemoProperty({ property }: { property: PropertyRow }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="sm">
                     Delete
@@ -133,6 +137,7 @@ function DeleteDemoProperty({ property }: { property: PropertyRow }) {
                 </DialogDescription>
                 <Form
                     {...destroy.form(property.id)}
+                    onSuccess={() => setOpen(false)}
                     options={{ preserveScroll: true }}
                 >
                     {({ processing, errors }) => (

@@ -7,6 +7,7 @@ import {
     TableCell,
 } from '@/components/ui/table';
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -38,14 +39,16 @@ type Errors = Partial<Record<string, string>>;
 /** Dates are the property's calendar dates, so format them without shifting. */
 const day = (date: string) => formatDate(date, 'UTC');
 
-function PeriodFields({
+export function PeriodFields({
     today,
     period,
     errors,
+    initialDates,
 }: {
     today: string;
     period?: OutOfServicePeriod;
     errors: Errors;
+    initialDates?: { startsOn: string; returnsOn: string };
 }) {
     return (
         <>
@@ -53,7 +56,7 @@ function PeriodFields({
             <div className="grid gap-6 sm:grid-cols-2">
                 <Field
                     id={`starts_on-${period?.id ?? 'new'}`}
-                    label="Out of service from"
+                    label="Out of order from"
                     error={errors.starts_on}
                     hint={
                         period?.started
@@ -69,7 +72,9 @@ function PeriodFields({
                         min={period?.started ? undefined : today}
                         readOnly={period?.started}
                         className="tabular-nums"
-                        defaultValue={period?.startsOn ?? today}
+                        defaultValue={
+                            period?.startsOn ?? initialDates?.startsOn ?? today
+                        }
                     />
                 </Field>
                 <Field
@@ -85,7 +90,9 @@ function PeriodFields({
                         required
                         min={today}
                         className="tabular-nums"
-                        defaultValue={period?.returnsOn}
+                        defaultValue={
+                            period?.returnsOn ?? initialDates?.returnsOn
+                        }
                     />
                 </Field>
                 <Field
@@ -114,20 +121,22 @@ function ChangePeriod({
     period: OutOfServicePeriod;
     today: string;
 }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="sm">
                     Change
                 </Button>
             </DialogTrigger>
             <DialogContent>
-                <DialogTitle>Change out-of-service period</DialogTitle>
+                <DialogTitle>Change out-of-order period</DialogTitle>
                 <DialogDescription>
                     To end it early, set an earlier back-in-service date.
                 </DialogDescription>
                 <Form
                     {...update.form(period.id)}
+                    onSuccess={() => setOpen(false)}
                     disableWhileProcessing
                     options={{ preserveScroll: true }}
                     className="flex flex-col gap-6"
@@ -177,7 +186,7 @@ export function OutOfService({
                     id="out-of-service"
                     className="text-lg font-semibold tracking-tight"
                 >
-                    Out of service
+                    Out of order
                 </h2>
                 <p className="text-sm text-muted-foreground">
                     The room is not sold on these dates. Refused if it would
@@ -235,7 +244,7 @@ export function OutOfService({
                         <div className="flex justify-end">
                             <Button type="submit" variant="secondary">
                                 {processing && <Spinner />}
-                                Take out of service
+                                Take out of order
                             </Button>
                         </div>
                     </>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { AdjustmentFields } from '@/features/rates/adjustment-fields';
 import { CancellationPolicyFields } from '@/features/rates/cancellation-policy-fields';
 import type { CancellationPolicy } from '@/features/rates/cancellation-policy-fields';
 import { index, update } from '@/routes/rate-plans';
@@ -20,6 +21,8 @@ export default function EditRatePlan({
         currency: string;
         room_type_ids: string[];
         baseName: string | null;
+        adjustment_kind: string | null;
+        adjustment: number | null;
     } & CancellationPolicy;
     roomTypes: { id: string; name: string; code: string }[];
 }) {
@@ -60,6 +63,14 @@ export default function EditRatePlan({
                                 {plan.baseName &&
                                     `Room types and prices come from ${plan.baseName}.`}
                             </p>
+                            {plan.baseName && (
+                                <AdjustmentFields
+                                    currency={plan.currency}
+                                    adjustmentKind={plan.adjustment_kind}
+                                    adjustment={plan.adjustment}
+                                    errors={errors}
+                                />
+                            )}
                             {!plan.baseName && (
                                 <fieldset className="space-y-3">
                                     <legend className="mb-2 text-sm font-medium">

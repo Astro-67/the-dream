@@ -198,6 +198,8 @@ export function FolioPanel({
     const timezone = tenant.property?.timezone ?? 'UTC';
     const folios = folioPage.data;
     const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null);
+    const [paymentOpen, setPaymentOpen] = useState(false);
+    const [extraOpen, setExtraOpen] = useState(false);
     const folio =
         folios.find((item) => item.id === selectedFolioId) ?? folios[0];
     const total = totals.find((item) => item.currency === folio?.currency);
@@ -317,7 +319,10 @@ export function FolioPanel({
                     )}
                     <div className="flex flex-wrap items-center gap-2">
                         {canRecordPayment && total && (
-                            <Dialog>
+                            <Dialog
+                                open={paymentOpen}
+                                onOpenChange={setPaymentOpen}
+                            >
                                 <DialogTrigger asChild>
                                     <Button className="h-auto min-h-11 text-left whitespace-normal">
                                         Record payment for this {folio.currency}{' '}
@@ -343,13 +348,17 @@ export function FolioPanel({
                                             channelCollectedAmount
                                         }
                                         acceptedMethods={acceptedPaymentMethods}
+                                        onSuccess={() => setPaymentOpen(false)}
                                     />
                                 </DialogContent>
                             </Dialog>
                         )}
 
                         {canPostCharge && (
-                            <Dialog>
+                            <Dialog
+                                open={extraOpen}
+                                onOpenChange={setExtraOpen}
+                            >
                                 <DialogTrigger asChild>
                                     <Button
                                         variant="secondary"
@@ -368,6 +377,7 @@ export function FolioPanel({
                                     <ExtraChargeForm
                                         folio={folio}
                                         categories={extraCategories}
+                                        onSuccess={() => setExtraOpen(false)}
                                     />
                                 </DialogContent>
                             </Dialog>
@@ -582,9 +592,11 @@ export function FolioPanel({
 export function ExtraChargeForm({
     folio,
     categories: allowed,
+    onSuccess,
 }: {
     folio: Folio;
     categories: string[];
+    onSuccess?: () => void;
 }) {
     // One key per filled-in form, so a resubmission of the same form posts once.
     const [key, setKey] = useState(() => crypto.randomUUID());
@@ -594,7 +606,10 @@ export function ExtraChargeForm({
         <Form
             {...store.form(folio.id)}
             resetOnSuccess
-            onSuccess={() => setKey(crypto.randomUUID())}
+            onSuccess={() => {
+                setKey(crypto.randomUUID());
+                onSuccess?.();
+            }}
             options={{ preserveScroll: true }}
             className="grid max-w-[720px] gap-3 sm:grid-cols-2"
         >

@@ -15,6 +15,7 @@ function Toaster({ ...props }: ToasterProps) {
             className="toaster group"
             position={isMobile ? 'top-center' : 'bottom-right'}
             duration={4000}
+            closeButton
             style={
                 {
                     '--normal-bg': 'var(--popover)',

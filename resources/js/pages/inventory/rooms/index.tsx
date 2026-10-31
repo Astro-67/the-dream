@@ -10,6 +10,7 @@ import {
     TableCell,
 } from '@/components/ui/table';
 import { Form, Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -37,8 +38,9 @@ type RoomRow = {
 };
 
 function DeactivateRoom({ room }: { room: RoomRow }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="sm">
                     Deactivate
@@ -52,6 +54,7 @@ function DeactivateRoom({ room }: { room: RoomRow }) {
                 </DialogDescription>
                 <Form
                     {...deactivate.form(room.id)}
+                    onSuccess={() => setOpen(false)}
                     options={{ preserveScroll: true }}
                 >
                     {({ processing, errors }) => (

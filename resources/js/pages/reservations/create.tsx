@@ -158,27 +158,6 @@ export default function Create({
                             {Object.entries(errors).map(([name, message]) => (
                                 <InputError key={name} message={message} />
                             ))}
-                            <div className="flex items-center gap-2">
-                                <input
-                                    id="walk-in"
-                                    type="checkbox"
-                                    className="size-4 rounded-sm"
-                                    checked={source === 'walk-in'}
-                                    onChange={(event) => {
-                                        setSource(
-                                            event.target.checked
-                                                ? 'walk-in'
-                                                : 'direct',
-                                        );
-                                        if (event.target.checked)
-                                            setValues((values) => ({
-                                                ...values,
-                                                arrival: businessDate,
-                                            }));
-                                    }}
-                                />
-                                <Label htmlFor="walk-in">Walk-in</Label>
-                            </div>
                             {/* Sections sit side by side on wide screens; each stays at most 720px. */}
                             <div className="grid max-w-[720px] gap-6 @3xl:max-w-none @3xl:grid-cols-[minmax(0,720px)_288px] @6xl:grid-cols-[minmax(0,720px)_minmax(0,720px)_320px]">
                                 <fieldset className="space-y-4">

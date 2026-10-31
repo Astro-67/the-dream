@@ -17,11 +17,17 @@ import type { FeeProposal } from '@/features/billing/fee-proposals';
 import { NativeSelect } from '@/components/ui/select';
 import type { Paginated } from '@/types';
 import { Form, Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { checkIn, roomAssignment } from '@/routes/reservations';
+import { roomAssignment } from '@/routes/reservations';
+import { CheckInForm } from '@/features/front-desk/check-in-form';
+import {
+    GroupMemberActions,
+    type GroupMember,
+} from '@/features/reservations/group-member-actions';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
@@ -149,10 +155,7 @@ export default function Show({
         overrideBalance: boolean;
     };
     moveRooms: MoveRoom[];
-    groupMembers: Pick<
-        Reservation,
-        'reservation_number' | 'status' | 'arrival' | 'departure'
-    >[];
+    groupMembers: GroupMember[];
     folios: Paginated<Folio>;
     totals: FolioTotal[];
     taxSource: TaxSource;
@@ -169,6 +172,9 @@ export default function Show({
     vfmsCloseWithoutFilingUrl?: string | null;
     vfmsFiscalExceptionReason?: string | null;
 }) {
+    const [assignmentOpen, setAssignmentOpen] = useState(false);
+    const [moveOpen, setMoveOpen] = useState(false);
+    const [amendmentOpen, setAmendmentOpen] = useState(false);
     return (
         <>
             <Head title={`Reservation ${reservation.reservation_number}`} />
@@ -197,26 +203,7 @@ export default function Show({
                         </StatusChip>
                     )}
                     {can.checkIn && (
-                        <Form
-                            {...checkIn.form(reservation.reservation_number)}
-                            disableWhileProcessing
-                            errorBag={`check-in-${reservation.reservation_number}`}
-                            options={{ preserveScroll: true }}
-                            className="flex flex-col items-start gap-1"
-                        >
-                            {({ errors }) => (
-                                <>
-                                    <PropertyIntent />
-                                    <Button type="submit">Check in</Button>
-                                    {Object.values(errors).map((error) => (
-                                        <InputError
-                                            key={error}
-                                            message={error}
-                                        />
-                                    ))}
-                                </>
-                            )}
-                        </Form>
+                        <CheckInForm number={reservation.reservation_number} />
                     )}
                     {reservation.status === 'confirmed' && (
                         <TerminationActions
@@ -388,7 +375,10 @@ export default function Show({
                     <div className="flex flex-wrap gap-2">
                         {canAssignRoom &&
                             reservation.status === 'confirmed' && (
-                                <Dialog>
+                                <Dialog
+                                    open={assignmentOpen}
+                                    onOpenChange={setAssignmentOpen}
+                                >
                                     <DialogTrigger asChild>
                                         <Button
                                             variant="secondary"
@@ -410,6 +400,9 @@ export default function Show({
                                             {...roomAssignment.form(
                                                 reservation.reservation_number,
                                             )}
+                                            onSuccess={() =>
+                                                setAssignmentOpen(false)
+                                            }
                                             className="max-w-[720px] space-y-3"
                                         >
                                             {({ errors, processing }) => (
@@ -466,7 +459,7 @@ export default function Show({
                                 </Dialog>
                             )}
                         {can.moveRoom && (
-                            <Dialog>
+                            <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
                                 <DialogTrigger asChild>
                                     <Button
                                         variant="secondary"
@@ -485,6 +478,7 @@ export default function Show({
                                     <RoomMoveForm
                                         number={reservation.reservation_number}
                                         rooms={moveRooms}
+                                        onSuccess={() => setMoveOpen(false)}
                                     />
                                 </DialogContent>
                             </Dialog>
@@ -492,7 +486,10 @@ export default function Show({
                         {canAmend &&
                             amendmentOptions &&
                             reservation.status === 'confirmed' && (
-                                <Dialog>
+                                <Dialog
+                                    open={amendmentOpen}
+                                    onOpenChange={setAmendmentOpen}
+                                >
                                     <DialogTrigger asChild>
                                         <Button
                                             variant="secondary"
@@ -513,6 +510,9 @@ export default function Show({
                                         <AmendmentForm
                                             reservation={reservation}
                                             options={amendmentOptions}
+                                            onSuccess={() =>
+                                                setAmendmentOpen(false)
+                                            }
                                         />
                                     </DialogContent>
                                 </Dialog>
@@ -585,7 +585,7 @@ export default function Show({
                     View and attach staying guests
                 </Link>
                 {groupMembers.length > 0 && (
-                    <Collapsible>
+                    <Collapsible defaultOpen>
                         <h2>
                             <CollapsibleTrigger asChild>
                                 <Button
@@ -608,6 +608,7 @@ export default function Show({
                                         <TableHead>Status</TableHead>
                                         <TableHead>Arrival</TableHead>
                                         <TableHead>Departure</TableHead>
+                                        <TableHead>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -652,6 +653,14 @@ export default function Show({
                                                     member.departure,
                                                     'UTC',
                                                 )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <GroupMemberActions
+                                                    member={member}
+                                                    acceptedPaymentMethods={
+                                                        acceptedPaymentMethods
+                                                    }
+                                                />
                                             </TableCell>
                                         </TableRow>
                                     ))}

@@ -69,7 +69,7 @@ export default function MaintenanceTicket({
                 <p className="whitespace-pre-line">{ticket.description}</p>
                 <p className="text-sm text-muted-foreground">
                     Finishing a ticket does not change the room's status or
-                    availability. Use an out-of-service period to block a room.
+                    availability. Use an out-of-order period to block a room.
                 </p>
                 {canAssign && (
                     <Form

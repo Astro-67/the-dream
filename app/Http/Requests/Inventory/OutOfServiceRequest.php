@@ -34,10 +34,11 @@ class OutOfServiceRequest extends FormRequest
         $started = $period !== null && $period->starts_on->toDateString() <= $today;
 
         return [
+            'calendar' => ['sometimes', 'boolean'],
             'starts_on' => $started
                 ? ['required', 'date_format:Y-m-d', 'in:'.$period->starts_on->toDateString()]
                 : ['required', 'date_format:Y-m-d', 'after_or_equal:'.$today],
-            'returns_on' => ['required', 'date_format:Y-m-d', 'after:starts_on', 'after_or_equal:'.$today],
+            'returns_on' => ['required', 'date_format:Y-m-d', $period ? 'after_or_equal:starts_on' : 'after:starts_on', 'after_or_equal:'.$today],
             'reason' => ['required', 'string', 'max:255'],
         ];
     }
@@ -55,7 +56,7 @@ class OutOfServiceRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return ['starts_on' => __('out of service from'), 'returns_on' => __('back in service on')];
+        return ['starts_on' => __('out of order from'), 'returns_on' => __('back in service on')];
     }
 
     private function period(): ?OutOfServicePeriod

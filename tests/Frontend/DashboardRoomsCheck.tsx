@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { App } from '@inertiajs/react';
+import type { ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import Dashboard from '@/pages/dashboard';
 
@@ -32,12 +33,16 @@ const roomBoard = {
     },
 };
 
-function render(board: typeof roomBoard | null) {
+function render(
+    board: typeof roomBoard | null,
+    overrides: Partial<ComponentProps<typeof Dashboard>> = {},
+) {
     const props = {
         onboarding: null,
         today: null,
         collections: null,
         roomBoard: board,
+        ...overrides,
     };
     return renderToStaticMarkup(
         <App
@@ -75,4 +80,66 @@ const empty = render({
 assert.match(empty, /No active rooms/);
 assert.doesNotMatch(empty, /<table/);
 assert.doesNotMatch(render(null), /Room status|\/housekeeping|\/rate-calendar/);
+
+const operational = render(roomBoard, {
+    today: {
+        businessDate: '2026-12-10',
+        lists: [
+            {
+                key: 'arrivals',
+                count: 3,
+                href: '/reservations?list=arrivals&date=2026-12-10',
+            },
+            {
+                key: 'departures',
+                count: 0,
+                href: '/reservations?list=departures&date=2026-12-10',
+            },
+            {
+                key: 'in-house',
+                count: 12,
+                href: '/reservations?list=in-house&date=2026-12-10',
+            },
+        ],
+    },
+    collections: {
+        period: 'today',
+        from: '2026-12-10',
+        to: '2026-12-10',
+        received: { rows: [], totals: [] },
+        href: '/reports/payments',
+    },
+});
+const todaySection = operational.match(
+    /<section aria-labelledby="today"[\s\S]*?<\/section>/,
+)?.[0];
+assert.ok(todaySection, 'Today section is visible');
+assert.ok(
+    operational.indexOf('aria-labelledby="today"') <
+        operational.indexOf('aria-labelledby="collections-title"'),
+    'Today precedes Collections',
+);
+assert.ok(
+    operational.indexOf('aria-labelledby="today"') <
+        operational.indexOf('aria-labelledby="room-status"'),
+    'Today precedes the room board',
+);
+const cards = [...todaySection.matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/g)].map(
+    (match) => match[0],
+);
+assert.equal(cards.length, 3);
+for (const [index, [key, label, count]] of [
+    ['arrivals', 'Arrivals', 3],
+    ['departures', 'Departures', 0],
+    ['in-house', 'In house', 12],
+].entries()) {
+    const card = cards[index];
+    assert.ok(
+        card.includes(`href="/reservations?list=${key}&amp;date=2026-12-10"`),
+        `${label} links to its business-date list`,
+    );
+    assert.ok(card.includes(`>${label}</span>`));
+    assert.ok(card.includes(`>${count}</span>`));
+    assert.match(card, /View list/);
+}
 console.log('Dashboard room board: PASS');

@@ -19,6 +19,7 @@ use App\Domains\Rates\StayRestrictions;
 use App\Domains\Reports\PropertyKpis;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\AssignableRooms;
+use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\BookingRules;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -124,11 +125,7 @@ class ReservationController extends Controller
             'canRefund' => $folios->isNotEmpty() && Gate::allows('refund', $folios->first()),
             'canWriteOff' => $folios->isNotEmpty() && Gate::allows('writeOff', $folios->first()),
             'reservation' => $reservation->load('priceLines'),
-            'groupMembers' => $reservation->getAttribute('booking_group_id') === null ? [] : Reservation::query()
-                ->where('property_id', $reservation->property_id)
-                ->where('booking_group_id', $reservation->getAttribute('booking_group_id'))
-                ->whereKeyNot($reservation->id)->orderBy('reservation_number')
-                ->get(['reservation_number', 'status', 'arrival', 'departure']),
+            'groupMembers' => app(BookingGroupMembers::class)->forReservation($reservation),
             'rooms' => app(AssignableRooms::class)->forStay($reservation->getAttribute('room_type_id'), $reservation->arrival->toDateString(), $reservation->departure->toDateString(), $reservation->id),
             'amendments' => $reservation->lifecycleEvents()->where('type', 'modified')->whereNotNull('snapshot->before')->with('actor:id,name')->paginate(50, ['*'], 'amendments_page')->withQueryString(),
             'amendmentOptions' => Gate::allows('amend', $reservation) ? [
@@ -138,7 +135,7 @@ class ReservationController extends Controller
             ] : null,
             'canAmend' => Gate::allows('amend', $reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),
-            'can' => ['checkIn' => $reservation->status === ReservationStatus::Confirmed && $reservation->arrival->toDateString() <= BusinessDate::current() && $reservation->departure->toDateString() > BusinessDate::current() && Gate::allows('checkIn', $reservation),
+            'can' => ['checkIn' => $reservation->isEligibleForCheckIn(BusinessDate::current()) && Gate::allows('checkIn', $reservation),
                 'cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation), 'moveRoom' => $canMove, 'changeStay' => Gate::allows('changeStay', $reservation),
                 'checkOut' => Gate::allows('checkOut', $reservation), 'overrideBalance' => Gate::allows('checkOutWithBalance', $reservation)],
             'moveRooms' => $canMove ? app(AssignableRooms::class)->forMove($reservation) : [],

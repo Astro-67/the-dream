@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -22,8 +23,9 @@ type Props = {
 
 /** Confirms removing a member (or leaving, for yourself). Owners only. */
 export function RemoveMember({ member, trigger }: Props) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
             <DialogContent>
                 <DialogTitle>
@@ -37,6 +39,7 @@ export function RemoveMember({ member, trigger }: Props) {
                         : 'They lose access to every property at once, including pages they have open. You can invite them again later.'}
                 </DialogDescription>
                 <Form
+                    onSuccess={() => setOpen(false)}
                     {...destroy.form(member.id)}
                     options={{ preserveScroll: true }}
                 >

@@ -246,6 +246,53 @@ const checklist = {
 const checklistHtml = renderToStaticMarkup(
     <OnboardingChecklist checklist={checklist} />,
 );
+for (const [roomTypeDone, roomDone] of [
+    [false, false],
+    [true, false],
+    [true, true],
+]) {
+    const roomsHtml = renderToStaticMarkup(
+        <OnboardingChecklist
+            checklist={{
+                ...checklist,
+                items: [
+                    {
+                        key: 'rooms',
+                        label: 'Configure rooms',
+                        completed: roomTypeDone && roomDone,
+                        href: '/rooms',
+                        items: [
+                            {
+                                key: 'room_type',
+                                label: 'Add a room type',
+                                completed: roomTypeDone,
+                                href: '/room-types/create',
+                            },
+                            {
+                                key: 'room',
+                                label: 'Add rooms',
+                                completed: roomDone,
+                                href: '/rooms/create',
+                            },
+                        ],
+                    },
+                ],
+            }}
+        />,
+    );
+    assert.match(
+        roomsHtml,
+        /href="\/room-types\/create"[^>]*>Add a room type<\/a>/,
+    );
+    assert.match(roomsHtml, /href="\/rooms\/create"[^>]*>Add rooms<\/a>/);
+    assert.equal(
+        (roomsHtml.match(/>Complete<\/span>/g) ?? []).length,
+        Number(roomTypeDone) +
+            Number(roomDone) +
+            Number(roomTypeDone && roomDone),
+    );
+    assert.match(roomsHtml, new RegExp(`${roomDone ? 1 : 0} of 1 completed`));
+}
 assert.match(
     checklistHtml,
     /href="\/properties\/hotel\/edit#tin"[^>]*>TIN<\/a>/,

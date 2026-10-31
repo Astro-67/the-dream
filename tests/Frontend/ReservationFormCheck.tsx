@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import Create from '@/pages/reservations/create';
 
 type FieldProps = {
+    id?: string;
     name?: string;
     type?: string;
     required?: boolean;
@@ -18,7 +19,7 @@ function fieldsIn(node: ReactNode): FieldProps[] {
     if (!isValidElement<FieldProps>(node)) return [];
     const children = node.props.children;
     return [
-        ...(node.props.name ? [node.props] : []),
+        ...(node.props.name || node.props.id ? [node.props] : []),
         ...fieldsIn(
             typeof children === 'function'
                 ? children({ errors: {}, processing: false })
@@ -66,7 +67,8 @@ function formAfter(edits: [string, string][], source = 'direct') {
         }
         return fields.map((field) => (
             <input
-                key={field.name}
+                key={field.name ?? field.id}
+                id={field.id}
                 name={field.name}
                 type={field.type}
                 required={field.required}
@@ -105,6 +107,8 @@ assert.match(
 assert.match(formAfter([], 'walk-in'), /name="arrival"[^>]*value="2026-12-01"/);
 console.log('Reservation stay edits and walk-in source changes: PASS');
 const guestForm = formAfter([]);
+assert.doesNotMatch(guestForm, /<input[^>]*id="walk-in"/);
+console.log('Walk-in is chosen through Source, not a checkbox: PASS');
 for (const [name, type] of [
     ['first_name', 'text'],
     ['last_name', 'text'],
@@ -119,6 +123,6 @@ for (const [name, type] of [
 assert.match(guestForm, /required=""[^>]*name="lead_guest\[first_name\]"/);
 assert.match(
     guestForm,
-    /<input type="email" readOnly="" name="lead_guest\[email\]"/,
+    /<input[^>]*type="email" readOnly="" name="lead_guest\[email\]"/,
 );
 console.log('Lead guest fields take text, email and phone: PASS');

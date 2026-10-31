@@ -2,6 +2,7 @@
 
 namespace App\Domains\Inventory;
 
+use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\OutOfServicePeriod;
 use App\Domains\Inventory\Models\RoomType;
 use Carbon\CarbonImmutable;
@@ -45,5 +46,19 @@ class RoomAvailability
         $active = $type->rooms()->active()->count();
 
         return array_map(fn (int $out) => $active - $out, $this->outOfServiceByDate($type, $from, $to));
+    }
+
+    /** @return array<string, int> available rooms, by date from $from through $to */
+    public function availableByDate(RoomType $type, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $available = $this->sellableByDate($type, $from, $to);
+        $sold = InventoryRecord::query()->where('room_type_id', $type->id)
+            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])->get();
+
+        foreach ($sold as $record) {
+            $available[$record->date->toDateString()] -= $record->sold_count;
+        }
+
+        return $available;
     }
 }
