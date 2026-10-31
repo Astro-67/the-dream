@@ -94,6 +94,45 @@ test('the organization page shows only its invoices and recorded payments', func
             ->where('invoices.data.0.payments.0.receivedOn', '2026-10-31'));
 });
 
+test('organization invoice history is paginated and never mixes organizations', function () {
+    $tenants = twoTenants();
+    inTenant($tenants->a->organization, function () {
+        $subscription = Subscription::current();
+        foreach (range(1, 51) as $sequence) {
+            app(IssueSaasInvoice::class)->handle($subscription);
+        }
+    });
+
+    $this->actingAs(platformStaff())->get(route('platform.organizations.show', $tenants->a->organization->id))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('invoices.data', 50)->where('invoices.total', 51)
+            ->where('invoices.data.0.number', 'SAAS-000051'));
+    $this->get(route('platform.organizations.show', ['organization' => $tenants->a->organization->id, 'page' => 2]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('invoices.data', 1)->where('invoices.current_page', 2)
+            ->where('invoices.data.0.number', 'SAAS-000001'));
+});
+
+test('setup and archived properties remain visible and incomplete VFMS credentials are not saved', function () {
+    $tenants = twoTenants();
+    $tenants->a->property->forceFill(['status' => 'setup', 'archived_at' => now()])->save();
+    inTenant($tenants->a->property, fn () => VfmsCredential::query()->create([
+        'integration_id' => 'partial-secret-id', 'mode' => 'sandbox',
+    ]));
+
+    $this->actingAs(platformStaff())->get(route('platform.organizations.show', $tenants->a->organization->id))
+        ->assertDontSee('partial-secret-id')
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('organization', fn (Assert $organization) => $organization->hasAll(['id', 'name', 'owners']))
+            ->has('properties', 2)
+            ->has('properties.1', fn (Assert $property) => $property->hasAll([
+                'id', 'name', 'email', 'phone', 'status', 'statusLabel', 'archived', 'gates', 'vfmsMode', 'credentialsSaved',
+            ]))
+            ->where('properties.1.status', 'setup')
+            ->where('properties.1.archived', true)
+            ->where('properties.1.credentialsSaved', false));
+});
+
 test('the organization page shows each property and its own gates without credentials or operational data', function () {
     $tenants = twoTenants();
     $property = $tenants->a->property;
