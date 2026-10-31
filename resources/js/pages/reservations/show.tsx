@@ -657,6 +657,9 @@ export default function Show({
                                             <TableCell>
                                                 <GroupMemberActions
                                                     member={member}
+                                                    acceptedPaymentMethods={
+                                                        acceptedPaymentMethods
+                                                    }
                                                 />
                                             </TableCell>
                                         </TableRow>

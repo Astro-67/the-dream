@@ -23,15 +23,26 @@ class BookingGroupMembers
         $balances = FolioSummary::checkoutBalances($members);
         $date = BusinessDate::current();
 
-        return $members->map(fn (Reservation $member) => [
-            ...$member->only(['reservation_number', 'status', 'arrival', 'departure']),
-            'can' => [
-                'checkIn' => $member->status === ReservationStatus::Confirmed
-                    && $member->arrival->toDateString() <= $date && $member->departure->toDateString() > $date && Gate::allows('checkIn', $member),
-                'checkOut' => $member->status === ReservationStatus::CheckedIn && Gate::allows('checkOut', $member),
-                'overrideBalance' => Gate::allows('checkOutWithBalance', $member),
-            ],
-            'checkoutBalances' => $balances[$member->id] ?? [],
-        ])->all();
+        return $members->map(function (Reservation $member) use ($balances, $date) {
+            $folios = FolioSummary::folios($member);
+            $totals = collect(FolioSummary::totals($member, $folios))->keyBy('currency');
+
+            return [
+                ...$member->only(['reservation_number', 'status', 'arrival', 'departure']),
+                'can' => [
+                    'checkIn' => $member->status === ReservationStatus::Confirmed
+                        && $member->arrival->toDateString() <= $date && $member->departure->toDateString() > $date && Gate::allows('checkIn', $member),
+                    'checkOut' => $member->status === ReservationStatus::CheckedIn && Gate::allows('checkOut', $member),
+                    'overrideBalance' => Gate::allows('checkOutWithBalance', $member),
+                ],
+                'checkoutBalances' => $balances[$member->id] ?? [],
+                'channelCollectedAmount' => $member->getAttribute('channel_collected_amount'),
+                'paymentFolios' => $folios->filter(fn (array $item) => Gate::allows('recordPayment', $item['folio']))
+                    ->map(fn (array $item) => [
+                        'id' => $item['folio']->id, 'currency' => $item['folio']->currency->value,
+                        'total' => $totals->get($item['folio']->currency->value),
+                    ])->values()->all(),
+            ];
+        })->all();
     }
 }

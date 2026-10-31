@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Billing\Models\Folio;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
@@ -34,6 +35,29 @@ function bookingGroupMembers(TenantFixture $tenant): array
         return Reservation::query()->orderBy('reservation_number')->get()->all();
     });
 }
+
+test('group payment targets only the selected member folio', function () {
+    $t = twoTenants();
+    [$member, $sibling] = bookingGroupMembers($t->a);
+    $folio = inTenant($t->a->property, fn () => Folio::query()->where('reservation_id', $sibling->id)->sole());
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->owner)->get(route('reservations.show', $member))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('groupMembers.0.paymentFolios', 1)
+            ->where('groupMembers.0.paymentFolios.0.id', $folio->id)
+            ->where('groupMembers.0.paymentFolios.0.currency', 'USD')
+            ->where('groupMembers.0.paymentFolios.0.total.due', 22000));
+    $this->post(route('folios.payments.store', $folio), [
+        '_property' => $t->a->property->id, 'method' => 'bank_transfer',
+        'amount' => 5000, 'reference' => 'GROUP-187', 'idempotency_key' => 'group-payment-187',
+    ])->assertSessionHasNoErrors()->assertRedirect();
+    $this->get(route('reservations.show', $member))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('totals.0.balance', 0)
+            ->where('totals.0.due', 22000)
+            ->where('groupMembers.0.paymentFolios.0.total.balance', -5000)
+            ->where('groupMembers.0.paymentFolios.0.total.due', 17000));
+});
 
 test('group members offer their permitted arrival actions and checking in one leaves the other confirmed', function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
@@ -75,7 +99,8 @@ test('group arrival actions respect business date and staff permissions', functi
     $this->actingAs($t->a->member($role))->get(route('reservations.show', $member))->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('groupMembers.0.can.checkIn', $allowed)
-            ->where('groupMembers.0.can.checkOut', false));
+            ->where('groupMembers.0.can.checkOut', false)
+            ->has('groupMembers.0.paymentFolios', $role === OrganizationRole::Auditor ? 0 : 1));
 })->with([
     [OrganizationRole::FrontDesk, '2026-12-10', true],
     [OrganizationRole::Auditor, '2026-12-10', false],
