@@ -81,6 +81,7 @@ test('suspension preserves an existing stay from check-in through payment checko
 
 test('an overdue renewal suspends only new sales and full payment restores them without taking the property out of live', function () {
     Notification::fake();
+    withBillingDetails();
     $this->travelTo(now()->setDate(2026, 11, 23));
     [$owner, $organization, $property] = organizationWithOwner();
     $details = inTenant($property, fn () => BookingForm::details($owner));
