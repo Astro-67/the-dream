@@ -119,3 +119,15 @@ Every message was delivered on its first attempt; no call was refused or unknown
 - **A4 software print check.** The recorded report HTML, with embedded CSS and logo, was opened through gstack and printed by Chromium to PDF. The final valid PDF is one A4 page (`595.92 x 842.88` points), including all three guest QR codes and the early-departure marker; the screenshot was visually inspected and the browser reported no console errors. This verifies software pagination only: physical paper printing and scanner readability remain unchecked. The PDF and screenshot remain local because their QR codes encode the test host; the initial blank PDF from a failed navigation was overwritten and is not evidence. This does not resolve the viewer's HTTP 503 or complete #175.
 - **Viewer checks.** A GET on each QR target (`XHE299597`, `XHE299599`, `XHE299602`) returned HTTP 200. The viewer is a single-page app: a made-up number also returns the same 200 page. The data it loads, `:6060/hotel-service/api/v2/checkout/report/<n>?currency=USD`, returned HTTP 503 for all three, for the 26 October report `XHE299346` and for a made-up number, and the page shows "Sorry!" with empty fields. The QR targets resolve, but ZRA's test viewer could not display any report's content on 27 October, as with the production portal on 26 October.
 - **Extras are one line per call.** Thedream files each posted extra as its own `services` call with one line. The guide and the 26 October run accept several lines in one call; Thedream cannot yet send a two-line extra as one receipt.
+
+## Live at the pilot hotel, 27–31 October
+
+Read from pms.sauinndream.com's outbox on 31 October 2026 (code `99e34c9`); no guest data is recorded here.
+
+- **First Live stay.** RES-000002's check-in was accepted on 27 October at 08:55 UTC and its check-out at 09:59 UTC, with ZRA report `TRV211`.
+- **Hotel checks.** The project owner confirmed on 31 October that the stay appears in the hotel's VFMS portal, that the printed report shows ZRA's real report number, and that its QR code opens the report on `portalvfms.zanrevenue.org`. ZRA's viewer, which returned HTTP 503 on 26–27 October, works again.
+- **Later stays.** Six further Live check-ins on 30 October were each accepted on their first attempt.
+
+## Sandbox runs from developer machines
+
+On 31 October the server still could not open TCP 6060 or 4242 to ZRA's test host (80 and 443 open), so a Sandbox call from the server ends `unknown`; one such check-in sits in its outbox. The owner decided not to have the ports opened: changes to VFMS filing are proved against ZRA's test server from a developer machine with `VFMS_TEST_SERVER_RUN=1` (see the 27 October run above). Sandbox properties on the server cannot file.
