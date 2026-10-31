@@ -85,13 +85,16 @@ test('a Zanzibar property without complete VFMS credentials, or in Sandbox, fail
         ->where('onboarding.gates.8.passed', false)
         ->where('onboarding.canGoLive', false));
     $this->post(route('properties.go-live', $property), ['_property' => $property->id])
-        ->assertSessionHasErrors(['go_live' => 'Not ready to go live. Still to do: VFMS credentials saved and set to Live.']);
+        ->assertSessionHasErrors(['go_live' => 'Not ready to go live. Still to do: VFMS credentials accepted by ZRA and set to Live.']);
 
     expect($property->fresh()->go_live_requested_at)->toBeNull();
 })->with([
     'nothing saved' => [[]],
     'Sandbox with complete credentials' => [['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => 'sandbox']],
-    'Live without a token' => [['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'mode' => 'live']],
+    'Live without a token' => [['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'mode' => 'live', 'zra_check' => 'accepted']],
+    'Live, not yet checked with ZRA' => [['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => 'live']],
+    'Live, refused by ZRA' => [['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => 'live', 'zra_check' => 'refused']],
+    'Live, ZRA unreachable' => [['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => 'live', 'zra_check' => 'unreachable']],
 ]);
 
 test('go-live is refused while gates fail, naming each failing gate', function () {
@@ -100,7 +103,7 @@ test('go-live is refused while gates fail, naming each failing gate', function (
 
     $this->actingAs($t->a->owner)
         ->post(route('properties.go-live', $property), ['_property' => $property->id])
-        ->assertSessionHasErrors(['go_live' => 'Not ready to go live. Still to do: At least one room type, At least one room, At least one rate plan, Taxes reviewed, TIN, Z-number, Star rating, VFMS credentials saved and set to Live, VRN.']);
+        ->assertSessionHasErrors(['go_live' => 'Not ready to go live. Still to do: At least one room type, At least one room, At least one rate plan, Taxes reviewed, TIN, Z-number, Star rating, VFMS credentials accepted by ZRA and set to Live, VRN.']);
 
     expect($property->fresh()->status)->toBe(PropertyStatus::Setup)
         ->and(Activity::query()->where('event', 'refused')->where('subject_id', $property->id)->exists())->toBeTrue();
@@ -247,7 +250,7 @@ test('go-live gates do not borrow rooms rates tax review or VFMS credentials fro
     ])->assertSessionHasNoErrors();
 
     $this->post(route('properties.go-live', $property), ['_property' => $property->id])
-        ->assertSessionHasErrors(['go_live' => 'Not ready to go live. Still to do: At least one room type, At least one room, At least one rate plan, Taxes reviewed, VFMS credentials saved and set to Live.']);
+        ->assertSessionHasErrors(['go_live' => 'Not ready to go live. Still to do: At least one room type, At least one room, At least one rate plan, Taxes reviewed, VFMS credentials accepted by ZRA and set to Live.']);
     expect($property->fresh()->status)->toBe(PropertyStatus::Setup);
 
     inTenant($property, fn () => BookingForm::details($t->a->owner));
