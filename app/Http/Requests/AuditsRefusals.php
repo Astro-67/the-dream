@@ -48,6 +48,7 @@ trait AuditsRefusals
                 $this->routeIs('night-audit.*') => new BusinessDateClose,
                 $this->routeIs('imports.*') => new ImportJob,
                 $this->routeIs('properties.*') => new Property,
+                $this->routeIs('platform.properties.decline-go-live') => new Property,
                 $this->routeIs('platform.plans.*') => new Plan,
                 $this->routeIs('platform.billing-details.*') => new BillingDetails,
                 default => new Reservation,

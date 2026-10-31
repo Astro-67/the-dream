@@ -16,6 +16,21 @@ use Tests\Support\TwoTenants;
  * tests/Feature/Platform.
  */
 return [
+    'platform.properties.decline-go-live' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $property = $t->b->property;
+        $property->forceFill(['status' => 'setup', 'go_live_requested_at' => now(), 'go_live_requested_by' => $t->b->owner->id])->save();
+        $before = $property->fresh()->getAttributes();
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)
+                ->post(route('platform.properties.decline-go-live', $property->id), ['reason' => 'Decline Bravo.'])
+                ->assertForbidden();
+        }
+        expect($property->fresh()->getAttributes())->toEqual($before);
+
+        return $responses;
+    }),
+
     'platform.organizations.show' => RouteCoverage::attempt(fn (TwoTenants $t) => array_values(array_map(
         fn ($member) => $this->actingAs($member)->get(route('platform.organizations.show', $t->b->organization->id))->assertForbidden(),
         $t->a->members(),

@@ -25,6 +25,7 @@ export type Checklist = {
         href: string | null;
     }[];
     goLiveRequested: boolean;
+    goLiveDeclinedReason: string | null;
     canGoLive: boolean;
     canReviewTaxes: boolean;
     receiptNotice: string | null;
@@ -232,6 +233,21 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                         </li>
                     ))}
                 </ul>
+                {checklist.goLiveDeclinedReason && (
+                    <Alert>
+                        <AlertDescription>
+                            <p className="font-medium">
+                                Go-live request declined
+                            </p>
+                            <p className="break-words whitespace-pre-wrap">
+                                {checklist.goLiveDeclinedReason}
+                            </p>
+                            <p>
+                                Address the reason, then request go-live again.
+                            </p>
+                        </AlertDescription>
+                    </Alert>
+                )}
                 {checklist.goLiveRequested && (
                     <StatusChip tone="warning">
                         Go-live requested, waiting for Thedream

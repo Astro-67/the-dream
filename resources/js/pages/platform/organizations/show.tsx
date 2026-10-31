@@ -13,6 +13,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { ApproveGoLiveForm } from '@/features/platform/approve-go-live-form';
+import { DeclineGoLive } from '@/features/platform/decline-go-live';
 import { formatDate } from '@/features/platform/format';
 import { PaymentSlips } from '@/features/subscriptions/payment-slips';
 import type { PaymentSlip } from '@/features/subscriptions/payment-slips';
@@ -337,6 +338,15 @@ export default function PlatformOrganizationShow({
                                             >
                                                 {property.statusLabel}
                                             </StatusChip>
+                                            {property.status ===
+                                                'go_live_requested' &&
+                                                !property.archived && (
+                                                    <div>
+                                                        <DeclineGoLive
+                                                            property={property}
+                                                        />
+                                                    </div>
+                                                )}
                                             {property.status ===
                                                 'go_live_requested' && (
                                                 <ApproveGoLiveForm

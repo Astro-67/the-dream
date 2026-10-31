@@ -46,6 +46,7 @@ type PropertyRow = {
     jurisdictionLabel: string;
     demo: boolean;
     goLiveRequested: boolean;
+    goLiveDeclinedReason: string | null;
     can: { update: boolean; archive: boolean; delete: boolean };
 };
 
@@ -331,6 +332,18 @@ export default function PropertiesIndex({
                                                 Go-live requested, waiting for
                                                 Thedream
                                             </StatusChip>
+                                        )}
+                                        {property.goLiveDeclinedReason && (
+                                            <div className="mt-2 max-w-sm space-y-1 whitespace-normal">
+                                                <StatusChip tone="error">
+                                                    Go-live request declined
+                                                </StatusChip>
+                                                <p className="text-sm break-words whitespace-pre-wrap text-muted-foreground">
+                                                    {
+                                                        property.goLiveDeclinedReason
+                                                    }
+                                                </p>
+                                            </div>
                                         )}
                                         {property.id ===
                                             tenant.property?.id && (

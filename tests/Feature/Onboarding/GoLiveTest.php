@@ -147,6 +147,41 @@ test('requesting go-live again changes nothing', function () {
         ->and(Activity::query()->where('event', 'go_live_requested')->count())->toBe(1);
 });
 
+test('an owner replaces a declined request only after every gate passes', function () {
+    $t = twoTenants();
+    $property = $t->a->property;
+    $property->forceFill(['status' => PropertyStatus::Setup, 'taxes_reviewed_at' => null])->save();
+    inTenant($property, fn () => BookingForm::details($t->a->owner));
+    vfmsLive($property);
+    $this->actingAs($t->a->owner)->post(route('properties.taxes-reviewed', $property), ['_property' => $property->id])->assertSessionHasNoErrors();
+    $this->post(route('properties.go-live', $property), ['_property' => $property->id])->assertSessionHasNoErrors();
+    $originalRequestedAt = $property->fresh()->go_live_requested_at;
+    $this->actingAs(platformStaff())
+        ->post(route('platform.properties.decline-go-live', $property->id), ['reason' => 'Review your taxes again.'])
+        ->assertSessionHasNoErrors();
+
+    $property->refresh()->forceFill(['taxes_reviewed_at' => null])->save();
+    $this->actingAs($t->a->owner)->post(route('properties.go-live', $property), ['_property' => $property->id])->assertSessionHasErrors('go_live');
+    expect($property->fresh()->go_live_declined_reason)->toBe('Review your taxes again.');
+
+    $this->post(route('properties.taxes-reviewed', $property), ['_property' => $property->id])->assertSessionHasNoErrors();
+    $this->travel(1)->hour();
+    $this->post(route('properties.go-live', $property), ['_property' => $property->id])->assertSessionHasNoErrors();
+    expect($property->fresh())
+        ->status->toBe(PropertyStatus::Setup)
+        ->go_live_declined_reason->toBeNull()
+        ->go_live_requested_by->toBe($t->a->owner->id);
+    expect($property->fresh()->go_live_requested_at->greaterThan($originalRequestedAt))->toBeTrue();
+
+    $this->withSession(['tenancy.organization_id' => $property->organization_id, 'tenancy.property_id' => $property->id])
+        ->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
+        ->where('onboarding.goLiveRequested', true)
+        ->where('onboarding.goLiveDeclinedReason', null)
+        ->where('onboarding.canGoLive', false));
+    $this->get(route('properties.index'))->assertInertia(fn (Assert $page) => $page->where('properties', fn ($properties) => collect($properties)
+        ->firstWhere('id', $property->id)['goLiveDeclinedReason'] === null));
+});
+
 test('Zanzibar go-live refuses missing registration and shows the failing gates on the checklist', function (?int $stars, ?string $zNumber, string $missing) {
     $t = twoTenants();
     $property = $t->a->property;

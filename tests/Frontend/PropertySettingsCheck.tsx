@@ -240,6 +240,7 @@ const checklist = {
         },
     ],
     goLiveRequested: false,
+    goLiveDeclinedReason: null,
     canGoLive: false,
     canReviewTaxes: false,
     receiptNotice: null,
@@ -247,6 +248,18 @@ const checklist = {
 const checklistHtml = renderToStaticMarkup(
     <OnboardingChecklist checklist={checklist} />,
 );
+const declinedChecklist = renderToStaticMarkup(
+    <OnboardingChecklist
+        checklist={{
+            ...checklist,
+            goLiveDeclinedReason: 'Correct the business address.',
+        }}
+    />,
+);
+assert.match(declinedChecklist, /Go-live request declined/);
+assert.match(declinedChecklist, /Correct the business address\./);
+assert.match(declinedChecklist, /request go-live again/);
+assert.doesNotMatch(checklistHtml, /Go-live request declined/);
 for (const [roomTypeDone, roomDone] of [
     [false, false],
     [true, false],

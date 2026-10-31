@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Web\Platform\DeclineGoLiveController;
 use App\Http\Controllers\Web\Platform\OrganizationController;
 use App\Http\Controllers\Web\Platform\StaffController;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,7 @@ Route::middleware(['auth', 'verified', 'platform:platform_administrator', 'two-f
     ->group(function () {
         Route::get('organizations', [OrganizationController::class, 'index'])->name('organizations.index');
         Route::get('organizations/{organization}', [OrganizationController::class, 'show'])->name('organizations.show');
+        Route::post('properties/{property}/decline-go-live', DeclineGoLiveController::class)->name('properties.decline-go-live');
         Route::post('properties/{property}/go-live/approve', [OrganizationController::class, 'approveGoLive'])->name('properties.go-live.approve');
 
         Route::get('staff', [StaffController::class, 'index'])->name('staff.index');

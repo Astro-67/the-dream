@@ -23,7 +23,7 @@ class RequestGoLive
             }
             GoLive::ensureReady($locked);
 
-            $locked->forceFill(['go_live_requested_at' => now(), 'go_live_requested_by' => $actor->id])->save();
+            $locked->forceFill(['go_live_requested_at' => now(), 'go_live_requested_by' => $actor->id, 'go_live_declined_reason' => null])->save();
             Audit::record($actor, 'go_live_requested', $locked, 'Go-live requested', [
                 'property_id' => $locked->id,
                 'attributes' => ['go_live_requested_at' => $locked->go_live_requested_at?->toIso8601String()],
