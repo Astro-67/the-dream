@@ -120,7 +120,9 @@ export function PaymentSlips({
                                     </p>
                                 )}
                                 <Button disabled={processing}>
-                                    {processing && <Spinner />}
+                                    <span className="inline-flex size-4 items-center justify-center">
+                                        {processing && <Spinner />}
+                                    </span>
                                     Upload payment slips
                                 </Button>
                             </>

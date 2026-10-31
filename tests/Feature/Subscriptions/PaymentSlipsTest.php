@@ -174,3 +174,24 @@ test('a missing stored slip returns not found rather than a broken download', fu
     $this->get(route('subscription.slips.show', $slip))->assertNotFound();
     $this->actingAs(platformStaff())->get(route('platform.slips.show', $slip->id))->assertNotFound();
 });
+
+test('a storage failure rolls back the batch and removes files already uploaded', function () {
+    [$owner, $organization] = organizationWithOwner();
+    $invoice = inTenant($organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+    $disk = Storage::disk('local');
+    $failingDisk = Mockery::mock($disk);
+    $writes = 0;
+    $failingDisk->shouldReceive('putFileAs')->andReturnUsing(function ($path, $file, $name, $options) use ($disk, &$writes) {
+        return ++$writes === 1 ? $disk->putFileAs($path, $file, $name, $options) : false;
+    });
+    Storage::set('local', $failingDisk);
+
+    $this->actingAs($owner)->post(route('subscription.invoices.slips.store', $invoice), [
+        'files' => [UploadedFile::fake()->image('first.png'), UploadedFile::fake()->image('second.png')],
+    ])->assertServerError();
+
+    expect(inTenant($organization, fn () => SaasPaymentSlip::query()->count()))->toBe(0)
+        ->and($disk->allFiles())->toBe([])
+        ->and($invoice->fresh()->status)->toBe(SaasInvoiceStatus::Open)
+        ->and(Activity::query()->where('event', 'saas_payment_slip_uploaded')->count())->toBe(0);
+});
