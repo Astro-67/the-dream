@@ -1,6 +1,6 @@
 import type { SVGAttributes } from 'react';
 
-// The house and clove mark from public/karafuu-logo.jpg, in one colour so it takes the surface's fill.
+// The house and clove mark from public/karafuu-logo.png, in one colour so it takes the surface's fill.
 export default function AppLogoIcon(props: SVGAttributes<SVGElement>) {
     return (
         <svg

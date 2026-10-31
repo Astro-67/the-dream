@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
+import BrandLogo from '@/components/brand-logo';
 import { AppearanceToggle } from '@/components/appearance-toggle';
 import { Button } from '@/components/ui/button';
 import { useAppearance } from '@/hooks/use-appearance';
@@ -299,11 +300,7 @@ export default function Welcome({
                 <main>
                     <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:px-6 md:py-24 lg:grid-cols-[1fr_1.1fr]">
                         <div className="space-y-6">
-                            <img
-                                src="/karafuu-logo.jpg"
-                                alt="Karafuu PMS, The Heart of Hospitality"
-                                className="w-64 rounded-xl bg-white"
-                            />
+                            <BrandLogo className="w-64" />
                             <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">
                                 Your property. Every stay. One system.
                             </h1>
