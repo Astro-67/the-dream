@@ -1,6 +1,7 @@
 import { CheckInForm } from '@/features/front-desk/check-in-form';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Identifier } from '@/components/ui/identifier';
 import {
     Dialog,
     DialogContent,
@@ -63,7 +64,10 @@ export function GroupMemberActions({
                     <DialogContent className="max-h-[90dvh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>
-                                Pay reservation {member.reservation_number}
+                                Pay reservation{' '}
+                                <Identifier>
+                                    {member.reservation_number}
+                                </Identifier>
                             </DialogTitle>
                             <DialogDescription>
                                 {due?.label}: {due?.amount}
