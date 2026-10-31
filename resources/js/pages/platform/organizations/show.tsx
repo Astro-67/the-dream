@@ -12,6 +12,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { ApproveGoLiveForm } from '@/features/platform/approve-go-live-form';
 import { formatDate } from '@/features/platform/format';
 import { DeclineGoLive } from '@/features/platform/decline-go-live';
 import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
@@ -337,6 +338,12 @@ export default function PlatformOrganizationShow({
                                                         />
                                                     </div>
                                                 )}
+                                            {property.status ===
+                                                'go_live_requested' && (
+                                                <ApproveGoLiveForm
+                                                    propertyId={property.id}
+                                                />
+                                            )}
                                             {property.archived && (
                                                 <div className="mt-2">
                                                     <StatusChip tone="unavailable">
