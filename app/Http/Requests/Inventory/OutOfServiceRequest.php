@@ -34,6 +34,7 @@ class OutOfServiceRequest extends FormRequest
         $started = $period !== null && $period->starts_on->toDateString() <= $today;
 
         return [
+            'calendar' => ['sometimes', 'boolean'],
             'starts_on' => $started
                 ? ['required', 'date_format:Y-m-d', 'in:'.$period->starts_on->toDateString()]
                 : ['required', 'date_format:Y-m-d', 'after_or_equal:'.$today],

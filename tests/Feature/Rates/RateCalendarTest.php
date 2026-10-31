@@ -78,6 +78,27 @@ test('the calendar shows sellable, available, out of service, every active plan\
         ->where('roomTypes.0.available', ['2026-10-09' => 0, '2026-10-10' => 0, '2026-10-11' => 0]));
 });
 
+test('a rates manager takes a room out of order from the calendar with its reason and nightly counts', function () {
+    $t = twoTenants();
+    $s = calendarSetup($t->a->property, $t->a->owner);
+    $calendar = route('rate-calendar', ['from' => '2026-10-08', 'to' => '2026-10-12', 'room_type_ids' => [$s['deluxe']->id]]);
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get($calendar)
+        ->assertInertia(fn (Assert $page) => $page->where('roomTypes.0.rooms.1.canManageOutOfOrder', true));
+    $room = inTenant($t->a->property, fn () => $s['deluxe']->rooms()->where('number', '102')->sole());
+
+    $this->from($calendar)->post(route('out-of-service.store', $room), [
+        '_property' => $t->a->property->id, 'calendar' => true,
+        'starts_on' => '2026-10-08', 'returns_on' => '2026-10-10', 'reason' => 'Leaking shower',
+    ])->assertSessionHasNoErrors()->assertRedirect($calendar);
+
+    $this->get($calendar)->assertInertia(fn (Assert $page) => $page
+        ->where('roomTypes.0.rooms.1.outOfServicePeriods.0.startsOn', '2026-10-08')
+        ->where('roomTypes.0.rooms.1.outOfServicePeriods.0.returnsOn', '2026-10-10')
+        ->where('roomTypes.0.rooms.1.outOfServicePeriods.0.reason', 'Leaking shower')
+        ->where('roomTypes.0.sellable', ['2026-10-08' => 1, '2026-10-09' => 1, '2026-10-10' => 1, '2026-10-11' => 1, '2026-10-12' => 2])
+        ->where('roomTypes.0.available', ['2026-10-08' => 1, '2026-10-09' => 1, '2026-10-10' => 1, '2026-10-11' => 1, '2026-10-12' => 2]));
+});
+
 test('available rooms fall when booked and return when cancelled without changing sellable rooms', function () {
     $t = twoTenants();
     $reservation = inTenant($t->a->property, function () use ($t) {

@@ -28,7 +28,7 @@ class OutOfServiceController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Room :number taken out of service.', ['number' => $room->number])]);
 
-        return redirect()->route('rooms.edit', $room);
+        return $request->boolean('calendar') ? back(fallback: route('rate-calendar')) : redirect()->route('rooms.edit', $room);
     }
 
     public function update(OutOfServiceRequest $request, OutOfServicePeriod $period, ChangeOutOfServicePeriod $changePeriod): RedirectResponse
@@ -42,6 +42,6 @@ class OutOfServiceController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Out-of-service period saved.')]);
 
-        return redirect()->route('rooms.edit', $period->room_id);
+        return $request->boolean('calendar') ? back(fallback: route('rate-calendar')) : redirect()->route('rooms.edit', $period->room_id);
     }
 }

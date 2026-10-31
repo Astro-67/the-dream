@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web\Rates;
 
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\Inventory\Models\OutOfServicePeriod;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Inventory\RoomAvailability;
 use App\Domains\Rates\Actions\SetRatePrices;
@@ -41,6 +43,10 @@ class RateCalendarController extends Controller
             ->groupBy(fn (RateRestriction $r) => $r->rate_plan_id.'|'.$r->room_type_id);
 
         $reservations = $calendar->forRange($selected->pluck('id')->all(), $from, $to, (string) $request->validated('list', 'all'), (string) $request->validated('search', ''));
+        $rooms = Room::query()->whereIn('room_type_id', $selected->pluck('id'))
+            ->with(['outOfServicePeriods' => fn ($query) => $query->whereDate('starts_on', '<=', $to)
+                ->whereDate('returns_on', '>', $from)->whereColumn('returns_on', '>', 'starts_on')->orderBy('starts_on')])
+            ->get()->keyBy('id');
 
         return Inertia::render('rates/calendar', [
             'filters' => ['list' => $request->validated('list', 'all'), 'search' => $request->validated('search', '')],
@@ -52,6 +58,18 @@ class RateCalendarController extends Controller
             'roomTypes' => $selected->values()->map(fn (RoomType $type) => [
                 ...$type->only(['id', 'name', 'code']),
                 ...$reservations->get($type->id, []),
+                'rooms' => $reservations->get($type->id)['rooms']->map(function (array $row) use ($rooms, $today) {
+                    $room = $rooms->get($row['id']);
+
+                    return [...$row,
+                        'canManageOutOfOrder' => Gate::allows('update', $room),
+                        'outOfServicePeriods' => $room->outOfServicePeriods->map(fn (OutOfServicePeriod $period) => [
+                            'id' => $period->id, 'startsOn' => $period->starts_on->toDateString(),
+                            'returnsOn' => $period->returns_on->toDateString(), 'reason' => $period->reason,
+                            'started' => $period->starts_on <= $today,
+                        ]),
+                    ];
+                }),
                 'sellable' => $availability->sellableByDate($type, CarbonImmutable::parse($from), CarbonImmutable::parse($to)),
                 'available' => $availability->availableByDate($type, CarbonImmutable::parse($from), CarbonImmutable::parse($to)),
                 'outOfService' => $availability->outOfServiceByDate($type, CarbonImmutable::parse($from), CarbonImmutable::parse($to)),
