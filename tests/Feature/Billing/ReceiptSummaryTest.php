@@ -7,6 +7,8 @@ use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Actions\ReversePosting;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Receipt;
+use App\Domains\Rates\Actions\SetRatePrices;
+use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
@@ -34,6 +36,33 @@ function pay(TwoTenants $t, Folio $folio, int $amount, string $key): Receipt
 {
     return inTenant($t->a->property, fn () => app(RecordPayment::class)->handle($t->a->owner, $folio, ['method' => 'bank_transfer', 'amount' => $amount, 'currency' => 'USD', 'idempotency_key' => $key])->receipt);
 }
+
+function receiptThreeNightStay(): array
+{
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(SetRatePrices::class)->handle($t->a->owner, RatePlan::query()->findOrFail($details['rate_plan_id']), [
+            'room_type_id' => $details['room_type_id'], 'from' => '2026-12-12', 'to' => '2026-12-12',
+            'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'base_price' => 10000, 'extra_adult' => 0, 'extra_child' => 0,
+        ]);
+
+        return app(CreateReservation::class)->handle($t->a->owner, [...$details, 'departure' => '2026-12-13', 'adults' => 1, 'children' => 0]);
+    });
+
+    return [$t, $reservation, inTenant($t->a->property, fn () => Folio::query()->sole())];
+}
+
+test('a deposit before night audit has no posted room charges while the stay has an estimate', function () {
+    [$t, $reservation, $folio] = receiptThreeNightStay();
+    $receipt = pay($t, $folio, 5000, 'before-audit');
+
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('receipts.show', $receipt))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('receipt.deposit', true)->where('summary.room', 0)->where('summary.charges', 0)->where('summary.balance', -5000));
+    $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('totals.0.estimate', ['nights' => 3, 'amount' => 30000]));
+});
 
 // protects=each receipt keeps the balance of its own moment; fails_when=a later payment or correction rewrites an earlier snapshot.
 test('each receipt snapshots its folio at payment time and later postings never change it', function () {
