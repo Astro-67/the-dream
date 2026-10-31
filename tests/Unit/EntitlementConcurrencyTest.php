@@ -3,6 +3,7 @@
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Subscriptions\Models\Plan;
+use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Subscriptions\PlanUsage;
 use App\Domains\Tenancy\Actions\ArchiveProperty;
 use App\Domains\Tenancy\Actions\CreateProperty;
