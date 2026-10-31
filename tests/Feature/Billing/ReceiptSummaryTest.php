@@ -83,6 +83,36 @@ test('a receipt freezes the unposted room estimate at payment time', function ()
         ->where('summary.room', 0)->where('summary.charges', 0)->where('summary.balance', -5000));
 });
 
+test('only nights not yet posted are estimated on a receipt', function (int $postedNights, ?array $estimate) {
+    [$t, $reservation, $folio] = receiptThreeNightStay();
+    inTenant($t->a->property, function () use ($t, $reservation, $postedNights) {
+        $reservation->update(['status' => ReservationStatus::CheckedIn]);
+        foreach (array_slice(['2026-12-10', '2026-12-11', '2026-12-12'], 0, $postedNights) as $date) {
+            app(PostRoomCharge::class)->handle($t->a->owner, $reservation, $date);
+        }
+    });
+    $receipt = pay($t, $folio, 5000, 'after-audit');
+
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('receipts.show', $receipt))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('summary.estimate', $estimate)->where('summary.room', $postedNights * 10000));
+})->with([
+    'one night posted' => [1, ['nights' => 2, 'amount' => 20000, 'currency' => 'USD']],
+    'every night posted' => [3, null],
+]);
+
+test('a receipt snapshot without an estimate is not backfilled from the reservation', function () {
+    [$t, $folio] = receiptFolio();
+    $receipt = pay($t, $folio, 1000, 'before-estimates');
+    $summary = $receipt->summary;
+    unset($summary['estimate']);
+    inTenant($t->a->property, fn () => DB::table('receipts')->where('id', $receipt->id)->update(['summary' => json_encode($summary, JSON_THROW_ON_ERROR)]));
+
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('receipts.show', $receipt))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->missing('summary.estimate')->where('summary.charges', 5000)->where('summary.balance', 4000));
+});
+
 // protects=each receipt keeps the balance of its own moment; fails_when=a later payment or correction rewrites an earlier snapshot.
 test('each receipt snapshots its folio at payment time and later postings never change it', function () {
     [$t, $folio] = receiptFolio();
