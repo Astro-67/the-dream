@@ -45,6 +45,7 @@ class PropertyController extends Controller
                 'jurisdictionProfile' => $property->jurisdiction_profile->value,
                 'jurisdictionLabel' => $property->jurisdiction_profile->label(),
                 'demo' => $property->isDemo(),
+                'goLiveRequested' => ! $property->isLive() && $property->go_live_requested_at !== null,
                 'can' => [
                     'update' => $user->can('update', $property),
                     // A demo property is deleted, never archived.

@@ -64,6 +64,74 @@ test('a platform administrator issues the next invoice for an organization', fun
     expect(inTenant($organization, fn () => SaasInvoice::query()->count()))->toBe(1);
 });
 
+test('a platform invoice issued on day three of a trial starts its paid month immediately', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    [, $organization] = organizationWithOwner();
+    inTenant($organization, fn () => Subscription::current()->update(['trial_ends_at' => now()->addDays(14)]));
+    $this->travelTo(now()->setDate(2026, 10, 3));
+
+    $this->actingAs(platformStaff())->post(route('platform.invoices.store'), ['organization_id' => $organization->id])
+        ->assertRedirect(route('platform.invoices.index'))->assertSessionHasNoErrors();
+
+    $invoice = inTenant($organization, fn () => SaasInvoice::query()->sole());
+    expect($invoice->period_starts_at->toDateString())->toBe('2026-10-03')
+        ->and($invoice->period_ends_at->toDateString())->toBe('2026-11-03')
+        ->and($invoice->due_at->toDateString())->toBe('2026-10-03')
+        ->and(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Trial);
+});
+
+test('a later platform invoice follows the first invoiced period even while still on trial', function () {
+    $this->travelTo(now()->setDate(2026, 10, 3)->startOfDay());
+    [, $organization] = organizationWithOwner();
+    $this->actingAs(platformStaff());
+    $this->post(route('platform.invoices.store'), ['organization_id' => $organization->id])
+        ->assertSessionHasNoErrors();
+
+    $this->travel(1)->days();
+    $this->post(route('platform.invoices.store'), ['organization_id' => $organization->id])
+        ->assertRedirect(route('platform.invoices.index'))->assertSessionHasNoErrors();
+
+    $invoice = inTenant($organization, fn () => SaasInvoice::query()->orderByDesc('sequence')->firstOrFail());
+    expect($invoice->period_starts_at->toDateString())->toBe('2026-11-03')
+        ->and($invoice->period_ends_at->toDateString())->toBe('2026-12-03')
+        ->and($invoice->due_at->toDateString())->toBe('2026-11-03')
+        ->and(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Trial);
+});
+
+test('paying the first platform trial invoice activates its paid month and the hourly job renews that period', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    [$owner, $organization] = organizationWithOwner();
+    inTenant($organization, fn () => Subscription::current()->update(['trial_ends_at' => now()->addDays(14)]));
+    $this->travelTo(now()->setDate(2026, 10, 3));
+    $this->actingAs(platformStaff())->post(route('platform.invoices.store'), ['organization_id' => $organization->id])
+        ->assertSessionHasNoErrors();
+    $invoice = inTenant($organization, fn () => SaasInvoice::query()->sole());
+
+    $this->post(route('platform.invoices.payments.store', $invoice->id), saasPaymentPayload([
+        'amount' => $invoice->amount, 'received_on' => '2026-10-03',
+    ]))->assertRedirect(route('platform.invoices.index'))->assertSessionHasNoErrors();
+
+    expect($invoice->fresh()->status)->toBe(SaasInvoiceStatus::Paid);
+    $this->actingAs($owner)->get(route('subscription.show'))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('subscription.status', 'active')
+            ->where('subscription.currentPeriodEndsAt', '2026-11-03T00:00:00+00:00'));
+
+    $this->travelTo(now()->setDate(2026, 10, 15));
+    $this->artisan('subscriptions:advance')->assertSuccessful();
+    expect(inTenant($organization, fn () => SaasInvoice::query()->count()))->toBe(1);
+
+    $this->travelTo(now()->setDate(2026, 10, 31));
+    $this->artisan('subscriptions:advance')->assertSuccessful();
+    $this->artisan('subscriptions:advance')->assertSuccessful();
+    $renewal = inTenant($organization, fn () => SaasInvoice::query()->orderByDesc('sequence')->firstOrFail());
+    expect(inTenant($organization, fn () => SaasInvoice::query()->count()))->toBe(2)
+        ->and($renewal->period_starts_at->toDateString())->toBe('2026-11-03')
+        ->and($renewal->period_ends_at->toDateString())->toBe('2026-12-03')
+        ->and($renewal->due_at->toDateString())->toBe('2026-11-03')
+        ->and(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Active);
+});
+
 test('a payment that settles the open invoice activates a trial subscription with a reason', function () {
     [, $organization] = organizationWithOwner();
     $invoice = saasInvoiceFor($organization);

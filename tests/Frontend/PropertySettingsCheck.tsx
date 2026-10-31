@@ -239,6 +239,7 @@ const checklist = {
             href: '/properties/hotel/edit#tin',
         },
     ],
+    goLiveRequested: false,
     canGoLive: false,
     canReviewTaxes: false,
     receiptNotice: null,

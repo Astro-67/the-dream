@@ -3,6 +3,7 @@
 namespace App\Domains\Subscriptions\Actions;
 
 use App\Domains\Subscriptions\Enums\SaasInvoiceStatus;
+use App\Domains\Subscriptions\Enums\SubscriptionStatus;
 use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Subscriptions\Models\SaasInvoice;
 use App\Domains\Subscriptions\Models\Subscription;
@@ -16,7 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Issues a subscription's next SaaS invoice, for the billing period after the
- * last one invoiced (or after the trial), at the plan's current price. Billed in
+ * last one invoiced (or after the trial), at the plan's current price. A platform
+ * administrator's first invoice during trial starts immediately. Billed in
  * advance: due when its period starts. Runs in the subscription's organization.
  * Each call issues the next period, serialized by the subscription lock.
  * Locks subscription, platform sequence, then invoices. Billing-period reads
@@ -44,6 +46,10 @@ class IssueSaasInvoice
                 return $next;
             });
             $starts = $subscription->nextPeriodStartsAt();
+            if ($actor !== null && $subscription->status === SubscriptionStatus::Trial
+                && SaasInvoice::query()->where('subscription_id', $subscription->id)->lockForUpdate()->first() === null) {
+                $starts = now()->toImmutable();
+            }
 
             $invoice = SaasInvoice::query()->create([
                 'subscription_id' => $subscription->id,

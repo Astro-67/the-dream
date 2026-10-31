@@ -48,7 +48,7 @@ test('the selected setup property shows a checklist derived from its data', func
             ->where('onboarding.items.6.completed', false)
             ->where('onboarding.items.7.key', 'sample_reservation')
             ->where('onboarding.items.7.completed', false)
-            ->has('onboarding.gates', 9)
+            ->has('onboarding.gates', 10)
             ->where('onboarding.canGoLive', false));
 });
 
@@ -92,6 +92,7 @@ test('setup progress survives leaving and returning and offers go-live only afte
     $this->actingAs($owner);
 
     $details = inTenant($property, fn () => BookingForm::details($owner));
+    vfmsLive($property);
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('onboarding.items.2.completed', true)
         ->where('onboarding.items.3.completed', true)
@@ -113,6 +114,7 @@ test('setup progress survives leaving and returning and offers go-live only afte
         ->where('onboarding.items.4.completed', true)
         ->where('onboarding.items.5.completed', true)
         ->where('onboarding.items.7.completed', true)
+        ->where('onboarding.goLiveRequested', false)
         ->where('onboarding.canGoLive', true));
     $this->get(route('properties.index'))->assertOk();
     $after = $this->get(route('dashboard'))->assertOk();
@@ -120,7 +122,7 @@ test('setup progress survives leaving and returning and offers go-live only afte
     expect($after->inertiaProps('onboarding'))->toEqual($before->inertiaProps('onboarding'));
 
     $this->post(route('properties.go-live', $property), ['_property' => $property->id])->assertSessionHasNoErrors();
-    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->where('onboarding', null));
+    $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page->where('onboarding.goLiveRequested', true)->where('onboarding.canGoLive', false));
 });
 
 test('only mainland setup properties show the non-fiscal receipt notice', function (JurisdictionProfile $profile, ?string $notice) {
@@ -163,11 +165,11 @@ test('missing registration gates link to the exact editable field only for autho
     $this->actingAs($t->a->member($role))->put(route('current-property.update'), ['property_id' => $property->id])->assertRedirect();
     $this->get(route('dashboard'))
         ->assertInertia(function (Assert $page) use ($property, $canEdit) {
-            foreach ([4 => 'tin', 5 => 'z_number', 6 => 'zra_hotel_code', 7 => 'star_rating', 8 => 'vrn'] as $index => $field) {
+            foreach ([4 => 'tin', 5 => 'z_number', 6 => 'zra_hotel_code', 7 => 'star_rating', 9 => 'vrn'] as $index => $field) {
                 $page->where("onboarding.gates.{$index}.passed", false)
                     ->where("onboarding.gates.{$index}.href", $canEdit ? route('properties.edit', $property).'#'.$field : null);
             }
-            foreach ([0, 1, 2, 3] as $index) {
+            foreach ([0, 1, 2, 3, 8] as $index) {
                 $page->where("onboarding.gates.{$index}.href", null);
             }
         });

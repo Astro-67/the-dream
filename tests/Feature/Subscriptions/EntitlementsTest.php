@@ -99,9 +99,14 @@ test('demo properties consume no capacity but suspension blocks demo creation ro
     expect(inTenant($organization, fn () => PlanUsage::current()))->toBe(['properties' => 1, 'rooms' => 1]);
 })->with([SubscriptionStatus::Suspended, SubscriptionStatus::Cancelled]);
 
-test('suspended and cancelled subscriptions block each new sales action but leave inventory untouched', function (SubscriptionStatus $status) {
+test('suspended and cancelled subscriptions block each new sales action but leave inventory untouched', function (SubscriptionStatus $status, string $source) {
     [$owner, $organization, $property] = organizationWithOwner();
-    $details = inTenant($property, fn () => BookingForm::details($owner));
+    $property->update(['business_date' => '2026-12-10']);
+    $details = [
+        ...inTenant($property, fn () => BookingForm::details($owner)),
+        'source' => $source,
+        'lead_guest' => ['first_name' => 'Asha', 'last_name' => 'Ali', 'nationality' => 'TZ', 'document_type' => 'nida', 'document_number' => '12345'],
+    ];
     $inventory = inTenant($property, fn () => InventoryRecord::query()->sum('sold_count'));
     inTenant($organization, fn () => Subscription::current()->update(['status' => $status]));
     $this->actingAs($owner)->withSession(['tenancy.organization_id' => $organization->id, 'tenancy.property_id' => $property->id]);
@@ -120,7 +125,7 @@ test('suspended and cancelled subscriptions block each new sales action but leav
         ->and(inTenant($property, fn () => Reservation::query()->count()))->toBe(0)
         ->and(inTenant($property, fn () => Folio::query()->count()))->toBe(0)
         ->and(inTenant($property, fn () => InventoryRecord::query()->sum('sold_count')))->toEqual($inventory);
-})->with([SubscriptionStatus::Suspended, SubscriptionStatus::Cancelled]);
+})->with([SubscriptionStatus::Suspended, SubscriptionStatus::Cancelled])->with(['phone', 'walk-in']);
 
 test('trial active and past due subscriptions still permit additions and reservations', function (SubscriptionStatus $status) {
     [$owner, $organization, $property] = organizationWithOwner();
