@@ -12,7 +12,7 @@ function Table({ className, ...props }: React.ComponentProps<'table'>) {
         <div
             data-slot="table-container"
             scroll-region=""
-            className="relative max-h-[calc(100svh-9rem)] w-full overflow-auto rounded-xl border bg-card"
+            className="relative max-h-[calc(100svh-9rem)] w-full overflow-auto rounded-xl border bg-card shadow-panel"
         >
             <table
                 data-slot="table"
