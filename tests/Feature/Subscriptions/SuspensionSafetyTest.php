@@ -12,11 +12,16 @@ use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Subscriptions\Enums\SaasInvoiceStatus;
 use App\Domains\Subscriptions\Enums\SubscriptionStatus;
+use App\Domains\Subscriptions\Models\SaasInvoice;
 use App\Domains\Subscriptions\Models\Subscription;
+use App\Domains\Subscriptions\Notifications\SaasInvoiceReminder;
 use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Notification;
 use Tests\Support\BookingForm;
 
 beforeEach(function () {
@@ -73,3 +78,51 @@ test('suspension preserves an existing stay from check-in through payment checko
         ->assertSee($reservation->reservation_number);
     expect($property->fresh()->status)->toBe(PropertyStatus::Live);
 })->with(VfmsMode::cases());
+
+test('an overdue renewal suspends only new sales and full payment restores them without taking the property out of live', function () {
+    Notification::fake();
+    $this->travelTo(now()->setDate(2026, 11, 23));
+    [$owner, $organization, $property] = organizationWithOwner();
+    $details = inTenant($property, fn () => BookingForm::details($owner));
+    inTenant($organization, fn () => Subscription::current()->update([
+        'status' => SubscriptionStatus::Active, 'current_period_ends_at' => now()->addDays(3),
+    ]));
+
+    $this->artisan('subscriptions:advance')->assertSuccessful();
+    $invoice = inTenant($organization, fn () => SaasInvoice::query()->sole());
+    expect($invoice->due_at->toDateString())->toBe('2026-11-26')
+        ->and(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Active);
+    Notification::assertSentTo($owner, SaasInvoiceReminder::class, fn ($reminder) => ! $reminder->overdue);
+
+    $this->travel(3)->days();
+    $this->artisan('subscriptions:advance')->assertSuccessful();
+    expect(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::PastDue);
+    Notification::assertSentTo($owner, SaasInvoiceReminder::class, fn ($reminder) => $reminder->overdue);
+
+    $this->travel(14)->days();
+    $this->artisan('subscriptions:advance')->assertSuccessful();
+    expect(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Suspended)
+        ->and($property->fresh()->status)->toBe(PropertyStatus::Live);
+    $this->actingAs($owner)->withSession(['tenancy.organization_id' => $organization->id, 'tenancy.property_id' => $property->id]);
+    $this->postJson(route('reservations.store'), [...$details, '_property' => $property->id])
+        ->assertUnprocessable()->assertJsonValidationErrors('subscription');
+
+    $admin = platformStaff();
+    $payment = ['method' => 'bank_transfer', 'reference' => 'RENEWAL-198', 'received_on' => now()->toDateString()];
+    $this->actingAs($admin)->post(route('platform.invoices.payments.store', $invoice->id), [...$payment, 'amount' => 1000])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    expect($invoice->fresh()->status)->toBe(SaasInvoiceStatus::Open)
+        ->and(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Suspended);
+
+    $this->post(route('platform.invoices.payments.store', $invoice->id), [...$payment, 'reference' => 'RENEWAL-198-BALANCE', 'amount' => $invoice->amount - 1000])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    $subscription = inTenant($organization, fn () => Subscription::current());
+    expect($invoice->fresh()->status)->toBe(SaasInvoiceStatus::Paid)
+        ->and($subscription->status)->toBe(SubscriptionStatus::Active)
+        ->and($subscription->current_period_ends_at->toDateString())->toBe('2026-12-26')
+        ->and($property->fresh()->status)->toBe(PropertyStatus::Live);
+
+    $this->actingAs($owner)->post(route('reservations.store'), [...$details, '_property' => $property->id])
+        ->assertRedirect()->assertSessionHasNoErrors();
+    expect(inTenant($property, fn () => Reservation::query()->sole()->status))->toBe(ReservationStatus::Confirmed);
+});
