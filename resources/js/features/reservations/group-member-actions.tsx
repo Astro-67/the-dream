@@ -66,7 +66,7 @@ export function GroupMemberActions({
                                 Pay reservation {member.reservation_number}
                             </DialogTitle>
                             <DialogDescription>
-                                {due?.label}: {due?.amount} {folio.currency}
+                                {due?.label}: {due?.amount}
                                 {folio.total.estimate &&
                                     ' (includes estimated nights before added taxes)'}
                             </DialogDescription>
