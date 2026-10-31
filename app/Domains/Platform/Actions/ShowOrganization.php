@@ -36,15 +36,15 @@ final class ShowOrganization
                     'currentPeriodEndsAt' => $subscription->current_period_ends_at?->toIso8601String(),
                 ],
                 'invoices' => SaasInvoice::query()->where('organization_id', $id)
-                    ->with(['payments' => fn ($query) => $query->orderBy('received_on')->orderBy('id'), 'slips'])
                     ->withSum('payments', 'amount')->orderByDesc('sequence')->paginate(50)->withQueryString()
                     ->through(fn (SaasInvoice $invoice) => [
                         'id' => $invoice->id, ...$invoice->summary(),
-                        'slips' => $invoice->slips->map(fn (SaasPaymentSlip $slip) => $slip->summary(forOwner: false))->all(),
-                        'payments' => $invoice->payments->map(fn (SaasPayment $payment) => [
+                        'slips' => $invoice->slips()->orderBy('id')->paginate(10, ['*'], 'slips_'.$invoice->id)->withQueryString()
+                            ->through(fn (SaasPaymentSlip $slip) => $slip->summary(forOwner: false)),
+                        'payments' => $invoice->payments()->orderBy('received_on')->orderBy('id')->paginate(10, ['*'], 'payments_'.$invoice->id)->withQueryString()->through(fn (SaasPayment $payment) => [
                             'id' => $payment->id, 'amount' => $payment->amount, 'method' => $payment->method->label(),
                             'reference' => $payment->reference, 'receivedOn' => $payment->received_on->toDateString(),
-                        ])->all(),
+                        ]),
                     ]),
                 'properties' => $organization->properties()->orderBy('name')->orderBy('id')->get()
                     ->map(fn (Property $property) => Tenancy::within(TenantContext::forProperty($property), function () use ($property): array {

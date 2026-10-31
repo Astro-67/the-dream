@@ -6,6 +6,7 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Subscriptions\Actions\IssueSaasInvoice;
 use App\Domains\Subscriptions\Models\SaasPayment;
+use App\Domains\Subscriptions\Models\SaasPaymentSlip;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Models\Organization;
 use App\Support\Tenancy\Tenancy;
@@ -88,11 +89,11 @@ test('the organization page shows only its invoices and recorded payments', func
             ->where('invoices.data.0.amount', 4900)
             ->where('invoices.data.0.balance', 3000)
             ->where('invoices.data.0.currency', 'USD')
-            ->has('invoices.data.0.payments', 1)
-            ->where('invoices.data.0.payments.0.amount', 1900)
-            ->where('invoices.data.0.payments.0.reference', 'ALPHA-BANK-001')
-            ->where('invoices.data.0.payments.0.method', 'Bank transfer')
-            ->where('invoices.data.0.payments.0.receivedOn', '2026-10-31'));
+            ->has('invoices.data.0.payments.data', 1)
+            ->where('invoices.data.0.payments.data.0.amount', 1900)
+            ->where('invoices.data.0.payments.data.0.reference', 'ALPHA-BANK-001')
+            ->where('invoices.data.0.payments.data.0.method', 'Bank transfer')
+            ->where('invoices.data.0.payments.data.0.receivedOn', '2026-10-31'));
 });
 
 test('organization invoice history is paginated and never mixes organizations', function () {
@@ -113,6 +114,54 @@ test('organization invoice history is paginated and never mixes organizations', 
         ->assertInertia(fn (Assert $page) => $page
             ->has('invoices.data', 1)->where('invoices.current_page', 2)
             ->where('invoices.data.0.number', 'SAAS-000001'));
+});
+
+test('invoice payments and slips are independently paginated and balances include every payment', function () {
+    withBillingDetails();
+    $tenants = twoTenants();
+    $invoice = inTenant($tenants->a->organization, function () {
+        $invoice = app(IssueSaasInvoice::class)->handle(Subscription::current());
+        foreach (range(1, 51) as $sequence) {
+            SaasPayment::query()->create([
+                'saas_invoice_id' => $invoice->id, 'amount' => 10, 'method' => 'bank_transfer',
+                'reference' => 'PAY-'.$sequence, 'received_on' => '2026-10-31',
+            ]);
+            SaasPaymentSlip::query()->create([
+                'saas_invoice_id' => $invoice->id, 'path' => 'payment-slips/private-'.$sequence,
+                'original_name' => 'proof-'.$sequence.'.pdf',
+            ]);
+        }
+
+        return $invoice;
+    });
+    $other = inTenant($tenants->b->organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+    $paymentsPage = 'payments_'.$invoice->id;
+    $slipsPage = 'slips_'.$invoice->id;
+
+    $this->actingAs(platformStaff())->get(route('platform.organizations.show', $tenants->a->organization->id, absolute: false).'?'.$paymentsPage.'=2')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('invoices.total', 1)
+            ->where('invoices.data.0.balance', 4390)
+            ->has('invoices.data.0.payments.data', 10)
+            ->where('invoices.data.0.payments.total', 51)
+            ->where('invoices.data.0.payments.current_page', 2)
+            ->has('invoices.data.0.slips.data', 10)
+            ->where('invoices.data.0.slips.total', 51)
+            ->where('invoices.data.0.slips.current_page', 1));
+    $this->get(route('platform.invoices.show', $invoice->id).'?payments=2')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('invoice.balance', 4390)->has('payments.data', 1)->where('payments.total', 51)
+            ->where('payments.current_page', 2)->has('slips.data', 50)->where('slips.current_page', 1));
+    $this->get(route('platform.organizations.show', $tenants->a->organization->id).'?'.$slipsPage.'=6')
+        ->assertInertia(fn (Assert $page) => $page->has('invoices.data.0.slips.data', 1)
+            ->where('invoices.data.0.slips.current_page', 6)->where('invoices.data.0.payments.current_page', 1));
+
+    $this->actingAs($tenants->a->owner)->get(route('subscription.invoices.show', $invoice->id).'?slips=2')
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('invoice.balance', 4390)->has('payments.data', 50)->has('slips.data', 1)
+            ->where('slips.current_page', 2)->where('slips.total', 51)
+            ->where('slips.data.0.url', fn ($url) => str_contains($url, '/subscription/slips/')));
+    $this->get(route('subscription.invoices.show', $other->id).'?payments=2&slips=2')->assertNotFound();
 });
 
 test('setup and archived properties remain visible and incomplete VFMS credentials are not saved', function () {

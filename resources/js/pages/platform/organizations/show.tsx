@@ -47,14 +47,14 @@ type Props = {
     } | null;
     invoices: Paginated<
         SaasInvoice & {
-            slips: PaymentSlip[];
-            payments: {
+            slips: Paginated<PaymentSlip>;
+            payments: Paginated<{
                 id: string;
                 amount: number;
                 method: string;
                 reference: string;
                 receivedOn: string;
-            }[];
+            }>;
         }
     >;
     properties: {
@@ -235,14 +235,14 @@ export default function PlatformOrganizationShow({
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                {invoice.payments.length ===
+                                                {invoice.payments.total ===
                                                 0 ? (
                                                     <span className="text-muted-foreground">
                                                         No payments recorded
                                                     </span>
                                                 ) : (
                                                     <ul className="space-y-3">
-                                                        {invoice.payments.map(
+                                                        {invoice.payments.data.map(
                                                             (payment) => (
                                                                 <li
                                                                     key={
@@ -275,10 +275,16 @@ export default function PlatformOrganizationShow({
                                                         )}
                                                     </ul>
                                                 )}
+                                                <Pagination
+                                                    page={invoice.payments}
+                                                />
                                             </TableCell>
                                             <TableCell>
                                                 <PaymentSlips
-                                                    slips={invoice.slips}
+                                                    slips={invoice.slips.data}
+                                                />
+                                                <Pagination
+                                                    page={invoice.slips}
                                                 />
                                             </TableCell>
                                         </TableRow>

@@ -109,7 +109,7 @@ test('owners and platform administrators open the invoice from its snapshot; oth
         ->where('billing.business_name', 'Thedream Ltd')
         ->where('billing.organization_name', $organization->name)
         ->has('billing.accounts', 2)
-        ->has('payments', 0);
+        ->has('payments.data', 0);
 
     $this->actingAs($owner)->get(route('subscription.invoices.show', $invoice->id))->assertOk()->assertInertia($page);
     $this->actingAs(platformStaff())->get(route('platform.invoices.show', $invoice->id))->assertOk()->assertInertia($page);

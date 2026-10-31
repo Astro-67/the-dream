@@ -83,15 +83,16 @@ class SaasInvoice extends Model
      */
     public function view(bool $forOwner): array
     {
-        $this->loadSum('payments', 'amount')->load('payments', 'subscription.plan', 'slips');
+        $this->loadSum('payments', 'amount')->load('subscription.plan');
 
         return [
             'invoice' => [...$this->summary(), 'plan' => $this->subscription->plan->name, 'issuedAt' => $this->created_at?->toIso8601String()],
             'billing' => $this->billing_snapshot,
-            'slips' => $this->slips->map(fn (SaasPaymentSlip $slip) => $slip->summary($forOwner)),
+            'slips' => $this->slips()->orderBy('id')->paginate(50, ['*'], 'slips')->withQueryString()
+                ->through(fn (SaasPaymentSlip $slip) => $slip->summary($forOwner)),
             'uploadSlipsUrl' => $forOwner && $this->status === SaasInvoiceStatus::Open
                 ? route('subscription.invoices.slips.store', $this->id) : null,
-            'payments' => $this->payments->sortBy('received_on')->values()->map(fn (SaasPayment $payment) => [
+            'payments' => $this->payments()->orderBy('received_on')->orderBy('id')->paginate(50, ['*'], 'payments')->withQueryString()->through(fn (SaasPayment $payment) => [
                 'id' => $payment->id, 'method' => $payment->method->label(), 'amount' => $payment->amount,
                 'reference' => $payment->reference, 'receivedOn' => $payment->received_on->toDateString(),
             ]),

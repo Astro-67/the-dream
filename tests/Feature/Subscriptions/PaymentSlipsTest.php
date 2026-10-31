@@ -79,20 +79,20 @@ test('owners and administrators see slips beside the invoice without exposing st
     $slip = inTenant($organization, fn () => SaasPaymentSlip::query()->sole());
 
     $this->get(route('subscription.invoices.show', $invoice))->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->has('slips', 1)
-            ->where('slips.0.name', 'bank.png')->where('slips.0.reference', 'BANK-456')
-            ->where('slips.0.url', route('subscription.slips.show', $slip))
+        ->assertInertia(fn (Assert $page) => $page->has('slips.data', 1)
+            ->where('slips.data.0.name', 'bank.png')->where('slips.data.0.reference', 'BANK-456')
+            ->where('slips.data.0.url', route('subscription.slips.show', $slip))
             ->where('uploadSlipsUrl', route('subscription.invoices.slips.store', $invoice)))
         ->assertDontSee($slip->path);
     $this->actingAs(platformStaff())->get(route('platform.organizations.show', $organization))->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->has('invoices.data.0.slips', 1)
-            ->where('invoices.data.0.slips.0.name', 'bank.png')
-            ->where('invoices.data.0.slips.0.reference', 'BANK-456')
-            ->where('invoices.data.0.slips.0.url', route('platform.slips.show', $slip->id)))
+        ->assertInertia(fn (Assert $page) => $page->has('invoices.data.0.slips.data', 1)
+            ->where('invoices.data.0.slips.data.0.name', 'bank.png')
+            ->where('invoices.data.0.slips.data.0.reference', 'BANK-456')
+            ->where('invoices.data.0.slips.data.0.url', route('platform.slips.show', $slip->id)))
         ->assertDontSee($slip->path);
     $this->get(route('platform.invoices.show', $invoice->id))->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('uploadSlipsUrl', null)
-            ->where('slips.0.url', route('platform.slips.show', $slip->id)));
+            ->where('slips.data.0.url', route('platform.slips.show', $slip->id)));
 });
 
 test('invalid slip uploads are refused as a whole without storing files', function (string $name, int $size, string $mime) {

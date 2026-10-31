@@ -43,6 +43,16 @@ const billing = {
         },
     ],
 };
+const page = {
+    current_page: 1,
+    last_page: 1,
+    per_page: 50,
+    from: null,
+    to: null,
+    prev_page_url: null,
+    next_page_url: null,
+    links: [],
+};
 const render = (
     details: typeof billing | null,
     uploadSlipsUrl: string | null = null,
@@ -50,16 +60,37 @@ const render = (
     const props = {
         invoice,
         billing: details,
-        payments: [],
+        payments: {
+            ...page,
+            data: [
+                {
+                    id: 'payment-51',
+                    method: 'Bank transfer',
+                    amount: 10,
+                    reference: 'PAY-51',
+                    receivedOn: '2026-10-31',
+                },
+            ],
+            total: 51,
+            last_page: 2,
+            current_page: 2,
+            from: 51,
+            to: 51,
+            prev_page_url: '/subscription/invoices/inv-1?payments=1',
+        },
         uploadSlipsUrl,
-        slips: [
-            {
-                id: 'slip-1',
-                name: 'transfer.pdf',
-                reference: 'BANK-123',
-                url: '/subscription/slips/slip-1',
-            },
-        ],
+        slips: {
+            ...page,
+            total: 1,
+            data: [
+                {
+                    id: 'slip-1',
+                    name: 'transfer.pdf',
+                    reference: 'BANK-123',
+                    url: '/subscription/slips/slip-1',
+                },
+            ],
+        },
     };
 
     return renderToStaticMarkup(
@@ -103,6 +134,9 @@ assert.ok(!old.includes('Use the invoice number'));
 assert.ok(html.includes('transfer.pdf'));
 assert.ok(html.includes('/subscription/slips/slip-1'));
 assert.ok(html.includes('BANK-123'));
+assert.ok(html.includes('PAY-51'));
+assert.ok(html.includes('Showing 51'));
+assert.ok(html.includes('/subscription/invoices/inv-1?payments=1'));
 assert.ok(!html.includes('type="file"'));
 const owner = render(billing, '/subscription/invoices/inv-1/slips');
 assert.ok(owner.includes('name="files[]"'));

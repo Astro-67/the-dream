@@ -1,6 +1,8 @@
 import { Head } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Identifier } from '@/components/ui/identifier';
+import { Pagination } from '@/components/ui/pagination';
+import type { Paginated } from '@/types';
 import {
     Table,
     TableBody,
@@ -46,15 +48,15 @@ export default function SaasInvoiceShow({
 }: {
     invoice: SaasInvoice & { plan: string; issuedAt: string | null };
     billing: Billing | null;
-    slips: PaymentSlip[];
+    slips: Paginated<PaymentSlip>;
     uploadSlipsUrl: string | null;
-    payments: {
+    payments: Paginated<{
         id: string;
         method: string;
         amount: number;
         reference: string;
         receivedOn: string;
-    }[];
+    }>;
 }) {
     return (
         <>
@@ -165,7 +167,7 @@ export default function SaasInvoiceShow({
                     </section>
                 )}
 
-                {payments.length > 0 && (
+                {payments.total > 0 && (
                     <section aria-labelledby="payments" className="space-y-3">
                         <h2 id="payments" className="text-lg font-semibold">
                             Payments
@@ -180,7 +182,7 @@ export default function SaasInvoiceShow({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {payments.map((payment) => (
+                                {payments.data.map((payment) => (
                                     <TableRow key={payment.id}>
                                         <TableCell>
                                             {formatDate(payment.receivedOn)}
@@ -201,6 +203,7 @@ export default function SaasInvoiceShow({
                                 ))}
                             </TableBody>
                         </Table>
+                        <Pagination page={payments} className="print:hidden" />
                     </section>
                 )}
 
@@ -214,7 +217,11 @@ export default function SaasInvoiceShow({
                     >
                         Payment slips
                     </h2>
-                    <PaymentSlips slips={slips} uploadUrl={uploadSlipsUrl} />
+                    <PaymentSlips
+                        slips={slips.data}
+                        uploadUrl={uploadSlipsUrl}
+                    />
+                    <Pagination page={slips} />
                 </section>
 
                 <div className="print:hidden">
