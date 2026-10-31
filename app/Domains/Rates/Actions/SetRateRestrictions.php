@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class SetRateRestrictions
 {
-    /** @param array{room_type_id: string, from: string, to: string, weekdays: list<int>, min_stay: int, closed_to_arrival: bool, stop_sell: bool} $details */
+    /** @param array{room_type_id: string, from: string, to: string, weekdays: list<int>, min_stay?: int, closed_to_arrival?: bool, stop_sell: bool} $details */
     public function handle(?User $actor, RatePlan $plan, array $details): void
     {
         DB::transaction(function () use ($actor, $plan, $details) {
