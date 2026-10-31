@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\FiscalReceipting\Enums\VfmsMode;
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Platform\Actions\AssignPlatformRole;
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Rates\Models\TaxRule;
@@ -131,6 +133,12 @@ function inTenant(Organization|Property $tenant, Closure $callback): mixed
         : TenantContext::forOrganization($tenant);
 
     return Tenancy::within($context, $callback);
+}
+
+/** Saves complete VFMS credentials in Live mode, the Zanzibar VFMS go-live gate. */
+function vfmsLive(Property $property): void
+{
+    inTenant($property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live]));
 }
 
 /**

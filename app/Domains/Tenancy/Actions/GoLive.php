@@ -28,16 +28,7 @@ class GoLive
             if ($locked->isLive()) {
                 return $locked;
             }
-            if ($locked->isDemo()) {
-                throw ValidationException::withMessages(['go_live' => __('A demo property can never go live.')]);
-            }
-
-            $failing = array_filter(JurisdictionRules::goLiveGates($locked), fn (GoLiveGate $gate) => ! $gate->passed);
-            if ($failing !== []) {
-                throw ValidationException::withMessages(['go_live' => __('Not ready to go live. Still to do: :gates.', [
-                    'gates' => implode(', ', array_map(fn (GoLiveGate $gate) => $gate->label, $failing)),
-                ])]);
-            }
+            self::ensureReady($locked);
 
             $deferredImports = JurisdictionRules::defersImportedReservationCreated($locked);
             $locked->forceFill(['status' => PropertyStatus::Live, 'went_live_at' => now(), 'went_live_by' => $actor->id])->save();
@@ -57,5 +48,20 @@ class GoLive
 
             return $locked;
         }, attempts: 3));
+    }
+
+    /** Refuses a demo property, and a property with failing go-live gates, naming them. */
+    public static function ensureReady(Property $property): void
+    {
+        if ($property->isDemo()) {
+            throw ValidationException::withMessages(['go_live' => __('A demo property can never go live.')]);
+        }
+
+        $failing = array_filter(JurisdictionRules::goLiveGates($property), fn (GoLiveGate $gate) => ! $gate->passed);
+        if ($failing !== []) {
+            throw ValidationException::withMessages(['go_live' => __('Not ready to go live. Still to do: :gates.', [
+                'gates' => implode(', ', array_map(fn (GoLiveGate $gate) => $gate->label, $failing)),
+            ])]);
+        }
     }
 }

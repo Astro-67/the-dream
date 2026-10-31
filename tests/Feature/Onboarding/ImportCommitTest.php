@@ -193,6 +193,7 @@ test('Zanzibar imported created events are deferred until go-live once with live
         app(CommitImport::class)->handle($owner, $job);
         expect(ReservationLifecycleEvent::query()->count())->toBe(0);
         $property->update(['business_date' => '2026-12-01']);
+        vfmsLive($property);
         app(GoLive::class)->handle($owner, $property);
         app(GoLive::class)->handle($owner, $property);
         $event = ReservationLifecycleEvent::query()->sole();
@@ -217,6 +218,7 @@ test('import checklist and deferred lifecycle writes belong only to the property
     }
     $this->actingAs($t->a->owner)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('onboarding.items.6.completed', true)->where('onboarding.items.7.completed', false));
+    vfmsLive($t->a->property);
     inTenant($t->a->organization, fn () => app(GoLive::class)->handle($t->a->owner, $t->a->property));
     expect(inTenant($t->a->property, fn () => ReservationLifecycleEvent::query()->count()))->toBe(1)
         ->and(inTenant($t->a->otherProperty, fn () => ReservationLifecycleEvent::query()->count()))->toBe(0);
