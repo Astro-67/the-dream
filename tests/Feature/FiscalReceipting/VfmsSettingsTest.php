@@ -5,9 +5,13 @@ use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\TenantFixture;
+
+// Saving credentials checks them with ZRA (#199).
+beforeEach(fn () => Http::fake([config('services.vfms.live_url').'currencyExchangeRate/' => Http::response(['rateUSD' => 2600, 'rateEURO' => 2800, 'rateUSDEURO' => 0.93])]));
 
 /** @return array<string, string> */
 function vfmsCredentials(TenantFixture $tenant, array $overrides = []): array

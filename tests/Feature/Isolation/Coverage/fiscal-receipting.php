@@ -6,12 +6,14 @@ use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
 /** Bravo saves its own credentials first, so an attack has something to overwrite. */
 $bravoCredentials = function (TwoTenants $t): void {
+    Http::fake([config('services.vfms.live_url').'currencyExchangeRate/' => Http::response([], 401)]);
     inTenant($t->b->property, fn () => app(SaveVfmsCredentials::class)->handle($t->b->owner, $t->b->property, 'BRAVO-INT', 'BRAVO-REG', 'BRAVO-TOKEN'));
 };
 
@@ -91,6 +93,19 @@ return [
             $this->actingAs($t->a->owner)->put(route('properties.vfms.mode', $t->b->property->id), [...$form, '_property' => $t->b->property->id])->assertForbidden(),
         ];
         expect(VfmsCredential::for($t->b->property)->mode)->toBe(VfmsMode::Sandbox);
+
+        return $responses;
+    }),
+    'properties.vfms.check' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoCredentials) {
+        $bravoCredentials($t);
+        $this->travel(61)->seconds();
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('properties.vfms.check', $t->b->property->id), ['_property' => $t->a->property->id])->assertNotFound(),
+            $this->actingAs($t->a->owner)->post(route('properties.vfms.check', $t->b->property->id), ['_property' => $t->b->property->id])->assertForbidden(),
+        ];
+        // Bravo's save ran the only check; the attack reached neither ZRA nor Bravo's outcome.
+        Http::assertSentCount(1);
+        expect(VfmsCredential::for($t->b->property)->zra_check)->toBe('refused');
 
         return $responses;
     }),

@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Subscriptions\Actions\IssueSaasInvoice;
+use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Actions\SendInvitation;
 use App\Domains\Tenancy\Data\InvitationDetails;
 use App\Domains\Tenancy\Data\MembershipGrant;
@@ -72,6 +74,7 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
         'properties.restore' => ['DELETE', route($routeName, $property), $intent],
         'properties.go-live', 'properties.taxes-reviewed' => ['POST', route($routeName, $property), $intent],
         'properties.vfms.update', 'properties.vfms.mode' => ['PUT', route($routeName, $property), $intent],
+        'properties.vfms.check' => ['POST', route($routeName, $property), $intent],
         'properties.demo.store' => ['POST', route($routeName), $intent],
         'properties.destroy' => ['DELETE', route($routeName, $property), $intent],
         'invitations.store' => ['POST', route($routeName), [...$intent, 'email' => 'new@example.test', 'role' => 'front_desk', 'all_properties' => false, 'property_ids' => [$property->id], 'expires_in_days' => 7]],
@@ -80,12 +83,20 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
             new InvitationDetails('pending@example.test', MembershipGrant::properties(OrganizationRole::FrontDesk, [$property->id]), CarbonImmutable::now()->addWeek()),
         ))), $intent],
         'members.index', 'subscription.show' => ['GET', route($routeName)],
+        'subscription.invoices.show' => ['GET', route($routeName, ownSaasInvoice($property))],
         'members.edit' => ['GET', route($routeName, ownMembership($owner, $property))],
         'members.update' => ['PUT', route($routeName, ownMembership($owner, $property)), [...$intent, 'role' => 'group_operations_manager', 'all_properties' => true]],
         'members.destroy' => ['DELETE', route($routeName, ownMembership($owner, $property)), $intent],
         'members.transfer-ownership' => ['POST', route($routeName, ownMembership($owner, $property)), [...$intent, 'role' => 'owner', 'all_properties' => true]],
         default => throw new LogicException("Add the owner-only route [{$routeName}] to ownerOnlyRequest()."),
     };
+}
+
+function ownSaasInvoice(Property $property): string
+{
+    withBillingDetails();
+
+    return inTenant($property, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()))->id;
 }
 
 function ownMembership(User $owner, Property $property): OrganizationMembership

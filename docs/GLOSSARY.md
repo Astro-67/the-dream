@@ -134,7 +134,7 @@ A Thedream-numbered record of payment, always labelled non-fiscal. Distinct from
 A selling rule on a rate plan and date: minimum stay, closed to arrival or stop-sell. Binding for channels; staff may override with a reason. Never overrides inventory.
 
 **Go-live**:
-A property moving from setup to live. The owner sends a go-live request once its go-live gates pass; a platform administrator approves it after Thedream is paid. Before go-live, a property can be configured and take test reservations but cannot check guests in, and nothing is reported to authorities. A Zanzibar property also needs VFMS credentials saved and set to Live.
+A property moving from setup to live. The owner sends a go-live request once its go-live gates pass; a platform administrator approves it after Thedream is paid. Before go-live, a property can be configured and take test reservations but cannot check guests in, and nothing is reported to authorities. A Zanzibar property also needs VFMS credentials accepted by ZRA and set to Live.
 _Avoid_: Activation, launch
 
 **Go-live request**:

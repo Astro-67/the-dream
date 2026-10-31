@@ -14,9 +14,12 @@ use Illuminate\Validation\ValidationException;
 /**
  * Saves a property's VFMS Integration ID, Registration ID and Token. A blank
  * token keeps the saved one. The audit entry says whether the token changed, never its value.
+ * Each save clears the last ZRA check and checks the saved credentials again, unless checked within the minute.
  */
 class SaveVfmsCredentials
 {
+    public function __construct(private CheckVfmsCredentials $check) {}
+
     public function handle(User $actor, Property $property, string $integrationId, string $registrationId, ?string $token): VfmsCredential
     {
         return Audit::validationRefusal($actor, $property, 'VFMS credentials refused', function () use ($actor, $property, $integrationId, $registrationId, $token) {
@@ -28,7 +31,7 @@ class SaveVfmsCredentials
                 throw ValidationException::withMessages(['token' => __('Enter the VFMS token.')]);
             }
 
-            $credential->fill(['integration_id' => $integrationId, 'registration_id' => $registrationId]);
+            $credential->fill(['integration_id' => $integrationId, 'registration_id' => $registrationId, 'zra_check' => null, 'zra_checked_at' => null]);
             if (filled($token)) {
                 // New credentials get a fresh chance with VFMS.
                 $credential->fill(['token' => $token, 'credentials_refused_at' => null]);
@@ -42,7 +45,7 @@ class SaveVfmsCredentials
                 'attributes' => ['integration_id' => $integrationId, 'registration_id' => $registrationId, 'token_changed' => $tokenChanged],
             ]);
 
-            return $credential;
+            return CheckVfmsCredentials::throttled($property) ? $credential : $this->check->handle($actor, $property);
         });
     }
 }

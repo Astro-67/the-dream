@@ -162,6 +162,8 @@ class PropertyController extends Controller
             'mode' => $credential->mode->value,
             'live_since' => $credential->live_since?->toIso8601String(),
             'credentials_refused_at' => $credential->credentials_refused_at?->toIso8601String(),
+            'zra_check' => $credential->zra_check,
+            'zra_checked_at' => $credential->zra_checked_at?->toIso8601String(),
             'confirmation' => VfmsSettingsRequest::CONFIRMATION,
         ];
     }

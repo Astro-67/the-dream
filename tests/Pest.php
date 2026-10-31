@@ -136,10 +136,10 @@ function inTenant(Organization|Property $tenant, Closure $callback): mixed
     return Tenancy::within($context, $callback);
 }
 
-/** Saves complete VFMS credentials in Live mode, the Zanzibar VFMS go-live gate. */
+/** Saves complete VFMS credentials in Live mode, accepted by ZRA: the Zanzibar VFMS go-live gate. */
 function vfmsLive(Property $property): void
 {
-    inTenant($property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live]));
+    inTenant($property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'zra_check' => 'accepted', 'zra_checked_at' => now()]));
 }
 
 /**
