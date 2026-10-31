@@ -4,10 +4,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import RateCalendar from '@/pages/rates/calendar';
 
 function render(canManage: boolean) {
+    const dates = ['2026-10-09', '2026-10-10', '2026-10-11'];
     const props = {
         from: '2026-10-09',
         to: '2026-10-11',
-        dates: ['2026-10-09', '2026-10-10', '2026-10-11'],
+        dates,
         businessDate: '2026-10-08',
         allRoomTypes: [{ id: 'deluxe', code: 'DLX', name: 'Deluxe' }],
         roomTypes: [
@@ -15,8 +16,11 @@ function render(canManage: boolean) {
                 id: 'deluxe',
                 code: 'DLX',
                 name: 'Deluxe',
-                sellable: {},
-                outOfService: {},
+                sellable: Object.fromEntries(dates.map((date) => [date, 2])),
+                available: Object.fromEntries(dates.map((date) => [date, 2])),
+                outOfService: Object.fromEntries(
+                    dates.map((date) => [date, 0]),
+                ),
                 rooms: [],
                 unassigned: {},
                 plans: [
@@ -26,18 +30,18 @@ function render(canManage: boolean) {
                         name: 'Breakfast',
                         currency: 'USD',
                         derived: false,
-                        prices: {},
+                        prices: Object.fromEntries(
+                            dates.map((date) => [date, 10000]),
+                        ),
                         restrictions: Object.fromEntries(
-                            ['2026-10-09', '2026-10-10', '2026-10-11'].map(
-                                (date) => [
-                                    date,
-                                    {
-                                        min_stay: 3,
-                                        closed_to_arrival: true,
-                                        stop_sell: true,
-                                    },
-                                ],
-                            ),
+                            dates.map((date) => [
+                                date,
+                                {
+                                    min_stay: 3,
+                                    closed_to_arrival: true,
+                                    stop_sell: true,
+                                },
+                            ]),
                         ),
                     },
                 ],
