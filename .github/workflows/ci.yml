@@ -77,6 +77,10 @@ jobs:
       - name: Larastan
         run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 
+      # Parallel Pest gives each process its own the_dream_test_N database.
+      - name: Grant the test user its parallel databases
+        run: mysql -h 127.0.0.1 -uroot -proot -e "GRANT ALL PRIVILEGES ON \`the_dream_test_%\`.* TO 'the_dream'@'%'"
+
       - name: Pest
         run: vendor/bin/pest --parallel
 
