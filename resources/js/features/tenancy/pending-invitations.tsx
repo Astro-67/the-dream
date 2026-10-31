@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Badge } from '@/components/ui/badge';
@@ -38,8 +39,9 @@ export type PendingInvitation = {
 };
 
 function RevokeInvitation({ invitation }: { invitation: PendingInvitation }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button
                     variant="ghost"
@@ -58,6 +60,7 @@ function RevokeInvitation({ invitation }: { invitation: PendingInvitation }) {
                     a new invitation later.
                 </DialogDescription>
                 <Form
+                    onSuccess={() => setOpen(false)}
                     {...destroy.form(invitation.id)}
                     options={{ preserveScroll: true }}
                 >

@@ -50,7 +50,7 @@ type Row = RoomType & {
     unassigned: Record<string, number>;
 };
 type Editing = {
-    kind: 'prices' | 'restrictions';
+    kind: 'prices' | 'restrictions' | 'release-stop-sell';
     plan: Plan;
     roomType: RoomType;
 };
@@ -117,9 +117,15 @@ export default function RateCalendar({
                 size="sm"
                 className="ml-2 min-h-11 md:min-h-8"
                 onClick={() => setEditing(editing)}
-                aria-label={`Edit ${name}`}
+                aria-label={
+                    editing.kind === 'release-stop-sell'
+                        ? `Release stop-sell for ${name}`
+                        : `Edit ${name}`
+                }
             >
-                Edit
+                {editing.kind === 'release-stop-sell'
+                    ? 'Release stop-sell'
+                    : 'Edit'}
             </Button>
         );
 
@@ -376,14 +382,26 @@ export default function RateCalendar({
                                                     `${plan.name} prices for ${room.name}`,
                                                 )
                                             }
-                                            restrictionEdit={editButton(
-                                                {
-                                                    kind: 'restrictions',
-                                                    plan,
-                                                    roomType: room,
-                                                },
-                                                `${plan.name} restrictions for ${room.name}`,
-                                            )}
+                                            restrictionEdit={
+                                                <>
+                                                    {editButton(
+                                                        {
+                                                            kind: 'restrictions',
+                                                            plan,
+                                                            roomType: room,
+                                                        },
+                                                        `${plan.name} restrictions for ${room.name}`,
+                                                    )}
+                                                    {editButton(
+                                                        {
+                                                            kind: 'release-stop-sell',
+                                                            plan,
+                                                            roomType: room,
+                                                        },
+                                                        `${plan.name}, ${room.name}`,
+                                                    )}
+                                                </>
+                                            }
                                         />
                                     ))}
                                 </tbody>
@@ -484,17 +502,24 @@ function BulkEdit({
 }) {
     const { kind, plan, roomType } = editing;
     const route = kind === 'prices' ? pricesRoute : restrictionsRoute;
+    const releasing = kind === 'release-stop-sell';
 
     return (
         <>
             <DialogTitle>
-                {kind === 'prices' ? 'Set prices' : 'Set restrictions'}:{' '}
-                {plan.name}, {roomType.name}
+                {kind === 'prices'
+                    ? 'Set prices'
+                    : releasing
+                      ? 'Release stop-sell'
+                      : 'Set restrictions'}
+                : {plan.name}, {roomType.name}
             </DialogTitle>
             <DialogDescription>
                 {kind === 'prices'
                     ? `Amounts in ${plan.currency}. Existing prices on selected dates are replaced.`
-                    : 'Existing restrictions on selected dates are replaced.'}
+                    : releasing
+                      ? 'Stop-sell is released on selected dates. Minimum stay and closed-to-arrival are unchanged.'
+                      : 'Existing restrictions on selected dates are replaced.'}
             </DialogDescription>
             <Form
                 {...route.form(plan.id)}
@@ -583,11 +608,25 @@ function BulkEdit({
                                     </div>
                                 ))}
                             </div>
+                        ) : releasing ? (
+                            <>
+                                <input
+                                    type="hidden"
+                                    name="release_stop_sell"
+                                    value="1"
+                                />
+                                <input
+                                    type="hidden"
+                                    name="stop_sell"
+                                    value="0"
+                                />
+                            </>
                         ) : (
                             <RestrictionFields errors={errors} />
                         )}
                         <Button type="submit" className="min-h-11 self-end">
-                            {processing && <Spinner />}Save
+                            {processing && <Spinner />}
+                            {releasing ? 'Release stop-sell' : 'Save'}
                         </Button>
                     </>
                 )}

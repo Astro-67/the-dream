@@ -17,6 +17,7 @@ import type { FeeProposal } from '@/features/billing/fee-proposals';
 import { NativeSelect } from '@/components/ui/select';
 import type { Paginated } from '@/types';
 import { Form, Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -169,6 +170,9 @@ export default function Show({
     vfmsCloseWithoutFilingUrl?: string | null;
     vfmsFiscalExceptionReason?: string | null;
 }) {
+    const [assignmentOpen, setAssignmentOpen] = useState(false);
+    const [moveOpen, setMoveOpen] = useState(false);
+    const [amendmentOpen, setAmendmentOpen] = useState(false);
     return (
         <>
             <Head title={`Reservation ${reservation.reservation_number}`} />
@@ -388,7 +392,10 @@ export default function Show({
                     <div className="flex flex-wrap gap-2">
                         {canAssignRoom &&
                             reservation.status === 'confirmed' && (
-                                <Dialog>
+                                <Dialog
+                                    open={assignmentOpen}
+                                    onOpenChange={setAssignmentOpen}
+                                >
                                     <DialogTrigger asChild>
                                         <Button
                                             variant="secondary"
@@ -410,6 +417,9 @@ export default function Show({
                                             {...roomAssignment.form(
                                                 reservation.reservation_number,
                                             )}
+                                            onSuccess={() =>
+                                                setAssignmentOpen(false)
+                                            }
                                             className="max-w-[720px] space-y-3"
                                         >
                                             {({ errors, processing }) => (
@@ -466,7 +476,7 @@ export default function Show({
                                 </Dialog>
                             )}
                         {can.moveRoom && (
-                            <Dialog>
+                            <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
                                 <DialogTrigger asChild>
                                     <Button
                                         variant="secondary"
@@ -485,6 +495,7 @@ export default function Show({
                                     <RoomMoveForm
                                         number={reservation.reservation_number}
                                         rooms={moveRooms}
+                                        onSuccess={() => setMoveOpen(false)}
                                     />
                                 </DialogContent>
                             </Dialog>
@@ -492,7 +503,10 @@ export default function Show({
                         {canAmend &&
                             amendmentOptions &&
                             reservation.status === 'confirmed' && (
-                                <Dialog>
+                                <Dialog
+                                    open={amendmentOpen}
+                                    onOpenChange={setAmendmentOpen}
+                                >
                                     <DialogTrigger asChild>
                                         <Button
                                             variant="secondary"
@@ -513,6 +527,9 @@ export default function Show({
                                         <AmendmentForm
                                             reservation={reservation}
                                             options={amendmentOptions}
+                                            onSuccess={() =>
+                                                setAmendmentOpen(false)
+                                            }
                                         />
                                     </DialogContent>
                                 </Dialog>

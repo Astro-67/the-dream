@@ -17,13 +17,16 @@ export type MoveRoom = {
 export function RoomMoveForm({
     number,
     rooms,
+    onSuccess,
 }: {
     number: string;
     rooms: MoveRoom[];
+    onSuccess: () => void;
 }) {
     return (
         <Form
             {...roomMove.form(number)}
+            onSuccess={onSuccess}
             className="max-w-[720px] space-y-3"
             resetOnSuccess
         >

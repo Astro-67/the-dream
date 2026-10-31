@@ -137,6 +137,42 @@ test('a rates manager bulk edits prices and restrictions from the calendar, audi
     ])->assertSessionHasErrors('room_type_id');
 });
 
+test('releasing stop-sell opens the selected nights without changing other restrictions', function () {
+    $t = twoTenants();
+    $s = calendarSetup($t->a->property, $t->a->owner);
+    $calendar = route('rate-calendar', ['from' => '2026-10-09', 'to' => '2026-10-12']);
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get($calendar);
+    $selection = [
+        '_property' => $t->a->property->id, 'room_type_id' => $s['deluxe']->id,
+        'from' => '2026-10-09', 'to' => '2026-10-12', 'weekdays' => [1, 2, 3, 4, 5, 6, 7],
+    ];
+    $this->put(route('rate-calendar.restrictions', $s['base']), [
+        ...$selection, 'min_stay' => 3, 'closed_to_arrival' => '1', 'stop_sell' => '1',
+    ])->assertSessionHasNoErrors();
+    $this->put(route('rate-calendar.restrictions', $s['base']), [
+        ...$selection, 'from' => '2026-10-10', 'to' => '2026-10-10', 'min_stay' => 2, 'stop_sell' => '1',
+    ])->assertSessionHasNoErrors();
+
+    $this->put(route('rate-calendar.restrictions', $s['base']), [
+        ...$selection, 'to' => '2026-10-11', 'release_stop_sell' => '1', 'stop_sell' => '0',
+    ])->assertSessionHasNoErrors()->assertRedirect($calendar);
+
+    $this->get($calendar)->assertInertia(fn (Assert $page) => $page
+        ->where('roomTypes.0.plans.0.restrictions', [
+            '2026-10-09' => ['min_stay' => 3, 'closed_to_arrival' => true, 'stop_sell' => false],
+            '2026-10-10' => ['min_stay' => 2, 'closed_to_arrival' => false, 'stop_sell' => false],
+            '2026-10-11' => ['min_stay' => 3, 'closed_to_arrival' => true, 'stop_sell' => false],
+            '2026-10-12' => ['min_stay' => 3, 'closed_to_arrival' => true, 'stop_sell' => true],
+        ])
+        ->where('roomTypes.0.plans.1.restrictions.2026-10-09', null)
+        ->where('roomTypes.1.plans.0.restrictions.2026-10-09', null));
+    $audit = Activity::query()->where('description', 'Restrictions updated')->latest('id')->firstOrFail();
+    expect($audit->getExtraProperty('attributes'))->toEqual(['stop_sell' => false])
+        ->and($audit->getExtraProperty('room_type_id'))->toBe($s['deluxe']->id)
+        ->and($audit->getExtraProperty('from'))->toBe('2026-10-09')
+        ->and($audit->getExtraProperty('to'))->toBe('2026-10-11');
+});
+
 test('front desk sees the calendar read-only and the server refuses their edits', function (OrganizationRole $role) {
     $t = twoTenants();
     $s = calendarSetup($t->a->property, $t->a->owner);

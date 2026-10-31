@@ -10,6 +10,7 @@ import {
     TableCell,
 } from '@/components/ui/table';
 import { Form, Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -52,8 +53,9 @@ const derivation = (plan: Plan) => {
     return `${plan.base.name} ${plan.base.adjustment < 0 ? '−' : '+'} ${amount}`;
 };
 function DeactivatePlan({ plan }: { plan: Plan }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="sm">
                     Deactivate
@@ -67,6 +69,7 @@ function DeactivatePlan({ plan }: { plan: Plan }) {
                 </DialogDescription>
                 <Form
                     {...deactivate.form(plan.id)}
+                    onSuccess={() => setOpen(false)}
                     options={{ preserveScroll: true }}
                 >
                     {({ errors, processing }) => (
