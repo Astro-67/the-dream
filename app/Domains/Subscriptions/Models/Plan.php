@@ -17,29 +17,28 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $id
  * @property string $name
  * @property string $code
- * @property int $property_limit
- * @property int $room_limit
+ * @property int|null $property_limit null means no limit
  * @property int $trial_days
  * @property int $grace_days days past an invoice's due date before suspension
  * @property BillingPeriod $billing_period
- * @property int $price minor units of $currency per billing period
+ * @property int $price minor units of $currency per subscribed room per billing period
  * @property Currency $currency
  * @property list<string> $modules module entitlements; unused in M2
  * @property bool $is_default the plan new organizations start their trial on
  */
-#[Fillable(['name', 'code', 'property_limit', 'room_limit', 'trial_days', 'grace_days', 'billing_period', 'price', 'currency', 'modules', 'is_default'])]
+#[Fillable(['name', 'code', 'property_limit', 'trial_days', 'grace_days', 'billing_period', 'price', 'currency', 'modules', 'is_default'])]
 #[UsePolicy(PlanPolicy::class)]
 class Plan extends Model
 {
     use HasUlids;
 
-    public const FIELDS = ['name', 'code', 'property_limit', 'room_limit', 'trial_days', 'grace_days', 'billing_period', 'price', 'currency', 'is_default'];
+    public const FIELDS = ['name', 'code', 'property_limit', 'trial_days', 'grace_days', 'billing_period', 'price', 'currency', 'is_default'];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
-            'property_limit' => 'integer', 'room_limit' => 'integer', 'trial_days' => 'integer', 'grace_days' => 'integer',
+            'property_limit' => 'integer', 'trial_days' => 'integer', 'grace_days' => 'integer',
             'billing_period' => BillingPeriod::class, 'price' => 'integer', 'currency' => Currency::class,
             'modules' => 'array', 'is_default' => 'boolean',
         ];

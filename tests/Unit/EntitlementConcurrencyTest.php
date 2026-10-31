@@ -49,7 +49,7 @@ test('concurrent rooms across different properties cannot take the same remainin
         $type = inTenant($target, fn () => app(CreateRoomType::class)->handle($owner, InventoryForm::roomType()));
         $tasks[] = ['action' => 'room', 'property_id' => $target->id, 'details' => InventoryForm::room($type->id)];
     }
-    Plan::default()->update(['room_limit' => 1]);
+    inTenant($organization, fn () => Subscription::current()->update(['rooms' => 1]));
     $results = ParallelBookings::run(json_encode([
         'connection' => config('database.connections.mysql'), 'organization_id' => $organization->id,
         'actor_id' => $owner->id, 'tasks' => $tasks,
@@ -72,7 +72,7 @@ test('property restoration and a concurrent room addition share the room limit',
     });
     inTenant($organization, fn () => app(ArchiveProperty::class)->handle($owner, $archived));
     $type = inTenant($property, fn () => app(CreateRoomType::class)->handle($owner, InventoryForm::roomType()));
-    Plan::default()->update(['room_limit' => 1]);
+    inTenant($organization, fn () => Subscription::current()->update(['rooms' => 1]));
     $results = ParallelBookings::run(json_encode([
         'connection' => config('database.connections.mysql'), 'organization_id' => $organization->id,
         'actor_id' => $owner->id, 'tasks' => [

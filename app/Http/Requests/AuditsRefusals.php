@@ -14,6 +14,7 @@ use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Subscriptions\Models\Plan;
+use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Audit\Audit;
 use Illuminate\Contracts\Validation\Validator;
@@ -50,6 +51,7 @@ trait AuditsRefusals
                 $this->routeIs('properties.*') => new Property,
                 $this->routeIs('platform.properties.decline-go-live') => new Property,
                 $this->routeIs('platform.plans.*') => new Plan,
+                $this->routeIs('subscription.rooms.update', 'platform.organizations.rooms.update') => new Subscription,
                 $this->routeIs('platform.billing-details.*') => new BillingDetails,
                 default => new Reservation,
             };

@@ -34,14 +34,14 @@ final class Entitlements
 
         $usage = PlanUsage::current(lock: true);
         $plan = $subscription->plan;
-        if ($properties > 0 && $plan->property_limit < $usage['properties'] + $properties) {
+        if ($properties > 0 && $plan->property_limit !== null && $plan->property_limit < $usage['properties'] + $properties) {
             throw ValidationException::withMessages([
                 'property' => __('Your plan allows :limit active properties. Archive a property or change your plan before adding another.', ['limit' => $plan->property_limit]),
             ]);
         }
-        if ($rooms > 0 && $plan->room_limit < $usage['rooms'] + $rooms) {
+        if ($rooms > 0 && $subscription->rooms < $usage['rooms'] + $rooms) {
             throw ValidationException::withMessages([
-                'room' => __('Your plan allows :limit active rooms. Deactivate rooms or change your plan before adding more.', ['limit' => $plan->room_limit]),
+                'room' => __('Your subscription covers :limit active rooms. Deactivate rooms or subscribe to more before adding another.', ['limit' => $subscription->rooms]),
             ]);
         }
     }

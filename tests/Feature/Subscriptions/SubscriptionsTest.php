@@ -20,7 +20,7 @@ use Tests\Support\InventoryForm;
 function planFormPayload(array $overrides = []): array
 {
     return [
-        'name' => 'Growth', 'code' => 'GROWTH', 'property_limit' => 10, 'room_limit' => 400, 'trial_days' => 30,
+        'name' => 'Growth', 'code' => 'GROWTH', 'property_limit' => 10, 'trial_days' => 30,
         'grace_days' => 7, 'billing_period' => 'yearly', 'price' => 99000, 'currency' => 'USD', 'is_default' => false, ...$overrides,
     ];
 }
@@ -33,7 +33,7 @@ test('a platform administrator creates a plan, audited under platform', function
 
     $plan = Plan::query()->where('code', 'GROWTH')->sole();
     expect($plan)
-        ->property_limit->toBe(10)->room_limit->toBe(400)->trial_days->toBe(30)
+        ->property_limit->toBe(10)->trial_days->toBe(30)
         ->billing_period->toBe(BillingPeriod::Yearly)->modules->toBe([])->is_default->toBeFalse()
         ->and(Activity::query()->where('log_name', 'platform')->where('event', 'plan_created')->where('causer_id', $admin->id)->exists())->toBeTrue();
 
@@ -47,10 +47,10 @@ test('a platform administrator edits a plan and can make it the default', functi
     $this->actingAs($admin)->post(route('platform.plans.store'), planFormPayload());
     $growth = Plan::query()->where('code', 'GROWTH')->sole();
 
-    $this->actingAs($admin)->put(route('platform.plans.update', $growth), planFormPayload(['room_limit' => 500, 'is_default' => true]))
+    $this->actingAs($admin)->put(route('platform.plans.update', $growth), planFormPayload(['property_limit' => null, 'is_default' => true]))
         ->assertSessionHasNoErrors();
 
-    expect($growth->fresh())->room_limit->toBe(500)->is_default->toBeTrue()
+    expect($growth->fresh())->property_limit->toBeNull()->is_default->toBeTrue()
         ->and($essential->fresh()->is_default)->toBeFalse()
         ->and(Activity::query()->where('event', 'plan_updated')->where('subject_id', $growth->id)->exists())->toBeTrue();
 });
@@ -141,7 +141,7 @@ test('the owner sees plan, limits, real usage and state', function () {
             ->where('subscription.status', 'trial')
             ->where('plan.name', $plan->name)
             ->where('plan.propertyLimit', $plan->property_limit)
-            ->where('plan.roomLimit', $plan->room_limit)
+            ->where('subscription.rooms', 150)
             ->where('usage', ['properties' => 1, 'rooms' => 1])
             ->has('history', 1));
 });
@@ -167,4 +167,34 @@ test('a state change is recorded with its reason and audited; a change needs a r
     expect(fn () => inTenant($organization, fn () => app(TransitionSubscription::class)->handle($subscription, SubscriptionStatus::PastDue, ' ')))
         ->toThrow(LogicException::class);
     expect($subscription->fresh()->status)->toBe(SubscriptionStatus::Active);
+});
+
+test('the owner changes subscribed rooms, never below the rooms already active, and both are audited', function () {
+    $t = twoTenants();
+    inTenant($t->a->property, function () {
+        $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+        app(CreateRoom::class)->handle(null, InventoryForm::room($type->id));
+        app(CreateRoom::class)->handle(null, InventoryForm::room($type->id, ['number' => '102']));
+    });
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id]);
+
+    $this->put(route('subscription.rooms.update'), ['rooms' => 1])->assertSessionHasErrors('rooms');
+    $this->put(route('subscription.rooms.update'), ['rooms' => 2])->assertRedirect(route('subscription.show'));
+
+    expect(inTenant($t->a->organization, fn () => Subscription::current()->rooms))->toBe(2)
+        ->and(inTenant($t->b->organization, fn () => Subscription::current()->rooms))->toBe(150)
+        ->and(Activity::query()->where('description', 'Subscribed rooms change refused')->sole()->getExtraProperty('result'))->toBe('refused')
+        ->and(Activity::query()->where('event', 'subscribed_rooms_changed')->sole()->getExtraProperty('attributes'))->toBe(['rooms' => 2]);
+});
+
+test('a platform administrator sets an organization\'s subscribed rooms; organization members cannot', function () {
+    $t = twoTenants();
+
+    $this->actingAs(platformStaff())->put(route('platform.organizations.rooms.update', $t->b->organization->id), ['rooms' => 40])
+        ->assertRedirect(route('platform.organizations.show', $t->b->organization->id));
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->withSession(['tenancy.organization_id' => $t->a->organization->id])
+        ->put(route('subscription.rooms.update'), ['rooms' => 999])->assertForbidden();
+
+    expect(inTenant($t->b->organization, fn () => Subscription::current()->rooms))->toBe(40)
+        ->and(inTenant($t->a->organization, fn () => Subscription::current()->rooms))->toBe(150);
 });

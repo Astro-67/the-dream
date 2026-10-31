@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Issues a subscription's next SaaS invoice, for the billing period after the
- * last one invoiced (or after the trial), at the plan's current price. A platform
+ * last one invoiced (or after the trial), at the plan's current price for each subscribed room. A platform
  * administrator's first invoice during trial starts immediately. Billed in
  * advance: due when its period starts. Runs in the subscription's organization.
  * Each call issues the next period, serialized by the subscription lock.
@@ -58,13 +58,15 @@ class IssueSaasInvoice
                 'period_starts_at' => $starts,
                 'period_ends_at' => $starts->addMonthsNoOverflow($plan->billing_period->months()),
                 'due_at' => $starts,
-                'amount' => $plan->price,
+                'rooms' => $subscription->rooms,
+                'unit_price' => $plan->price,
+                'amount' => $subscription->rooms * $plan->price,
                 'currency' => $plan->currency,
                 'status' => SaasInvoiceStatus::Open,
                 'billing_snapshot' => [...$billing, 'organization_name' => Organization::query()->whereKey($subscription->organization_id)->value('name')],
             ]);
             Audit::record($actor, 'saas_invoice_issued', $invoice, 'SaaS invoice issued', ['attributes' => [
-                'number' => $invoice->number, 'amount' => $invoice->amount, 'currency' => $invoice->currency->value, 'due_at' => $invoice->due_at->toIso8601String(),
+                'number' => $invoice->number, 'rooms' => $invoice->rooms, 'unit_price' => $invoice->unit_price, 'amount' => $invoice->amount, 'currency' => $invoice->currency->value, 'due_at' => $invoice->due_at->toIso8601String(),
             ]]);
 
             return $invoice->amount === 0

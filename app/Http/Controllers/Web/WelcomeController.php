@@ -18,8 +18,6 @@ class WelcomeController extends Controller
                 'price' => $plan->price,
                 'currency' => $plan->currency->value,
                 'period' => $plan->billing_period->value,
-                'propertyLimit' => $plan->property_limit,
-                'roomLimit' => $plan->room_limit,
                 'trialDays' => $plan->trial_days,
             ])->all(),
             'contactEmail' => config('mail.from.address'),

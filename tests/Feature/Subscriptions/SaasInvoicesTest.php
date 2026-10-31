@@ -5,6 +5,7 @@ use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\Receipt;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Subscriptions\Actions\ChangeSubscribedRooms;
 use App\Domains\Subscriptions\Actions\IssueSaasInvoice;
 use App\Domains\Subscriptions\Actions\TransitionSubscription;
 use App\Domains\Subscriptions\Enums\SaasInvoiceStatus;
@@ -44,7 +45,9 @@ test('the first invoice covers the billing period after the trial, due when the 
 
     expect($first)
         ->status->toBe(SaasInvoiceStatus::Open)
-        ->amount->toBe($subscription->plan->price)
+        ->rooms->toBe(150)
+        ->unit_price->toBe($subscription->plan->price)
+        ->amount->toBe(150 * $subscription->plan->price)
         ->currency->toBe($subscription->plan->currency)
         ->number->toBe('SAAS-000001')
         ->and($first->period_starts_at->toIso8601String())->toBe($subscription->trial_ends_at->toIso8601String())
@@ -53,6 +56,17 @@ test('the first invoice covers the billing period after the trial, due when the 
         ->and($second->number)->toBe('SAAS-000002')
         ->and($next->number)->toBe('SAAS-000003')
         ->and($next->period_starts_at->toIso8601String())->toBe($first->period_ends_at->toIso8601String());
+});
+
+test('a change of subscribed rooms prices the next invoice, never one already issued', function () {
+    [$owner, $organization] = organizationWithOwner();
+    $first = saasInvoiceFor($organization);
+    inTenant($organization, fn () => app(ChangeSubscribedRooms::class)->handle($owner, 3));
+
+    $next = saasInvoiceFor($organization);
+
+    expect($first->fresh())->rooms->toBe(150)->amount->toBe(150 * 4900)
+        ->and($next)->rooms->toBe(3)->unit_price->toBe(4900)->amount->toBe(14700);
 });
 
 test('a platform administrator issues the next invoice for an organization', function () {

@@ -17,11 +17,13 @@ import { formatDate } from '@/features/platform/format';
 import { PaymentSlips } from '@/features/subscriptions/payment-slips';
 import type { PaymentSlip } from '@/features/subscriptions/payment-slips';
 import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
+import { SubscribedRoomsForm } from '@/features/subscriptions/subscribed-rooms-form';
 import { SubscriptionStatus } from '@/features/subscriptions/subscription-status';
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
 import { ZraCheckStatus } from '@/features/tenancy/zra-check-status';
 import { index } from '@/routes/platform/organizations';
+import { update as updateRooms } from '@/routes/platform/organizations/rooms';
 import { show as showInvoice } from '@/routes/platform/invoices';
 import type { Paginated, PlatformOrganizationOwner } from '@/types';
 
@@ -33,6 +35,7 @@ type Props = {
     };
     subscription: {
         plan: string;
+        rooms: number;
         status: string;
         statusLabel: string;
         currentPeriodEndsAt: string | null;
@@ -143,6 +146,13 @@ export default function PlatformOrganizationShow({
                         </dl>
                     ) : (
                         <EmptyState message="This organization has no subscription yet." />
+                    )}
+                    {subscription && (
+                        <SubscribedRoomsForm
+                            action={updateRooms.form(organization.id)}
+                            rooms={subscription.rooms}
+                            note="The most active rooms this organization may have. New invoices charge for this number."
+                        />
                     )}
                 </section>
                 <section

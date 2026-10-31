@@ -72,6 +72,7 @@ function organizationSetupPayload(array $overrides = []): array
         'organization_name' => 'Spice Island Hotels',
         'country' => 'TZ',
         'property_name' => 'Stone Town Inn',
+        'rooms' => 150,
         'property_type' => 'hotel',
         'address_line' => 'Kenyatta Road 12',
         'city' => 'Zanzibar City',

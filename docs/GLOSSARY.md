@@ -152,8 +152,12 @@ _Avoid_: Work order (in UI copy), issue
 ## Subscriptions
 
 **Plan**:
-A priced offer Karafuu sells to organizations, setting the price, billing period, property and room limits, and included modules.
+A priced offer Karafuu sells to organizations, setting the price per subscribed room for each billing period, the billing period, any property limit, and included modules.
 _Avoid_: Package, tier, rate plan (that is a room price)
+
+**Subscribed rooms**:
+The number of rooms an organization chooses to pay for on its subscription. It is the most active rooms the organization may have, and each SaaS invoice charges the plan's price for each subscribed room.
+_Avoid_: Room limit, seats, licences
 
 **Subscription**:
 An organization's agreement to one plan, with its trial, billing period and status.

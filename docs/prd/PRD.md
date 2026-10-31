@@ -204,7 +204,7 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 ### 7.3 Subscriptions and platform administration (P0)
 
 - **SUB-01:** SaaS subscription invoices are separate from guest folios. Subscription states are trial, active, past due, suspended and cancelled, with an audited transition policy.
-- **SUB-02:** Configurable plans, property and room limits, trial length, module entitlements and billing periods.
+- **SUB-02:** Configurable plans priced per subscribed room (ADR 0018), an optional property limit, trial length, module entitlements and billing periods.
 - **SUB-03:** Entitlements are enforced on the server. A downgrade never silently deletes rooms or properties.
 - **SUB-04:** Non-payment: reminders and a grace period, then new sales are blocked. Existing guests can still check out, and data can still be exported.
     - **Zanzibar:** booking reports and VFMS calls for existing stays continue during suspension. A suspended account must never cause a compliance gap.

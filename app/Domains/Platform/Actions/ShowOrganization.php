@@ -31,6 +31,7 @@ final class ShowOrganization
                 ],
                 'subscription' => $subscription === null ? null : [
                     'plan' => $subscription->plan->name,
+                    'rooms' => $subscription->rooms,
                     'status' => $subscription->status->value,
                     'statusLabel' => $subscription->status->label(),
                     'currentPeriodEndsAt' => $subscription->current_period_ends_at?->toIso8601String(),

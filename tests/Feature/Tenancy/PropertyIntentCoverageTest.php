@@ -13,6 +13,7 @@ const EXEMPT = [
     'current-organization.update' => 'the switcher itself chooses the context',
     'current-property.update' => 'the switcher itself chooses the context',
     'subscription.invoices.slips.store' => 'payment slips belong to the organization invoice, not a property',
+    'subscription.rooms.update' => 'subscribed rooms belong to the organization subscription, not a property',
 ];
 
 /** @return list<string> */

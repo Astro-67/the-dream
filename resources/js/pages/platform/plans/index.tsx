@@ -26,8 +26,7 @@ type Plan = {
     id: string;
     name: string;
     code: string;
-    property_limit: number;
-    room_limit: number;
+    property_limit: number | null;
     trial_days: number;
     grace_days: number;
     billing_period: string;
@@ -65,8 +64,8 @@ function PlanForm({
                 name={name}
                 type="number"
                 min={0}
-                required
-                defaultValue={plan ? String(plan[name]) : undefined}
+                required={name !== 'property_limit'}
+                defaultValue={plan ? String(plan[name] ?? '') : undefined}
                 aria-invalid={!!errors[name]}
             />
             <InputError message={errors[name]} />
@@ -111,8 +110,11 @@ function PlanForm({
                         />
                         <InputError message={errors.code} />
                     </div>
-                    {number('property_limit', 'Property limit', errors)}
-                    {number('room_limit', 'Room limit', errors)}
+                    {number(
+                        'property_limit',
+                        'Property limit (empty for no limit)',
+                        errors,
+                    )}
                     {number('trial_days', 'Trial length (days)', errors)}
                     {number('grace_days', 'Grace period (days)', errors)}
                     <div className="grid gap-2">
@@ -136,7 +138,7 @@ function PlanForm({
                     <div className="grid grid-cols-[1fr_6rem] gap-2">
                         <div className="grid gap-2">
                             <Label htmlFor={`${plan?.id ?? 'new'}-price`}>
-                                Price per period ({currency})
+                                Price per room per period ({currency})
                             </Label>
                             <MoneyInput
                                 id={`${plan?.id ?? 'new'}-price`}
@@ -228,7 +230,6 @@ export default function PlatformPlans({
                             <TableRow>
                                 <TableHead>Plan</TableHead>
                                 <TableHead numeric>Properties</TableHead>
-                                <TableHead numeric>Rooms</TableHead>
                                 <TableHead numeric>Trial days</TableHead>
                                 <TableHead numeric>Grace days</TableHead>
                                 <TableHead numeric>Price</TableHead>
@@ -250,10 +251,7 @@ export default function PlatformPlans({
                                         <Identifier value={plan.code} />
                                     </TableCell>
                                     <TableCell numeric>
-                                        {plan.property_limit}
-                                    </TableCell>
-                                    <TableCell numeric>
-                                        {plan.room_limit}
+                                        {plan.property_limit ?? 'No limit'}
                                     </TableCell>
                                     <TableCell numeric>
                                         {plan.trial_days}
@@ -264,7 +262,7 @@ export default function PlatformPlans({
                                     <TableCell numeric>
                                         {formatMoney(plan.price, plan.currency)}{' '}
                                         <span className="text-muted-foreground">
-                                            {plan.billingPeriodLabel}
+                                            per room, {plan.billingPeriodLabel}
                                         </span>
                                     </TableCell>
                                     <TableCell>

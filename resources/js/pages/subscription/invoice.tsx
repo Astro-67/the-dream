@@ -92,7 +92,13 @@ export default function SaasInvoiceShow({
                             ['Due', formatDate(invoice.dueAt)],
                             [
                                 'Amount',
-                                formatMoney(invoice.amount, invoice.currency),
+                                invoice.rooms !== null &&
+                                invoice.unitPrice !== null
+                                    ? `${invoice.rooms} rooms × ${formatMoney(invoice.unitPrice, invoice.currency)} = ${formatMoney(invoice.amount, invoice.currency)}`
+                                    : formatMoney(
+                                          invoice.amount,
+                                          invoice.currency,
+                                      ),
                             ],
                             [
                                 'Balance',

@@ -24,9 +24,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property CarbonImmutable|null $trial_ends_at
  * @property CarbonImmutable|null $current_period_ends_at
  * @property bool $cancel_at_period_end
+ * @property int $rooms subscribed rooms: the most active rooms allowed, and what each invoice charges for
  * @property Plan $plan
  */
-#[Fillable(['plan_id', 'status', 'trial_ends_at', 'current_period_ends_at', 'cancel_at_period_end'])]
+#[Fillable(['plan_id', 'rooms', 'status', 'trial_ends_at', 'current_period_ends_at', 'cancel_at_period_end'])]
 #[UsePolicy(SubscriptionPolicy::class)]
 class Subscription extends Model
 {
@@ -40,6 +41,7 @@ class Subscription extends Model
             'trial_ends_at' => 'immutable_datetime',
             'current_period_ends_at' => 'immutable_datetime',
             'cancel_at_period_end' => 'boolean',
+            'rooms' => 'integer',
             'last_advanced_at' => 'immutable_datetime',
         ];
     }

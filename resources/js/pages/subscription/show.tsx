@@ -16,7 +16,9 @@ import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status'
 import { SubscriptionStatus } from '@/features/subscriptions/subscription-status';
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
+import { SubscribedRoomsForm } from '@/features/subscriptions/subscribed-rooms-form';
 import { show } from '@/routes/subscription';
+import { update as updateRooms } from '@/routes/subscription/rooms';
 import { show as showInvoice } from '@/routes/subscription/invoices';
 import type { Paginated } from '@/types';
 
@@ -26,11 +28,11 @@ type Props = {
         statusLabel: string;
         trialEndsAt: string | null;
         currentPeriodEndsAt: string | null;
+        rooms: number;
     };
     plan: {
         name: string;
-        propertyLimit: number;
-        roomLimit: number;
+        propertyLimit: number | null;
         price: number;
         currency: string;
         billingPeriod: string;
@@ -54,18 +56,20 @@ function Usage({
 }: {
     label: string;
     used: number;
-    limit: number;
+    limit: number | null;
 }) {
     return (
         <div className="rounded-xl border bg-card p-4">
             <div className="text-sm text-muted-foreground">{label}</div>
             <div className="text-2xl font-semibold tabular-nums">
                 {used}{' '}
-                <span className="text-base text-muted-foreground">
-                    of {limit}
-                </span>
+                {limit !== null && (
+                    <span className="text-base text-muted-foreground">
+                        of {limit}
+                    </span>
+                )}
             </div>
-            {used >= limit && (
+            {limit !== null && used >= limit && (
                 <StatusChip tone="warning">Limit reached</StatusChip>
             )}
         </div>
@@ -97,7 +101,7 @@ export default function SubscriptionShow({
                             <span className="tabular-nums">
                                 {formatMoney(plan.price, plan.currency)}
                             </span>{' '}
-                            {plan.billingPeriod.toLowerCase()}
+                            per room, {plan.billingPeriod.toLowerCase()}
                         </span>
                         {subscription.status === 'trial' &&
                             subscription.trialEndsAt && (
@@ -139,9 +143,14 @@ export default function SubscriptionShow({
                         <Usage
                             label="Rooms"
                             used={usage.rooms}
-                            limit={plan.roomLimit}
+                            limit={subscription.rooms}
                         />
                     </div>
+                    <SubscribedRoomsForm
+                        action={updateRooms.form()}
+                        rooms={subscription.rooms}
+                        note={`Each invoice charges ${formatMoney(plan.price, plan.currency)} per subscribed room. A change applies to new rooms now and to your next invoice.`}
+                    />
                     <p className="text-sm text-muted-foreground">
                         Demo and archived properties don't count.
                     </p>

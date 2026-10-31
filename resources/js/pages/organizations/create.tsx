@@ -159,6 +159,29 @@ export default function CreateOrganization({
                                                 placeholder="Choose a country"
                                             />
                                         </Field>
+                                        <Field
+                                            id="rooms"
+                                            label="Rooms to subscribe"
+                                            error={errors.rooms}
+                                        >
+                                            <Input
+                                                id="rooms"
+                                                name="rooms"
+                                                type="number"
+                                                min={1}
+                                                required
+                                                defaultValue={1}
+                                                aria-describedby="rooms-note"
+                                            />
+                                            <p
+                                                id="rooms-note"
+                                                className="text-sm text-muted-foreground"
+                                            >
+                                                Across all your properties. You
+                                                pay per room and can change this
+                                                later.
+                                            </p>
+                                        </Field>
                                     </CardContent>
                                 </Card>
 

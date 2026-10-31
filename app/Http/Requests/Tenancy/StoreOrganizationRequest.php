@@ -4,6 +4,7 @@ namespace App\Http\Requests\Tenancy;
 
 use App\Domains\Tenancy\Data\OrganizationSetup;
 use App\Domains\Tenancy\Enums\Country;
+use App\Http\Requests\Subscriptions\SubscribedRoomsRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -28,6 +29,7 @@ class StoreOrganizationRequest extends FormRequest
             'organization_name' => ['required', 'string', 'max:255'],
             'country' => ['required', Rule::enum(Country::class)],
             'property_name' => ['required', 'string', 'max:255'],
+            'rooms' => SubscribedRoomsRequest::RULES,
             ...PropertyRequest::propertyRules(),
         ];
     }

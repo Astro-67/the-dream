@@ -50,7 +50,7 @@ class CreateOrganization
                     'all_properties' => true,
                 ]);
                 $owner->assignRole(OrganizationRole::Owner->value);
-                $this->startTrial->handle($owner);
+                $this->startTrial->handle($owner, $setup->rooms);
 
                 return $this->createProperty->handle($owner, $setup->property);
             });

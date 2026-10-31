@@ -13,6 +13,7 @@ final readonly class OrganizationSetup
         public string $organizationName,
         public Country $country,
         public PropertyDetails $property,
+        public int $rooms = 1,
     ) {}
 
     /**
@@ -24,6 +25,7 @@ final readonly class OrganizationSetup
             organizationName: is_string($input['organization_name'] ?? null) ? $input['organization_name'] : '',
             country: Country::from(is_string($input['country'] ?? null) ? $input['country'] : ''),
             property: PropertyDetails::fromArray($input, nameKey: 'property_name'),
+            rooms: is_numeric($input['rooms'] ?? null) ? (int) $input['rooms'] : 1,
         );
     }
 }

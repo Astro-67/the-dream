@@ -20,8 +20,6 @@ type Plan = {
     price: number;
     currency: string;
     period: 'monthly' | 'yearly';
-    propertyLimit: number;
-    roomLimit: number;
     trialDays: number;
 };
 
@@ -161,12 +159,12 @@ function PlanCard({ plan }: { plan: Plan }) {
                 </span>
                 <span className="text-sm text-muted-foreground">
                     {' '}
-                    / {plan.period === 'monthly' ? 'month' : 'year'}
+                    per room / {plan.period === 'monthly' ? 'month' : 'year'}
                 </span>
             </p>
             <ul className="space-y-2 text-sm">
                 {[
-                    `Up to ${plan.propertyLimit} properties and ${plan.roomLimit} rooms`,
+                    'Pay only for the rooms you choose',
                     'Front desk, rooms, rates and housekeeping',
                     'Billing, night audit and basic reports',
                     'Staff roles and permissions',

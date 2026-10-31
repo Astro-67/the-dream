@@ -26,7 +26,7 @@ use Tests\Support\TwoTenants;
  * an owner sees only their own invoices on the subscription page.
  */
 $planPayload = fn (array $overrides = []): array => [
-    'name' => 'Hijacked', 'code' => 'HIJACK', 'property_limit' => 99, 'room_limit' => 999, 'trial_days' => 90,
+    'name' => 'Hijacked', 'code' => 'HIJACK', 'property_limit' => 99, 'trial_days' => 90,
     'grace_days' => 30, 'billing_period' => 'yearly', 'price' => 0, 'currency' => 'USD', 'is_default' => true, ...$overrides,
 ];
 
@@ -83,6 +83,24 @@ return [
         $this->actingAs($t->a->owner)->get(route('subscription.show'))->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('usage', ['properties' => 2, 'rooms' => 0])->has('invoices.data', 0))
             ->assertDontSee($bravoInvoice->id);
+
+        return $responses;
+    }),
+
+    'subscription.rooms.update' => RouteCoverage::attempt(function (TwoTenants $t) {
+        // The route carries no ID: it can only change the caller's own organization.
+        $responses = array_values(array_map(fn ($member) => $this->actingAs($member)->put(route('subscription.rooms.update'), ['rooms' => 7]), $t->a->members()));
+
+        expect(inTenant($t->b->organization, fn () => Subscription::current()->rooms))->toBe(150);
+
+        return $responses;
+    }),
+
+    'platform.organizations.rooms.update' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $responses = array_values(array_map(fn ($member) => $this->actingAs($member)
+            ->put(route('platform.organizations.rooms.update', $t->b->organization->id), ['rooms' => 7])->assertForbidden(), $t->a->members()));
+
+        expect(inTenant($t->b->organization, fn () => Subscription::current()->rooms))->toBe(150);
 
         return $responses;
     }),
