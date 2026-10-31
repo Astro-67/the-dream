@@ -2,6 +2,8 @@ import { formatDate } from '@/lib/utils';
 import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
+import { Button } from '@/components/ui/button';
+import type { OutOfServicePeriod } from '@/features/inventory/out-of-service';
 import {
     Tooltip,
     TooltipContent,
@@ -23,6 +25,8 @@ export type CalendarRoom = {
     id: string;
     number: string;
     reservations: CalendarReservation[];
+    outOfServicePeriods?: OutOfServicePeriod[];
+    canManageOutOfOrder?: boolean;
 };
 
 const sources: Record<string, string> = {
@@ -35,9 +39,17 @@ const sources: Record<string, string> = {
 export function CalendarRoomRows({
     rooms,
     dates,
+    businessDate = '',
+    onOutOfOrder,
 }: {
     rooms: CalendarRoom[];
     dates: string[];
+    businessDate?: string;
+    onOutOfOrder?: (
+        room: CalendarRoom,
+        date: string,
+        period?: OutOfServicePeriod,
+    ) => void;
 }) {
     return rooms.flatMap((room) => {
         const lanes: CalendarReservation[][] = [[]];
@@ -54,10 +66,62 @@ export function CalendarRoomRows({
             if (lane) lane.push(reservation);
             else lanes.push([reservation]);
         }
+        const periodLane = room.outOfServicePeriods?.length ? lanes.length : -1;
+        if (periodLane !== -1) lanes.push([]);
+        const canManage = room.canManageOutOfOrder && onOutOfOrder;
         return lanes.map((reservations, laneIndex) => {
             const cells: React.ReactNode[] = [];
             for (let index = 0; index < dates.length;) {
                 const date = dates[index];
+                const period =
+                    laneIndex === periodLane
+                        ? room.outOfServicePeriods?.find(
+                              (period) =>
+                                  period.startsOn <= date &&
+                                  period.returnsOn > date,
+                          )
+                        : undefined;
+                if (period) {
+                    let end = index + 1;
+                    while (end < dates.length && dates[end] < period.returnsOn)
+                        end++;
+                    const description = `Room ${room.number}: Out of order, ${formatDate(period.startsOn)} to ${formatDate(period.returnsOn)}, ${period.reason}`;
+                    cells.push(
+                        <TableCell
+                            key={date}
+                            colSpan={end - index}
+                            className="border-b border-l p-1"
+                        >
+                            {canManage && period.returnsOn > businessDate ? (
+                                <Button
+                                    variant="ghost"
+                                    className="h-auto min-h-11 w-full justify-start gap-2 whitespace-normal"
+                                    aria-label={`Return room ${room.number} to service: ${period.reason}`}
+                                    onClick={() =>
+                                        onOutOfOrder?.(room, date, period)
+                                    }
+                                >
+                                    <StatusChip tone="unavailable">
+                                        Out of order
+                                    </StatusChip>
+                                    <span>{period.reason}</span>
+                                </Button>
+                            ) : (
+                                <div
+                                    aria-label={description}
+                                    className="flex min-h-11 items-center gap-2 px-3 py-2"
+                                >
+                                    <StatusChip tone="unavailable">
+                                        Out of order
+                                    </StatusChip>
+                                    <span>{period.reason}</span>
+                                </div>
+                            )}
+                        </TableCell>,
+                    );
+                    index = end;
+                    continue;
+                }
                 const departures = reservations
                     .filter(
                         (reservation) =>
@@ -86,10 +150,24 @@ export function CalendarRoomRows({
                     cells.push(
                         <TableCell
                             key={date}
-                            aria-label={`Room ${room.number}, ${formatDate(date)}: unassigned`}
+                            aria-label={`Room ${room.number}, ${formatDate(date)}: ${laneIndex === periodLane ? 'in service' : 'unassigned'}`}
                             className="border-b border-l px-2 py-2"
                         >
                             {departures}
+                            {canManage &&
+                                laneIndex === 0 &&
+                                date >= businessDate && (
+                                    <Button
+                                        variant="ghost"
+                                        className="min-h-11 w-full"
+                                        aria-label={`Take room ${room.number} out of order from ${formatDate(date)}`}
+                                        onClick={() =>
+                                            onOutOfOrder?.(room, date)
+                                        }
+                                    >
+                                        Out of order
+                                    </Button>
+                                )}
                         </TableCell>,
                     );
                     index++;
@@ -172,6 +250,24 @@ export function CalendarRoomRows({
                             className="sticky left-0 z-10 border-b bg-card px-3 py-2 text-left font-normal whitespace-nowrap"
                         >
                             Room <Identifier value={room.number} />
+                            {canManage && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="ml-2 min-h-11 md:min-h-8"
+                                    aria-label={`Take room ${room.number} out of order`}
+                                    onClick={() =>
+                                        onOutOfOrder?.(
+                                            room,
+                                            dates.find(
+                                                (date) => date >= businessDate,
+                                            ) ?? businessDate,
+                                        )
+                                    }
+                                >
+                                    Out of order
+                                </Button>
+                            )}
                         </TableHead>
                     )}
                     {cells}

@@ -137,3 +137,50 @@ assert.match(
 console.log(
     'Same-day turnover shares a row without an extra occupied night: PASS',
 );
+
+for (const canManageOutOfOrder of [true, false]) {
+    const html = renderToStaticMarkup(
+        <TooltipProvider>
+            <table>
+                <tbody>
+                    <CalendarRoomRows
+                        dates={['2026-12-11', '2026-12-12', '2026-12-13']}
+                        businessDate="2026-12-11"
+                        onOutOfOrder={() => {}}
+                        rooms={[
+                            {
+                                id: 'room',
+                                number: '101',
+                                reservations: consecutive,
+                                canManageOutOfOrder,
+                                outOfServicePeriods: [
+                                    {
+                                        id: 'period',
+                                        startsOn: '2026-12-10',
+                                        returnsOn: '2026-12-13',
+                                        reason: 'Leaking shower',
+                                        started: true,
+                                    },
+                                ],
+                            },
+                        ]}
+                    />
+                </tbody>
+            </table>
+        </TooltipProvider>,
+    );
+    assert.match(html, /Out of order/);
+    assert.match(html, /Leaking shower/);
+    assert.match(html, /colSpan="2"/);
+    assert.match(html, /href="\/reservations\/arriving"/);
+    if (canManageOutOfOrder) {
+        assert.match(html, /aria-label="Return room 101 to service/);
+        assert.match(html, /aria-label="Take room 101 out of order/);
+    } else {
+        assert.doesNotMatch(html, /<button/);
+    }
+    assert.doesNotMatch(html, /out.of.service/i);
+}
+console.log(
+    'Out-of-order room periods remain visible alongside stays, read-only for front desk: PASS',
+);
