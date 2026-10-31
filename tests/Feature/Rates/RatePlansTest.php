@@ -202,3 +202,25 @@ test('a rates manager sets a cancellation policy and no-show fee on a plan with 
         ->assertSessionHasErrors(['cancellation_charge', 'no_show_percent', 'cancellation_free_days']);
     $this->put(route('rate-plans.update', $plan), [...$form, 'cancellation_percent' => 101])->assertSessionHasErrors(['cancellation_percent']);
 });
+
+test('a rates manager creates a plan with its cancellation policy and no-show fee', function (bool $derived) {
+    $t = twoTenants();
+    [$room, $base] = inTenant($t->a->property, function () {
+        $room = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+
+        return [$room, app(CreateRatePlan::class)->handle(null, ['name' => 'Base', 'code' => 'BASE', 'currency' => 'USD', 'room_type_ids' => [$room->id]])];
+    });
+    $policy = ['cancellation_free_days' => 7, 'cancellation_charge' => 'percent', 'cancellation_percent' => 50, 'no_show_charge' => 'first_night', 'no_show_percent' => null];
+    $form = ['_property' => $t->a->property->id, 'name' => 'Breakfast', 'code' => 'BB', ...$policy,
+        ...($derived ? ['base_rate_plan_id' => $base->id, 'adjustment_kind' => 'percent', 'adjustment' => 10] : ['currency' => 'USD', 'room_type_ids' => [$room->id]])];
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager));
+    $this->post(route('rate-plans.store'), [...$form, 'no_show_charge' => 'percent', 'no_show_percent' => null, 'cancellation_free_days' => -1])
+        ->assertSessionHasErrors(['no_show_percent', 'cancellation_free_days']);
+    $response = $this->post(route('rate-plans.store'), [...$form, 'no_show_percent' => 80])->assertSessionHasNoErrors();
+    $plan = inTenant($t->a->property, fn () => RatePlan::query()->where('code', 'BB')->sole());
+    $response->assertRedirect(route('rate-plans.prices', $plan));
+    $this->get(route('rate-plans.edit', $plan))->assertInertia(fn (Assert $page) => $page
+        ->where('plan.cancellation_free_days', 7)->where('plan.cancellation_charge', 'percent')->where('plan.cancellation_percent', 50)
+        ->where('plan.no_show_charge', 'first_night')->where('plan.no_show_percent', null));
+    expect(Activity::query()->where('description', 'Rate plan created')->where('subject_id', $plan->id)->sole()->getExtraProperty('attributes'))->toMatchArray($policy);
+})->with(['base' => false, 'derived' => true]);

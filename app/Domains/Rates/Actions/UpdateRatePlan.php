@@ -14,10 +14,10 @@ class UpdateRatePlan
     {
         return DB::transaction(function () use ($actor, $plan, $details) {
             $plan = RatePlan::query()->whereKey($plan->id)->lockForUpdate()->firstOrFail();
-            $old = [...$plan->only(['name', 'code']), ...self::policy($plan->only(RatePlan::POLICY)), 'room_type_ids' => $plan->roomTypes()->orderBy('room_types.id')->pluck('room_types.id')->all()];
+            $old = [...$plan->only(['name', 'code']), ...RatePlan::policyAttributes($plan->only(RatePlan::POLICY)), 'room_type_ids' => $plan->roomTypes()->orderBy('room_types.id')->pluck('room_types.id')->all()];
             $ids = $plan->base_rate_plan_id === null ? $details['room_type_ids'] : $plan->basePlan->roomTypes()->pluck('room_types.id')->all();
             sort($ids);
-            $policy = self::policy($details);
+            $policy = RatePlan::policyAttributes($details);
             $attributes = ['name' => $details['name'], 'code' => $details['code'], ...$policy, 'room_type_ids' => $ids];
             if ($attributes === $old) {
                 return $plan;
@@ -32,25 +32,5 @@ class UpdateRatePlan
 
             return $plan;
         });
-    }
-
-    /**
-     * The policy fields as stored: a percentage only for a percentage charge.
-     *
-     * @param  array<string, mixed>  $values
-     * @return array<string, int|string|null>
-     */
-    private static function policy(array $values): array
-    {
-        $value = fn (string $key) => ($v = $values[$key] ?? null) instanceof \BackedEnum ? $v->value : $v;
-        $int = fn (string $key) => $value($key) === null ? null : (int) $value($key);
-
-        return [
-            'cancellation_free_days' => $int('cancellation_free_days'),
-            'cancellation_charge' => $value('cancellation_charge'),
-            'cancellation_percent' => $value('cancellation_charge') === 'percent' ? $int('cancellation_percent') : null,
-            'no_show_charge' => $value('no_show_charge'),
-            'no_show_percent' => $value('no_show_charge') === 'percent' ? $int('no_show_percent') : null,
-        ];
     }
 }

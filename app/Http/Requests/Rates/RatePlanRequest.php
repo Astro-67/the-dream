@@ -4,6 +4,7 @@ namespace App\Http\Requests\Rates;
 
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Enums\AdjustmentKind;
+use App\Domains\Rates\Enums\FeeCharge;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Support\Tenancy\Tenancy;
@@ -27,6 +28,7 @@ class RatePlanRequest extends FormRequest
         $common = [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:16', Rule::unique('rate_plans', 'code')->where('property_id', $property?->id)],
+            ...$this->policyRules(),
         ];
 
         if ($this->filled('base_rate_plan_id')) {
@@ -41,6 +43,18 @@ class RatePlanRequest extends FormRequest
             'currency' => ['required', Rule::in($property ? JurisdictionRules::allowedCurrencies($property) : [])],
             'room_type_ids' => ['required', 'array', 'min:1'],
             'room_type_ids.*' => ['required', 'string', 'distinct', Rule::in(RoomType::query()->pluck('id')->all())],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    protected function policyRules(): array
+    {
+        return [
+            'cancellation_free_days' => ['nullable', 'integer', 'between:0,365'],
+            'cancellation_charge' => ['nullable', Rule::enum(FeeCharge::class)],
+            'cancellation_percent' => ['nullable', 'required_if:cancellation_charge,percent', 'integer', 'between:1,100'],
+            'no_show_charge' => ['nullable', Rule::enum(FeeCharge::class)],
+            'no_show_percent' => ['nullable', 'required_if:no_show_charge,percent', 'integer', 'between:1,100'],
         ];
     }
 

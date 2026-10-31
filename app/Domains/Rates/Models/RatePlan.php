@@ -57,6 +57,24 @@ class RatePlan extends Model
     }
 
     /**
+     * @param  array<string, mixed>  $values
+     * @return array<string, int|string|null>
+     */
+    public static function policyAttributes(array $values): array
+    {
+        $value = fn (string $key) => ($v = $values[$key] ?? null) instanceof \BackedEnum ? $v->value : $v;
+        $int = fn (string $key) => $value($key) === null ? null : (int) $value($key);
+
+        return [
+            'cancellation_free_days' => $int('cancellation_free_days'),
+            'cancellation_charge' => $value('cancellation_charge'),
+            'cancellation_percent' => $value('cancellation_charge') === 'percent' ? $int('cancellation_percent') : null,
+            'no_show_charge' => $value('no_show_charge'),
+            'no_show_percent' => $value('no_show_charge') === 'percent' ? $int('no_show_percent') : null,
+        ];
+    }
+
+    /**
      * Plans another plan may derive from: active and not derived themselves, so derivation is one level.
      *
      * @param  Builder<self>  $query

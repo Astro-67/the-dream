@@ -50,7 +50,7 @@ class RatePlanController extends Controller
     {
         /** @var User $actor */
         $actor = $request->user();
-        /** @var array{name: string, code: string, currency?: string, room_type_ids?: list<string>, base_rate_plan_id?: string, adjustment_kind?: string, adjustment?: int|string} $details */
+        /** @var array{name: string, code: string, currency?: string, room_type_ids?: list<string>, base_rate_plan_id?: string, adjustment_kind?: string, adjustment?: int|string, cancellation_free_days?: int|null, cancellation_charge?: string|null, cancellation_percent?: int|null, no_show_charge?: string|null, no_show_percent?: int|null} $details */
         $details = $request->validated();
         if (isset($details['adjustment'])) {
             $details['adjustment'] = (int) $details['adjustment'];
