@@ -4,6 +4,7 @@ use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Subscriptions\Actions\IssueSaasInvoice;
 use App\Domains\Subscriptions\Enums\SaasInvoiceStatus;
+use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Subscriptions\Models\Plan;
 use App\Domains\Subscriptions\Models\SaasInvoice;
 use App\Domains\Subscriptions\Models\SaasPayment;
@@ -95,5 +96,23 @@ return [
             ->and(inTenant($t->b->organization, fn () => SaasPayment::query()->count()))->toBe(0);
 
         return $responses;
+    }),
+
+    'platform.billing-details.edit' => RouteCoverage::attempt(fn (TwoTenants $t) => array_values(array_map(
+        fn ($member) => $this->actingAs($member)->get(route('platform.billing-details.edit'))->assertForbidden(),
+        $t->a->members(),
+    ))),
+
+    'platform.billing-details.update' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $before = withBillingDetails()->toArray();
+
+        $response = $this->actingAs($t->a->owner)->put(route('platform.billing-details.update'), [
+            'business_name' => 'Hijacked', 'address' => 'x', 'phone' => 'x', 'email' => 'x@example.test', 'tin' => 'x',
+            'accounts' => [['type' => 'mobile_money', 'provider' => 'x', 'account_name' => 'Hijacked', 'account_number' => '1']],
+        ])->assertForbidden();
+
+        expect(BillingDetails::current()?->toArray())->toEqual($before);
+
+        return $response;
     }),
 ];

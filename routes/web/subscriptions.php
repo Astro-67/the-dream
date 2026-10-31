@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Web\Subscriptions\BillingDetailsController;
 use App\Http\Controllers\Web\Subscriptions\PlanController;
 use App\Http\Controllers\Web\Subscriptions\SaasInvoiceController;
 use App\Http\Controllers\Web\Subscriptions\SubscriptionController;
@@ -19,5 +20,7 @@ Route::middleware(['auth', 'verified', 'platform:platform_administrator', 'two-f
         Route::put('plans/{plan}', [PlanController::class, 'update'])->name('plans.update');
         Route::get('invoices', [SaasInvoiceController::class, 'index'])->name('invoices.index');
         Route::post('invoices', [SaasInvoiceController::class, 'store'])->name('invoices.store');
+        Route::get('billing-details', [BillingDetailsController::class, 'edit'])->name('billing-details.edit');
+        Route::put('billing-details', [BillingDetailsController::class, 'update'])->name('billing-details.update');
         Route::post('invoices/{invoice}/payments', [SaasInvoiceController::class, 'recordPayment'])->name('invoices.payments.store');
     });

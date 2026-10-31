@@ -9,6 +9,7 @@ import {
     DoorOpen,
     Hotel,
     LayoutGrid,
+    Landmark,
     Layers,
     ReceiptText,
     Wallet,
@@ -38,6 +39,7 @@ import { index as members } from '@/routes/members';
 import { index as payments } from '@/routes/payments';
 import { index as nightAudit } from '@/routes/night-audit';
 import { index as openBalances } from '@/routes/open-balances';
+import { edit as platformBillingDetails } from '@/routes/platform/billing-details';
 import { index as platformInvoices } from '@/routes/platform/invoices';
 import { index as platformOrganizations } from '@/routes/platform/organizations';
 import { index as platformPlans } from '@/routes/platform/plans';
@@ -78,6 +80,11 @@ const platformNavItems: NavItem[] = [
         title: 'SaaS invoices',
         href: platformInvoices(),
         icon: ReceiptText,
+    },
+    {
+        title: 'Billing details',
+        href: platformBillingDetails(),
+        icon: Landmark,
     },
     {
         title: 'Platform staff',
