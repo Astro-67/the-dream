@@ -2,6 +2,7 @@
 
 use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Actions\PostRoomCharge;
 use App\Domains\Billing\Actions\RecordAdjustment;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Actions\ReversePosting;
@@ -10,6 +11,7 @@ use App\Domains\Billing\Models\Receipt;
 use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +64,23 @@ test('a deposit before night audit has no posted room charges while the stay has
         ->where('receipt.deposit', true)->where('summary.room', 0)->where('summary.charges', 0)->where('summary.balance', -5000));
     $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('totals.0.estimate', ['nights' => 3, 'amount' => 30000]));
+});
+
+test('a receipt freezes the unposted room estimate at payment time', function () {
+    [$t, $reservation, $folio] = receiptThreeNightStay();
+    $receipt = pay($t, $folio, 5000, 'estimated-deposit');
+    inTenant($t->a->property, function () use ($t, $reservation) {
+        $reservation->update(['status' => ReservationStatus::CheckedIn]);
+        foreach (['2026-12-10', '2026-12-11', '2026-12-12'] as $date) {
+            app(PostRoomCharge::class)->handle($t->a->owner, $reservation, $date);
+        }
+    });
+
+    expect(pay($t, $folio, 5000, 'estimated-deposit')->id)->toBe($receipt->id);
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('receipts.show', $receipt))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('summary.estimate', ['nights' => 3, 'amount' => 30000, 'currency' => 'USD'])
+        ->where('summary.room', 0)->where('summary.charges', 0)->where('summary.balance', -5000));
 });
 
 // protects=each receipt keeps the balance of its own moment; fails_when=a later payment or correction rewrites an earlier snapshot.
