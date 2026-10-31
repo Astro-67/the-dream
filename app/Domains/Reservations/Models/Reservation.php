@@ -82,6 +82,13 @@ class Reservation extends Model
         ];
     }
 
+    public function isEligibleForCheckIn(string $businessDate): bool
+    {
+        return $this->status === ReservationStatus::Confirmed
+            && $this->arrival->toDateString() <= $businessDate
+            && $this->departure->toDateString() > $businessDate;
+    }
+
     public function isOverstay(string $businessDate): bool
     {
         return $this->status === ReservationStatus::CheckedIn && $this->departure->toDateString() < $businessDate;

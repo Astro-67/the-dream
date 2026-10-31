@@ -30,8 +30,7 @@ class BookingGroupMembers
             return [
                 ...$member->only(['reservation_number', 'status', 'arrival', 'departure']),
                 'can' => [
-                    'checkIn' => $member->status === ReservationStatus::Confirmed
-                        && $member->arrival->toDateString() <= $date && $member->departure->toDateString() > $date && Gate::allows('checkIn', $member),
+                    'checkIn' => $member->isEligibleForCheckIn($date) && Gate::allows('checkIn', $member),
                     'checkOut' => $member->status === ReservationStatus::CheckedIn && Gate::allows('checkOut', $member),
                     'overrideBalance' => Gate::allows('checkOutWithBalance', $member),
                 ],

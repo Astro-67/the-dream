@@ -135,7 +135,7 @@ class ReservationController extends Controller
             ] : null,
             'canAmend' => Gate::allows('amend', $reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),
-            'can' => ['checkIn' => $reservation->status === ReservationStatus::Confirmed && $reservation->arrival->toDateString() <= BusinessDate::current() && $reservation->departure->toDateString() > BusinessDate::current() && Gate::allows('checkIn', $reservation),
+            'can' => ['checkIn' => $reservation->isEligibleForCheckIn(BusinessDate::current()) && Gate::allows('checkIn', $reservation),
                 'cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation), 'moveRoom' => $canMove, 'changeStay' => Gate::allows('changeStay', $reservation),
                 'checkOut' => Gate::allows('checkOut', $reservation), 'overrideBalance' => Gate::allows('checkOutWithBalance', $reservation)],
             'moveRooms' => $canMove ? app(AssignableRooms::class)->forMove($reservation) : [],

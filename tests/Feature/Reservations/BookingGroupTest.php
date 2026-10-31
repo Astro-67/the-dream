@@ -158,11 +158,13 @@ test('group arrival actions respect business date and staff permissions', functi
     $t->a->property->update(['business_date' => $date]);
     $this->actingAs($t->a->member($role))->get(route('reservations.show', $member))->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('can.checkIn', $allowed)
             ->where('groupMembers.0.can.checkIn', $allowed)
             ->where('groupMembers.0.can.checkOut', false)
             ->has('groupMembers.0.paymentFolios', $role === OrganizationRole::Auditor ? 0 : 1));
 })->with([
     [OrganizationRole::FrontDesk, '2026-12-10', true],
+    [OrganizationRole::FrontDesk, '2026-12-11', true],
     [OrganizationRole::Auditor, '2026-12-10', false],
     [OrganizationRole::FrontDesk, '2026-12-09', false],
     [OrganizationRole::FrontDesk, '2026-12-12', false],
