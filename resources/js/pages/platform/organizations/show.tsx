@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
@@ -17,6 +17,7 @@ import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status'
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
 import { index } from '@/routes/platform/organizations';
+import { show as showInvoice } from '@/routes/platform/invoices';
 import type { Paginated, PlatformOrganizationOwner } from '@/types';
 
 const subscriptionTones: Record<string, StatusTone> = {
@@ -177,9 +178,16 @@ export default function PlatformOrganizationShow({
                                             className="align-top"
                                         >
                                             <TableCell className="whitespace-nowrap">
-                                                <Identifier
-                                                    value={invoice.number}
-                                                />
+                                                <Link
+                                                    className="text-primary underline underline-offset-4"
+                                                    href={showInvoice(
+                                                        invoice.id,
+                                                    )}
+                                                >
+                                                    <Identifier
+                                                        value={invoice.number}
+                                                    />
+                                                </Link>
                                                 <div className="text-xs text-muted-foreground">
                                                     {formatDate(
                                                         invoice.periodStartsAt,

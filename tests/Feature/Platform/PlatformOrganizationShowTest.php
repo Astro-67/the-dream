@@ -66,6 +66,7 @@ test('missing organizations return not found and empty organizations render safe
 });
 
 test('the organization page shows only its invoices and recorded payments', function () {
+    withBillingDetails();
     $tenants = twoTenants();
     $invoice = inTenant($tenants->a->organization, function () {
         $invoice = app(IssueSaasInvoice::class)->handle(Subscription::current());
@@ -95,6 +96,7 @@ test('the organization page shows only its invoices and recorded payments', func
 });
 
 test('organization invoice history is paginated and never mixes organizations', function () {
+    withBillingDetails();
     $tenants = twoTenants();
     inTenant($tenants->a->organization, function () {
         $subscription = Subscription::current();
