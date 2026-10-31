@@ -59,6 +59,17 @@ test('group payment targets only the selected member folio', function () {
             ->where('groupMembers.0.paymentFolios.0.total.due', 17000));
 });
 
+test('the reservation list identifies booking group membership', function () {
+    $t = twoTenants();
+    [$member, $sibling] = bookingGroupMembers($t->a);
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->owner)->get(route('reservations.index', ['list' => 'all']))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('reservations.data', 2)
+            ->where('reservations.data.0.booking_group_id', $member->booking_group_id)
+            ->where('reservations.data.1.booking_group_id', $sibling->booking_group_id));
+});
+
 test('group members offer their permitted arrival actions and checking in one leaves the other confirmed', function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
     $t = twoTenants();
