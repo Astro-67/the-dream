@@ -103,12 +103,6 @@ export default function Guests({
                     <h1 className="text-2xl font-semibold">
                         Guests · <Identifier value={reservationNumber} />
                     </h1>
-                    <Link
-                        className="text-primary underline underline-offset-4"
-                        href={base}
-                    >
-                        Back to reservation
-                    </Link>
                 </header>
                 <section className="space-y-3">
                     <h2 className="text-lg font-semibold">Staying guests</h2>

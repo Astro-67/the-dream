@@ -129,8 +129,13 @@ async function navigation(path: string, url = '/direct-entry') {
 
 for (const [path, parent, href, current] of cases) {
     const markup = await navigation(path);
+    const ancestors = [...markup.matchAll(/<a\b[^>]*>[^<]*<\/a>/g)];
     assert.ok(
-        markup.includes(`href="${href}">${parent}</a>`),
+        ancestors.some(
+            ([link]) =>
+                link.includes(`href="${href}"`) &&
+                link.endsWith(`>${parent}</a>`),
+        ),
         `${path}: linked ancestor`,
     );
     const returnLink =
@@ -166,7 +171,11 @@ for (const [url, parent, href] of [
 ] as const) {
     const markup = await navigation('subscription/invoice', url);
     assert.ok(
-        markup.includes(`href="${href}">${parent}</a>`),
+        [...markup.matchAll(/<a\b[^>]*>[^<]*<\/a>/g)].some(
+            ([link]) =>
+                link.includes(`href="${href}"`) &&
+                link.endsWith(`>${parent}</a>`),
+        ),
         `${url}: correct scope`,
     );
     assert.ok(markup.includes(`Back to ${parent}</a>`), `${url}: parent link`);
