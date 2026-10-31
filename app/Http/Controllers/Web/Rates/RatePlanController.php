@@ -55,10 +55,10 @@ class RatePlanController extends Controller
         if (isset($details['adjustment'])) {
             $details['adjustment'] = (int) $details['adjustment'];
         }
-        $create->handle($actor, $details);
+        $plan = $create->handle($actor, $details);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Rate plan added.')]);
 
-        return redirect()->route('rate-plans.index');
+        return redirect()->route('rate-plans.prices', $plan);
     }
 
     public function edit(RatePlan $ratePlan): Response

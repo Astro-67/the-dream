@@ -36,9 +36,11 @@ test('bulk prices select weekdays and audit once with the range and minor units'
 test('a property manager creates a rate plan for a room type and sees it listed', function () {
     $t = twoTenants();
     $room = inTenant($t->a->property, fn () => app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType()));
-    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
+    $response = $this->actingAs($t->a->member(OrganizationRole::PropertyManager))
         ->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Bed and breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id]])
-        ->assertRedirect(route('rate-plans.index'));
+        ->assertSessionHasNoErrors();
+    $plan = inTenant($t->a->property, fn () => RatePlan::query()->sole());
+    $response->assertRedirect(route('rate-plans.prices', $plan));
     $this->get(route('rate-plans.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('rates/index')->has('ratePlans', 1)->where('ratePlans.0.code', 'BB')->where('ratePlans.0.currency', 'USD')->where('canManage', true));
 });
@@ -69,7 +71,7 @@ test('only owners, group operations and property managers manage rates', functio
     $response = $this->actingAs($role === OrganizationRole::Owner ? $t->a->owner : $t->a->member($role))
         ->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Bed and breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id]]);
 
-    $manages ? $response->assertSessionHasNoErrors()->assertRedirect(route('rate-plans.index')) : $response->assertForbidden();
+    $manages ? $response->assertSessionHasNoErrors()->assertRedirect() : $response->assertForbidden();
 })->with([
     'owner' => [OrganizationRole::Owner, true],
     'group operations manager' => [OrganizationRole::GroupOperationsManager, true],
@@ -104,11 +106,12 @@ test('a derived plan takes its base plan\'s currency and room types and derives 
     $derived = ['_property' => $t->a->property->id, 'name' => 'Non-refundable', 'code' => 'NR', 'base_rate_plan_id' => $base->id, 'adjustment_kind' => 'percent', 'adjustment' => -10];
 
     // Currency and room types sent alongside a base are ignored, never converted or widened.
-    $this->post(route('rate-plans.store'), [...$derived, 'currency' => 'USD', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors()->assertRedirect(route('rate-plans.index'));
+    $response = $this->post(route('rate-plans.store'), [...$derived, 'currency' => 'USD', 'room_type_ids' => [$other->id]])->assertSessionHasNoErrors();
     $this->get(route('rate-plans.index'))->assertInertia(fn (Assert $page) => $page
         ->where('ratePlans.1.code', 'NR')->where('ratePlans.1.currency', 'EUR')->where('ratePlans.1.roomTypes.0.id', $room->id)->has('ratePlans.1.roomTypes', 1)
         ->where('ratePlans.1.base', ['id' => $base->id, 'name' => 'Breakfast', 'adjustmentKind' => 'percent', 'adjustment' => -10]));
     $nonRefundable = inTenant($t->a->property, fn () => RatePlan::query()->where('code', 'NR')->sole());
+    $response->assertRedirect(route('rate-plans.prices', $nonRefundable));
 
     $this->post(route('rate-plans.store'), [...$derived, 'code' => 'NR2', 'base_rate_plan_id' => $nonRefundable->id])->assertSessionHasErrors('base_rate_plan_id');
     $this->post(route('rate-plans.store'), [...$derived, 'code' => 'NR3', 'adjustment_kind' => 'markup'])->assertSessionHasErrors('adjustment_kind');
