@@ -1,0 +1,46 @@
+<?php
+
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
+use App\Support\Outbox\OutboxMessage;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\TenantFixture;
+
+const ZRA_LIVE_URL = 'https://vfms-live.example/api/';
+
+/** Fakes ZRA's Live exchange-rate endpoint with $reply and saves Alpha's own credentials (Sandbox mode). */
+function zraCheckSetup(TenantFixture $tenant, mixed $reply): void
+{
+    config(['services.vfms.live_url' => ZRA_LIVE_URL]);
+    Http::fake([ZRA_LIVE_URL.'currencyExchangeRate/' => $reply]);
+    inTenant($tenant->property, fn () => VfmsCredential::query()->create(['integration_id' => 'OWN-INT', 'registration_id' => 'OWN-REG', 'token' => 'OWN-TOKEN']));
+}
+
+function checkWithZra(TenantFixture $tenant)
+{
+    return test()->actingAs($tenant->owner)->post(route('properties.vfms.check', $tenant->property), ['_property' => $tenant->property->id]);
+}
+
+/** Shaped like ZRA's documented reply (production guide v1.6, 2.4). */
+const ZRA_RATES = ['rate_id' => null, 'rateUSD' => 3205.0, 'rateEURO' => 2721.23, 'rateUSDEURO' => 1.17];
+
+// protects=the check is ZRA's read-only exchange-rate call with the property's own credentials (#199); fails_when=it uses another request, shared test credentials, or queues a filing; no_claim=ZRA's real behaviour.
+test('Check with ZRA sends the exchange-rate request with the property credentials and stores accepted with its time', function () {
+    $t = twoTenants();
+    zraCheckSetup($t->a, Http::response(ZRA_RATES));
+    $this->freezeTime();
+
+    checkWithZra($t->a)->assertSessionHasNoErrors()->assertRedirect();
+
+    Http::assertSentCount(1);
+    Http::assertSent(fn (Request $request) => $request->url() === ZRA_LIVE_URL.'currencyExchangeRate/'
+        && $request->method() === 'POST'
+        && $request->header('vfms-request-type') === ['CURRENCY_EXCHANGE']
+        && $request->header('vfms-intergration-id') === ['OWN-INT']
+        && $request->header('vfms-token-id') === ['OWN-TOKEN']);
+    expect(inTenant($t->a->organization, fn () => OutboxMessage::query()->count()))->toBe(0);
+    $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page
+        ->where('vfms.zra_check', 'accepted')
+        ->where('vfms.zra_checked_at', now()->toIso8601String()));
+});

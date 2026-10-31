@@ -10,6 +10,7 @@ use App\Support\Outbox\DeliveryResult;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /** Posts to ZRA's test or production gateway, never mixing their credentials. */
@@ -59,13 +60,7 @@ final class HttpVfms
             }
         }
         try {
-            $response = Http::timeout(30)->withHeaders([
-                'Content-type' => 'application/json',
-                'vfms-request-type' => $payload['request_type'],
-                // The guide's spelling, kept verbatim.
-                'vfms-intergration-id' => $integrationId,
-                'vfms-token-id' => $token,
-            ])->post(rtrim($url, '/').'/'.$payload['path'], $body);
+            $response = $this->post($url, $payload['request_type'], $payload['path'], $integrationId, $token, $body);
         } catch (ConnectionException) {
             return new DeliveryResult('unknown');
         }
@@ -73,7 +68,7 @@ final class HttpVfms
         $data = $response->json();
         $responseBody = ['status' => $status, 'body' => $data ?? $response->body()];
         if ($live && $status === 401) {
-            Tenancy::within(TenantContext::fromIds($credential->organization_id, $credential->property_id), fn () => $credential->forceFill(['credentials_refused_at' => now()])->save());
+            $this->markRefused($credential);
         }
 
         $errors = is_array($data)
@@ -92,6 +87,53 @@ final class HttpVfms
             : null;
 
         return new DeliveryResult($references === null ? 'unknown' : 'accepted', $references ?? [], $responseBody);
+    }
+
+    /**
+     * Checks the property's own credentials with ZRA's production gateway by its read-only
+     * exchange-rate request, whatever the property's mode. Files nothing.
+     *
+     * @return 'accepted'|'refused'|'unreachable'
+     */
+    public function checkCredentials(VfmsCredential $credential): string
+    {
+        $url = config('services.vfms.live_url');
+        if (blank($url) || parse_url($url, PHP_URL_SCHEME) !== 'https' || ! $credential->isComplete()) {
+            return 'unreachable';
+        }
+        try {
+            $response = $this->post($url, 'CURRENCY_EXCHANGE', 'currencyExchangeRate/', (string) $credential->integration_id, (string) $credential->token, []);
+        } catch (ConnectionException) {
+            return 'unreachable';
+        }
+        $data = $response->json();
+        if (in_array($response->status(), [401, 403], true)
+            || ($response->successful() && is_array($data) && in_array($data['statusCode'] ?? null, [5000, '5000'], true))) {
+            $this->markRefused($credential);
+
+            return 'refused';
+        }
+
+        return $response->successful() && is_array($data) && $this->acceptedReferences('CURRENCY_EXCHANGE', [], $data) !== null
+            ? 'accepted'
+            : 'unreachable';
+    }
+
+    /** @param  array<string, mixed>  $body */
+    private function post(string $url, string $requestType, string $path, string $integrationId, string $token, array $body): Response
+    {
+        return Http::timeout(30)->withHeaders([
+            'Content-type' => 'application/json',
+            'vfms-request-type' => $requestType,
+            // The guide's spelling, kept verbatim.
+            'vfms-intergration-id' => $integrationId,
+            'vfms-token-id' => $token,
+        ])->post(rtrim($url, '/').'/'.$path, $body);
+    }
+
+    private function markRefused(VfmsCredential $credential): void
+    {
+        Tenancy::within(TenantContext::fromIds($credential->organization_id, $credential->property_id), fn () => $credential->forceFill(['credentials_refused_at' => now()])->save());
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\FiscalReceipting;
 
+use App\Domains\FiscalReceipting\Actions\CheckVfmsCredentials;
 use App\Domains\FiscalReceipting\Actions\SaveVfmsCredentials;
 use App\Domains\FiscalReceipting\Actions\SwitchVfmsMode;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
@@ -34,6 +35,20 @@ class VfmsSettingsController extends Controller
         $mode = VfmsMode::from($request->string('mode')->value());
         $switch->handle($user, $property, $mode, $request->string('reason')->value());
         Inertia::flash('toast', ['type' => 'success', 'message' => $mode === VfmsMode::Live ? __(':name files with VFMS Live.', ['name' => $property->name]) : __(':name is on VFMS Sandbox.', ['name' => $property->name])]);
+
+        return back();
+    }
+
+    public function check(VfmsSettingsRequest $request, Property $property, CheckVfmsCredentials $check): RedirectResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $outcome = $check->handle($user, $property)->zra_check;
+        Inertia::flash('toast', match ($outcome) {
+            'accepted' => ['type' => 'success', 'message' => __('Accepted by ZRA.')],
+            'refused' => ['type' => 'error', 'message' => __('Refused by ZRA. Check the Integration ID and Token.')],
+            default => ['type' => 'error', 'message' => __('Could not reach ZRA. Try again later.')],
+        });
 
         return back();
     }

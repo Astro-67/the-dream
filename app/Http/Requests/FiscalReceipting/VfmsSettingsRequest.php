@@ -8,7 +8,7 @@ use App\Http\Requests\AuditsRefusals;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-/** VFMS credentials (properties.vfms.update) and the Sandbox/Live switch (properties.vfms.mode). */
+/** VFMS credentials (properties.vfms.update) and the Sandbox/Live switch (properties.vfms.mode), and the ZRA credential check (properties.vfms.check). */
 class VfmsSettingsRequest extends FormRequest
 {
     use AuditsRefusals;
@@ -25,6 +25,9 @@ class VfmsSettingsRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        if ($this->routeIs('properties.vfms.check')) {
+            return [];
+        }
         if ($this->routeIs('properties.vfms.mode')) {
             return [
                 'mode' => ['required', Rule::enum(VfmsMode::class)],
