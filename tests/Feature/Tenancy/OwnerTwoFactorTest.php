@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Subscriptions\Actions\IssueSaasInvoice;
+use App\Domains\Subscriptions\Models\SaasInvoice;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Actions\SendInvitation;
 use App\Domains\Tenancy\Data\InvitationDetails;
@@ -84,6 +85,9 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
         ))), $intent],
         'members.index', 'subscription.show' => ['GET', route($routeName)],
         'subscription.invoices.show' => ['GET', route($routeName, ownSaasInvoice($property))],
+        'subscription.invoices.slips.store' => ['POST', route($routeName, ownSaasInvoice($property))],
+        'subscription.slips.show' => ['GET', route($routeName, inTenant($property, fn () => SaasInvoice::query()
+            ->findOrFail(ownSaasInvoice($property))->slips()->create(['path' => 'private/slip.png', 'original_name' => 'slip.png'])))],
         'members.edit' => ['GET', route($routeName, ownMembership($owner, $property))],
         'members.update' => ['PUT', route($routeName, ownMembership($owner, $property)), [...$intent, 'role' => 'group_operations_manager', 'all_properties' => true]],
         'members.destroy' => ['DELETE', route($routeName, ownMembership($owner, $property)), $intent],

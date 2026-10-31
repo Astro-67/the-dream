@@ -8,7 +8,10 @@ use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Subscriptions\Models\Plan;
 use App\Domains\Subscriptions\Models\SaasInvoice;
 use App\Domains\Subscriptions\Models\SaasPayment;
+use App\Domains\Subscriptions\Models\SaasPaymentSlip;
 use App\Domains\Subscriptions\Models\Subscription;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\InventoryForm;
 use Tests\Support\Isolation\RouteCoverage;
@@ -27,7 +30,47 @@ $planPayload = fn (array $overrides = []): array => [
     'grace_days' => 30, 'billing_period' => 'yearly', 'price' => 0, 'currency' => 'USD', 'is_default' => true, ...$overrides,
 ];
 
+$bravoSlip = function (TwoTenants $t): SaasPaymentSlip {
+    withBillingDetails();
+
+    return inTenant($t->b->organization, function () {
+        $invoice = app(IssueSaasInvoice::class)->handle(Subscription::current());
+
+        return $invoice->slips()->create(['path' => 'private/bravo.png', 'original_name' => 'Bravo payment.png', 'reference' => 'BRAVO-TRANSFER']);
+    });
+};
+
 return [
+    'subscription.invoices.slips.store' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoSlip) {
+        Storage::fake('local');
+        $slip = $bravoSlip($t);
+        $before = inTenant($t->b->organization, fn () => SaasInvoice::query()->findOrFail($slip->saas_invoice_id)->toArray());
+        $responses = array_values(array_map(fn ($member) => $this->actingAs($member)
+            ->post(route('subscription.invoices.slips.store', $slip->saas_invoice_id), [
+                'files' => [UploadedFile::fake()->image('hijack.png')], 'reference' => 'HIJACK',
+            ])->assertNotFound(), $t->a->members()));
+
+        expect(inTenant($t->b->organization, fn () => SaasInvoice::query()->findOrFail($slip->saas_invoice_id)->toArray()))->toEqual($before)
+            ->and(inTenant($t->b->organization, fn () => SaasPaymentSlip::query()->count()))->toBe(1)
+            ->and(Storage::disk('local')->allFiles())->toBe([]);
+
+        return $responses;
+    }),
+
+    'subscription.slips.show' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoSlip) {
+        $slip = $bravoSlip($t);
+
+        return array_values(array_map(fn ($member) => $this->actingAs($member)
+            ->get(route('subscription.slips.show', $slip->id))->assertNotFound(), $t->a->members()));
+    }),
+
+    'platform.slips.show' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoSlip) {
+        $slip = $bravoSlip($t);
+
+        return array_values(array_map(fn ($member) => $this->actingAs($member)
+            ->get(route('platform.slips.show', $slip->id))->assertForbidden(), $t->a->members()));
+    }),
+
     'subscription.show' => RouteCoverage::attempt(function (TwoTenants $t) {
         inTenant($t->b->property, function () {
             $type = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
