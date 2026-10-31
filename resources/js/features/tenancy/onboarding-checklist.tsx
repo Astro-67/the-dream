@@ -7,15 +7,17 @@ import { Spinner } from '@/components/ui/spinner';
 import { StatusChip } from '@/components/ui/status-chip';
 import { goLive, taxesReviewed } from '@/routes/properties';
 
+type ChecklistItem = {
+    key: string;
+    label: string;
+    completed: boolean;
+    href: string | null;
+};
+
 export type Checklist = {
     propertyId: string;
     propertyName: string;
-    items: {
-        key: string;
-        label: string;
-        completed: boolean;
-        href: string | null;
-    }[];
+    items: (ChecklistItem & { items?: ChecklistItem[] })[];
     gates: {
         key: string;
         label: string;
@@ -110,6 +112,43 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                                     {item.completed ? 'Complete' : 'To do'}
                                 </StatusChip>
                             </div>
+                            {item.items && (
+                                <ul
+                                    aria-label={item.label}
+                                    className="space-y-2 pl-4"
+                                >
+                                    {item.items.map((substep) => (
+                                        <li
+                                            key={substep.key}
+                                            className="flex flex-wrap items-center justify-between gap-3"
+                                        >
+                                            {substep.href ? (
+                                                <Link
+                                                    href={substep.href}
+                                                    className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                                                >
+                                                    {substep.label}
+                                                </Link>
+                                            ) : (
+                                                <span className="text-sm font-medium">
+                                                    {substep.label}
+                                                </span>
+                                            )}
+                                            <StatusChip
+                                                tone={
+                                                    substep.completed
+                                                        ? 'success'
+                                                        : 'warning'
+                                                }
+                                            >
+                                                {substep.completed
+                                                    ? 'Complete'
+                                                    : 'To do'}
+                                            </StatusChip>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                             {!item.href && !item.completed && (
                                 <p className="text-sm text-muted-foreground">
                                     Your role can't do this step. Ask an owner

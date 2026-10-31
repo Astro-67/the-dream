@@ -53,6 +53,7 @@ class RateCalendarController extends Controller
                 ...$type->only(['id', 'name', 'code']),
                 ...$reservations->get($type->id, []),
                 'sellable' => $availability->sellableByDate($type, CarbonImmutable::parse($from), CarbonImmutable::parse($to)),
+                'available' => $availability->availableByDate($type, CarbonImmutable::parse($from), CarbonImmutable::parse($to)),
                 'outOfService' => $availability->outOfServiceByDate($type, CarbonImmutable::parse($from), CarbonImmutable::parse($to)),
                 'plans' => $plans->filter(fn (RatePlan $plan) => $plan->roomTypes->contains('id', $type->id))->values()->map(fn (RatePlan $plan) => [
                     'id' => $plan->id, 'name' => $plan->name, 'code' => $plan->code, 'currency' => $plan->currency->value,
