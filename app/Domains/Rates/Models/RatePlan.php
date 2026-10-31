@@ -62,7 +62,7 @@ class RatePlan extends Model
      */
     public static function policyAttributes(array $values): array
     {
-        $value = fn (string $key) => ($v = $values[$key] ?? null) instanceof \BackedEnum ? $v->value : $v;
+        $value = fn (string $key) => ($attribute = $values[$key] ?? null) instanceof \BackedEnum ? $attribute->value : $attribute;
         $int = fn (string $key) => $value($key) === null ? null : (int) $value($key);
 
         return [

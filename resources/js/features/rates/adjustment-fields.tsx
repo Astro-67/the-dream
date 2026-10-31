@@ -39,7 +39,7 @@ export function AdjustmentFields({
             <div className="space-y-2">
                 <Label htmlFor="adjustment">
                     {kind === 'percent'
-                        ? 'Percent (negative is off)'
+                        ? 'Percent (−10 is 10% off)'
                         : `Amount in ${currency} (negative is off)`}
                 </Label>
                 {kind === 'percent' ? (
