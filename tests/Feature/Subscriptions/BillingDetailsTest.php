@@ -2,9 +2,11 @@
 
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Subscriptions\Actions\AdvanceSubscription;
+use App\Domains\Subscriptions\Actions\IssueSaasInvoice;
 use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Subscriptions\Models\SaasInvoice;
 use App\Domains\Subscriptions\Models\Subscription;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 
@@ -93,4 +95,42 @@ test('organization users, owners included, cannot see or change the billing deta
     $this->actingAs(platformStaff(PlatformRole::ComplianceOperator))->put(route('platform.billing-details.update'), billingDetailsPayload())->assertForbidden();
 
     expect(BillingDetails::current())->toBeNull();
+});
+
+test('owners and platform administrators open the invoice from its snapshot; other organizations cannot', function () {
+    withBillingDetails();
+    [$owner, $organization] = organizationWithOwner();
+    [$otherOwner] = organizationWithOwner();
+    $invoice = inTenant($organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+    BillingDetails::current()->update(['business_name' => 'Renamed Ltd', 'accounts' => []]);
+    $page = fn (Assert $page) => $page->component('subscription/invoice')
+        ->where('invoice.number', $invoice->number)
+        ->where('invoice.balance', $invoice->amount)
+        ->where('billing.business_name', 'Thedream Ltd')
+        ->where('billing.organization_name', $organization->name)
+        ->has('billing.accounts', 2)
+        ->has('payments', 0);
+
+    $this->actingAs($owner)->get(route('subscription.invoices.show', $invoice->id))->assertOk()->assertInertia($page);
+    $this->actingAs(platformStaff())->get(route('platform.invoices.show', $invoice->id))->assertOk()->assertInertia($page);
+    $this->actingAs($otherOwner)->get(route('subscription.invoices.show', $invoice->id))->assertNotFound();
+    $this->actingAs($owner)->get(route('platform.invoices.show', $invoice->id))->assertForbidden();
+});
+
+test('an invoice issued before billing details existed opens without the details block', function () {
+    withBillingDetails();
+    [$owner, $organization] = organizationWithOwner();
+    $invoice = inTenant($organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+    $invoice->forceFill(['billing_snapshot' => null])->save();
+
+    $this->actingAs($owner)->get(route('subscription.invoices.show', $invoice->id))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('billing', null)->where('invoice.number', $invoice->number));
+});
+
+test('organization members without organization access cannot open their own invoice', function () {
+    $t = twoTenants();
+    withBillingDetails();
+    $invoice = inTenant($t->a->organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+
+    $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('subscription.invoices.show', $invoice->id))->assertForbidden();
 });

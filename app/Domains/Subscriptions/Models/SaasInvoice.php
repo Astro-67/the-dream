@@ -75,6 +75,26 @@ class SaasInvoice extends Model
         ];
     }
 
+    /**
+     * The printable invoice page: Thedream's details come only from the
+     * snapshot taken at issue, null on invoices issued before it existed.
+     *
+     * @return array<string, mixed>
+     */
+    public function view(): array
+    {
+        $this->loadSum('payments', 'amount')->load('payments', 'subscription.plan');
+
+        return [
+            'invoice' => [...$this->summary(), 'plan' => $this->subscription->plan->name, 'issuedAt' => $this->created_at?->toIso8601String()],
+            'billing' => $this->billing_snapshot,
+            'payments' => $this->payments->sortBy('received_on')->values()->map(fn (SaasPayment $payment) => [
+                'id' => $payment->id, 'method' => $payment->method->label(), 'amount' => $payment->amount,
+                'reference' => $payment->reference, 'receivedOn' => $payment->received_on->toDateString(),
+            ]),
+        ];
+    }
+
     /** @return BelongsTo<Subscription, $this> */
     public function subscription(): BelongsTo
     {

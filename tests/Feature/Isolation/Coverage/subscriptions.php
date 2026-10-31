@@ -115,4 +115,24 @@ return [
 
         return $response;
     }),
+
+    'subscription.invoices.show' => RouteCoverage::attempt(function (TwoTenants $t) {
+        withBillingDetails();
+        $invoice = inTenant($t->b->organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+
+        return array_values(array_map(
+            fn ($member) => $this->actingAs($member)->get(route('subscription.invoices.show', $invoice->id))->assertNotFound(),
+            $t->a->members(),
+        ));
+    }),
+
+    'platform.invoices.show' => RouteCoverage::attempt(function (TwoTenants $t) {
+        withBillingDetails();
+        $invoice = inTenant($t->b->organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+
+        return array_values(array_map(
+            fn ($member) => $this->actingAs($member)->get(route('platform.invoices.show', $invoice->id))->assertForbidden(),
+            $t->a->members(),
+        ));
+    }),
 ];

@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
@@ -17,6 +17,7 @@ import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status'
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
 import { show } from '@/routes/subscription';
+import { show as showInvoice } from '@/routes/subscription/invoices';
 import type { Paginated } from '@/types';
 
 const tones: Record<string, StatusTone> = {
@@ -176,10 +177,16 @@ export default function SubscriptionShow({
                                     {invoices.data.map((invoice) => (
                                         <TableRow key={invoice.id}>
                                             <TableCell>
-                                                <Identifier
-                                                    value={invoice.number}
-                                                    copyable
-                                                />
+                                                <Link
+                                                    href={showInvoice(
+                                                        invoice.id,
+                                                    )}
+                                                    className="underline underline-offset-4"
+                                                >
+                                                    <Identifier
+                                                        value={invoice.number}
+                                                    />
+                                                </Link>
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap tabular-nums">
                                                 {formatDate(
