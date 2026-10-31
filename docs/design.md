@@ -128,9 +128,9 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
     - **Top bar:** breadcrumb, the property's current **business date**, the connection status, and the user menu.
     - **Sidebar sections:** Front desk, Reservations, Calendar, Housekeeping, Billing, Reports, Compliance (Zanzibar properties only), Settings.
 - **Page header:** title (Page title style), an optional one-line description below it, and page actions aligned to the right of the title on wide screens, wrapping beneath it on narrow ones. At most one primary action per section; existing permission checks decide which actions show.
-- **Parent navigation:** every nested page (detail, create, edit) shows a visible return link to its parent above the page title ("← Bookers"), plus a breadcrumb in the top bar.
+- **Parent navigation:** every nested page (detail, create, edit) shows a visible return link to its parent above the page title ("Back to Bookers"), plus a breadcrumb in the top bar.
     - The destination is the page's explicit parent, built with the route helpers and an Inertia `Link`, never browser history or a return URL taken from the request. It therefore works when the page is opened directly.
-    - An edit page returns to the record's detail page; a detail page returns to its list; a create page returns to the list it adds to. Cancel on a form goes to the same parent and discards nothing silently beyond what Cancel already did.
+    - An edit page returns to the record's detail page; a detail page returns to its list; a create page returns to the list it adds to. A new form's Cancel goes to the same parent. Existing forms keep their current Cancel destination, even where it differs from the return link (exceptions listed in `docs/page-navigation.md`), and Cancel never discards more than it already did.
     - Breadcrumbs list every ancestor as a link and end with the current page as plain, non-clickable text (`aria-current="page"`). A breadcrumb with only the current page is not enough on a nested page.
     - Root pages (dashboard, top-level lists, reports) get no artificial Back link.
     - Links keep the current organization and property context and only point at pages the user can open.
