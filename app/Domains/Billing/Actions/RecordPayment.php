@@ -119,11 +119,15 @@ class RecordPayment
         }
         $sequence->increment('last_number');
 
+        $reservation = Reservation::query()->findOrFail(Folio::query()->findOrFail($posting->folio_id)->reservation_id);
+        $estimate = collect(FolioSummary::totals($reservation))->firstWhere('currency', $posting->currency->value)['estimate'] ?? null;
+
         // Taken under the folio lock, so it holds this payment and every posting committed before it.
         $summary = [
             'payment_posting_id' => $posting->id, 'currency' => $posting->currency->value, ...FolioSummary::of(Posting::query()->where('folio_id', $posting->folio_id)->get()),
+            'estimate' => $estimate === null ? null : [...$estimate, 'currency' => $posting->currency->value],
             // The stay as it was then, so a later room move or date change does not rewrite this receipt.
-            'stay' => Reservation::query()->findOrFail(Folio::query()->findOrFail($posting->folio_id)->reservation_id)->stay(),
+            'stay' => $reservation->stay(),
         ];
 
         return Receipt::query()->create([

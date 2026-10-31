@@ -42,6 +42,7 @@ class RatePlanController extends Controller
         return Inertia::render('rates/create', [
             'roomTypes' => RoomType::query()->orderBy('code')->get(['id', 'name', 'code']),
             'currencies' => JurisdictionRules::allowedCurrencies(Tenancy::property()),
+            'policyDefaults' => (new RatePlan)->only(RatePlan::POLICY),
             'basePlans' => RatePlan::query()->bases()->orderBy('code')->get()->map(fn (RatePlan $plan) => ['id' => $plan->id, 'name' => $plan->name, 'code' => $plan->code, 'currency' => $plan->currency->value]),
         ]);
     }
@@ -50,15 +51,15 @@ class RatePlanController extends Controller
     {
         /** @var User $actor */
         $actor = $request->user();
-        /** @var array{name: string, code: string, currency?: string, room_type_ids?: list<string>, base_rate_plan_id?: string, adjustment_kind?: string, adjustment?: int|string} $details */
+        /** @var array{name: string, code: string, currency?: string, room_type_ids?: list<string>, base_rate_plan_id?: string, adjustment_kind?: string, adjustment?: int|string, cancellation_free_days?: int|null, cancellation_charge?: string|null, cancellation_percent?: int|null, no_show_charge?: string|null, no_show_percent?: int|null} $details */
         $details = $request->validated();
         if (isset($details['adjustment'])) {
             $details['adjustment'] = (int) $details['adjustment'];
         }
-        $create->handle($actor, $details);
+        $plan = $create->handle($actor, $details);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Rate plan added.')]);
 
-        return redirect()->route('rate-plans.index');
+        return redirect()->route('rate-plans.prices', $plan);
     }
 
     public function edit(RatePlan $ratePlan): Response
@@ -67,6 +68,7 @@ class RatePlanController extends Controller
 
         return Inertia::render('rates/edit', [
             'plan' => [...$ratePlan->only(['id', 'name', 'code']), 'currency' => $ratePlan->currency->value, 'room_type_ids' => $ratePlan->roomTypes()->pluck('room_types.id')->all(), 'baseName' => $ratePlan->basePlan?->name,
+                'adjustment_kind' => $ratePlan->adjustment_kind?->value, 'adjustment' => $ratePlan->adjustment,
                 ...$ratePlan->only(['cancellation_free_days', 'cancellation_percent', 'no_show_percent']),
                 'cancellation_charge' => $ratePlan->cancellation_charge?->value, 'no_show_charge' => $ratePlan->no_show_charge?->value],
             'roomTypes' => RoomType::query()->orderBy('code')->get(['id', 'name', 'code']),
@@ -77,8 +79,11 @@ class RatePlanController extends Controller
     {
         /** @var User $actor */
         $actor = $request->user();
-        /** @var array{name: string, code: string, room_type_ids?: list<string>, cancellation_free_days?: int|null, cancellation_charge?: string|null, cancellation_percent?: int|null, no_show_charge?: string|null, no_show_percent?: int|null} $details */
+        /** @var array{name: string, code: string, room_type_ids?: list<string>, adjustment_kind?: string, adjustment?: int|string, cancellation_free_days?: int|null, cancellation_charge?: string|null, cancellation_percent?: int|null, no_show_charge?: string|null, no_show_percent?: int|null} $details */
         $details = $request->validated();
+        if (isset($details['adjustment'])) {
+            $details['adjustment'] = (int) $details['adjustment'];
+        }
         $update->handle($actor, $ratePlan, $details);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Rate plan updated.')]);
 
