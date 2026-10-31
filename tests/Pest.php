@@ -5,6 +5,7 @@ use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Platform\Actions\AssignPlatformRole;
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Rates\Models\TaxRule;
+use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Tenancy\Actions\CreateOrganization;
 use App\Domains\Tenancy\Data\OrganizationSetup;
 use App\Domains\Tenancy\Enums\PropertyStatus;
@@ -155,6 +156,25 @@ function platformStaff(PlatformRole $role = PlatformRole::Administrator, bool $t
     app(AssignPlatformRole::class)->handle($user, $role);
 
     return $user;
+}
+
+/**
+ * Thedream's billing details with one bank and one mobile-money account, which
+ * issuing a SaaS invoice requires.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function withBillingDetails(array $overrides = []): BillingDetails
+{
+    return BillingDetails::query()->create([
+        'business_name' => 'Thedream Ltd', 'address' => 'Mlandege Street, Zanzibar', 'phone' => '+255 777 000 111',
+        'email' => 'billing@thedream.test', 'tin' => '100-200-300', 'vrn' => '40-001234-X',
+        'accounts' => [
+            ['type' => 'bank', 'bank' => 'CRDB Bank', 'branch' => 'Stone Town', 'swift' => 'CORUTZTZ', 'account_name' => 'Thedream Ltd', 'account_number' => '0150123456700'],
+            ['type' => 'mobile_money', 'provider' => 'M-Pesa', 'account_name' => 'Thedream Ltd', 'account_number' => '0777000111'],
+        ],
+        ...$overrides,
+    ]);
 }
 
 /**

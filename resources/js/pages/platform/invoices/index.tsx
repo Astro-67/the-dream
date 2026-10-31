@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status'
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney } from '@/lib/utils';
-import { index, store } from '@/routes/platform/invoices';
+import { index, show as showInvoice, store } from '@/routes/platform/invoices';
 import { store as storePayment } from '@/routes/platform/invoices/payments';
 import type { Paginated, SelectOption } from '@/types';
 
@@ -167,10 +167,14 @@ export default function PlatformInvoices({
                                 {invoices.data.map((invoice) => (
                                     <TableRow key={invoice.id}>
                                         <TableCell>
-                                            <Identifier
-                                                value={invoice.number}
-                                                copyable
-                                            />
+                                            <Link
+                                                href={showInvoice(invoice.id)}
+                                                className="underline underline-offset-4"
+                                            >
+                                                <Identifier
+                                                    value={invoice.number}
+                                                />
+                                            </Link>
                                         </TableCell>
                                         <TableCell>
                                             {invoice.organization}

@@ -42,4 +42,12 @@ class SubscriptionController extends Controller
             ])->values(),
         ]);
     }
+
+    /** The owner's printable SaaS invoice; route binding is scoped to their organization. */
+    public function invoice(SaasInvoice $invoice): Response
+    {
+        Gate::authorize('view', Subscription::class);
+
+        return Inertia::render('subscription/invoice', $invoice->view());
+    }
 }
