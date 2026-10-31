@@ -49,7 +49,7 @@ final class ListOrganizations
      * @param  array<int, mixed>  $organizationIds
      * @return array<string, list<array{name: string, email: string}>>
      */
-    private function ownersOf(array $organizationIds): array
+    public function ownersOf(array $organizationIds): array
     {
         /** @var array{model_has_roles: string, roles: string} $tables */
         $tables = config('permission.table_names');

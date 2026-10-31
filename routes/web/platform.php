@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified', 'platform:platform_administrator', 'two-f
     ->name('platform.')
     ->group(function () {
         Route::get('organizations', [OrganizationController::class, 'index'])->name('organizations.index');
+        Route::get('organizations/{organization}', [OrganizationController::class, 'show'])->name('organizations.show');
 
         Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
         Route::post('staff', [StaffController::class, 'store'])->name('staff.store');
