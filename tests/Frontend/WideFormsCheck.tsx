@@ -148,6 +148,10 @@ const stayProps: ComponentProps<typeof Show> = {
             status: 'confirmed',
             arrival: '2026-12-10',
             departure: '2026-12-13',
+            can: { checkIn: true, checkOut: false, overrideBalance: false },
+            checkoutBalances: [],
+            paymentFolios: [],
+            channelCollectedAmount: null,
         },
     ],
     folios: emptyPage,
@@ -292,12 +296,12 @@ for (const visible of [
     'Amina',
     'Scheduled nights',
     'Payment collector',
+    'R-1043',
 ])
     assert.ok(reservation.includes(visible));
 for (const hidden of [
     'Travel Booker',
     'Quiet room',
-    'R-1043',
     'name="room_id"',
     'name="pricing"',
     'No amendments yet.',
@@ -306,6 +310,8 @@ for (const hidden of [
         !reservation.includes(hidden),
         `Content should start hidden: ${hidden}`,
     );
+assert.match(reservation, /href="\/reservations\/R-1043"/);
+assert.match(reservation, /action="\/reservations\/R-1043\/check-in"/);
 const fee = {
     id: 'fee',
     kind: 'cancellation',
