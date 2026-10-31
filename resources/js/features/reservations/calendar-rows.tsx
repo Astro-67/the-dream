@@ -96,7 +96,7 @@ export function CalendarRoomRows({
                                 <Button
                                     variant="ghost"
                                     className="h-auto min-h-11 w-full justify-start gap-2 whitespace-normal"
-                                    aria-label={`Return room ${room.number} to service: ${period.reason}`}
+                                    aria-label={`Return room ${room.number} to service: ${formatDate(period.startsOn)} to ${formatDate(period.returnsOn)}, ${period.reason}`}
                                     onClick={() =>
                                         onOutOfOrder?.(room, date, period)
                                     }
@@ -154,20 +154,6 @@ export function CalendarRoomRows({
                             className="border-b border-l px-2 py-2"
                         >
                             {departures}
-                            {canManage &&
-                                laneIndex === 0 &&
-                                date >= businessDate && (
-                                    <Button
-                                        variant="ghost"
-                                        className="min-h-11 w-full"
-                                        aria-label={`Take room ${room.number} out of order from ${formatDate(date)}`}
-                                        onClick={() =>
-                                            onOutOfOrder?.(room, date)
-                                        }
-                                    >
-                                        Out of order
-                                    </Button>
-                                )}
                         </TableCell>,
                     );
                     index++;
@@ -265,7 +251,7 @@ export function CalendarRoomRows({
                                         )
                                     }
                                 >
-                                    Out of order
+                                    Take out of order
                                 </Button>
                             )}
                         </TableHead>
