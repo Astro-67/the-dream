@@ -20,4 +20,13 @@ use Illuminate\Database\Eloquent\Model;
 class SaasPaymentSlip extends Model
 {
     use BelongsToTenant, HasUlids;
+
+    /** @return array<string, mixed> */
+    public function summary(bool $forOwner): array
+    {
+        return [
+            'id' => $this->id, 'name' => $this->original_name, 'reference' => $this->reference,
+            'url' => route($forOwner ? 'subscription.slips.show' : 'platform.slips.show', $this->id),
+        ];
+    }
 }

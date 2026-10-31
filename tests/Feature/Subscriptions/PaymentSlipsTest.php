@@ -9,6 +9,7 @@ use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     withBillingDetails();
@@ -66,4 +67,29 @@ test('an owner attaches several private payment slips without paying the invoice
             ->and(SaasPayment::query()->count())->toBe(0)
             ->and(Subscription::current()->status)->toBe(SubscriptionStatus::Trial);
     });
+});
+
+test('owners and administrators see slips beside the invoice without exposing storage paths', function () {
+    [$owner, $organization] = organizationWithOwner();
+    $invoice = inTenant($organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+    $this->actingAs($owner)->post(route('subscription.invoices.slips.store', $invoice), [
+        'files' => [UploadedFile::fake()->image('bank.png')], 'reference' => 'BANK-456',
+    ])->assertSessionHasNoErrors();
+    $slip = inTenant($organization, fn () => SaasPaymentSlip::query()->sole());
+
+    $this->get(route('subscription.invoices.show', $invoice))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('slips', 1)
+            ->where('slips.0.name', 'bank.png')->where('slips.0.reference', 'BANK-456')
+            ->where('slips.0.url', route('subscription.slips.show', $slip))
+            ->where('uploadSlipsUrl', route('subscription.invoices.slips.store', $invoice)))
+        ->assertDontSee($slip->path);
+    $this->actingAs(platformStaff())->get(route('platform.organizations.show', $organization))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('invoices.data.0.slips', 1)
+            ->where('invoices.data.0.slips.0.name', 'bank.png')
+            ->where('invoices.data.0.slips.0.reference', 'BANK-456')
+            ->where('invoices.data.0.slips.0.url', route('platform.slips.show', $slip->id)))
+        ->assertDontSee($slip->path);
+    $this->get(route('platform.invoices.show', $invoice->id))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('uploadSlipsUrl', null)
+            ->where('slips.0.url', route('platform.slips.show', $slip->id)));
 });

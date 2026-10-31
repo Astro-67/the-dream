@@ -48,6 +48,6 @@ class SubscriptionController extends Controller
     {
         Gate::authorize('view', Subscription::class);
 
-        return Inertia::render('subscription/invoice', $invoice->view());
+        return Inertia::render('subscription/invoice', $invoice->view(forOwner: true));
     }
 }

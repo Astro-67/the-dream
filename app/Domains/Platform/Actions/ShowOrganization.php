@@ -5,6 +5,7 @@ namespace App\Domains\Platform\Actions;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Subscriptions\Models\SaasInvoice;
 use App\Domains\Subscriptions\Models\SaasPayment;
+use App\Domains\Subscriptions\Models\SaasPaymentSlip;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Data\GoLiveGate;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -35,10 +36,11 @@ final class ShowOrganization
                     'currentPeriodEndsAt' => $subscription->current_period_ends_at?->toIso8601String(),
                 ],
                 'invoices' => SaasInvoice::query()->where('organization_id', $id)
-                    ->with(['payments' => fn ($query) => $query->orderBy('received_on')->orderBy('id')])
+                    ->with(['payments' => fn ($query) => $query->orderBy('received_on')->orderBy('id'), 'slips'])
                     ->withSum('payments', 'amount')->orderByDesc('sequence')->paginate(50)->withQueryString()
                     ->through(fn (SaasInvoice $invoice) => [
                         'id' => $invoice->id, ...$invoice->summary(),
+                        'slips' => $invoice->slips->map(fn (SaasPaymentSlip $slip) => $slip->summary(forOwner: false))->all(),
                         'payments' => $invoice->payments->map(fn (SaasPayment $payment) => [
                             'id' => $payment->id, 'amount' => $payment->amount, 'method' => $payment->method->label(),
                             'reference' => $payment->reference, 'receivedOn' => $payment->received_on->toDateString(),
