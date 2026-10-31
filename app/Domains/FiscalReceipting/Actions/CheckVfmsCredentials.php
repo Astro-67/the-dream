@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Support\Audit\Audit;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
@@ -42,15 +43,27 @@ class CheckVfmsCredentials
             RateLimiter::hit(self::key($property), 60);
 
             $outcome = $this->vfms->checkCredentials($credential);
-            $credential->forceFill(['zra_check' => $outcome, 'zra_checked_at' => now()]);
-            Tenancy::within(TenantContext::forProperty($property), fn () => $credential->save());
 
-            Audit::record($actor, 'vfms_credentials_checked', $property, 'VFMS credentials checked with ZRA', [
-                'property_id' => $property->id,
-                'attributes' => ['zra_check' => $outcome, 'integration_id' => $credential->integration_id],
-            ]);
+            return Tenancy::within(TenantContext::forProperty($property), fn () => DB::transaction(function () use ($actor, $property, $credential, $outcome) {
+                $current = VfmsCredential::query()->lockForUpdate()->findOrFail($credential->id);
+                if ($current->integration_id !== $credential->integration_id
+                    || $current->registration_id !== $credential->registration_id
+                    || $current->token !== $credential->token) {
+                    throw ValidationException::withMessages(['zra_check' => __('VFMS credentials changed during the check. Check the saved credentials again.')]);
+                }
+                $current->forceFill(['zra_check' => $outcome, 'zra_checked_at' => now()]);
+                if ($outcome === 'refused') {
+                    $current->credentials_refused_at = now();
+                }
+                $current->save();
 
-            return $credential;
+                Audit::record($actor, 'vfms_credentials_checked', $property, 'VFMS credentials checked with ZRA', [
+                    'property_id' => $property->id,
+                    'attributes' => ['zra_check' => $outcome, 'integration_id' => $current->integration_id],
+                ]);
+
+                return $current;
+            }));
         });
     }
 

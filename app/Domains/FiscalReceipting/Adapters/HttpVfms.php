@@ -109,8 +109,6 @@ final class HttpVfms
         $data = $response->json();
         if (in_array($response->status(), [401, 403], true)
             || ($response->successful() && is_array($data) && in_array($data['statusCode'] ?? null, [5000, '5000'], true))) {
-            $this->markRefused($credential);
-
             return 'refused';
         }
 

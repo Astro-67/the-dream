@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\FiscalReceipting\Actions\SaveVfmsCredentials;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Http\Client\Request;
@@ -27,6 +28,30 @@ function checkWithZra(TenantFixture $tenant)
 
 /** Shaped like ZRA's documented reply (production guide v1.6, 2.4). */
 const ZRA_RATES = ['rate_id' => null, 'rateUSD' => 3205.0, 'rateEURO' => 2721.23, 'rateUSDEURO' => 1.17];
+
+test('a ZRA response cannot mark credentials replaced during the request', function (string $field, string $outcome) {
+    $t = twoTenants();
+    zraCheckSetup($t->a, function () use ($t, $field, $outcome) {
+        app(SaveVfmsCredentials::class)->handle(
+            $t->a->owner,
+            $t->a->property,
+            $field === 'integration_id' ? 'NEW-INT' : 'OWN-INT',
+            $field === 'registration_id' ? 'NEW-REG' : 'OWN-REG',
+            $field === 'token' ? 'NEW-TOKEN' : '',
+        );
+
+        return $outcome === 'accepted' ? Http::response(ZRA_RATES) : Http::response([], 401);
+    });
+
+    checkWithZra($t->a)->assertSessionHasErrors('zra_check');
+
+    $credential = VfmsCredential::for($t->a->property);
+    expect($credential)->zra_check->toBeNull()->zra_checked_at->toBeNull()->credentials_refused_at->toBeNull()
+        ->and(Activity::query()->where('event', 'vfms_credentials_checked')->count())->toBe(0)
+        ->and(Activity::query()->where('event', 'refused')->where('subject_id', $t->a->property->id)->count())->toBe(1)
+        ->and(Activity::query()->get()->toJson())->not->toContain('NEW-TOKEN', 'OWN-TOKEN');
+    Http::assertSentCount(1);
+})->with(['integration_id', 'registration_id', 'token'])->with(['accepted', 'refused']);
 
 // protects=the check is ZRA's read-only exchange-rate call with the property's own credentials (#199); fails_when=it uses another request, shared test credentials, or queues a filing; no_claim=ZRA's real behaviour.
 test('Check with ZRA sends the exchange-rate request with the property credentials and stores accepted with its time', function () {
