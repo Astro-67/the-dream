@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tenancy\Policies;
 
+use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -20,6 +21,11 @@ use App\Support\Tenancy\Access;
  */
 class PropertyPolicy
 {
+    public function declineGoLive(User $user): bool
+    {
+        return $user->hasPlatformRole(PlatformRole::Administrator);
+    }
+
     public function viewAny(User $user): bool
     {
         return Access::allows($user, OrganizationPermission::PropertiesView);

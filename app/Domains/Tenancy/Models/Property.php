@@ -58,6 +58,7 @@ use LogicException;
  * @property string|null $went_live_by
  * @property CarbonImmutable|null $go_live_requested_at
  * @property string|null $go_live_requested_by
+ * @property string|null $go_live_declined_reason
  * @property CarbonImmutable|null $taxes_reviewed_at
  * @property string|null $taxes_reviewed_by
  * @property bool $demo
