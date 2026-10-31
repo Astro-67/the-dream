@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Thedream's invoice to an organization for one billing period (SUB-01).
+ * Karafuu's invoice to an organization for one billing period (SUB-01).
  * Kept apart from guest folios: its own table, its own platform-wide numbering.
  *
  * @property string $id
@@ -76,7 +76,7 @@ class SaasInvoice extends Model
     }
 
     /**
-     * The printable invoice page: Thedream's details come only from the
+     * The printable invoice page: Karafuu's details come only from the
      * snapshot taken at issue, null on invoices issued before it existed.
      *
      * @return array<string, mixed>

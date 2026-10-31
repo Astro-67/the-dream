@@ -132,7 +132,7 @@ test('only mainland setup properties show the non-fiscal receipt notice', functi
     $this->actingAs($owner)->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page->where('onboarding.receiptNotice', $notice));
 })->with([
-    'mainland' => [JurisdictionProfile::MainlandTanzania, 'Thedream issues non-fiscal receipts for mainland properties.'],
+    'mainland' => [JurisdictionProfile::MainlandTanzania, 'Karafuu issues non-fiscal receipts for mainland properties.'],
     'Zanzibar' => [JurisdictionProfile::Zanzibar, null],
 ]);
 

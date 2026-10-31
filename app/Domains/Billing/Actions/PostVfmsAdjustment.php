@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Brings a checked-out stay's folio to the figures VFMS returned (ADR 0015): one
  * VFMS adjustment line whose tax lines move VAT and the infrastructure levy from
- * Thedream's estimate to VFMS's, and whose net moves the total to the report total.
+ * Karafuu's estimate to VFMS's, and whose net moves the total to the report total.
  * Posted once per stay and currency, even at zero, so the folio records the switch.
  */
 class PostVfmsAdjustment

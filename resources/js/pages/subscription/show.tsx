@@ -219,7 +219,7 @@ export default function SubscriptionShow({
                     )}
                     <p className="text-sm text-muted-foreground">
                         Pay by bank transfer or mobile money and quote the
-                        invoice number. Thedream records the payment once it
+                        invoice number. Karafuu records the payment once it
                         arrives.
                     </p>
                 </section>
@@ -254,7 +254,7 @@ export default function SubscriptionShow({
                                         </TableCell>
                                         <TableCell>{change.reason}</TableCell>
                                         <TableCell>
-                                            {change.actor ?? 'Thedream'}
+                                            {change.actor ?? 'Karafuu'}
                                         </TableCell>
                                     </TableRow>
                                 ))}

@@ -408,7 +408,7 @@ export default function Welcome({
                                         </figcaption>
                                         <Screenshot
                                             name={feature.screen}
-                                            label={`${feature.previewTitle} in Thedream, using sample property data`}
+                                            label={`${feature.previewTitle} in Karafuu, using sample property data`}
                                         />
                                         <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
                                             <span>Actual product screen</span>
@@ -506,7 +506,7 @@ export default function Welcome({
                                     Built for East Africa, compliance included
                                 </h2>
                                 <p className="text-muted-foreground">
-                                    Thedream is built around how hotels in
+                                    Karafuu is built around how hotels in
                                     Tanzania and Zanzibar work: TZS, USD and EUR
                                     side by side, business dates and night
                                     audit, and the reporting Zanzibar properties

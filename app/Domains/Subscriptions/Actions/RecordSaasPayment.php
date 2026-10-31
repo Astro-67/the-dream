@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Records a payment an organization made to Thedream against one of its SaaS
+ * Records a payment an organization made to Karafuu against one of its SaaS
  * invoices. Runs in the invoice's organization. A payment that settles the last
  * open invoice moves a trial, past-due or suspended subscription to active
  * through the paid period, recorded with a reason (SUB-01). Never touches folios.

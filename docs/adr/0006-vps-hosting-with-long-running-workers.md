@@ -1,6 +1,6 @@
 # Host on a VPS with long-running queue workers
 
-ZRA expects booking reports within 5 minutes and check-ins and check-outs "immediately", and the PRD targets delivery within 1 minute. On cPanel, a cron-started queue worker adds up to 60 seconds before any job begins, and shared hosts commonly kill long-running processes. Thedream runs on a VPS managed through Laravel Forge or Ploi, with Supervisor keeping queue workers alive and the scheduler running as a daemon. The database queue and cache drivers are kept. Redis is added only when load requires it.
+ZRA expects booking reports within 5 minutes and check-ins and check-outs "immediately", and the PRD targets delivery within 1 minute. On cPanel, a cron-started queue worker adds up to 60 seconds before any job begins, and shared hosts commonly kill long-running processes. Karafuu runs on a VPS managed through Laravel Forge or Ploi, with Supervisor keeping queue workers alive and the scheduler running as a daemon. The database queue and cache drivers are kept. Redis is added only when load requires it.
 
 ## Considered Options
 

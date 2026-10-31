@@ -1,6 +1,6 @@
 # AWS af-south-1, with managed MySQL and point-in-time recovery
 
-The PRD targets at most 15 minutes of data loss and restoration within 4 hours, and Thedream stores guest identity documents for East African hotels. Production runs in AWS `af-south-1` (Cape Town): the app on EC2 provisioned through Forge, and the database on RDS MySQL 8 with point-in-time recovery, in the same region. The database lives apart from the app server, so losing the app server never loses data. The architecture itself stays region-agnostic: nothing in the code depends on AWS or on this region.
+The PRD targets at most 15 minutes of data loss and restoration within 4 hours, and Karafuu stores guest identity documents for East African hotels. Production runs in AWS `af-south-1` (Cape Town): the app on EC2 provisioned through Forge, and the database on RDS MySQL 8 with point-in-time recovery, in the same region. The database lives apart from the app server, so losing the app server never loses data. The architecture itself stays region-agnostic: nothing in the code depends on AWS or on this region.
 
 ## Consequences
 

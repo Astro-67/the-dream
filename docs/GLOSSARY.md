@@ -1,4 +1,4 @@
-# Thedream PMS
+# Karafuu PMS
 
 Multi-tenant hotel management SaaS for Tanzania and Zanzibar first. This glossary fixes the language used in the PRD and its decisions.
 
@@ -86,7 +86,7 @@ A payment posted to a folio before the guest arrives.
 _Avoid_: Prepayment (when a channel collected it, that is a channel-collected amount)
 
 **Cashier shift**:
-One user's period of handling cash at one property, closed by counting the cash in each currency against what Thedream expects. Optional: a property uses shifts only if it turns them on.
+One user's period of handling cash at one property, closed by counting the cash in each currency against what Karafuu expects. Optional: a property uses shifts only if it turns them on.
 _Avoid_: Till, session
 
 **Cancellation policy**:
@@ -128,17 +128,17 @@ _Avoid_: Sandbox, test property
 Clearing an unpaid folio balance as uncollectable. Needs a permission and a reason, and a second approver above the property's threshold.
 
 **Receipt**:
-A Thedream-numbered record of payment, always labelled non-fiscal. Distinct from a fiscal receipt, which VFMS issues.
+A Karafuu-numbered record of payment, always labelled non-fiscal. Distinct from a fiscal receipt, which VFMS issues.
 
 **Restriction**:
 A selling rule on a rate plan and date: minimum stay, closed to arrival or stop-sell. Binding for channels; staff may override with a reason. Never overrides inventory.
 
 **Go-live**:
-A property moving from setup to live. The owner sends a go-live request once its go-live gates pass; a platform administrator approves it after Thedream is paid. Before go-live, a property can be configured and take test reservations but cannot check guests in, and nothing is reported to authorities. A Zanzibar property also needs VFMS credentials accepted by ZRA and set to Live.
+A property moving from setup to live. The owner sends a go-live request once its go-live gates pass; a platform administrator approves it after Karafuu is paid. Before go-live, a property can be configured and take test reservations but cannot check guests in, and nothing is reported to authorities. A Zanzibar property also needs VFMS credentials accepted by ZRA and set to Live.
 _Avoid_: Activation, launch
 
 **Go-live request**:
-A property owner's request, recorded with when and by whom, for Thedream to take a property live. Refused while any go-live gate fails, and always for a demo property. The property stays in setup while the request waits; requesting again changes nothing.
+A property owner's request, recorded with when and by whom, for Karafuu to take a property live. Refused while any go-live gate fails, and always for a demo property. The property stays in setup while the request waits; requesting again changes nothing.
 _Avoid_: Activation request
 
 **Reservation lifecycle event**:
@@ -152,7 +152,7 @@ _Avoid_: Work order (in UI copy), issue
 ## Subscriptions
 
 **Plan**:
-A priced offer Thedream sells to organizations, setting the price, billing period, property and room limits, and included modules.
+A priced offer Karafuu sells to organizations, setting the price, billing period, property and room limits, and included modules.
 _Avoid_: Package, tier, rate plan (that is a room price)
 
 **Subscription**:
@@ -160,11 +160,11 @@ An organization's agreement to one plan, with its trial, billing period and stat
 _Avoid_: Account, licence
 
 **SaaS invoice**:
-A request for payment from Thedream to an organization for one subscription billing period. Separate from guest folios, non-fiscal receipts and fiscal receipts.
+A request for payment from Karafuu to an organization for one subscription billing period. Separate from guest folios, non-fiscal receipts and fiscal receipts.
 _Avoid_: Folio, guest invoice, fiscal receipt
 
 **Billing details**:
-Thedream's business name, address, contacts, TIN and VRN, and the bank and mobile-money accounts it accepts, kept by platform administrators. Each SaaS invoice keeps a copy of them from the moment it was issued.
+Karafuu's business name, address, contacts, TIN and VRN, and the bank and mobile-money accounts it accepts, kept by platform administrators. Each SaaS invoice keeps a copy of them from the moment it was issued.
 _Avoid_: Company profile, bank details (when mobile money is meant too)
 
 ## Jurisdiction and compliance
@@ -178,7 +178,7 @@ The capabilities a property under the Zanzibar jurisdiction profile needs before
 _Avoid_: ZRA integration, fiscal module
 
 **PMS supplier**:
-The company registered with the Zanzibar Revenue Authority as the provider of the system a property uses. Thedream is the PMS supplier for all of its properties.
+The company registered with the Zanzibar Revenue Authority as the provider of the system a property uses. Karafuu is the PMS supplier for all of its properties.
 _Avoid_: Vendor, integrator
 
 **Booking report**:
@@ -190,7 +190,7 @@ A revision of a booking report confirmed rejected by ZAN Gateway, preserving the
 _Avoid_: Retry (for a correction), latest-state sync
 
 **Reservation number**:
-Thedream's own identifier for a reservation: unique within its property, never reused, and kept for the whole stay. It is the identifier sent to ZAN Gateway.
+Karafuu's own identifier for a reservation: unique within its property, never reused, and kept for the whole stay. It is the identifier sent to ZAN Gateway.
 _Avoid_: Booking ID, confirmation number
 
 **Channel reference**:
@@ -202,7 +202,7 @@ A property's classification from the Zanzibar Commission for Tourism, or "not ye
 _Avoid_: Category, grade
 
 **Infrastructure levy**:
-ZRA's flat charge per guest per night, set by star rating and assessed by VFMS. Shown on the folio as returned, never calculated by Thedream.
+ZRA's flat charge per guest per night, set by star rating and assessed by VFMS. Shown on the folio as returned, never calculated by Karafuu.
 _Avoid_: Infrastructure tax, tourism levy
 
 **ZRA tax registration**:
@@ -217,7 +217,7 @@ A receipt or check-out report issued through VFMS, carrying a VFMS QR code.
 _Avoid_: Invoice, bill, folio
 
 **Estimated tax**:
-The VAT and infrastructure levy Thedream's tax rules put on a Zanzibar folio before check-out. Replaced at check-out by the tax and levy VFMS returns, with any difference posted as a VFMS adjustment line (ADR 0015).
+The VAT and infrastructure levy Karafuu's tax rules put on a Zanzibar folio before check-out. Replaced at check-out by the tax and levy VFMS returns, with any difference posted as a VFMS adjustment line (ADR 0015).
 _Avoid_: Provisional tax, draft tax
 
 **Fiscal check-out report**:
@@ -236,7 +236,7 @@ _Avoid_: Unreceipted charge, tax gap
 An audited, reason-required decision to close a departed stay whose VFMS filings never reached ZRA. It remains a fiscal exception for the property's VAT return, not a fiscal receipt.
 
 **No-show**:
-A reservation whose guest never arrived by the end of the arrival business date. Reported to ZAN Gateway as a cancellation with zero guests, but kept as a no-show in Thedream.
+A reservation whose guest never arrived by the end of the arrival business date. Reported to ZAN Gateway as a cancellation with zero guests, but kept as a no-show in Karafuu.
 _Avoid_: Cancellation (for a no-show)
 
 ## Distribution
@@ -249,7 +249,7 @@ _Avoid_: Source, OTA (when the channel is not an OTA)
 An online travel agency channel, such as Booking.com.
 
 **Channel manager**:
-A third-party service Thedream connects to once, which relays rates, availability and reservations between Thedream and many OTAs.
+A third-party service Karafuu connects to once, which relays rates, availability and reservations between Karafuu and many OTAs.
 _Avoid_: Connectivity provider, aggregator
 
 **Payment collector**:
@@ -265,5 +265,5 @@ A channel reservation that reached the property by a route other than the channe
 _Avoid_: Manual booking, offline booking
 
 **Direct connection**:
-A connection between Thedream and an OTA with no channel manager in between.
+A connection between Karafuu and an OTA with no channel manager in between.
 _Avoid_: Native integration

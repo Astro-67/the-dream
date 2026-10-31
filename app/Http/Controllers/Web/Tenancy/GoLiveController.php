@@ -21,7 +21,7 @@ class GoLiveController extends Controller
         /** @var User $user */
         $user = $request->user();
         $requestGoLive->handle($user, $property);
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Go-live requested for :name. Thedream will review it.', ['name' => $property->name])]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => __('Go-live requested for :name. Karafuu will review it.', ['name' => $property->name])]);
 
         return back();
     }

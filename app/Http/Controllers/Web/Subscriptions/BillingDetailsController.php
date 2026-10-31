@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
-/** Thedream's billing details printed on new SaaS invoices. Platform page: no tenant context. */
+/** Karafuu's billing details printed on new SaaS invoices. Platform page: no tenant context. */
 class BillingDetailsController extends Controller
 {
     public function edit(): Response

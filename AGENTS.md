@@ -1,4 +1,4 @@
-# Thedream PMS
+# Karafuu PMS
 
 Multi-tenant hotel PMS: Laravel 13, Inertia React, Pest. Read the doc for the area you touch:
 

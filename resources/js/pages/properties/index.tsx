@@ -330,7 +330,7 @@ export default function PropertiesIndex({
                                                 className="ml-2"
                                             >
                                                 Go-live requested, waiting for
-                                                Thedream
+                                                Karafuu
                                             </StatusChip>
                                         )}
                                         {property.goLiveDeclinedReason && (

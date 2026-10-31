@@ -26,7 +26,7 @@ class SaasInvoiceReminder extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject($this->overdue ? __('Your Thedream invoice is overdue') : __('Your Thedream invoice is due soon'))
+            ->subject($this->overdue ? __('Your Karafuu invoice is overdue') : __('Your Karafuu invoice is due soon'))
             ->line(__('Invoice :number is due on :date.', ['number' => $this->invoice->number, 'date' => $this->invoice->due_at->toDateString()]))
             ->line(__('Review your subscription for the amount owed and payment status.'))
             ->action(__('View subscription'), route('subscription.show'));

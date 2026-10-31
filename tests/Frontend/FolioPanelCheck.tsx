@@ -256,7 +256,7 @@ const breakdown = renderToStaticMarkup(
 assert.match(breakdown, /Balance of posted charges/);
 assert.doesNotMatch(breakdown, /Settled/);
 assert.match(breakdown, /Not yet charged: 2 nights/);
-// ADR 0015: at a VFMS property Thedream's tax is an estimate until VFMS answers at check-out.
+// ADR 0015: at a VFMS property Karafuu's tax is an estimate until VFMS answers at check-out.
 const estimated = renderToStaticMarkup(
     <FolioSummaryList
         summary={emptySummary}

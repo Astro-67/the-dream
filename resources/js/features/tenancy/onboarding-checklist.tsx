@@ -250,7 +250,7 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                 )}
                 {checklist.goLiveRequested && (
                     <StatusChip tone="warning">
-                        Go-live requested, waiting for Thedream
+                        Go-live requested, waiting for Karafuu
                     </StatusChip>
                 )}
                 {checklist.canGoLive && (

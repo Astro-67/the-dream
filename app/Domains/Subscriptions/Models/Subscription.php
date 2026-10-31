@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * An organization's one subscription to Thedream. Its status changes only through
+ * An organization's one subscription to Karafuu. Its status changes only through
  * TransitionSubscription, which records each change with a reason.
  *
  * @property string $id

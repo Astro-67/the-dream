@@ -22,7 +22,7 @@ export const paymentMethods = {
     cash: 'Cash',
     bank_transfer: 'Bank transfer',
     mobile_money: 'Mobile money',
-    card: 'Card charged outside Thedream',
+    card: 'Card charged outside Karafuu',
     channel_collected: 'Channel-collected',
     other: 'Other',
 };

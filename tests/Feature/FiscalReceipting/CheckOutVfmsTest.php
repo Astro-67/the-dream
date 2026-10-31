@@ -121,11 +121,11 @@ test('an incomplete or uncertain checkout never adjusts the folio or replays', f
     'timeout' => [fn () => throw new ConnectionException('Checkout timed out')],
 ]);
 
-// protects=ADR 0015: before VFMS answers, the folio's tax is Thedream's estimate; after, it is VFMS's tax and levy and the balance matches the report (#160); fails_when=the label stays estimated, the levy is Thedream's, or the balance differs from the report total; no_claim=VFMS's real levy rates.
+// protects=ADR 0015: before VFMS answers, the folio's tax is Karafuu's estimate; after, it is VFMS's tax and levy and the balance matches the report (#160); fails_when=the label stays estimated, the levy is Karafuu's, or the balance differs from the report total; no_claim=VFMS's real levy rates.
 test('an accepted check-out replaces the estimated tax with VFMS tax and levy', function () {
     $t = twoTenants();
     inTenant($t->a->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'live_since' => now()]));
-    // Two nights at 110.00 with no tax rules in Thedream; VFMS assesses 1.00 levy per guest per night.
+    // Two nights at 110.00 with no tax rules in Karafuu; VFMS assesses 1.00 levy per guest per night.
     Http::fake(['gateway.zanrevenue.org/vfms/api/guest/checkout/' => Http::response(array_map(function (array $report, int $index) {
         $report['reportNumber'] = 'CO-'.(778 + $index);
         $report['totalInfrastructure'] = 2;

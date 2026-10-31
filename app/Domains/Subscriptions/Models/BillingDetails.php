@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Thedream's business details and the payment accounts it accepts. Platform
+ * Karafuu's business details and the payment accounts it accepts. Platform
  * data: one row, belonging to no organization. Each new SaaS invoice keeps a
  * snapshot of it, so later edits never change an issued invoice.
  *

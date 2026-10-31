@@ -1,11 +1,11 @@
-# Thedream PMS: Architecture
+# Karafuu PMS: Architecture
 
 - **Status:** draft 1, 6 October 2026
 - **Implements:** [`docs/prd/PRD.md`](prd/PRD.md) v1.1
 - **Vocabulary:** [`docs/GLOSSARY.md`](GLOSSARY.md)
 - **Decisions:** [`docs/adr/`](adr/), ADRs 0001–0014
 
-This document describes how Thedream is built: the domains, their boundaries, how integration messages move, and how the system is deployed and recovered. The ADRs record _why_ each decision was made. This document records _what_ the shape is. When the two disagree, the ADR wins and this document gets fixed.
+This document describes how Karafuu is built: the domains, their boundaries, how integration messages move, and how the system is deployed and recovered. The ADRs record _why_ each decision was made. This document records _what_ the shape is. When the two disagree, the ADR wins and this document gets fixed.
 
 ---
 
@@ -13,7 +13,7 @@ This document describes how Thedream is built: the domains, their boundaries, ho
 
 ```
                          ┌──────────────────────────────────────────────┐
-  Staff browser ────────▶│  Thedream (Laravel 12 modular monolith)      │
+  Staff browser ────────▶│  Karafuu (Laravel 12 modular monolith)      │
   (Inertia + React)      │                                              │
                          │  Web ─ Actions ─ Domain ─ Outbox table       │
   Channel manager ──────▶│  Inbound webhooks ─ Inbox table              │
@@ -456,7 +456,7 @@ This applies only if the client rejects a VPS (ADR 0006).
 
 - The PDPA 2022 cross-border question is resolved for `af-south-1` before the first real guest record (ADR 0011, PRD §16).
 - `af-south-1` is enabled on the AWS account.
-- Thedream's own ZRA supplier key is issued, with the ZAN Gateway staging contract test passing.
+- Karafuu's own ZRA supplier key is issued, with the ZAN Gateway staging contract test passing.
 - Each pilot property's VFMS credentials are saved, and the first Live check-out and accommodation report confirm the assumed response fields (§5.3).
 - The channel manager is selected against PRD §9, with its sandbox contract test passing.
 - A production retention policy for encrypted outbox bodies and history is approved before real guest data; M1 never prunes them.
@@ -469,8 +469,8 @@ This applies only if the client rejects a VPS (ADR 0006).
 | ---------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | [0001](adr/0001-channel-manager-before-direct-booking-com.md)          | Connect to Booking.com through a channel manager first            |
 | [0002](adr/0002-zanzibar-compliance-pack-is-p0.md)                     | The Zanzibar compliance pack is P0, only for Zanzibar properties  |
-| [0003](adr/0003-thedream-is-the-single-zra-pms-supplier.md)            | Thedream is the single ZRA PMS supplier                           |
-| [0004](adr/0004-thedream-never-receives-raw-card-data.md)              | Thedream never receives raw card data                             |
+| [0003](adr/0003-thedream-is-the-single-zra-pms-supplier.md)            | Karafuu is the single ZRA PMS supplier                            |
+| [0004](adr/0004-thedream-never-receives-raw-card-data.md)              | Karafuu never receives raw card data                              |
 | [0005](adr/0005-ota-stays-are-receipted-as-direct-in-vfms.md)          | OTA stays are receipted as DIRECT in VFMS                         |
 | [0006](adr/0006-vps-hosting-with-long-running-workers.md)              | VPS hosting with long-running workers; cPanel as fallback         |
 | [0007](adr/0007-permission-teams-are-organizations.md)                 | Permission teams are organizations                                |

@@ -152,7 +152,7 @@ final class VfmsAdapter implements DeliveryAdapter, OutboxCorrectionAdapter, Res
     }
 
     /**
-     * Posts the difference between Thedream's folio and VFMS's check-out report (ADR 0015).
+     * Posts the difference between Karafuu's folio and VFMS's check-out report (ADR 0015).
      *
      * @param  array<string, mixed>  $payload
      * @param  array<string, scalar|null>  $report
