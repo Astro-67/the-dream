@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\FiscalReceipting\Actions\SaveVfmsCredentials;
+use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Http\Client\Request;
@@ -96,6 +97,7 @@ test('ZRA replies map to refused or unreachable, and refused sets the refused ma
 test('saving credentials clears the previous outcome and checks the new ones with ZRA', function () {
     $t = twoTenants();
     zraCheckSetup($t->a, Http::sequence()->push(ZRA_RATES)->push([], 401));
+    inTenant($t->a->property, fn () => VfmsCredential::query()->update(['mode' => VfmsMode::Live]));
     checkWithZra($t->a);
     expect(VfmsCredential::for($t->a->property)->zra_check)->toBe('accepted');
     $this->travel(61)->seconds();
@@ -108,10 +110,24 @@ test('saving credentials clears the previous outcome and checks the new ones wit
     expect(VfmsCredential::for($t->a->property)->zra_check)->toBe('refused');
 });
 
+test('saving Sandbox credentials clears the check without contacting ZRA', function () {
+    $t = twoTenants();
+    zraCheckSetup($t->a, Http::response(ZRA_RATES));
+    inTenant($t->a->property, fn () => VfmsCredential::query()->update(['zra_check' => 'accepted', 'zra_checked_at' => now()]));
+
+    $this->actingAs($t->a->owner)
+        ->put(route('properties.vfms.update', $t->a->property), ['_property' => $t->a->property->id, 'integration_id' => 'NEW-INT', 'registration_id' => 'OWN-REG', 'token' => 'NEW-TOKEN'])
+        ->assertSessionHasNoErrors();
+
+    expect(VfmsCredential::for($t->a->property))->zra_check->toBeNull()->zra_checked_at->toBeNull();
+    Http::assertNothingSent();
+});
+
 // protects=a save within the minute never keeps an outcome for other credentials (#199); fails_when=a throttled save keeps the old accepted outcome or calls ZRA again; no_claim=the button's throttle message.
 test('a save within a minute of a check clears the outcome without calling ZRA', function () {
     $t = twoTenants();
     zraCheckSetup($t->a, Http::response(ZRA_RATES));
+    inTenant($t->a->property, fn () => VfmsCredential::query()->update(['mode' => VfmsMode::Live]));
     checkWithZra($t->a);
 
     $this->put(route('properties.vfms.update', $t->a->property), ['_property' => $t->a->property->id, 'integration_id' => 'OTHER-INT', 'registration_id' => 'OWN-REG', 'token' => ''])
