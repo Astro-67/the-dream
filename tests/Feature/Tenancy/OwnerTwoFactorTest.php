@@ -72,6 +72,7 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
         'properties.restore' => ['DELETE', route($routeName, $property), $intent],
         'properties.go-live', 'properties.taxes-reviewed' => ['POST', route($routeName, $property), $intent],
         'properties.vfms.update', 'properties.vfms.mode' => ['PUT', route($routeName, $property), $intent],
+        'properties.vfms.check' => ['POST', route($routeName, $property), $intent],
         'properties.demo.store' => ['POST', route($routeName), $intent],
         'properties.destroy' => ['DELETE', route($routeName, $property), $intent],
         'invitations.store' => ['POST', route($routeName), [...$intent, 'email' => 'new@example.test', 'role' => 'front_desk', 'all_properties' => false, 'property_ids' => [$property->id], 'expires_in_days' => 7]],

@@ -96,6 +96,19 @@ return [
 
         return $responses;
     }),
+    'properties.vfms.check' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoCredentials) {
+        $bravoCredentials($t);
+        $this->travel(61)->seconds();
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('properties.vfms.check', $t->b->property->id), ['_property' => $t->a->property->id])->assertNotFound(),
+            $this->actingAs($t->a->owner)->post(route('properties.vfms.check', $t->b->property->id), ['_property' => $t->b->property->id])->assertForbidden(),
+        ];
+        // Bravo's save ran the only check; the attack reached neither ZRA nor Bravo's outcome.
+        Http::assertSentCount(1);
+        expect(VfmsCredential::for($t->b->property)->zra_check)->toBe('refused');
+
+        return $responses;
+    }),
     'reservations.fiscal-report' => RouteCoverage::attempt(function (TwoTenants $t) {
         $reservation = inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
         $responses = [];

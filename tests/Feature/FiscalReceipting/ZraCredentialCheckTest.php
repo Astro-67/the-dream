@@ -3,8 +3,11 @@
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Http\Client\Request;
+use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Activitylog\Models\Activity;
 use Tests\Support\TenantFixture;
 
 const ZRA_LIVE_URL = 'https://vfms-live.example/api/';
@@ -106,4 +109,28 @@ test('Check with ZRA runs at most once per property per minute', function () {
     checkWithZra($t->a)->assertSessionHasNoErrors();
 
     Http::assertSentCount(3);
+});
+
+// protects=every check is audited and the token stays secret (#199); fails_when=a check leaves no audit entry, or the token reaches the audit, a log line, the flash or the page; no_claim=HTTP headers, which must carry it.
+test('every check is audited with its outcome and never the token', function () {
+    $t = twoTenants();
+    zraCheckSetup($t->a, Http::response([], 401));
+    $logged = [];
+    Event::listen(MessageLogged::class, function (MessageLogged $log) use (&$logged) {
+        $logged[] = $log->message.json_encode($log->context);
+    });
+
+    checkWithZra($t->a)->assertSessionHasNoErrors();
+    $flashed = json_encode(session()->all());
+    checkWithZra($t->a)->assertSessionHasErrors('zra_check');
+    $page = $this->get(route('properties.edit', $t->a->property))->assertOk();
+
+    $audit = Activity::query()->where('event', 'vfms_credentials_checked')->sole();
+    expect($audit->causer_id)->toBe($t->a->owner->id)
+        ->and($audit->getExtraProperty('attributes')['zra_check'])->toBe('refused')
+        ->and(Activity::query()->where('event', 'refused')->where('subject_id', $t->a->property->id)->count())->toBe(1)
+        ->and(Activity::query()->get()->toJson())->not->toContain('OWN-TOKEN')
+        ->and(implode("\n", $logged))->not->toContain('OWN-TOKEN')
+        ->and($flashed)->not->toContain('OWN-TOKEN')
+        ->and($page->getContent())->not->toContain('OWN-TOKEN');
 });
