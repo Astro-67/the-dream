@@ -23,9 +23,7 @@ class PaymentSlipController extends Controller
     {
         Gate::authorize('view', Subscription::class);
 
-        return Storage::disk('local')->download($slip->path, $slip->original_name, [
-            'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff',
-        ]);
+        return $this->download($slip);
     }
 
     public function platformShow(string $slip): StreamedResponse
@@ -33,11 +31,7 @@ class PaymentSlipController extends Controller
         Gate::authorize('manage', SaasInvoice::class);
 
         return Tenancy::within(TenantContext::platform('Platform administrator opened a payment slip'),
-            fn () => Storage::disk('local')->download(
-                ($found = SaasPaymentSlip::query()->findOrFail($slip))->path,
-                $found->original_name,
-                ['Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff'],
-            ));
+            fn () => $this->download(SaasPaymentSlip::query()->findOrFail($slip)));
     }
 
     public function store(PaymentSlipsRequest $request, SaasInvoice $invoice, AttachPaymentSlips $attach): RedirectResponse
@@ -48,5 +42,14 @@ class PaymentSlipController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Payment slips uploaded. Thedream will verify your payment.')]);
 
         return to_route('subscription.invoices.show', $invoice);
+    }
+
+    private function download(SaasPaymentSlip $slip): StreamedResponse
+    {
+        abort_unless(Storage::disk('local')->exists($slip->path), 404);
+
+        return Storage::disk('local')->download($slip->path, $slip->original_name, [
+            'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 }

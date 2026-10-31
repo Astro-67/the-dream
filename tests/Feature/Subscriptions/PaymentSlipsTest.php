@@ -10,6 +10,7 @@ use App\Domains\Tenancy\Enums\OrganizationRole;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function () {
     withBillingDetails();
@@ -92,4 +93,84 @@ test('owners and administrators see slips beside the invoice without exposing st
     $this->get(route('platform.invoices.show', $invoice->id))->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('uploadSlipsUrl', null)
             ->where('slips.0.url', route('platform.slips.show', $slip->id)));
+});
+
+test('invalid slip uploads are refused as a whole without storing files', function (string $name, int $size, string $mime) {
+    [$owner, $organization] = organizationWithOwner();
+    $invoice = inTenant($organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+
+    $this->actingAs($owner)->post(route('subscription.invoices.slips.store', $invoice), [
+        'files' => [UploadedFile::fake()->image('valid.png'), UploadedFile::fake()->create($name, $size, $mime)],
+    ])->assertSessionHasErrors('files.1');
+
+    expect(inTenant($organization, fn () => SaasPaymentSlip::query()->count()))->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([])
+        ->and(Activity::query()->where('event', 'refused')->where('subject_id', $invoice->id)->exists())->toBeTrue();
+})->with([
+    'oversized PDF' => ['large.pdf', 5121, 'application/pdf'],
+    'oversized JPG' => ['large.jpg', 5121, 'image/jpeg'],
+    'oversized PNG' => ['large.png', 5121, 'image/png'],
+    'GIF' => ['image.gif', 10, 'image/gif'],
+    'text' => ['notes.txt', 10, 'text/plain'],
+    'executable extension' => ['receipt.php', 10, 'image/png'],
+    'disguised content' => ['receipt.jpg', 10, 'text/plain'],
+]);
+
+test('uploads need at least one file and a bounded optional reference', function (array $payload, string $error) {
+    [$owner, $organization] = organizationWithOwner();
+    $invoice = inTenant($organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+    $this->actingAs($owner)->post(route('subscription.invoices.slips.store', $invoice), $payload)
+        ->assertSessionHasErrors($error);
+
+    expect(inTenant($organization, fn () => SaasPaymentSlip::query()->count()))->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
+})->with([
+    'missing files' => [[], 'files'],
+    'empty files' => [['files' => []], 'files'],
+    'non-file value' => [['files' => ['not a file']], 'files.0'],
+    'long reference' => [fn () => ['files' => [UploadedFile::fake()->image('valid.png')], 'reference' => str_repeat('x', 256)], 'reference'],
+]);
+
+test('a paid invoice refuses more slips and no longer offers the upload form', function () {
+    [$owner, $organization] = organizationWithOwner();
+    $invoice = inTenant($organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+    $this->actingAs(platformStaff())->post(route('platform.invoices.payments.store', $invoice->id), [
+        'amount' => $invoice->amount, 'method' => 'bank_transfer', 'reference' => 'PAID', 'received_on' => now()->toDateString(),
+    ])->assertSessionHasNoErrors();
+
+    $this->actingAs($owner)->post(route('subscription.invoices.slips.store', $invoice), [
+        'files' => [UploadedFile::fake()->image('late.png')],
+    ])->assertSessionHasErrors('files');
+    $this->get(route('subscription.invoices.show', $invoice))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('uploadSlipsUrl', null)->where('invoice.status', 'paid'));
+    expect(inTenant($organization, fn () => SaasPaymentSlip::query()->count()))->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([])
+        ->and(Activity::query()->where('event', 'refused')->where('subject_id', $invoice->id)->exists())->toBeTrue();
+});
+
+test('non-owner members cannot attach slips', function () {
+    $tenants = twoTenants();
+    $invoice = inTenant($tenants->a->organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+    foreach ($tenants->a->members() as $role => $member) {
+        if ($role !== OrganizationRole::Owner->value) {
+            $this->actingAs($member)->post(route('subscription.invoices.slips.store', $invoice), [
+                'files' => [UploadedFile::fake()->image('forbidden.png')],
+            ])->assertForbidden();
+        }
+    }
+    expect(inTenant($tenants->a->organization, fn () => SaasPaymentSlip::query()->count()))->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
+});
+
+test('a missing stored slip returns not found rather than a broken download', function () {
+    [$owner, $organization] = organizationWithOwner();
+    $invoice = inTenant($organization, fn () => app(IssueSaasInvoice::class)->handle(Subscription::current()));
+    $this->actingAs($owner)->post(route('subscription.invoices.slips.store', $invoice), [
+        'files' => [UploadedFile::fake()->image('missing.png')],
+    ])->assertSessionHasNoErrors();
+    $slip = inTenant($organization, fn () => SaasPaymentSlip::query()->sole());
+    Storage::disk('local')->delete($slip->path);
+
+    $this->get(route('subscription.slips.show', $slip))->assertNotFound();
+    $this->actingAs(platformStaff())->get(route('platform.slips.show', $slip->id))->assertNotFound();
 });
