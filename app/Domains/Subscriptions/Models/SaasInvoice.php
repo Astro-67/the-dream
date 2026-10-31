@@ -31,9 +31,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Currency $currency
  * @property SaasInvoiceStatus $status
  * @property CarbonImmutable|null $paid_at
+ * @property array<string, mixed>|null $billing_snapshot BillingDetails fields and organization_name at issue; null before billing details existed
  * @property Subscription $subscription
  */
-#[Fillable(['subscription_id', 'sequence', 'number', 'period_starts_at', 'period_ends_at', 'due_at', 'amount', 'currency', 'status', 'paid_at'])]
+#[Fillable(['subscription_id', 'sequence', 'number', 'period_starts_at', 'period_ends_at', 'due_at', 'amount', 'currency', 'status', 'paid_at', 'billing_snapshot'])]
 #[UsePolicy(SaasInvoicePolicy::class)]
 class SaasInvoice extends Model
 {
@@ -48,6 +49,7 @@ class SaasInvoice extends Model
             'sequence' => 'integer', 'amount' => 'integer', 'currency' => Currency::class, 'status' => SaasInvoiceStatus::class,
             'period_starts_at' => 'immutable_datetime', 'period_ends_at' => 'immutable_datetime',
             'due_at' => 'immutable_datetime', 'paid_at' => 'immutable_datetime',
+            'billing_snapshot' => 'array',
         ];
     }
 
