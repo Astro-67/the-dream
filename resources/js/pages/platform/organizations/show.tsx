@@ -176,7 +176,7 @@ export default function PlatformOrganizationShow({
                                             key={invoice.id}
                                             className="align-top"
                                         >
-                                            <TableCell>
+                                            <TableCell className="whitespace-nowrap">
                                                 <Identifier
                                                     value={invoice.number}
                                                 />
@@ -199,13 +199,19 @@ export default function PlatformOrganizationShow({
                                                     invoice={invoice}
                                                 />
                                             </TableCell>
-                                            <TableCell numeric>
+                                            <TableCell
+                                                numeric
+                                                className="whitespace-nowrap"
+                                            >
                                                 {formatMoney(
                                                     invoice.amount,
                                                     invoice.currency,
                                                 )}
                                             </TableCell>
-                                            <TableCell numeric>
+                                            <TableCell
+                                                numeric
+                                                className="whitespace-nowrap"
+                                            >
                                                 {formatMoney(
                                                     invoice.balance,
                                                     invoice.currency,
