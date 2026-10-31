@@ -175,6 +175,10 @@ for (const canManageOutOfOrder of [true, false]) {
     );
     assert.match(html, /Out of order/);
     assert.match(html, /Leaking shower/);
+    assert.match(
+        html,
+        /<td(?=[^>]*colSpan="2")(?=[^>]*class="[^"]*bg-status-unavailable-tint)[^>]*style="[^"]*background-image:repeating-linear-gradient\([^"]*var\(--status-unavailable\)/,
+    );
     assert.match(html, /colSpan="2"/);
     assert.match(html, /href="\/reservations\/arriving"/);
     if (canManageOutOfOrder) {

@@ -90,7 +90,11 @@ export function CalendarRoomRows({
                         <TableCell
                             key={date}
                             colSpan={end - index}
-                            className="border-b border-l p-1"
+                            className="border-b border-l bg-status-unavailable-tint p-1"
+                            style={{
+                                backgroundImage:
+                                    'repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--status-unavailable) 15%, transparent) 6px 8px)',
+                            }}
                         >
                             {canManage && period.returnsOn > businessDate ? (
                                 <Button
