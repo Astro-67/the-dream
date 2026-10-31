@@ -13,6 +13,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
+import { DeclineGoLive } from '@/features/platform/decline-go-live';
 import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
@@ -327,6 +328,15 @@ export default function PlatformOrganizationShow({
                                             >
                                                 {property.statusLabel}
                                             </StatusChip>
+                                            {property.status ===
+                                                'go_live_requested' &&
+                                                !property.archived && (
+                                                    <div>
+                                                        <DeclineGoLive
+                                                            property={property}
+                                                        />
+                                                    </div>
+                                                )}
                                             {property.archived && (
                                                 <div className="mt-2">
                                                     <StatusChip tone="unavailable">
