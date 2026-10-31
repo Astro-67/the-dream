@@ -2,7 +2,7 @@ import { Head } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
-import type { Paginated } from '@/types';
+import type { BillingAccount, Paginated } from '@/types';
 import {
     Table,
     TableBody,
@@ -18,16 +18,6 @@ import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status'
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
 
-type Account = {
-    type: 'bank' | 'mobile_money';
-    bank?: string;
-    branch?: string;
-    swift?: string | null;
-    provider?: string;
-    account_name: string;
-    account_number: string;
-};
-
 type Billing = {
     business_name: string;
     address: string;
@@ -36,7 +26,7 @@ type Billing = {
     tin: string;
     vrn: string | null;
     organization_name: string;
-    accounts: Account[];
+    accounts: BillingAccount[];
 };
 
 export default function SaasInvoiceShow({

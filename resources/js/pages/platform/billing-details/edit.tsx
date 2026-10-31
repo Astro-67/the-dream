@@ -7,16 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { edit, update } from '@/routes/platform/billing-details';
-
-type Account = {
-    type: 'bank' | 'mobile_money';
-    bank?: string;
-    branch?: string;
-    swift?: string | null;
-    provider?: string;
-    account_name: string;
-    account_number: string;
-};
+import type { BillingAccount as Account } from '@/types';
 
 type Details = {
     business_name: string;

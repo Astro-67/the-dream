@@ -3,7 +3,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusChip } from '@/components/ui/status-chip';
-import type { StatusTone } from '@/components/ui/status-chip';
 import {
     Table,
     TableBody,
@@ -18,20 +17,13 @@ import { formatDate } from '@/features/platform/format';
 import { PaymentSlips } from '@/features/subscriptions/payment-slips';
 import type { PaymentSlip } from '@/features/subscriptions/payment-slips';
 import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
+import { SubscriptionStatus } from '@/features/subscriptions/subscription-status';
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
 import { ZraCheckStatus } from '@/features/tenancy/zra-check-status';
 import { index } from '@/routes/platform/organizations';
 import { show as showInvoice } from '@/routes/platform/invoices';
 import type { Paginated, PlatformOrganizationOwner } from '@/types';
-
-const subscriptionTones: Record<string, StatusTone> = {
-    trial: 'info',
-    active: 'success',
-    past_due: 'warning',
-    suspended: 'error',
-    cancelled: 'unavailable',
-};
 
 type Props = {
     organization: {
@@ -132,15 +124,10 @@ export default function PlatformOrganizationShow({
                                     Status
                                 </dt>
                                 <dd>
-                                    <StatusChip
-                                        tone={
-                                            subscriptionTones[
-                                                subscription.status
-                                            ] ?? 'info'
-                                        }
-                                    >
-                                        {subscription.statusLabel}
-                                    </StatusChip>
+                                    <SubscriptionStatus
+                                        status={subscription.status}
+                                        label={subscription.statusLabel}
+                                    />
                                 </dd>
                             </div>
                             <div>
