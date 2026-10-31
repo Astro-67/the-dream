@@ -10,6 +10,7 @@ use App\Domains\Subscriptions\Notifications\SaasInvoiceReminder;
 use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Support\Tenancy\Access;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class AdvanceSubscription
 {
@@ -30,8 +31,12 @@ class AdvanceSubscription
             }
 
             if (! $subscription->cancel_at_period_end) {
-                while ($subscription->nextPeriodStartsAt()->lessThanOrEqualTo(now()->addDays(3))) {
-                    app(IssueSaasInvoice::class)->handle($subscription);
+                try {
+                    while ($subscription->nextPeriodStartsAt()->lessThanOrEqualTo(now()->addDays(3))) {
+                        app(IssueSaasInvoice::class)->handle($subscription);
+                    }
+                } catch (ValidationException) {
+                    // Billing details missing: IssueSaasInvoice audited the skip; reminders and suspension still run.
                 }
             }
 
