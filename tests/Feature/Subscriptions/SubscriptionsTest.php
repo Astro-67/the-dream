@@ -107,6 +107,8 @@ test('creating an organization starts a trial on the default plan for its trial 
 
 test('existing organizations receive a trial subscription by migration', function () {
     [, $organization] = organizationWithOwner();
+    $slips = require database_path('migrations/2026_10_31_120000_create_saas_payment_slips_table.php');
+    $slips->down();
     $migrations = array_map(fn (string $path) => require $path, glob(database_path('migrations/*_subscriptions_*.php')));
     foreach (array_reverse($migrations) as $migration) {
         $migration->down();
@@ -115,6 +117,7 @@ test('existing organizations receive a trial subscription by migration', functio
     foreach ($migrations as $migration) {
         $migration->up();
     }
+    $slips->up();
 
     $subscription = inTenant($organization, fn () => Subscription::current());
     expect($subscription->status)->toBe(SubscriptionStatus::Trial)
