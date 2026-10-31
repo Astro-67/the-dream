@@ -45,7 +45,7 @@ class RateCalendarController extends Controller
         $reservations = $calendar->forRange($selected->pluck('id')->all(), $from, $to, (string) $request->validated('list', 'all'), (string) $request->validated('search', ''));
         $rooms = Room::query()->whereIn('room_type_id', $selected->pluck('id'))
             ->with(['outOfServicePeriods' => fn ($query) => $query->whereDate('starts_on', '<=', $to)
-                ->whereDate('returns_on', '>', $from)->whereColumn('returns_on', '>', 'starts_on')->orderBy('starts_on')])
+                ->whereDate('returns_on', '>', $from)->orderBy('starts_on')])
             ->get()->keyBy('id');
 
         return Inertia::render('rates/calendar', [

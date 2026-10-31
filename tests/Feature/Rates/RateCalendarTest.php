@@ -99,6 +99,29 @@ test('a rates manager takes a room out of order from the calendar with its reaso
         ->where('roomTypes.0.available', ['2026-10-08' => 1, '2026-10-09' => 1, '2026-10-10' => 1, '2026-10-11' => 1, '2026-10-12' => 2]));
 });
 
+test('returning a room to service from the calendar restores sellable and available nights', function (string $startsOn) {
+    $t = twoTenants();
+    $s = calendarSetup($t->a->property, $t->a->owner);
+    $room = inTenant($t->a->property, fn () => $s['deluxe']->rooms()->where('number', '102')->sole());
+    $calendar = route('rate-calendar', ['from' => '2026-10-08', 'to' => '2026-10-12', 'room_type_ids' => [$s['deluxe']->id]]);
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->from($calendar)
+        ->post(route('out-of-service.store', $room), [
+            '_property' => $t->a->property->id, 'calendar' => true,
+            'starts_on' => $startsOn, 'returns_on' => '2026-10-12', 'reason' => 'Repairs',
+        ])->assertSessionHasNoErrors();
+    $period = $this->get($calendar)->inertiaProps('roomTypes.0.rooms.1.outOfServicePeriods.0');
+
+    $this->from($calendar)->put(route('out-of-service.update', $period['id']), [
+        '_property' => $t->a->property->id, 'calendar' => true,
+        'starts_on' => $startsOn, 'returns_on' => $startsOn, 'reason' => $period['reason'],
+    ])->assertSessionHasNoErrors()->assertRedirect($calendar);
+
+    $this->get($calendar)->assertInertia(fn (Assert $page) => $page
+        ->has('roomTypes.0.rooms.1.outOfServicePeriods', 0)
+        ->where('roomTypes.0.sellable', ['2026-10-08' => 2, '2026-10-09' => 2, '2026-10-10' => 1, '2026-10-11' => 1, '2026-10-12' => 2])
+        ->where('roomTypes.0.available', ['2026-10-08' => 2, '2026-10-09' => 2, '2026-10-10' => 1, '2026-10-11' => 1, '2026-10-12' => 2]));
+})->with(['starting today' => '2026-10-08', 'upcoming' => '2026-10-10']);
+
 test('available rooms fall when booked and return when cancelled without changing sellable rooms', function () {
     $t = twoTenants();
     $reservation = inTenant($t->a->property, function () use ($t) {

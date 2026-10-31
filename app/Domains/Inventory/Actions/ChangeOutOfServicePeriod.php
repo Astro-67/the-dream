@@ -38,8 +38,12 @@ class ChangeOutOfServicePeriod
                 return $period;
             }
 
-            TakeRoomOutOfService::ensureFree($period->room, $details['starts_on'], $details['returns_on'], $period);
-            $period->save();
+            if ($period->returns_on->equalTo($period->starts_on)) {
+                $period->delete();
+            } else {
+                TakeRoomOutOfService::ensureFree($period->room, $details['starts_on'], $details['returns_on'], $period);
+                $period->save();
+            }
             app(RecalculateInventory::class)->handle($type);
             app(SyncRoomServiceStatus::class)->handle($actor, $room);
 

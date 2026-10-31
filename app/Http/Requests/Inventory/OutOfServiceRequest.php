@@ -38,7 +38,7 @@ class OutOfServiceRequest extends FormRequest
             'starts_on' => $started
                 ? ['required', 'date_format:Y-m-d', 'in:'.$period->starts_on->toDateString()]
                 : ['required', 'date_format:Y-m-d', 'after_or_equal:'.$today],
-            'returns_on' => ['required', 'date_format:Y-m-d', 'after:starts_on', 'after_or_equal:'.$today],
+            'returns_on' => ['required', 'date_format:Y-m-d', $period ? 'after_or_equal:starts_on' : 'after:starts_on', 'after_or_equal:'.$today],
             'reason' => ['required', 'string', 'max:255'],
         ];
     }
