@@ -42,6 +42,7 @@ class RatePlanController extends Controller
         return Inertia::render('rates/create', [
             'roomTypes' => RoomType::query()->orderBy('code')->get(['id', 'name', 'code']),
             'currencies' => JurisdictionRules::allowedCurrencies(Tenancy::property()),
+            'policyDefaults' => (new RatePlan)->only(RatePlan::POLICY),
             'basePlans' => RatePlan::query()->bases()->orderBy('code')->get()->map(fn (RatePlan $plan) => ['id' => $plan->id, 'name' => $plan->name, 'code' => $plan->code, 'currency' => $plan->currency->value]),
         ]);
     }

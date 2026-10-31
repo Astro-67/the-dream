@@ -224,3 +224,17 @@ test('a rates manager creates a plan with its cancellation policy and no-show fe
         ->where('plan.no_show_charge', 'first_night')->where('plan.no_show_percent', null));
     expect(Activity::query()->where('description', 'Rate plan created')->where('subject_id', $plan->id)->sole()->getExtraProperty('attributes'))->toMatchArray($policy);
 })->with(['base' => false, 'derived' => true]);
+
+test('creating a plan without changing its policy keeps the displayed defaults', function () {
+    $t = twoTenants();
+    $room = inTenant($t->a->property, fn () => app(CreateRoomType::class)->handle(null, InventoryForm::roomType()));
+    $defaults = ['cancellation_free_days' => null, 'cancellation_charge' => null, 'cancellation_percent' => null, 'no_show_charge' => null, 'no_show_percent' => null];
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get(route('rate-plans.create'))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('rates/create')->where('policyDefaults', $defaults));
+    $this->post(route('rate-plans.store'), ['_property' => $t->a->property->id, 'name' => 'Breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$room->id], ...$defaults])
+        ->assertSessionHasNoErrors();
+    $plan = inTenant($t->a->property, fn () => RatePlan::query()->sole());
+    $this->get(route('rate-plans.edit', $plan))->assertInertia(fn (Assert $page) => $page
+        ->where('plan.cancellation_free_days', null)->where('plan.cancellation_charge', null)->where('plan.cancellation_percent', null)
+        ->where('plan.no_show_charge', null)->where('plan.no_show_percent', null));
+});

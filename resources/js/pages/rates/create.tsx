@@ -7,16 +7,20 @@ import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { CancellationPolicyFields } from '@/features/rates/cancellation-policy-fields';
+import type { CancellationPolicy } from '@/features/rates/cancellation-policy-fields';
 import { index, store } from '@/routes/rate-plans';
 
 export default function CreateRatePlan({
     roomTypes,
     currencies,
     basePlans,
+    policyDefaults,
 }: {
     roomTypes: { id: string; name: string; code: string }[];
     currencies: string[];
     basePlans: { id: string; name: string; code: string; currency: string }[];
+    policyDefaults: CancellationPolicy;
 }) {
     const [baseId, setBaseId] = useState('');
     const [kind, setKind] = useState('percent');
@@ -207,6 +211,10 @@ export default function CreateRatePlan({
                                     </fieldset>
                                 </>
                             )}
+                            <CancellationPolicyFields
+                                plan={policyDefaults}
+                                errors={errors}
+                            />
                             <div className="flex flex-wrap justify-end gap-3">
                                 <Button variant="ghost" asChild>
                                     <Link href={index()}>Cancel</Link>
