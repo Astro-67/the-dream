@@ -43,6 +43,7 @@ type Plan = {
 type RoomType = { id: string; name: string; code: string };
 type Row = RoomType & {
     sellable: Record<string, number>;
+    available: Record<string, number>;
     outOfService: Record<string, number>;
     plans: Plan[];
     rooms: CalendarRoom[];
@@ -339,6 +340,16 @@ export default function RateCalendar({
                                         {dates.map((date) => (
                                             <td key={date} className={cell}>
                                                 {room.sellable[date]}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                    <tr>
+                                        <th scope="row" className={label}>
+                                            Available rooms
+                                        </th>
+                                        {dates.map((date) => (
+                                            <td key={date} className={cell}>
+                                                {room.available[date]}
                                             </td>
                                         ))}
                                     </tr>

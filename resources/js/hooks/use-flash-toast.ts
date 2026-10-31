@@ -13,11 +13,12 @@ export function useFlashToast(): void {
                 return;
             }
 
-            // Error toasts stay until dismissed (docs/design.md).
-            toast[data.type](
-                data.message,
-                data.type === 'error' ? { duration: Infinity } : undefined,
-            );
+            toast[data.type](data.message, {
+                duration:
+                    data.type === 'error' || data.type === 'warning'
+                        ? 8000
+                        : 4000,
+            });
         });
     }, []);
 }

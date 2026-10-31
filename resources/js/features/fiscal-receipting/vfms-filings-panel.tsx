@@ -1,4 +1,5 @@
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -174,9 +175,10 @@ function RecoverFiling({
 }) {
     const id = `vfms-${action === 'Close without filing' ? 'close' : action === 'Retry' ? 'retry' : 'refile'}-${filingId}`;
     const closing = action === 'Close without filing';
+    const [open, setOpen] = useState(false);
 
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="min-h-11">
                     {action}
@@ -199,6 +201,7 @@ function RecoverFiling({
                 </DialogHeader>
                 <Form
                     action={url}
+                    onSuccess={() => setOpen(false)}
                     method="post"
                     className="space-y-4"
                     resetOnSuccess

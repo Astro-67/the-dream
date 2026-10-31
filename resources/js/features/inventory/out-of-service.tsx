@@ -7,6 +7,7 @@ import {
     TableCell,
 } from '@/components/ui/table';
 import { Form } from '@inertiajs/react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -114,8 +115,9 @@ function ChangePeriod({
     period: OutOfServicePeriod;
     today: string;
 }) {
+    const [open, setOpen] = useState(false);
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="sm">
                     Change
@@ -128,6 +130,7 @@ function ChangePeriod({
                 </DialogDescription>
                 <Form
                     {...update.form(period.id)}
+                    onSuccess={() => setOpen(false)}
                     disableWhileProcessing
                     options={{ preserveScroll: true }}
                     className="flex flex-col gap-6"
