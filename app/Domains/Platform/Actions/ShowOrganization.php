@@ -2,8 +2,14 @@
 
 namespace App\Domains\Platform\Actions;
 
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
+use App\Domains\Subscriptions\Models\SaasInvoice;
+use App\Domains\Subscriptions\Models\SaasPayment;
 use App\Domains\Subscriptions\Models\Subscription;
+use App\Domains\Tenancy\Data\GoLiveGate;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Organization;
+use App\Domains\Tenancy\Models\Property;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 
@@ -28,6 +34,33 @@ final class ShowOrganization
                     'statusLabel' => $subscription->status->label(),
                     'currentPeriodEndsAt' => $subscription->current_period_ends_at?->toIso8601String(),
                 ],
+                'invoices' => SaasInvoice::query()->where('organization_id', $id)
+                    ->with(['payments' => fn ($query) => $query->orderBy('received_on')->orderBy('id')])
+                    ->withSum('payments', 'amount')->orderByDesc('sequence')->paginate(50)->withQueryString()
+                    ->through(fn (SaasInvoice $invoice) => [
+                        'id' => $invoice->id, ...$invoice->summary(),
+                        'payments' => $invoice->payments->map(fn (SaasPayment $payment) => [
+                            'id' => $payment->id, 'amount' => $payment->amount, 'method' => $payment->method->label(),
+                            'reference' => $payment->reference, 'receivedOn' => $payment->received_on->toDateString(),
+                        ])->all(),
+                    ]),
+                'properties' => $organization->properties()->orderBy('name')->orderBy('id')->get()
+                    ->map(fn (Property $property) => Tenancy::within(TenantContext::forProperty($property), function () use ($property): array {
+                        $credential = VfmsCredential::for($property);
+                        $requested = ! $property->isLive() && $property->go_live_requested_at !== null;
+
+                        return [
+                            'id' => $property->id, 'name' => $property->name, 'email' => $property->email, 'phone' => $property->phone,
+                            'status' => $requested ? 'go_live_requested' : $property->status->value,
+                            'statusLabel' => $property->isLive() ? __('Live') : ($requested ? __('Go-live requested') : __('Setup')),
+                            'archived' => $property->archived_at !== null,
+                            'gates' => array_map(fn (GoLiveGate $gate) => [
+                                'key' => $gate->key, 'label' => $gate->label, 'passed' => $gate->passed,
+                            ], JurisdictionRules::goLiveGates($property)),
+                            'vfmsMode' => $credential->mode->value,
+                            'credentialsSaved' => $credential->isComplete(),
+                        ];
+                    }))->all(),
             ];
         });
     }

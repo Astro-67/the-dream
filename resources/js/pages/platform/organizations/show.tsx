@@ -1,10 +1,31 @@
 import { Head } from '@inertiajs/react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
+import { Pagination } from '@/components/ui/pagination';
 import { StatusChip } from '@/components/ui/status-chip';
+import type { StatusTone } from '@/components/ui/status-chip';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
+import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
+import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
+import { formatMoney } from '@/lib/utils';
 import { index } from '@/routes/platform/organizations';
-import type { PlatformOrganizationOwner } from '@/types';
+import type { Paginated, PlatformOrganizationOwner } from '@/types';
+
+const subscriptionTones: Record<string, StatusTone> = {
+    trial: 'info',
+    active: 'success',
+    past_due: 'warning',
+    suspended: 'error',
+    cancelled: 'unavailable',
+};
 
 type Props = {
     organization: {
@@ -18,11 +39,36 @@ type Props = {
         statusLabel: string;
         currentPeriodEndsAt: string | null;
     } | null;
+    invoices: Paginated<
+        SaasInvoice & {
+            payments: {
+                id: string;
+                amount: number;
+                method: string;
+                reference: string;
+                receivedOn: string;
+            }[];
+        }
+    >;
+    properties: {
+        id: string;
+        name: string;
+        email: string;
+        phone: string;
+        status: string;
+        statusLabel: string;
+        archived: boolean;
+        gates: { key: string; label: string; passed: boolean }[];
+        vfmsMode: 'sandbox' | 'live';
+        credentialsSaved: boolean;
+    }[];
 };
 
 export default function PlatformOrganizationShow({
     organization,
     subscription,
+    invoices,
+    properties,
 }: Props) {
     return (
         <>
@@ -39,10 +85,7 @@ export default function PlatformOrganizationShow({
                         Owners and contacts
                     </h2>
                     {organization.owners.length === 0 ? (
-                        <EmptyState
-                            title="No owners"
-                            description="No owner is assigned to this organization."
-                        />
+                        <EmptyState message="No owner is assigned to this organization." />
                     ) : (
                         organization.owners.map((owner) => (
                             <div key={owner.email}>
@@ -82,9 +125,9 @@ export default function PlatformOrganizationShow({
                                 <dd>
                                     <StatusChip
                                         tone={
-                                            subscription.status === 'active'
-                                                ? 'success'
-                                                : 'info'
+                                            subscriptionTones[
+                                                subscription.status
+                                            ] ?? 'info'
                                         }
                                     >
                                         {subscription.statusLabel}
@@ -103,10 +146,229 @@ export default function PlatformOrganizationShow({
                             </div>
                         </dl>
                     ) : (
-                        <EmptyState
-                            title="No subscription"
-                            description="This organization has no subscription yet."
-                        />
+                        <EmptyState message="This organization has no subscription yet." />
+                    )}
+                </section>
+                <section
+                    className="space-y-4"
+                    aria-labelledby="invoices-heading"
+                >
+                    <h2 id="invoices-heading" className="text-lg font-semibold">
+                        Invoices and payments
+                    </h2>
+                    {invoices.data.length === 0 ? (
+                        <EmptyState message="No invoices have been issued. Issue invoices from the platform Invoices page." />
+                    ) : (
+                        <>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Invoice</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead numeric>Amount</TableHead>
+                                        <TableHead numeric>Balance</TableHead>
+                                        <TableHead>Payments</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {invoices.data.map((invoice) => (
+                                        <TableRow
+                                            key={invoice.id}
+                                            className="align-top"
+                                        >
+                                            <TableCell>
+                                                <Identifier
+                                                    value={invoice.number}
+                                                />
+                                                <div className="text-xs text-muted-foreground">
+                                                    {formatDate(
+                                                        invoice.periodStartsAt,
+                                                    )}{' '}
+                                                    –{' '}
+                                                    {formatDate(
+                                                        invoice.periodEndsAt,
+                                                    )}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    Due{' '}
+                                                    {formatDate(invoice.dueAt)}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <SaasInvoiceStatus
+                                                    invoice={invoice}
+                                                />
+                                            </TableCell>
+                                            <TableCell numeric>
+                                                {formatMoney(
+                                                    invoice.amount,
+                                                    invoice.currency,
+                                                )}
+                                            </TableCell>
+                                            <TableCell numeric>
+                                                {formatMoney(
+                                                    invoice.balance,
+                                                    invoice.currency,
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {invoice.payments.length ===
+                                                0 ? (
+                                                    <span className="text-muted-foreground">
+                                                        No payments recorded
+                                                    </span>
+                                                ) : (
+                                                    <ul className="space-y-3">
+                                                        {invoice.payments.map(
+                                                            (payment) => (
+                                                                <li
+                                                                    key={
+                                                                        payment.id
+                                                                    }
+                                                                    className="space-y-1"
+                                                                >
+                                                                    <div className="tabular-nums">
+                                                                        {formatMoney(
+                                                                            payment.amount,
+                                                                            invoice.currency,
+                                                                        )}
+                                                                    </div>
+                                                                    <div>
+                                                                        {
+                                                                            payment.method
+                                                                        }{' '}
+                                                                        ·{' '}
+                                                                        {formatDate(
+                                                                            payment.receivedOn,
+                                                                        )}
+                                                                    </div>
+                                                                    <Identifier
+                                                                        value={
+                                                                            payment.reference
+                                                                        }
+                                                                    />
+                                                                </li>
+                                                            ),
+                                                        )}
+                                                    </ul>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            <Pagination page={invoices} />
+                        </>
+                    )}
+                </section>
+                <section
+                    className="space-y-4"
+                    aria-labelledby="properties-heading"
+                >
+                    <h2
+                        id="properties-heading"
+                        className="text-lg font-semibold"
+                    >
+                        Properties
+                    </h2>
+                    {properties.length === 0 ? (
+                        <EmptyState message="No properties have been added to this organization." />
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Property</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Go-live gates</TableHead>
+                                    <TableHead>VFMS</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {properties.map((property) => (
+                                    <TableRow
+                                        key={property.id}
+                                        className="align-top"
+                                    >
+                                        <TableCell>
+                                            <div className="font-medium">
+                                                {property.name}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {property.email}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {property.phone}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatusChip
+                                                tone={
+                                                    property.status === 'live'
+                                                        ? 'success'
+                                                        : property.status ===
+                                                            'go_live_requested'
+                                                          ? 'warning'
+                                                          : 'info'
+                                                }
+                                            >
+                                                {property.statusLabel}
+                                            </StatusChip>
+                                            {property.archived && (
+                                                <div className="mt-2">
+                                                    <StatusChip tone="unavailable">
+                                                        Archived
+                                                    </StatusChip>
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <ul className="space-y-2">
+                                                {property.gates.map((gate) => (
+                                                    <li
+                                                        key={gate.key}
+                                                        className="flex flex-wrap items-center gap-2"
+                                                    >
+                                                        <StatusChip
+                                                            tone={
+                                                                gate.passed
+                                                                    ? 'success'
+                                                                    : 'error'
+                                                            }
+                                                        >
+                                                            {gate.passed
+                                                                ? 'Passed'
+                                                                : 'Failed'}
+                                                        </StatusChip>
+                                                        <span>
+                                                            {gate.label}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatusChip
+                                                tone={
+                                                    property.vfmsMode === 'live'
+                                                        ? 'success'
+                                                        : 'info'
+                                                }
+                                            >
+                                                {property.vfmsMode === 'live'
+                                                    ? 'Live'
+                                                    : 'Sandbox'}
+                                            </StatusChip>
+                                            <div className="mt-2 text-sm">
+                                                Credentials saved:{' '}
+                                                {property.credentialsSaved
+                                                    ? 'Yes'
+                                                    : 'No'}
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     )}
                 </section>
             </div>
