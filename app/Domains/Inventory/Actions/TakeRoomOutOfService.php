@@ -24,7 +24,7 @@ class TakeRoomOutOfService
      */
     public function handle(?User $actor, Room $room, array $details): OutOfServicePeriod
     {
-        return InventoryRefused::audited($actor, $room, 'Room out of service refused', fn () => DB::transaction(function () use ($actor, $room, $details) {
+        return InventoryRefused::audited($actor, $room, 'Room out of order refused', fn () => DB::transaction(function () use ($actor, $room, $details) {
             $room = Room::query()->whereKey($room->id)->lockForUpdate()->firstOrFail();
             $type = RoomType::query()->whereKey($room->room_type_id)->lockForUpdate()->firstOrFail();
             self::ensureFree($room, $details['starts_on'], $details['returns_on']);
@@ -32,7 +32,7 @@ class TakeRoomOutOfService
             app(RecalculateInventory::class)->handle($type);
             app(SyncRoomServiceStatus::class)->handle($actor, $room);
 
-            Audit::record($actor, 'created', $period, 'Room taken out of service', ['attributes' => $period->details()]);
+            Audit::record($actor, 'created', $period, 'Room taken out of order', ['attributes' => $period->details()]);
 
             return $period;
         }));
@@ -51,7 +51,7 @@ class TakeRoomOutOfService
             ->orderBy('starts_on')->first();
 
         if ($overlapping !== null) {
-            throw ValidationException::withMessages(['starts_on' => __('Room :number is already out of service from :from until :until.', [
+            throw ValidationException::withMessages(['starts_on' => __('Room :number is already out of order from :from until :until.', [
                 'number' => $room->number,
                 'from' => $overlapping->starts_on->toDateString(),
                 'until' => $overlapping->returns_on->toDateString(),

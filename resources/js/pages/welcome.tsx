@@ -47,7 +47,7 @@ const features = [
         body: 'Room types, rate plans and a rate calendar, with room status your housekeepers update as they work.',
         points: [
             'Dirty, clean and inspection status per room',
-            'Out-of-service periods kept out of availability',
+            'Out-of-order periods kept out of availability',
             'Rate calendar by room type and date',
         ],
     },

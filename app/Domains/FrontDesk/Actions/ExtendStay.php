@@ -49,7 +49,7 @@ class ExtendStay
             }
             $room = Room::query()->whereKey($locked->room_id)->lockForUpdate()->firstOrFail();
             if ($room->outOfServicePeriods()->whereDate('starts_on', '<', $departure)->whereDate('returns_on', '>', $previous)->exists()) {
-                throw ValidationException::withMessages(['departure' => __('Room :number is out of service during the new nights.', ['number' => $room->getAttribute('number')])]);
+                throw ValidationException::withMessages(['departure' => __('Room :number is out of order during the new nights.', ['number' => $room->getAttribute('number')])]);
             }
             try {
                 foreach ($dates as $date) {

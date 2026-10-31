@@ -4,22 +4,25 @@ import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { AdjustmentFields } from '@/features/rates/adjustment-fields';
+import { CancellationPolicyFields } from '@/features/rates/cancellation-policy-fields';
+import type { CancellationPolicy } from '@/features/rates/cancellation-policy-fields';
 import { index, store } from '@/routes/rate-plans';
 
 export default function CreateRatePlan({
     roomTypes,
     currencies,
     basePlans,
+    policyDefaults,
 }: {
     roomTypes: { id: string; name: string; code: string }[];
     currencies: string[];
     basePlans: { id: string; name: string; code: string; currency: string }[];
+    policyDefaults: CancellationPolicy;
 }) {
     const [baseId, setBaseId] = useState('');
-    const [kind, setKind] = useState('percent');
     const base = basePlans.find((plan) => plan.id === baseId);
     return (
         <>
@@ -92,70 +95,10 @@ export default function CreateRatePlan({
                                         adjusted. Changes to {base.name}'s
                                         prices apply here too.
                                     </p>
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="adjustment_kind">
-                                                Adjustment
-                                            </Label>
-                                            <select
-                                                id="adjustment_kind"
-                                                name="adjustment_kind"
-                                                value={kind}
-                                                onChange={(e) =>
-                                                    setKind(e.target.value)
-                                                }
-                                                className="h-9 w-full rounded-md border border-input bg-background px-3"
-                                                aria-invalid={
-                                                    !!errors.adjustment_kind
-                                                }
-                                            >
-                                                <option value="percent">
-                                                    Percentage of every amount
-                                                </option>
-                                                <option value="amount">
-                                                    Amount on the base occupancy
-                                                    price
-                                                </option>
-                                            </select>
-                                            <InputError
-                                                message={errors.adjustment_kind}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="adjustment">
-                                                {kind === 'percent'
-                                                    ? 'Percent (−10 is 10% off)'
-                                                    : `Amount in ${base.currency} (negative is off)`}
-                                            </Label>
-                                            {kind === 'percent' ? (
-                                                <Input
-                                                    id="adjustment"
-                                                    name="adjustment"
-                                                    type="number"
-                                                    step={1}
-                                                    required
-                                                    className="tabular-nums"
-                                                    aria-invalid={
-                                                        !!errors.adjustment
-                                                    }
-                                                />
-                                            ) : (
-                                                <MoneyInput
-                                                    id="adjustment"
-                                                    name="adjustment"
-                                                    currency={base.currency}
-                                                    required
-                                                    className="tabular-nums"
-                                                    aria-invalid={
-                                                        !!errors.adjustment
-                                                    }
-                                                />
-                                            )}
-                                            <InputError
-                                                message={errors.adjustment}
-                                            />
-                                        </div>
-                                    </div>
+                                    <AdjustmentFields
+                                        currency={base.currency}
+                                        errors={errors}
+                                    />
                                 </>
                             ) : (
                                 <>
@@ -207,6 +150,10 @@ export default function CreateRatePlan({
                                     </fieldset>
                                 </>
                             )}
+                            <CancellationPolicyFields
+                                plan={policyDefaults}
+                                errors={errors}
+                            />
                             <div className="flex flex-wrap justify-end gap-3">
                                 <Button variant="ghost" asChild>
                                     <Link href={index()}>Cancel</Link>

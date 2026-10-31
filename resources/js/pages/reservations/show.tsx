@@ -22,7 +22,12 @@ import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { checkIn, roomAssignment } from '@/routes/reservations';
+import { roomAssignment } from '@/routes/reservations';
+import { CheckInForm } from '@/features/front-desk/check-in-form';
+import {
+    GroupMemberActions,
+    type GroupMember,
+} from '@/features/reservations/group-member-actions';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
@@ -150,10 +155,7 @@ export default function Show({
         overrideBalance: boolean;
     };
     moveRooms: MoveRoom[];
-    groupMembers: Pick<
-        Reservation,
-        'reservation_number' | 'status' | 'arrival' | 'departure'
-    >[];
+    groupMembers: GroupMember[];
     folios: Paginated<Folio>;
     totals: FolioTotal[];
     taxSource: TaxSource;
@@ -201,26 +203,7 @@ export default function Show({
                         </StatusChip>
                     )}
                     {can.checkIn && (
-                        <Form
-                            {...checkIn.form(reservation.reservation_number)}
-                            disableWhileProcessing
-                            errorBag={`check-in-${reservation.reservation_number}`}
-                            options={{ preserveScroll: true }}
-                            className="flex flex-col items-start gap-1"
-                        >
-                            {({ errors }) => (
-                                <>
-                                    <PropertyIntent />
-                                    <Button type="submit">Check in</Button>
-                                    {Object.values(errors).map((error) => (
-                                        <InputError
-                                            key={error}
-                                            message={error}
-                                        />
-                                    ))}
-                                </>
-                            )}
-                        </Form>
+                        <CheckInForm number={reservation.reservation_number} />
                     )}
                     {reservation.status === 'confirmed' && (
                         <TerminationActions
@@ -602,7 +585,7 @@ export default function Show({
                     View and attach staying guests
                 </Link>
                 {groupMembers.length > 0 && (
-                    <Collapsible>
+                    <Collapsible defaultOpen>
                         <h2>
                             <CollapsibleTrigger asChild>
                                 <Button
@@ -625,6 +608,7 @@ export default function Show({
                                         <TableHead>Status</TableHead>
                                         <TableHead>Arrival</TableHead>
                                         <TableHead>Departure</TableHead>
+                                        <TableHead>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -669,6 +653,14 @@ export default function Show({
                                                     member.departure,
                                                     'UTC',
                                                 )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <GroupMemberActions
+                                                    member={member}
+                                                    acceptedPaymentMethods={
+                                                        acceptedPaymentMethods
+                                                    }
+                                                />
                                             </TableCell>
                                         </TableRow>
                                     ))}
