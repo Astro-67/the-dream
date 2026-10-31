@@ -44,3 +44,22 @@ test('Check with ZRA sends the exchange-rate request with the property credentia
         ->where('vfms.zra_check', 'accepted')
         ->where('vfms.zra_checked_at', now()->toIso8601String()));
 });
+
+// protects=the three outcomes and the refused marker (#199); fails_when=a refusal reads as unreachable, a timeout or odd reply as refused, or a refusal leaves no marker; no_claim=ZRA's real refusal codes.
+test('ZRA replies map to refused or unreachable, and refused sets the refused marker', function (Closure $reply, string $outcome) {
+    $t = twoTenants();
+    zraCheckSetup($t->a, $reply);
+
+    checkWithZra($t->a)->assertSessionHasNoErrors();
+
+    $credential = VfmsCredential::for($t->a->property);
+    expect($credential->zra_check)->toBe($outcome)
+        ->and($credential->credentials_refused_at !== null)->toBe($outcome === 'refused');
+})->with([
+    '401' => [fn () => Http::response(['error' => 'Unauthorized'], 401), 'refused'],
+    '403' => [fn () => Http::response('', 403), 'refused'],
+    'refusal status' => [fn () => Http::response(['statusCode' => 5000, 'statusMessage' => 'Invalid token']), 'refused'],
+    'timeout' => [fn () => Http::failedConnection(), 'unreachable'],
+    'server error' => [fn () => Http::response('', 503), 'unreachable'],
+    'no rates' => [fn () => Http::response(['rate_id' => null]), 'unreachable'],
+]);
