@@ -63,3 +63,47 @@ test('ZRA replies map to refused or unreachable, and refused sets the refused ma
     'server error' => [fn () => Http::response('', 503), 'unreachable'],
     'no rates' => [fn () => Http::response(['rate_id' => null]), 'unreachable'],
 ]);
+
+// protects=saving new credentials replaces the previous outcome with a fresh check (#199); fails_when=an accepted outcome survives a save that ZRA then refuses; no_claim=the go-live gate.
+test('saving credentials clears the previous outcome and checks the new ones with ZRA', function () {
+    $t = twoTenants();
+    zraCheckSetup($t->a, Http::sequence()->push(ZRA_RATES)->push([], 401));
+    checkWithZra($t->a);
+    expect(VfmsCredential::for($t->a->property)->zra_check)->toBe('accepted');
+    $this->travel(61)->seconds();
+
+    $this->put(route('properties.vfms.update', $t->a->property), ['_property' => $t->a->property->id, 'integration_id' => 'TYPO-INT', 'registration_id' => 'OWN-REG', 'token' => 'NEW-TOKEN'])
+        ->assertSessionHasNoErrors();
+
+    Http::assertSentCount(2);
+    Http::assertSent(fn (Request $request) => $request->header('vfms-intergration-id') === ['TYPO-INT']);
+    expect(VfmsCredential::for($t->a->property)->zra_check)->toBe('refused');
+});
+
+// protects=a save within the minute never keeps an outcome for other credentials (#199); fails_when=a throttled save keeps the old accepted outcome or calls ZRA again; no_claim=the button's throttle message.
+test('a save within a minute of a check clears the outcome without calling ZRA', function () {
+    $t = twoTenants();
+    zraCheckSetup($t->a, Http::response(ZRA_RATES));
+    checkWithZra($t->a);
+
+    $this->put(route('properties.vfms.update', $t->a->property), ['_property' => $t->a->property->id, 'integration_id' => 'OTHER-INT', 'registration_id' => 'OWN-REG', 'token' => ''])
+        ->assertSessionHasNoErrors();
+
+    Http::assertSentCount(1);
+    expect(VfmsCredential::for($t->a->property))->zra_check->toBeNull()->zra_checked_at->toBeNull();
+});
+
+// protects=at most one check per property per minute (#199); fails_when=a second press within the minute reaches ZRA, or the limit spills to another property; no_claim=the limiter store.
+test('Check with ZRA runs at most once per property per minute', function () {
+    $t = twoTenants();
+    zraCheckSetup($t->a, Http::response(ZRA_RATES));
+    inTenant($t->b->property, fn () => VfmsCredential::query()->create(['integration_id' => 'B-INT', 'registration_id' => 'B-REG', 'token' => 'B-TOKEN']));
+
+    checkWithZra($t->a)->assertSessionHasNoErrors();
+    checkWithZra($t->a)->assertSessionHasErrors('zra_check');
+    checkWithZra($t->b)->assertSessionHasNoErrors();
+    $this->travel(61)->seconds();
+    checkWithZra($t->a)->assertSessionHasNoErrors();
+
+    Http::assertSentCount(3);
+});

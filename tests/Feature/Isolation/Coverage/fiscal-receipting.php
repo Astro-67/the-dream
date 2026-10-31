@@ -6,12 +6,14 @@ use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
 
 /** Bravo saves its own credentials first, so an attack has something to overwrite. */
 $bravoCredentials = function (TwoTenants $t): void {
+    Http::fake([config('services.vfms.live_url').'currencyExchangeRate/' => Http::response([], 401)]);
     inTenant($t->b->property, fn () => app(SaveVfmsCredentials::class)->handle($t->b->owner, $t->b->property, 'BRAVO-INT', 'BRAVO-REG', 'BRAVO-TOKEN'));
 };
 
