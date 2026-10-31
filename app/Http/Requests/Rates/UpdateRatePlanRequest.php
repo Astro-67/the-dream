@@ -23,7 +23,7 @@ class UpdateRatePlanRequest extends RatePlanRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:16', Rule::unique('rate_plans', 'code')->where('property_id', Tenancy::property()?->id)->ignore($plan->id)],
-            ...($plan->base_rate_plan_id !== null ? [] : [
+            ...($plan->base_rate_plan_id !== null ? $this->adjustmentRules(false) : [
                 'room_type_ids' => ['required', 'array', 'min:1'],
                 'room_type_ids.*' => ['required', 'string', 'distinct', Rule::in(RoomType::query()->pluck('id')->all())],
             ]),

@@ -238,3 +238,29 @@ test('creating a plan without changing its policy keeps the displayed defaults',
         ->where('plan.cancellation_free_days', null)->where('plan.cancellation_charge', null)->where('plan.cancellation_percent', null)
         ->where('plan.no_show_charge', null)->where('plan.no_show_percent', null));
 });
+
+test('editing only a derived adjustment updates its prices and audit', function (string $kind, int $adjustment, int $extraAdult, int $extraChild) {
+    $t = twoTenants();
+    [$base, $derived] = inTenant($t->a->property, function () {
+        $room = app(CreateRoomType::class)->handle(null, InventoryForm::roomType());
+        $base = app(CreateRatePlan::class)->handle(null, ['name' => 'Base', 'code' => 'BASE', 'currency' => 'USD', 'room_type_ids' => [$room->id]]);
+        app(SetRatePrices::class)->handle(null, $base, ['room_type_id' => $room->id, 'from' => '2026-12-01', 'to' => '2026-12-01', 'weekdays' => [2], 'base_price' => 10000, 'extra_adult' => 2000, 'extra_child' => 1000]);
+
+        return [$base, app(CreateRatePlan::class)->handle(null, ['name' => 'Derived', 'code' => 'D', 'base_rate_plan_id' => $base->id, 'adjustment_kind' => 'percent', 'adjustment' => 10])];
+    });
+    $this->actingAs($t->a->member(OrganizationRole::PropertyManager))->get(route('rate-plans.edit', $derived))->assertInertia(fn (Assert $page) => $page
+        ->where('plan.adjustment_kind', 'percent')->where('plan.adjustment', 10));
+    $form = ['_property' => $t->a->property->id, 'name' => 'Derived', 'code' => 'D', 'adjustment_kind' => $kind, 'adjustment' => (string) $adjustment];
+    $this->put(route('rate-plans.update', $derived), $form)->assertSessionHasNoErrors();
+    $this->get(route('rate-plans.edit', $derived))->assertInertia(fn (Assert $page) => $page
+        ->where('plan.adjustment_kind', $kind)->where('plan.adjustment', $adjustment));
+    $this->get(route('rate-plans.prices', $derived))->assertInertia(fn (Assert $page) => $page
+        ->where('prices.0.base_price', 9500)->where('prices.0.extra_adult', $extraAdult)->where('prices.0.extra_child', $extraChild));
+    $this->get(route('rate-plans.prices', $base))->assertInertia(fn (Assert $page) => $page
+        ->where('prices.0.base_price', 10000)->where('prices.0.extra_adult', 2000)->where('prices.0.extra_child', 1000));
+    $audit = Activity::query()->where('description', 'Rate plan updated')->sole();
+    expect($audit->getExtraProperty('old'))->toMatchArray(['adjustment_kind' => 'percent', 'adjustment' => 10])
+        ->and($audit->getExtraProperty('attributes'))->toMatchArray(['adjustment_kind' => $kind, 'adjustment' => $adjustment]);
+    $this->put(route('rate-plans.update', $derived), $form)->assertSessionHasNoErrors();
+    expect(Activity::query()->where('description', 'Rate plan updated')->count())->toBe(1);
+})->with(['percentage' => ['percent', -5, 1900, 950], 'fixed amount' => ['amount', -500, 2000, 1000]]);
