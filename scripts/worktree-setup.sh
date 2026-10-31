@@ -9,13 +9,14 @@ set -euo pipefail
 main="${1:-$(git worktree list --porcelain | sed -n '1s/^worktree //p')}"
 [ "$main" != "$PWD" ] || { echo "Run this inside a worktree, not the main checkout." >&2; exit 1; }
 
-[ -f .env ] || { cp .env.example .env && php artisan key:generate --ansi -q; }
-
 for dir in vendor node_modules; do
     [ -d "$dir" ] || [ ! -d "$main/$dir" ] || cp -a "$main/$dir" "$dir"
 done
 composer install --no-interaction --quiet
 bun install --frozen-lockfile >/dev/null
+
+[ -f .env ] || cp .env.example .env
+grep -q '^APP_KEY=.\+' .env || php artisan key:generate --ansi -q
 
 # Wayfinder reads the live schema during the build, so build against a disposable SQLite file.
 mkdir -p .scratch && touch .scratch/build.sqlite
