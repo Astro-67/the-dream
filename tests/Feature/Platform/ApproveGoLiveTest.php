@@ -1,19 +1,30 @@
 <?php
 
+use App\Domains\Onboarding\Actions\CommitImport;
+use App\Domains\Onboarding\Actions\DryRunImport;
 use App\Domains\Platform\Enums\PlatformRole;
+use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Property;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
+use Tests\Support\ImportForm;
 use Tests\Support\TwoTenants;
 
-/** Alpha's property in setup with every gate passing and a go-live request waiting; the subscription is $status. */
-function waitingForApproval(TwoTenants $t, string $status = 'active'): Property
+/**
+ * Alpha's property in setup with every gate passing and a go-live request waiting; the subscription is $status.
+ * $beforeRequest runs in the property once its rooms and rates exist.
+ */
+function waitingForApproval(TwoTenants $t, string $status = 'active', ?Closure $beforeRequest = null): Property
 {
     $property = $t->a->property;
     $property->forceFill(['status' => PropertyStatus::Setup, 'went_live_at' => null, 'taxes_reviewed_at' => now()])->save();
-    inTenant($property, fn () => BookingForm::details($t->a->owner));
+    inTenant($property, function () use ($t, $beforeRequest) {
+        BookingForm::details($t->a->owner);
+        $beforeRequest?->__invoke();
+    });
     vfmsLive($property);
     test()->actingAs($t->a->owner)->post(route('properties.go-live', $property), ['_property' => $property->id])->assertSessionHasNoErrors();
     inTenant($t->a->organization, fn () => Subscription::current()->update(['status' => $status]));
@@ -93,4 +104,18 @@ test('only platform administrators with two-factor authentication can approve go
     $this->actingAs(platformStaff())->post(route('platform.properties.go-live.approve', 'missing'))->assertNotFound();
 
     expect($property->fresh()->status)->toBe(PropertyStatus::Setup);
+});
+
+test('approval records the deferred created event of each imported reservation, with the approver', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    $property = waitingForApproval($t, beforeRequest: fn () => app(CommitImport::class)->handle($t->a->owner,
+        app(DryRunImport::class)->handle($t->a->owner, ImportForm::csv([ImportForm::row()]))));
+    expect(inTenant($property, fn () => ReservationLifecycleEvent::query()->count()))->toBe(0);
+    $admin = platformStaff();
+
+    $this->actingAs($admin)->post(route('platform.properties.go-live.approve', $property->id))->assertSessionHasNoErrors();
+
+    $event = inTenant($property, fn () => ReservationLifecycleEvent::query()->sole());
+    expect($event->type)->toBe('created')->and($event->actor_id)->toBe($admin->id)->and($event->snapshot['imported'])->toBeTrue();
 });
