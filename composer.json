@@ -72,7 +72,7 @@
         "check:fast": [
             "Composer\\Config::disableProcessTimeout",
             "bun run build",
-            "@php artisan test --compact",
+            "@php artisan test --compact --parallel",
             "@lint:check",
             "@types:check",
             "bun run types:check",

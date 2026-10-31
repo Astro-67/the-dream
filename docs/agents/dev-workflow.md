@@ -4,7 +4,7 @@ Commands live in `composer.json` and `package.json` scripts; this file records w
 
 ## Checks
 
-`composer check:fast` runs the fast checks in the order they need: build, then Pest on SQLite, Pint, Larastan, TypeScript, and lint. Pest needs the build first; without the Vite manifest every page test fails. Run it before reporting work done.
+`composer check:fast` runs the fast checks in the order they need: build, then Pest on SQLite, Pint, Larastan, TypeScript, and lint. Pest needs the build first; without the Vite manifest every page test fails. Run it before reporting work done. Pest runs in parallel, one process per core; while building, run only the affected tests with `php artisan test --filter`.
 
 | Check                          | Command               |
 | ------------------------------ | --------------------- |
@@ -23,17 +23,7 @@ Run `php artisan migrate` after pulling. Wayfinder reads the **live** schema whe
 
 ## Worktrees
 
-A fresh worktree has no `vendor/`, `node_modules/`, `.env` or build output.
-
-1. `cp .env.example .env && php artisan key:generate`. The main checkout's `.env` holds real credentials; leave it there.
-2. `composer install` and `bun install --frozen-lockfile`. Copy `vendor/` rather than symlinking it: a symlinked `vendor/` autoloads the main checkout's `app/`, so tests run the wrong code.
-3. Build against a disposable SQLite file, never the shared dev database:
-
-    ```
-    touch .scratch/build.sqlite
-    DB_CONNECTION=sqlite DB_DATABASE=$PWD/.scratch/build.sqlite php artisan migrate --force
-    DB_CONNECTION=sqlite DB_DATABASE=$PWD/.scratch/build.sqlite bun run build
-    ```
+A fresh worktree has no `vendor/`, `node_modules/`, `.env` or build output. Run `scripts/worktree-setup.sh` from its root once: it creates its own `.env`, copies dependencies from the main checkout, and builds against a disposable `.scratch/build.sqlite`, never the shared dev database.
 
 `.scratch/` is gitignored; keep shared agent notes there too, so they survive a session restart.
 
