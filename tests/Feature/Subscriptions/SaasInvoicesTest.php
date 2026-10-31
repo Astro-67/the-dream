@@ -62,6 +62,22 @@ test('a platform administrator issues the next invoice for an organization', fun
     expect(inTenant($organization, fn () => SaasInvoice::query()->count()))->toBe(1);
 });
 
+test('a platform invoice issued on day three of a trial starts its paid month immediately', function () {
+    $this->travelTo(now()->setDate(2026, 10, 1)->startOfDay());
+    [, $organization] = organizationWithOwner();
+    inTenant($organization, fn () => Subscription::current()->update(['trial_ends_at' => now()->addDays(14)]));
+    $this->travelTo(now()->setDate(2026, 10, 3));
+
+    $this->actingAs(platformStaff())->post(route('platform.invoices.store'), ['organization_id' => $organization->id])
+        ->assertRedirect(route('platform.invoices.index'))->assertSessionHasNoErrors();
+
+    $invoice = inTenant($organization, fn () => SaasInvoice::query()->sole());
+    expect($invoice->period_starts_at->toDateString())->toBe('2026-10-03')
+        ->and($invoice->period_ends_at->toDateString())->toBe('2026-11-03')
+        ->and($invoice->due_at->toDateString())->toBe('2026-10-03')
+        ->and(inTenant($organization, fn () => Subscription::current()->status))->toBe(SubscriptionStatus::Trial);
+});
+
 test('a payment that settles the open invoice activates a trial subscription with a reason', function () {
     [, $organization] = organizationWithOwner();
     $invoice = saasInvoiceFor($organization);
