@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
@@ -68,6 +69,54 @@ test('the reservation list identifies booking group membership', function () {
             ->has('reservations.data', 2)
             ->where('reservations.data.0.booking_group_id', $member->booking_group_id)
             ->where('reservations.data.1.booking_group_id', $sibling->booking_group_id));
+});
+
+test('group departure actions respect status and staff permissions', function (OrganizationRole $role, string $status, bool $allowed) {
+    $t = twoTenants();
+    [$member, $sibling] = bookingGroupMembers($t->a);
+    inTenant($t->a->property, fn () => $sibling->update(['status' => $status]));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->member($role))->get(route('reservations.show', $member))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('groupMembers.0.can.checkIn', false)
+            ->where('groupMembers.0.can.checkOut', $allowed));
+})->with([
+    [OrganizationRole::FrontDesk, 'checked_in', true],
+    [OrganizationRole::Auditor, 'checked_in', false],
+    [OrganizationRole::FrontDesk, 'checked_out', false],
+    [OrganizationRole::FrontDesk, 'cancelled', false],
+    [OrganizationRole::FrontDesk, 'no_show', false],
+    [OrganizationRole::FrontDesk, 'void', false],
+]);
+
+test('group payment choices retain each folio currency and reservation', function () {
+    $t = twoTenants();
+    [$member, $sibling] = bookingGroupMembers($t->a);
+    $extra = inTenant($t->a->property, fn () => app(OpenFolio::class)->handle($t->a->owner, $sibling, 'TZS'));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->owner)->get(route('reservations.show', $member))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('groupMembers.0.paymentFolios', 2)
+            ->where('groupMembers.0.paymentFolios.1.id', $extra->id)
+            ->where('groupMembers.0.paymentFolios.1.currency', 'TZS')
+            ->where('groupMembers.0.paymentFolios.1.total.currency', 'TZS')
+            ->where('groupMembers.0.paymentFolios.1.total.due', 0));
+});
+
+test('booking group actions never expose members from another property or organization', function () {
+    $t = twoTenants();
+    [$member, $sibling] = bookingGroupMembers($t->a);
+    foreach ([[$t->a->otherProperty, $t->a->owner], [$t->b->property, $t->b->owner]] as [$property, $owner]) {
+        inTenant($property, function () use ($owner, $member) {
+            $foreign = app(CreateReservation::class)->handle($owner, BookingForm::details($owner));
+            $foreign->update(['booking_group_id' => $member->booking_group_id]);
+        });
+    }
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->owner)->get(route('reservations.show', $member))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('groupMembers', 1)
+            ->where('groupMembers.0.reservation_number', $sibling->reservation_number));
 });
 
 test('group members offer their permitted arrival actions and checking in one leaves the other confirmed', function () {
