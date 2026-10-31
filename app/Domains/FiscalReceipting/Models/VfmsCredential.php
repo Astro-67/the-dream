@@ -25,9 +25,11 @@ use Illuminate\Database\Eloquent\Model;
  * @property VfmsMode $mode
  * @property CarbonImmutable|null $live_since
  * @property CarbonImmutable|null $credentials_refused_at
+ * @property 'accepted'|'refused'|'unreachable'|null $zra_check
+ * @property CarbonImmutable|null $zra_checked_at
  * @property string|null $updated_by
  */
-#[Fillable(['integration_id', 'registration_id', 'token', 'mode', 'live_since', 'credentials_refused_at'])]
+#[Fillable(['integration_id', 'registration_id', 'token', 'mode', 'live_since', 'credentials_refused_at', 'zra_check', 'zra_checked_at'])]
 #[Hidden(['token'])]
 class VfmsCredential extends Model
 {
@@ -43,6 +45,7 @@ class VfmsCredential extends Model
             'mode' => VfmsMode::class,
             'live_since' => 'immutable_datetime',
             'credentials_refused_at' => 'immutable_datetime',
+            'zra_checked_at' => 'immutable_datetime',
         ];
     }
 

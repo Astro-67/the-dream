@@ -45,6 +45,8 @@ type PropertyRow = {
     jurisdictionProfile: JurisdictionProfile;
     jurisdictionLabel: string;
     demo: boolean;
+    goLiveRequested: boolean;
+    goLiveDeclinedReason: string | null;
     can: { update: boolean; archive: boolean; delete: boolean };
 };
 
@@ -322,6 +324,27 @@ export default function PropertiesIndex({
                                     <TableCell className="font-medium">
                                         {property.name}
                                         {property.demo && <DemoChip />}
+                                        {property.goLiveRequested && (
+                                            <StatusChip
+                                                tone="warning"
+                                                className="ml-2"
+                                            >
+                                                Go-live requested, waiting for
+                                                Thedream
+                                            </StatusChip>
+                                        )}
+                                        {property.goLiveDeclinedReason && (
+                                            <div className="mt-2 max-w-sm space-y-1 whitespace-normal">
+                                                <StatusChip tone="error">
+                                                    Go-live request declined
+                                                </StatusChip>
+                                                <p className="text-sm break-words whitespace-pre-wrap text-muted-foreground">
+                                                    {
+                                                        property.goLiveDeclinedReason
+                                                    }
+                                                </p>
+                                            </div>
+                                        )}
                                         {property.id ===
                                             tenant.property?.id && (
                                             <Tag

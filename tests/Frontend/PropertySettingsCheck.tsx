@@ -239,6 +239,8 @@ const checklist = {
             href: '/properties/hotel/edit#tin',
         },
     ],
+    goLiveRequested: false,
+    goLiveDeclinedReason: null,
     canGoLive: false,
     canReviewTaxes: false,
     receiptNotice: null,
@@ -246,6 +248,18 @@ const checklist = {
 const checklistHtml = renderToStaticMarkup(
     <OnboardingChecklist checklist={checklist} />,
 );
+const declinedChecklist = renderToStaticMarkup(
+    <OnboardingChecklist
+        checklist={{
+            ...checklist,
+            goLiveDeclinedReason: 'Correct the business address.',
+        }}
+    />,
+);
+assert.match(declinedChecklist, /Go-live request declined/);
+assert.match(declinedChecklist, /Correct the business address\./);
+assert.match(declinedChecklist, /request go-live again/);
+assert.doesNotMatch(checklistHtml, /Go-live request declined/);
 for (const [roomTypeDone, roomDone] of [
     [false, false],
     [true, false],
@@ -402,6 +416,7 @@ function vfmsSection(vfms: Partial<Parameters<typeof VfmsFields>[0]['vfms']>) {
     const component = () => (
         <VfmsFields
             propertyId="hotel"
+            timeZone="Africa/Dar_es_Salaam"
             vfms={{
                 integration_id: null,
                 registration_id: null,
@@ -409,6 +424,8 @@ function vfmsSection(vfms: Partial<Parameters<typeof VfmsFields>[0]['vfms']>) {
                 mode: 'sandbox',
                 live_since: null,
                 credentials_refused_at: null,
+                zra_check: null,
+                zra_checked_at: null,
                 confirmation: 'LIVE',
                 ...vfms,
             }}
@@ -435,6 +452,8 @@ assert.match(fresh, />Sandbox</);
 assert.match(fresh, /No token saved yet/);
 assert.match(fresh, /type="password"[^>]*id="vfms_token" required=""/);
 assert.match(fresh, /<button[^>]*disabled=""[^>]*>Switch to Live/);
+assert.match(fresh, /Not checked with ZRA yet\./);
+assert.match(fresh, /<button[^>]*disabled=""[^>]*>Check with ZRA/);
 // Saved: the token field is blank and optional, never prefilled; Live asks for the typed word.
 const saved = vfmsSection({
     integration_id: 'INT-1',
@@ -456,6 +475,23 @@ const live = vfmsSection({
 assert.match(live, />Live</);
 assert.match(live, /Credentials refused/);
 assert.match(live, /name="mode" value="sandbox"/);
+// The last ZRA check shows its outcome and the time in the property's timezone.
+for (const [zra_check, label] of [
+    ['accepted', 'Accepted by ZRA'],
+    ['refused', 'Refused by ZRA'],
+    ['unreachable', 'Could not reach ZRA'],
+] as const) {
+    const checked = vfmsSection({
+        integration_id: 'INT-1',
+        registration_id: 'REG-1',
+        token_saved: true,
+        zra_check,
+        zra_checked_at: '2026-10-31T09:05:00Z',
+    });
+    assert.match(checked, new RegExp(`>${label}<`));
+    assert.match(checked, /31 Oct 2026 12:05/);
+    assert.doesNotMatch(checked, /<button[^>]*disabled=""[^>]*>Check with ZRA/);
+}
 assert.doesNotMatch(live, /name="confirmation"/);
 // The section shows only when the server sends it (VFMS properties the member manages).
 assert.doesNotMatch(html, /Save VFMS credentials/);

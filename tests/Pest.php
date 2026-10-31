@@ -1,8 +1,11 @@
 <?php
 
+use App\Domains\FiscalReceipting\Enums\VfmsMode;
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Platform\Actions\AssignPlatformRole;
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Rates\Models\TaxRule;
+use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Tenancy\Actions\CreateOrganization;
 use App\Domains\Tenancy\Data\OrganizationSetup;
 use App\Domains\Tenancy\Enums\PropertyStatus;
@@ -133,6 +136,12 @@ function inTenant(Organization|Property $tenant, Closure $callback): mixed
     return Tenancy::within($context, $callback);
 }
 
+/** Saves complete VFMS credentials in Live mode, accepted by ZRA: the Zanzibar VFMS go-live gate. */
+function vfmsLive(Property $property): void
+{
+    inTenant($property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'zra_check' => 'accepted', 'zra_checked_at' => now()]));
+}
+
 /**
  * A member of platform staff, granted the role the way a seed or console command does.
  * With two-factor authentication enabled unless $twoFactor is false.
@@ -147,6 +156,25 @@ function platformStaff(PlatformRole $role = PlatformRole::Administrator, bool $t
     app(AssignPlatformRole::class)->handle($user, $role);
 
     return $user;
+}
+
+/**
+ * Thedream's billing details with one bank and one mobile-money account, which
+ * issuing a SaaS invoice requires.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function withBillingDetails(array $overrides = []): BillingDetails
+{
+    return BillingDetails::query()->create([
+        'business_name' => 'Thedream Ltd', 'address' => 'Mlandege Street, Zanzibar', 'phone' => '+255 777 000 111',
+        'email' => 'billing@thedream.test', 'tin' => '100-200-300', 'vrn' => '40-001234-X',
+        'accounts' => [
+            ['type' => 'bank', 'bank' => 'CRDB Bank', 'branch' => 'Stone Town', 'swift' => 'CORUTZTZ', 'account_name' => 'Thedream Ltd', 'account_number' => '0150123456700'],
+            ['type' => 'mobile_money', 'provider' => 'M-Pesa', 'account_name' => 'Thedream Ltd', 'account_number' => '0777000111'],
+        ],
+        ...$overrides,
+    ]);
 }
 
 /**

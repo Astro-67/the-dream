@@ -62,7 +62,13 @@ assert.equal(
     true,
     'Platform administration must be a working navigation link',
 );
-for (const path of ['organizations', 'plans', 'invoices', 'staff']) {
+for (const path of [
+    'organizations',
+    'plans',
+    'invoices',
+    'billing-details',
+    'staff',
+]) {
     assert.ok(administrator.includes(`href="/platform/${path}"`));
 }
 assert.ok(!sidebar([]).includes('href="/platform/'));

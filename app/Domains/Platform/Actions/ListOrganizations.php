@@ -3,6 +3,7 @@
 namespace App\Domains\Platform\Actions;
 
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Organization;
 use App\Models\User;
 use App\Support\Tenancy\Tenancy;
@@ -20,13 +21,15 @@ use Illuminate\Support\Facades\DB;
 final class ListOrganizations
 {
     /**
-     * @return list<array{id: string, name: string, owners: list<array{name: string, email: string}>, propertyCount: int, createdAt: ?string}>
+     * @return list<array{id: string, name: string, owners: list<array{name: string, email: string}>, propertyCount: int, createdAt: ?string, goLiveRequested: bool}>
      */
     public function handle(): array
     {
         return Tenancy::within(TenantContext::platform('Platform administrator listed organizations'), function (): array {
             $organizations = Organization::query()
                 ->withCount(['properties' => fn ($query) => $query->active()])
+                ->withExists(['properties as go_live_requested' => fn ($query) => $query->active()
+                    ->where('status', PropertyStatus::Setup)->whereNotNull('go_live_requested_at')])
                 ->orderBy('name')
                 ->orderBy('id')
                 ->get();
@@ -39,6 +42,7 @@ final class ListOrganizations
                 'owners' => $owners[$organization->id] ?? [],
                 'propertyCount' => (int) $organization->getAttribute('properties_count'),
                 'createdAt' => $organization->created_at?->toIso8601String(),
+                'goLiveRequested' => (bool) $organization->getAttribute('go_live_requested'),
             ])->values()->all();
         });
     }
@@ -49,7 +53,7 @@ final class ListOrganizations
      * @param  array<int, mixed>  $organizationIds
      * @return array<string, list<array{name: string, email: string}>>
      */
-    private function ownersOf(array $organizationIds): array
+    public function ownersOf(array $organizationIds): array
     {
         /** @var array{model_has_roles: string, roles: string} $tables */
         $tables = config('permission.table_names');

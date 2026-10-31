@@ -11,6 +11,7 @@ import { StatusChip } from '@/components/ui/status-chip';
 import vfmsRoutes from '@/routes/properties/vfms';
 import { formatDate } from '@/features/platform/format';
 import { index as taxRules } from '@/routes/tax-rules';
+import { ZraCheckStatus } from '@/features/tenancy/zra-check-status';
 
 export type Settings = Record<
     string,
@@ -420,6 +421,8 @@ export type VfmsSettings = {
     mode: 'sandbox' | 'live';
     live_since: string | null;
     credentials_refused_at: string | null;
+    zra_check: 'accepted' | 'refused' | 'unreachable' | null;
+    zra_checked_at: string | null;
     confirmation: string;
 };
 
@@ -430,9 +433,11 @@ export type VfmsSettings = {
 export function VfmsFields({
     propertyId,
     vfms,
+    timeZone,
 }: {
     propertyId: string;
     vfms: VfmsSettings;
+    timeZone: string;
 }) {
     const live = vfms.mode === 'live';
     const complete =
@@ -530,6 +535,36 @@ export function VfmsFields({
                                 Save VFMS credentials
                             </Button>
                         </div>
+                    </>
+                )}
+            </Form>
+            <Form
+                {...vfmsRoutes.check.form(propertyId)}
+                disableWhileProcessing
+                options={{ preserveScroll: true }}
+                className="flex flex-wrap items-center gap-3"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        <PropertyIntent propertyId={propertyId} />
+                        <ZraCheckStatus
+                            outcome={vfms.zra_check}
+                            checkedAt={vfms.zra_checked_at}
+                            timeZone={timeZone}
+                        />
+                        <Button
+                            type="submit"
+                            variant="secondary"
+                            className="ml-auto"
+                            disabled={!complete}
+                        >
+                            {processing && <Spinner />}
+                            Check with ZRA
+                        </Button>
+                        <InputError
+                            message={errors.zra_check}
+                            className="basis-full"
+                        />
                     </>
                 )}
             </Form>

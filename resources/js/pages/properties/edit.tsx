@@ -410,7 +410,11 @@ export default function EditProperty({
                     )}
                 </Form>
                 {vfms && activeTab === 'tax_settings' && (
-                    <VfmsFields propertyId={property.id} vfms={vfms} />
+                    <VfmsFields
+                        propertyId={property.id}
+                        vfms={vfms}
+                        timeZone={property.timezone}
+                    />
                 )}
             </div>
         </>

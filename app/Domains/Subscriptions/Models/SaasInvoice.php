@@ -31,9 +31,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Currency $currency
  * @property SaasInvoiceStatus $status
  * @property CarbonImmutable|null $paid_at
+ * @property array<string, mixed>|null $billing_snapshot BillingDetails fields and organization_name at issue; null before billing details existed
  * @property Subscription $subscription
  */
-#[Fillable(['subscription_id', 'sequence', 'number', 'period_starts_at', 'period_ends_at', 'due_at', 'amount', 'currency', 'status', 'paid_at'])]
+#[Fillable(['subscription_id', 'sequence', 'number', 'period_starts_at', 'period_ends_at', 'due_at', 'amount', 'currency', 'status', 'paid_at', 'billing_snapshot'])]
 #[UsePolicy(SaasInvoicePolicy::class)]
 class SaasInvoice extends Model
 {
@@ -48,6 +49,7 @@ class SaasInvoice extends Model
             'sequence' => 'integer', 'amount' => 'integer', 'currency' => Currency::class, 'status' => SaasInvoiceStatus::class,
             'period_starts_at' => 'immutable_datetime', 'period_ends_at' => 'immutable_datetime',
             'due_at' => 'immutable_datetime', 'paid_at' => 'immutable_datetime',
+            'billing_snapshot' => 'array',
         ];
     }
 
@@ -73,6 +75,30 @@ class SaasInvoice extends Model
         ];
     }
 
+    /**
+     * The printable invoice page: Thedream's details come only from the
+     * snapshot taken at issue, null on invoices issued before it existed.
+     *
+     * @return array<string, mixed>
+     */
+    public function view(bool $forOwner): array
+    {
+        $this->loadSum('payments', 'amount')->load('subscription.plan');
+
+        return [
+            'invoice' => [...$this->summary(), 'plan' => $this->subscription->plan->name, 'issuedAt' => $this->created_at?->toIso8601String()],
+            'billing' => $this->billing_snapshot,
+            'slips' => $this->slips()->orderBy('id')->paginate(50, ['*'], 'slips')->withQueryString()
+                ->through(fn (SaasPaymentSlip $slip) => $slip->summary($forOwner)),
+            'uploadSlipsUrl' => $forOwner && $this->status === SaasInvoiceStatus::Open
+                ? route('subscription.invoices.slips.store', $this->id) : null,
+            'payments' => $this->payments()->orderBy('received_on')->orderBy('id')->paginate(50, ['*'], 'payments')->withQueryString()->through(fn (SaasPayment $payment) => [
+                'id' => $payment->id, 'method' => $payment->method->label(), 'amount' => $payment->amount,
+                'reference' => $payment->reference, 'receivedOn' => $payment->received_on->toDateString(),
+            ]),
+        ];
+    }
+
     /** @return BelongsTo<Subscription, $this> */
     public function subscription(): BelongsTo
     {
@@ -89,5 +115,11 @@ class SaasInvoice extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(SaasPayment::class);
+    }
+
+    /** @return HasMany<SaasPaymentSlip, $this> */
+    public function slips(): HasMany
+    {
+        return $this->hasMany(SaasPaymentSlip::class);
     }
 }

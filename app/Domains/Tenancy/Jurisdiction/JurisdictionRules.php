@@ -3,6 +3,8 @@
 namespace App\Domains\Tenancy\Jurisdiction;
 
 use App\Domains\Billing\OpenFolios;
+use App\Domains\FiscalReceipting\Enums\VfmsMode;
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Enums\ZraTaxCategory;
@@ -121,11 +123,20 @@ final class JurisdictionRules
                 new GoLiveGate('z_number', __('Z-number'), filled($property->z_number), onPropertyForm: true),
                 new GoLiveGate('zra_hotel_code', __('ZRA hotel code'), filled($property->zra_hotel_code), onPropertyForm: true),
                 new GoLiveGate('star_rating', __('Star rating'), in_array($property->star_rating, [1, 2, 3, 4, 5], true), onPropertyForm: true),
+                new GoLiveGate('vfms', __('VFMS credentials accepted by ZRA and set to Live'), self::vfmsReady($property)),
                 ...($property->settings()['tax_settings']['zra_tax_category'] === ZraTaxCategory::Vat->value ? [
                     new GoLiveGate('vrn', __('VRN'), filled($property->vrn), onPropertyForm: true),
                 ] : []),
             ] : []),
         ];
+    }
+
+    /** Saving credentials clears the ZRA check, so "accepted" always means the credentials saved now. */
+    private static function vfmsReady(Property $property): bool
+    {
+        $credential = VfmsCredential::for($property);
+
+        return $credential->isComplete() && $credential->mode === VfmsMode::Live && $credential->zra_check === 'accepted';
     }
 
     public static function defaultInfrastructureLevy(Property $property): ?int

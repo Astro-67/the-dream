@@ -27,6 +27,15 @@ A fresh worktree has no `vendor/`, `node_modules/`, `.env` or build output. Run 
 
 `.scratch/` is gitignored; keep shared agent notes there too, so they survive a session restart.
 
+## Payment slip uploads
+
+PHP must allow uploads of at least 5 MB (`upload_max_filesize=5M` or higher). Set
+`post_max_size` and the reverse proxy's request-body limit high enough for the
+combined batch plus multipart overhead; application validation still limits each
+file to 5 MB. Configure the PHP runtime that serves HTTP, not only the CLI.
+Slips live on the private `local` disk (`storage/app/private/payment-slips`), which
+must persist across deployments and be included in backups.
+
 ## Gotchas
 
 - **New Inertia page**: rebuild before running its feature test; the test fails while the page is missing from the Vite manifest.

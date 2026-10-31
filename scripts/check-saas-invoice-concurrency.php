@@ -10,6 +10,7 @@
 
 use App\Domains\Subscriptions\Actions\IssueSaasInvoice;
 use App\Domains\Subscriptions\Actions\StartTrial;
+use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Subscriptions\Models\SaasInvoice;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Domains\Tenancy\Models\Organization;
@@ -32,6 +33,8 @@ if (DB::connection()->getDatabaseName() !== 'ticket99_concurrency') {
 
 $organizations = Tenancy::within(TenantContext::platform('Create disposable concurrency fixtures'), function () {
     $owner = User::factory()->create();
+    BillingDetails::query()->create(['business_name' => 'Thedream Ltd', 'address' => 'Zanzibar', 'phone' => '+255', 'email' => 'billing@thedream.test',
+        'tin' => '100-200-300', 'accounts' => [['type' => 'mobile_money', 'provider' => 'M-Pesa', 'account_name' => 'Thedream Ltd', 'account_number' => '0777000111']]]);
     $organizations = [];
     foreach (['Alpha', 'Bravo'] as $name) {
         $organization = Organization::query()->create(['name' => $name, 'country' => 'TZ', 'created_by' => $owner->id]);

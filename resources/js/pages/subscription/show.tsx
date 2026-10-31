@@ -1,9 +1,8 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
 import { StatusChip } from '@/components/ui/status-chip';
-import type { StatusTone } from '@/components/ui/status-chip';
 import {
     Table,
     TableBody,
@@ -14,18 +13,12 @@ import {
 } from '@/components/ui/table';
 import { formatDate } from '@/features/platform/format';
 import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
+import { SubscriptionStatus } from '@/features/subscriptions/subscription-status';
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
 import { show } from '@/routes/subscription';
+import { show as showInvoice } from '@/routes/subscription/invoices';
 import type { Paginated } from '@/types';
-
-const tones: Record<string, StatusTone> = {
-    trial: 'info',
-    active: 'success',
-    past_due: 'warning',
-    suspended: 'error',
-    cancelled: 'unavailable',
-};
 
 type Props = {
     subscription: {
@@ -95,9 +88,10 @@ export default function SubscriptionShow({
                         Subscription
                     </h1>
                     <div className="flex flex-wrap items-center gap-3 text-sm">
-                        <StatusChip tone={tones[subscription.status] ?? 'info'}>
-                            {subscription.statusLabel}
-                        </StatusChip>
+                        <SubscriptionStatus
+                            status={subscription.status}
+                            label={subscription.statusLabel}
+                        />
                         <span>
                             {plan.name} ·{' '}
                             <span className="tabular-nums">
@@ -176,10 +170,16 @@ export default function SubscriptionShow({
                                     {invoices.data.map((invoice) => (
                                         <TableRow key={invoice.id}>
                                             <TableCell>
-                                                <Identifier
-                                                    value={invoice.number}
-                                                    copyable
-                                                />
+                                                <Link
+                                                    href={showInvoice(
+                                                        invoice.id,
+                                                    )}
+                                                    className="underline underline-offset-4"
+                                                >
+                                                    <Identifier
+                                                        value={invoice.number}
+                                                    />
+                                                </Link>
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap tabular-nums">
                                                 {formatDate(

@@ -56,6 +56,9 @@ use LogicException;
  * @property PropertyStatus $status
  * @property CarbonImmutable|null $went_live_at
  * @property string|null $went_live_by
+ * @property CarbonImmutable|null $go_live_requested_at
+ * @property string|null $go_live_requested_by
+ * @property string|null $go_live_declined_reason
  * @property CarbonImmutable|null $taxes_reviewed_at
  * @property string|null $taxes_reviewed_by
  * @property bool $demo
@@ -101,6 +104,7 @@ class Property extends Model
             'jurisdiction_profile' => JurisdictionProfile::class,
             'status' => PropertyStatus::class,
             'went_live_at' => 'immutable_datetime',
+            'go_live_requested_at' => 'immutable_datetime',
             'taxes_reviewed_at' => 'immutable_datetime',
             'archived_at' => 'datetime',
             'business_date' => 'immutable_date',

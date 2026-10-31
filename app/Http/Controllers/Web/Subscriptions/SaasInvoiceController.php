@@ -39,6 +39,14 @@ class SaasInvoiceController extends Controller
         ]));
     }
 
+    public function show(string $invoice): Response
+    {
+        Gate::authorize('manage', SaasInvoice::class);
+
+        return Tenancy::within(TenantContext::platform('Platform administrator opened a SaaS invoice'),
+            fn () => Inertia::render('subscription/invoice', SaasInvoice::query()->findOrFail($invoice)->view(forOwner: false)));
+    }
+
     public function store(SaasInvoiceRequest $request, IssueSaasInvoice $issue): RedirectResponse
     {
         $organizationId = $request->validated('organization_id');

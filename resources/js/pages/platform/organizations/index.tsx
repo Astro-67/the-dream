@@ -1,5 +1,6 @@
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
+import { StatusChip } from '@/components/ui/status-chip';
 import {
     Table,
     TableHeader,
@@ -8,9 +9,9 @@ import {
     TableHead,
     TableCell,
 } from '@/components/ui/table';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { formatDate } from '@/features/platform/format';
-import { index } from '@/routes/platform/organizations';
+import { index, show } from '@/routes/platform/organizations';
 import type { PlatformOrganization } from '@/types';
 
 type Props = {
@@ -54,9 +55,19 @@ export default function PlatformOrganizations({ organizations }: Props) {
                                     className="align-top"
                                 >
                                     <TableCell>
-                                        <div className="font-medium">
+                                        <Link
+                                            className="font-medium text-primary underline underline-offset-4"
+                                            href={show(organization.id)}
+                                        >
                                             {organization.name}
-                                        </div>
+                                        </Link>
+                                        {organization.goLiveRequested && (
+                                            <div className="mt-2">
+                                                <StatusChip tone="warning">
+                                                    Go-live requested
+                                                </StatusChip>
+                                            </div>
+                                        )}
                                         <div className="text-xs text-muted-foreground">
                                             <Identifier
                                                 value={organization.id}

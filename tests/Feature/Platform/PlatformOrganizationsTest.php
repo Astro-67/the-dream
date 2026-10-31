@@ -30,10 +30,25 @@ test('the organization list shows nothing from inside organizations', function (
         ->get(route('platform.organizations.index'))
         ->assertInertia(fn (Assert $page) => $page
             ->has('organizations.0', fn (Assert $row) => $row
-                ->hasAll(['id', 'name', 'owners', 'propertyCount', 'createdAt']))
+                ->hasAll(['id', 'name', 'owners', 'propertyCount', 'createdAt', 'goLiveRequested']))
             ->where('tenant.organization', null)
             ->where('tenant.property', null)
             ->where('auth.permissions', []));
+});
+
+test('the organization list marks only organizations with a waiting go-live request', function () {
+    $tenants = twoTenants();
+    $tenants->a->property->forceFill(['status' => 'setup', 'go_live_requested_at' => now()])->save();
+    $tenants->b->property->forceFill(['go_live_requested_at' => now()])->save();
+
+    $this->actingAs(platformStaff())->get(route('platform.organizations.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('organizations.0.goLiveRequested', true)
+            ->where('organizations.1.goLiveRequested', false));
+
+    $tenants->a->property->forceFill(['archived_at' => now()])->save();
+    $this->get(route('platform.organizations.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('organizations.0.goLiveRequested', false));
 });
 
 test('organization members, owners included, cannot reach platform pages', function () {
