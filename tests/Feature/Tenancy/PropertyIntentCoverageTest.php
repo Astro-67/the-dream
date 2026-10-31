@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Route as Router;
 const EXEMPT = [
     'current-organization.update' => 'the switcher itself chooses the context',
     'current-property.update' => 'the switcher itself chooses the context',
+    'subscription.invoices.slips.store' => 'payment slips belong to the organization invoice, not a property',
 ];
 
 /** @return list<string> */

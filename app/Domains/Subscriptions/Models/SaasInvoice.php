@@ -112,4 +112,10 @@ class SaasInvoice extends Model
     {
         return $this->hasMany(SaasPayment::class);
     }
+
+    /** @return HasMany<SaasPaymentSlip, $this> */
+    public function slips(): HasMany
+    {
+        return $this->hasMany(SaasPaymentSlip::class);
+    }
 }

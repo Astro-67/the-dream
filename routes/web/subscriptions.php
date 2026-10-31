@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\Subscriptions\BillingDetailsController;
+use App\Http\Controllers\Web\Subscriptions\PaymentSlipController;
 use App\Http\Controllers\Web\Subscriptions\PlanController;
 use App\Http\Controllers\Web\Subscriptions\SaasInvoiceController;
 use App\Http\Controllers\Web\Subscriptions\SubscriptionController;
@@ -9,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified', 'tenant', 'two-factor:owner'])->group(function () {
     Route::get('subscription', [SubscriptionController::class, 'show'])->name('subscription.show');
     Route::get('subscription/invoices/{invoice}', [SubscriptionController::class, 'invoice'])->name('subscription.invoices.show');
+    Route::post('subscription/invoices/{invoice}/slips', [PaymentSlipController::class, 'store'])->name('subscription.invoices.slips.store');
 });
 
 // Platform pages (see routes/web/platform.php).
