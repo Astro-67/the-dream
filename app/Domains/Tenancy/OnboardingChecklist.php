@@ -67,6 +67,7 @@ final class OnboardingChecklist
                 'href' => $gate->onPropertyForm && $actor->can('update', $property) ? route('properties.edit', $property).'#'.$gate->key : null,
             ], $gates),
             'goLiveRequested' => $property->go_live_requested_at !== null,
+            'goLiveDeclinedReason' => $property->go_live_declined_reason,
             'canGoLive' => $property->go_live_requested_at === null && $actor->can('goLive', $property) && collect($gates)->every(fn (GoLiveGate $gate) => $gate->passed),
             'canReviewTaxes' => $actor->can('reviewTaxes', $property),
             'receiptNotice' => JurisdictionRules::onboardingReceiptNotice($property),
