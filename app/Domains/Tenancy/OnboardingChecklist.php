@@ -3,6 +3,7 @@
 namespace App\Domains\Tenancy;
 
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\Models\RatePrice;
@@ -42,7 +43,17 @@ final class OnboardingChecklist
             'items' => array_map(fn (array $item) => [...array_diff_key($item, ['allowed' => 0]), 'href' => $item['allowed'] ? $item['href'] : null], [
                 ['key' => 'verify_email', 'label' => __('Verify email'), 'completed' => $actor->hasVerifiedEmail(), 'href' => route('profile.edit'), 'allowed' => true],
                 ['key' => 'property_profile', 'label' => __('Complete the property profile'), 'completed' => $profileComplete, 'href' => route('properties.edit', $property), 'allowed' => $actor->can('update', $property)],
-                ['key' => 'rooms', 'label' => __('Configure rooms'), 'completed' => $passed['room_type']->passed && $passed['room']->passed, 'href' => route('rooms.index'), 'allowed' => $actor->can('viewAny', Room::class)],
+                [
+                    'key' => 'rooms',
+                    'label' => __('Configure rooms'),
+                    'completed' => $passed['room_type']->passed && $passed['room']->passed,
+                    'href' => route('rooms.index'),
+                    'allowed' => $actor->can('viewAny', Room::class),
+                    'items' => [
+                        ['key' => 'room_type', 'label' => __('Add a room type'), 'completed' => $passed['room_type']->passed, 'href' => $actor->can('create', RoomType::class) ? route('room-types.create') : null],
+                        ['key' => 'room', 'label' => __('Add rooms'), 'completed' => $passed['room']->passed, 'href' => $actor->can('create', Room::class) ? route('rooms.create') : null],
+                    ],
+                ],
                 ['key' => 'rates', 'label' => __('Configure rates'), 'completed' => $passed['rate_plan']->passed && RatePrice::query()->where('property_id', $property->id)->exists(), 'href' => route($passed['rate_plan']->passed ? 'rate-calendar' : 'rate-plans.index'), 'allowed' => $actor->can('viewAny', RatePlan::class)],
                 ['key' => 'taxes_reviewed', 'label' => __('Review taxes'), 'completed' => $property->taxes_reviewed_at !== null, 'href' => route('tax-rules.index'), 'allowed' => $actor->can('viewAny', TaxRule::class)],
                 ['key' => 'invite_staff', 'label' => __('Invite staff'), 'completed' => $staffInvited, 'href' => route('invitations.create'), 'allowed' => $actor->can('create', Invitation::class)],

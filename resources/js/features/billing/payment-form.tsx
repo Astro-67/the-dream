@@ -35,11 +35,13 @@ export function PaymentForm({
     total,
     channelCollectedAmount,
     acceptedMethods,
+    onSuccess,
 }: {
     folio: { id: string; currency: string };
     total: FolioTotal;
     channelCollectedAmount: number | null;
     acceptedMethods: string[];
+    onSuccess?: () => void;
 }) {
     // One key per filled-in form, so a resubmission of the same form posts once.
     const [key, setKey] = useState(() => crypto.randomUUID());
@@ -68,7 +70,10 @@ export function PaymentForm({
     return (
         <Form
             {...store.form(folio.id)}
-            onSuccess={() => setKey(crypto.randomUUID())}
+            onSuccess={() => {
+                setKey(crypto.randomUUID());
+                onSuccess?.();
+            }}
             className="grid max-w-[720px] gap-3 sm:grid-cols-2"
         >
             {({ errors, processing }) => (

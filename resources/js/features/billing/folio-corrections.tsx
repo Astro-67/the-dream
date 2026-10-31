@@ -183,9 +183,10 @@ function CorrectionDialog({
     idPrefix: string;
 }) {
     const [targetId, setTargetId] = useState(target?.[0]?.id ?? 'other');
+    const [open, setOpen] = useState(false);
 
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button size="sm" variant="secondary">
                     {trigger}
@@ -196,6 +197,7 @@ function CorrectionDialog({
                 <DialogDescription>{description}</DialogDescription>
                 <Form
                     {...action}
+                    onSuccess={() => setOpen(false)}
                     options={{ preserveScroll: true }}
                     className="space-y-4"
                 >

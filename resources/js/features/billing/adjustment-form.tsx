@@ -22,6 +22,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/utils';
 
 export function AdjustmentForms({ folio }: { folio: Folio }) {
+    const [open, setOpen] = useState(false);
     const { canRefund, canWriteOff } = usePage<{
         canRefund: boolean;
         canWriteOff: boolean;
@@ -30,7 +31,7 @@ export function AdjustmentForms({ folio }: { folio: Folio }) {
     if (!canRefund && !(canWriteOff && folio.balance > 0)) return null;
 
     return (
-        <Dialog>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="secondary" className="min-h-11">
                     Refunds and write-offs
@@ -45,10 +46,18 @@ export function AdjustmentForms({ folio }: { folio: Folio }) {
                 </DialogHeader>
                 <div className="space-y-6 md:space-y-8">
                     {canRefund && (
-                        <AdjustmentForm folio={folio} type="refund" />
+                        <AdjustmentForm
+                            folio={folio}
+                            type="refund"
+                            onSuccess={() => setOpen(false)}
+                        />
                     )}
                     {canWriteOff && folio.balance > 0 && (
-                        <AdjustmentForm folio={folio} type="write_off" />
+                        <AdjustmentForm
+                            folio={folio}
+                            type="write_off"
+                            onSuccess={() => setOpen(false)}
+                        />
                     )}
                 </div>
             </DialogContent>
@@ -59,9 +68,11 @@ export function AdjustmentForms({ folio }: { folio: Folio }) {
 function AdjustmentForm({
     folio,
     type,
+    onSuccess,
 }: {
     folio: Folio;
     type: 'refund' | 'write_off';
+    onSuccess: () => void;
 }) {
     const [key, setKey] = useState(() => crypto.randomUUID());
     const id = (field: string) => `${type}-${folio.id}-${field}`;
@@ -77,7 +88,10 @@ function AdjustmentForm({
             {...(type === 'refund' ? refund : writeOff).form(folio.id)}
             // Remount on success so the amount clears with the rotated key.
             key={key}
-            onSuccess={() => setKey(crypto.randomUUID())}
+            onSuccess={() => {
+                setKey(crypto.randomUUID());
+                onSuccess();
+            }}
             resetOnSuccess={['amount', 'reason', 'reference']}
             className="grid max-w-[720px] gap-3 sm:grid-cols-2"
         >
