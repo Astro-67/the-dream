@@ -49,7 +49,7 @@ import {
     type Amendment,
     type AmendmentOptions,
 } from '@/features/reservations/amendment-form';
-import { show } from '@/routes/reservations';
+import { index, show } from '@/routes/reservations';
 import { formatMoney } from '@/lib/utils';
 import {
     RoomMoveForm,
@@ -713,3 +713,10 @@ export default function Show({
         </>
     );
 }
+
+Show.layout = {
+    breadcrumbs: [
+        { title: 'Reservations', href: index() },
+        { title: 'Reservation details', href: '#' },
+    ],
+};

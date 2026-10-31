@@ -23,7 +23,7 @@ import {
 } from '@/features/billing/folio-summary';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney } from '@/lib/utils';
-import { show as showReservation } from '@/routes/reservations';
+import { index, show as showReservation } from '@/routes/reservations';
 
 type StatementPosting = {
     id: string;
@@ -275,3 +275,18 @@ export default function Statement({
         </>
     );
 }
+
+Statement.layout = ({
+    reservation,
+}: {
+    reservation: { reservation_number: string };
+}) => ({
+    breadcrumbs: [
+        { title: 'Reservations', href: index() },
+        {
+            title: reservation.reservation_number,
+            href: showReservation(reservation.reservation_number),
+        },
+        { title: 'Folio statement', href: '#' },
+    ],
+});

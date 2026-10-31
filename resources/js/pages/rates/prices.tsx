@@ -17,7 +17,12 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/utils';
-import { prices as pricesOf, quote, restrictions } from '@/routes/rate-plans';
+import {
+    index,
+    prices as pricesOf,
+    quote,
+    restrictions,
+} from '@/routes/rate-plans';
 import { update } from '@/routes/rate-plans/prices';
 type Price = {
     room_type_id: string;
@@ -249,3 +254,10 @@ export default function Prices({
         </>
     );
 }
+
+Prices.layout = {
+    breadcrumbs: [
+        { title: 'Rate plans', href: index() },
+        { title: 'Prices', href: '#' },
+    ],
+};

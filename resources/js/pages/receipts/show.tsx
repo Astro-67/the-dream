@@ -11,7 +11,11 @@ import {
     FolioSummaryList,
     type FolioSummary,
 } from '@/features/billing/folio-summary';
-import { show as showReservation, statement } from '@/routes/reservations';
+import {
+    index,
+    show as showReservation,
+    statement,
+} from '@/routes/reservations';
 
 type Receipt = {
     id: string;
@@ -282,3 +286,14 @@ export default function Show({
         </>
     );
 }
+
+Show.layout = ({ stay }: { stay: { reservation_number: string } }) => ({
+    breadcrumbs: [
+        { title: 'Reservations', href: index() },
+        {
+            title: stay.reservation_number,
+            href: showReservation(stay.reservation_number),
+        },
+        { title: 'Receipt', href: '#' },
+    ],
+});

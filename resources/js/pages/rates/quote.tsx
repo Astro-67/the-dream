@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatMoney } from '@/lib/utils';
-import { prices, quote as quoteRoute } from '@/routes/rate-plans';
+import { index, prices, quote as quoteRoute } from '@/routes/rate-plans';
 
 type Night = {
     date: string;
@@ -185,3 +185,11 @@ export default function QuotePreview({
         </>
     );
 }
+
+QuotePreview.layout = ({ plan }: { plan: { id: string } }) => ({
+    breadcrumbs: [
+        { title: 'Rate plans', href: index() },
+        { title: 'Prices', href: prices(plan.id) },
+        { title: 'Quote preview', href: '#' },
+    ],
+});

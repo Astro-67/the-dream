@@ -172,3 +172,10 @@ export default function CreateRatePlan({
         </>
     );
 }
+
+CreateRatePlan.layout = {
+    breadcrumbs: [
+        { title: 'Rate plans', href: index() },
+        { title: 'Add rate plan', href: '#' },
+    ],
+};

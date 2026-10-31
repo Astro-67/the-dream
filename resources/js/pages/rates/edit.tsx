@@ -128,3 +128,10 @@ export default function EditRatePlan({
         </>
     );
 }
+
+EditRatePlan.layout = {
+    breadcrumbs: [
+        { title: 'Rate plans', href: index() },
+        { title: 'Edit rate plan', href: '#' },
+    ],
+};

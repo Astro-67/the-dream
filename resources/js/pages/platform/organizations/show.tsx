@@ -431,5 +431,8 @@ export default function PlatformOrganizationShow({
 }
 
 PlatformOrganizationShow.layout = {
-    breadcrumbs: [{ title: 'Organizations', href: index() }],
+    breadcrumbs: [
+        { title: 'Organizations', href: index() },
+        { title: 'Organization details', href: '#' },
+    ],
 };
