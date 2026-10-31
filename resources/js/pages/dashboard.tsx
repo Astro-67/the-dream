@@ -1,4 +1,11 @@
 import { Head, Link, usePage } from '@inertiajs/react';
+import {
+    ArrowRight,
+    LogIn,
+    LogOut,
+    Users,
+    type LucideIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
@@ -22,7 +29,7 @@ import {
     type Received,
 } from '@/features/reports/collections-table';
 import { useCan } from '@/hooks/use-can';
-import { formatDate } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { create as createProperty } from '@/routes/properties';
 import { create as createReservation } from '@/routes/reservations';
@@ -49,10 +56,25 @@ type RoomBoard = {
     }>;
 };
 
-const listLabels: Record<string, string> = {
-    arrivals: 'Arrivals',
-    departures: 'Departures',
-    'in-house': 'In house',
+const listCards: Record<
+    string,
+    { label: string; icon: LucideIcon; className: string }
+> = {
+    arrivals: {
+        label: 'Arrivals',
+        icon: LogIn,
+        className: 'bg-status-success-tint text-status-success',
+    },
+    departures: {
+        label: 'Departures',
+        icon: LogOut,
+        className: 'bg-status-warning-tint text-status-warning',
+    },
+    'in-house': {
+        label: 'In house',
+        icon: Users,
+        className: 'bg-status-occupied-tint text-status-occupied',
+    },
 };
 
 export default function Dashboard({
@@ -137,6 +159,56 @@ export default function Dashboard({
                     )}
                 </header>
 
+                {today ? (
+                    <section aria-labelledby="today" className="space-y-3">
+                        <h2 id="today" className="text-lg font-semibold">
+                            Today
+                        </h2>
+                        <ul className="grid gap-4 sm:grid-cols-3">
+                            {today.lists.map((list) => {
+                                const card = listCards[list.key];
+                                const Icon = card?.icon ?? Users;
+
+                                return (
+                                    <li key={list.key}>
+                                        <Link
+                                            href={list.href}
+                                            className={cn(
+                                                'flex flex-col gap-3 rounded-xl border bg-card p-4 transition-[translate,box-shadow] duration-200 ease-out hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-safe:hover:-translate-y-0.5',
+                                                card?.className,
+                                            )}
+                                        >
+                                            <span className="flex items-center justify-between gap-2">
+                                                <span className="text-sm font-medium">
+                                                    {card?.label ?? list.key}
+                                                </span>
+                                                <Icon
+                                                    aria-hidden
+                                                    className="size-5"
+                                                />
+                                            </span>
+                                            <span className="text-3xl font-semibold tabular-nums">
+                                                {list.count}
+                                            </span>
+                                            <span className="flex items-center gap-2 text-sm font-medium">
+                                                View list
+                                                <ArrowRight
+                                                    aria-hidden
+                                                    className="size-4"
+                                                />
+                                            </span>
+                                        </Link>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </section>
+                ) : !roomBoard ? (
+                    <div className="rounded-xl border">
+                        <EmptyState message="Use the menu to open the parts of the system you work in." />
+                    </div>
+                ) : null}
+
                 {collections && (
                     <section
                         aria-labelledby="collections-title"
@@ -197,35 +269,6 @@ export default function Dashboard({
                         <CollectionsTable received={collections.received} />
                     </section>
                 )}
-
-                {today ? (
-                    <section aria-labelledby="today" className="space-y-3">
-                        <h2 id="today" className="text-lg font-semibold">
-                            Today
-                        </h2>
-                        <ul className="grid gap-4 sm:grid-cols-3">
-                            {today.lists.map((list) => (
-                                <li key={list.key}>
-                                    <Link
-                                        href={list.href}
-                                        className="flex flex-col gap-1 rounded-xl border p-4 transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none"
-                                    >
-                                        <span className="text-sm text-muted-foreground">
-                                            {listLabels[list.key] ?? list.key}
-                                        </span>
-                                        <span className="text-3xl font-semibold tabular-nums">
-                                            {list.count}
-                                        </span>
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
-                ) : !roomBoard ? (
-                    <div className="rounded-xl border">
-                        <EmptyState message="Use the menu to open the parts of the system you work in." />
-                    </div>
-                ) : null}
 
                 {roomBoard && (
                     <section
