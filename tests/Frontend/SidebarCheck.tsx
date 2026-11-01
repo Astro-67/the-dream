@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { App } from '@inertiajs/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AppSidebar } from '@/components/app-sidebar';
+import { Button } from '@/components/ui/button';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import CashierShifts from '@/pages/cashier-shifts/index';
@@ -15,6 +16,9 @@ function sidebar(
         <TooltipProvider>
             <SidebarProvider>
                 <AppSidebar />
+                <Button>Save</Button>
+                <Button size="sm">Cancel</Button>
+                <Button size="icon" aria-label="Action" />
             </SidebarProvider>
         </TooltipProvider>
     );
@@ -55,6 +59,19 @@ function sidebar(
 }
 
 const administrator = sidebar(['platform_administrator']);
+for (const target of administrator.matchAll(
+    /<(?:a|button)\b[^>]*data-slot="(?:button|sidebar-menu-button)"[^>]*>/g,
+)) {
+    for (const dimension of ['h', 'w']) {
+        const minimum = target[0].match(
+            new RegExp(`any-pointer-coarse:min-${dimension}-(\\d+)\\b`),
+        );
+        assert.ok(
+            minimum && Number(minimum[1]) * 4 >= 44,
+            `Touch controls must declare a minimum ${dimension === 'h' ? 'height' : 'width'} of 44px: ${target[0]}`,
+        );
+    }
+}
 assert.match(administrator, /src="\/karafuu-logo\.png"/);
 assert.match(administrator, /src="\/karafuu-logo-dark\.png"/);
 assert.match(administrator, /alt="Karafuu PMS, The Heart of Hospitality"/);
