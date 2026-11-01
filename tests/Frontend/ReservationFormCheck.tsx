@@ -126,3 +126,7 @@ assert.match(
     /<input[^>]*type="email" readOnly="" name="lead_guest\[email\]"/,
 );
 console.log('Lead guest fields take text, email and phone: PASS');
+// Two adults booked: one optional section for the second adult, none for children.
+assert.match(guestForm, /id="guest-0"/);
+assert.doesNotMatch(guestForm, /id="guest-1"/);
+console.log('Each extra adult gets an optional guest section: PASS');

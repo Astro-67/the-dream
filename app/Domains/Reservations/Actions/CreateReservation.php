@@ -56,6 +56,16 @@ class CreateReservation
             if ($guest !== null && ! empty($guest['document_type']) && JurisdictionRules::requiresPassport($property, $guest['nationality'] ?? null) && $guest['document_type'] !== 'passport') {
                 throw ValidationException::withMessages(['lead_guest.document_type' => __('Foreign guests require a passport.')]);
             }
+            $others = array_filter($details['guests'] ?? [], fn (array $other) => filled($other['name'] ?? null));
+            unset($details['guests']);
+            if (count($others) > (int) $details['adults'] - 1) {
+                throw ValidationException::withMessages(['guests' => __('Add at most one guest per booked adult besides the lead guest.')]);
+            }
+            foreach ($others as $index => $other) {
+                if (! empty($other['document_type']) && $other['document_type'] !== 'passport' && JurisdictionRules::requiresPassport($property, $other['nationality'] ?? null)) {
+                    throw ValidationException::withMessages(["guests.{$index}.document_type" => __('Foreign guests require a passport.')]);
+                }
+            }
             $nightlyRate = $details['nightly_rate'] ?? null;
             unset($details['nightly_rate']);
             $quote = app(StayPricing::class)->quote($plan, $type, $details['arrival'], $details['departure'], (int) $details['adults'], (int) $details['children']);
@@ -100,6 +110,15 @@ class CreateReservation
                         'email' => $guest['email'] ?? null, 'phone' => $guest['phone'] ?? null, 'nationality' => $guest['nationality'] ?? null,
                         'documents' => empty($guest['document_type']) ? [] : [['type' => $guest['document_type'], 'number' => $guest['document_number'], 'nationality' => $guest['nationality'] ?? null]],
                     ]);
+                }
+                // Other adults belong to the first room only; one document is in-house once per property (ADR 0016).
+                if ($room === 0 && $actor !== null) {
+                    foreach ($others as $other) {
+                        app(AttachReservationGuest::class)->handle($actor, $reservation, [
+                            'name' => $other['name'], 'nationality' => $other['nationality'] ?? null,
+                            'documents' => empty($other['document_type']) ? [] : [['type' => $other['document_type'], 'number' => $other['document_number'], 'nationality' => $other['nationality'] ?? null]],
+                        ]);
+                    }
                 }
                 if ($room === 0 && ! empty($details['room_id'])) {
                     $reservation = app(AssignRoom::class)->handle($actor, $reservation, $details['room_id'], recordEvent: false);

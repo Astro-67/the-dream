@@ -161,8 +161,8 @@ const registration = await navigation(
     '/reservations/R-207/guests',
     true,
 );
-assert.match(registration, /0 guests added · 2[^<]*booked/);
-assert.match(registration, /required identity details before check-in/);
+assert.match(registration, /0 guests added · 2[^<]*adults booked/);
+assert.match(registration, /children do not need to be added/);
 
 for (const [path, parent, href, current] of cases) {
     const markup = await navigation(path);

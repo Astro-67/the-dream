@@ -97,7 +97,7 @@ A balance left on a folio when a manager, or automatic check-out set to include 
 _Avoid_: Bad debt (until written off), city ledger
 
 **Guest**:
-A person staying at the property, held per property. Repeat guests are linked by staff choice, never matched automatically. A booking may start with only the lead guest; check-in requires the registered guest count to equal the booked adults and children, with every guest's required identity details complete.
+A person staying at the property, held per property. Repeat guests are linked by staff choice, never matched automatically. A booking requires only the lead guest; other adults can be added on the booking form or in the check-in dialog. Check-in requires every booked adult registered with complete identity details. Children are counted on the booking but never registered: they have no government ID and VFMS has no child field.
 _Avoid_: Customer, client
 
 **Lead guest**:

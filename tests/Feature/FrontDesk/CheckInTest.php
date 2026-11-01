@@ -247,8 +247,9 @@ test('check-in validation returns to the reservation detail in its own error bag
     inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed));
 });
 
-// protects=all booked occupants reach VFMS; fails_when=a multi-guest booking checks in with only the lead registered.
-test('a booking can keep only its lead guest until check-in requires every booked guest and their identity', function (int $adults, int $children) {
+// protects=every adult reaches VFMS; fails_when=a two-adult booking checks in with only the lead registered.
+test('a booking can keep only its lead guest until check-in requires every adult and their identity', function () {
+    [$adults, $children] = [2, 1];
     $t = twoTenants();
     $reservation = arrivingToday($t->a);
     inTenant($t->a->property, fn () => $reservation->update(['adults' => $adults, 'children' => $children]));
@@ -260,9 +261,12 @@ test('a booking can keep only its lead guest until check-in requires every booke
     });
 
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->withHeader('Accept', 'text/html')->get(route('reservations.guests.create', $reservation))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('expectedGuests', $adults + $children)->where('guests.total', 1));
-    $this->post(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'name' => 'Second Occupant'])
-        ->assertSessionHasNoErrors();
+        ->where('expectedGuests', $adults)->where('guests.total', 1));
+    $this->get(route('reservations.show', $reservation))->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('missingGuests', 1)->where('canAttachGuest', true)->where('canViewIdentity', true));
+    // The check-in dialog posts from the reservation page and lands back there.
+    $this->from(route('reservations.show', $reservation))->post(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'name' => 'Second Occupant'])
+        ->assertSessionHasNoErrors()->assertRedirect(route('reservations.show', $reservation));
     assertCheckInRefused($t->a, $reservation, 'guests');
     inTenant($t->a->property, fn () => app(ReplaceIdentityDocuments::class)->handle(Guest::query()->where('name', 'Second Occupant')->sole(), [
         ['type' => 'passport', 'number' => 'SECOND-PASSPORT', 'nationality' => 'DE'],
@@ -270,9 +274,19 @@ test('a booking can keep only its lead guest until check-in requires every booke
 
     $this->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
     inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn));
-})->with(['two adults' => [2, 0], 'adult and child' => [1, 1]]);
+});
 
-test('check-in refuses more registered guests than the booked occupancy', function () {
+// protects=children have no government ID; fails_when=a child must be registered before check-in.
+test('children are counted on the booking but never need registering', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    inTenant($t->a->property, fn () => $reservation->update(['adults' => 1, 'children' => 2]));
+
+    $this->actingAs($t->a->owner)->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn));
+});
+
+test('check-in refuses more registered guests than the booked adults and children', function () {
     $t = twoTenants();
     $reservation = arrivingToday($t->a);
     inTenant($t->a->property, function () use ($t, $reservation) {
