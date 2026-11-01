@@ -96,10 +96,7 @@ final class CheckoutReport
         ];
     }
 
-    /**
-     * The link stored when VFMS accepted the report. Reports accepted before links were stored keep the
-     * guest-viewer link they were printed with, which labels every report USD whatever its currency.
-     */
+    /** The link stored when VFMS accepted the report, or for reports accepted before links were stored, the same guest-viewer link. */
     private static function reportUrl(OutboxMessage $message, string $number): ?string
     {
         $references = $message->getAttribute('provider_references');
@@ -110,7 +107,7 @@ final class CheckoutReport
             : self::viewerUrl(($references['mode'] ?? null) === 'live', 'checkout-report/guest', $number);
     }
 
-    /** ZRA's viewer link: its checkout-report page shows the report's own currency, receipt-form a service receipt. */
+    /** ZRA's viewer link: checkout-report/guest for a report (ZRA's portal shows every report in USD, converted), receipt-form for a service receipt. */
     public static function viewerUrl(bool $live, string $path, string $number): ?string
     {
         $base = $live ? 'https://portalvfms.zanrevenue.org' : config('services.vfms.test_viewer_url');
