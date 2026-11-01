@@ -97,8 +97,8 @@ final class CheckoutReport
     }
 
     /**
-     * The link stored when VFMS accepted the report. Reports accepted before links were stored keep the
-     * guest-viewer link they were printed with, which labels every report USD whatever its currency.
+     * The link stored when VFMS accepted the report. Reports accepted before links were stored get ZRA's
+     * checkout-report page too: the guest-viewer link they were first printed with labels every report USD.
      */
     private static function reportUrl(OutboxMessage $message, string $number): ?string
     {
@@ -107,7 +107,7 @@ final class CheckoutReport
 
         return is_array($stored) && is_string($stored[$number] ?? null)
             ? $stored[$number]
-            : self::viewerUrl(($references['mode'] ?? null) === 'live', 'checkout-report/guest', $number);
+            : self::viewerUrl(($references['mode'] ?? null) === 'live', 'checkout-report', $number);
     }
 
     /** ZRA's viewer link: its checkout-report page shows the report's own currency, receipt-form a service receipt. */
