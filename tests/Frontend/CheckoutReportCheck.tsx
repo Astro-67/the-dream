@@ -71,12 +71,12 @@ const live = render({
     ...base,
     status: 'live',
     report: { ...base.report!, number: 'CO-778' },
-    portalUrl: 'https://portalvfms.zanrevenue.org/checkout-report/guest/CO-778',
+    portalUrl: 'https://portalvfms.zanrevenue.org/checkout-report/CO-778',
     qrSvg: '<svg data-qr="1"></svg>',
 });
 assert.match(
     live,
-    /VFMS QR code for https:\/\/portalvfms\.zanrevenue\.org\/checkout-report\/guest\/CO-778/,
+    /VFMS QR code for https:\/\/portalvfms\.zanrevenue\.org\/checkout-report\/CO-778/,
 );
 assert.match(live, /data-qr="1"/);
 assert.doesNotMatch(live, /TEST, NOT FISCAL/);
@@ -100,7 +100,7 @@ const recorded = render({
             documentNo: 'PRIVATE-DOCUMENT-172',
         },
         departedEarly: false,
-        portalUrl: `https://viewer.example/checkout-report/guest/${number}`,
+        portalUrl: `https://viewer.example/checkout-report/${number}`,
         qrSvg: `<svg data-qr="${number}"></svg>`,
     })),
     serviceReceipts: [
