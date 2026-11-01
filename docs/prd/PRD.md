@@ -385,7 +385,7 @@ Each requirement has an ID and a priority. "Zanzibar" means a property under the
 - FSC-04: a guest leaving an in-house stay early ("Guest leaves") sends a check-out call for that guest's document; the stay's check-out lists only guests still in-house.
 - FSC-06: before check-out the folio's tax is labelled **Estimated tax**; an accepted check-out replaces it with VFMS's tax and levy through a VFMS adjustment line (ADR 0015).
 - FSC-07: check-out completes and the report page shows "Waiting for VFMS", but a blocked departure is **not yet** put on the exception list.
-- FSC-09: not built (Step 4 spec).
+- FSC-09: ZRA's rates are fetched hourly until one is stored for the day, through any Live property's credentials, and convert the USD infrastructure levy into TZS and EUR prices; the rate and its date show on the price screen and on each levy line. Prices in another currency than the levy, with no rate stored yet, leave the levy out as before.
 - Guide v1.6 omits the response fields of the check-out call (§2.8) and the accommodation report (§2.5). Karafuu assumes them; the first Live call must confirm them (architecture §5.3).
 
 ### 7.11 Reporting and group oversight (P0)

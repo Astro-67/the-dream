@@ -121,7 +121,7 @@ test('a derived plan takes its base plan\'s currency and room types and derives 
         ->assertSessionHasErrors('room_type_id');
     $this->get(route('rate-plans.prices', $nonRefundable))->assertInertia(fn (Assert $page) => $page
         ->where('canManage', false)->where('base.name', 'Breakfast')
-        ->where('prices', [['room_type_id' => $room->id, 'date' => '2026-12-01', 'base_price' => 9000, 'extra_adult' => 1800, 'extra_child' => 900]]));
+        ->where('prices', [['room_type_id' => $room->id, 'date' => '2026-12-01', 'base_price' => 9000, 'extra_adult' => 1800, 'extra_child' => 900, 'guest_pays' => 9000]]));
 });
 
 test('a base plan with active derived plans can be neither deactivated nor deleted until they are handled', function () {

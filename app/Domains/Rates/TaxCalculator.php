@@ -8,6 +8,7 @@ use App\Domains\Rates\Enums\TaxKind;
 use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Money\Currency;
+use App\Support\Money\ExchangeRate;
 use InvalidArgumentException;
 
 /**
@@ -26,7 +27,7 @@ final class TaxCalculator
             }
         }
 
-        return self::breakdown($rules, $amount, $currency, $date, $guests, $charge);
+        return self::breakdown($rules, $amount, $currency, $date, $guests, $charge, $currency === Currency::USD ? null : ExchangeRate::forDate($date));
     }
 
     /**
@@ -37,24 +38,28 @@ final class TaxCalculator
      * @param  iterable<TaxRule>  $rules  every rule of the property; those not in force or not covering the charge are skipped
      * @param  int  $amount  minor units of $currency
      * @param  string  $date  Y-m-d
+     * @param  ExchangeRate|null  $rate  ZRA's rate for $date: converts the USD infrastructure levy, which is left out without one
      *
      * @throws InvalidArgumentException when a flat rule in force is in another currency, or included flat rules exceed the amount
      */
-    public static function breakdown(iterable $rules, int $amount, Currency $currency, string $date, int $guests, ChargeKind $charge): TaxBreakdown
+    public static function breakdown(iterable $rules, int $amount, Currency $currency, string $date, int $guests, ChargeKind $charge, ?ExchangeRate $rate = null): TaxBreakdown
     {
         $inForce = collect($rules)->filter(fn (TaxRule $rule) => $rule->coversDate($date) && $rule->applies_to->covers($charge));
-        // The seeded USD levy is an estimate; VFMS assesses the actual levy at check-out, so it is left out, not converted.
-        $unavailable = $inForce->filter(fn (TaxRule $rule) => $rule->isInfrastructureLevy() && $rule->currency !== $currency);
+        // The USD levy converts at ZRA's rate, as VFMS does; with no rate stored yet it is left out.
+        $unavailable = $rate === null ? $inForce->filter(fn (TaxRule $rule) => $rule->isInfrastructureLevy() && $rule->currency !== $currency) : collect();
         $applying = $inForce->diffKeys($unavailable)->values();
 
-        $flat = function (TaxRule $rule) use ($currency, $guests): int {
-            if ($rule->currency !== $currency) {
-                // ponytail: no exchange rates yet; Spec 6 converts when a folio's currency differs.
+        $perGuest = function (TaxRule $rule) use ($currency, $rate): int {
+            if ($rule->currency === $currency) {
+                return (int) $rule->amount;
+            }
+            if ($rate === null || ! $rule->isInfrastructureLevy()) {
                 throw new InvalidArgumentException(__(':tax is charged in :rule, not :currency.', ['tax' => $rule->name, 'rule' => $rule->currency?->value, 'currency' => $currency->value]));
             }
 
-            return (int) $rule->amount * $guests;
+            return $rate->fromUsd((int) $rule->amount, $currency);
         };
+        $flat = fn (TaxRule $rule): int => $perGuest($rule) * $guests;
 
         $inclusive = $applying->where('inclusive', true);
         $inclusiveFlat = $inclusive->where('kind', TaxKind::FlatPerPersonNight)->sum($flat);
@@ -62,13 +67,15 @@ final class TaxCalculator
         $base = max(0, $amount - (int) $inclusiveFlat);
         $denominator = 10000 + (int) $inclusiveRate;
 
-        $lines = $applying->map(function (TaxRule $rule) use ($flat, $base, $denominator): array {
+        $lines = $applying->map(function (TaxRule $rule) use ($flat, $perGuest, $base, $denominator, $currency, $rate): array {
             $isFlat = $rule->kind === TaxKind::FlatPerPersonNight;
 
             return [
                 'name' => $rule->name, 'category' => $rule->zra_tax_category?->value, 'kind' => $rule->kind->value, 'inclusive' => $rule->inclusive,
-                'rate' => $isFlat ? null : $rule->rate, 'per_person_night' => $isFlat ? $rule->amount : null,
+                'rate' => $isFlat ? null : $rule->rate, 'per_person_night' => $isFlat ? $perGuest($rule) : null,
                 'amount' => $isFlat ? $flat($rule) : $rule->rounding->round($base * (int) $rule->rate, $denominator),
+                // A converted levy keeps its USD amount and the ZRA rate it used, so the line explains itself.
+                ...($isFlat && $rule->currency !== $currency ? ['converted_from' => ['currency' => $rule->currency?->value, 'per_person_night' => $rule->amount, 'usd_tzs' => $rate?->usd_tzs, 'eur_tzs' => $rate?->eur_tzs, 'rate_date' => $rate?->date->format('Y-m-d')]] : []),
             ];
         })->all();
 

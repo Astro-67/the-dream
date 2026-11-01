@@ -117,6 +117,28 @@ final class HttpVfms
             : 'unreachable';
     }
 
+    /**
+     * ZRA's current exchange rates through one property's Live credentials (read-only, files nothing),
+     * or null when ZRA refuses, cannot be reached or replies without every rate.
+     *
+     * @return array{rateUSD: float|int|string, rateEURO: float|int|string, rateUSDEURO: float|int|string}|null
+     */
+    public function exchangeRates(VfmsCredential $credential): ?array
+    {
+        $url = config('services.vfms.live_url');
+        if (blank($url) || parse_url($url, PHP_URL_SCHEME) !== 'https' || ! $credential->isComplete()) {
+            return null;
+        }
+        try {
+            $response = $this->post($url, 'CURRENCY_EXCHANGE', 'currencyExchangeRate/', (string) $credential->integration_id, (string) $credential->token, []);
+        } catch (ConnectionException) {
+            return null;
+        }
+        $data = $response->json();
+
+        return $response->successful() && is_array($data) ? $this->acceptedReferences('CURRENCY_EXCHANGE', [], $data) : null;
+    }
+
     /** @param  array<string, mixed>  $body */
     private function post(string $url, string $requestType, string $path, string $integrationId, string $token, array $body): Response
     {
