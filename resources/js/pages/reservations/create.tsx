@@ -164,6 +164,12 @@ export default function Create({
                                     <legend className="font-medium">
                                         Lead guest
                                     </legend>
+                                    <p className="text-sm text-muted-foreground">
+                                        Additional guests can be added later.
+                                        Before check-in, every booked guest must
+                                        be registered with the required identity
+                                        details.
+                                    </p>
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         {(
                                             [

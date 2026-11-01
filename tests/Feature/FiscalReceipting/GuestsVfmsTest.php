@@ -28,7 +28,7 @@ function guestsVfmsStay(TenantFixture $tenant, bool $checkIn = true): Reservatio
     return inTenant($tenant->property, function () use ($tenant, $checkIn) {
         $details = BookingForm::details($tenant->owner);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'adults' => 1, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->sole()->id]);
         $lead = app(CreateGuest::class)->handle($tenant->owner, ['name' => 'Anna Berg', 'documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE']]]);
         ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $lead->id]);
 

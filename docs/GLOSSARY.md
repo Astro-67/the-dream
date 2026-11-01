@@ -97,7 +97,7 @@ A balance left on a folio when a manager, or automatic check-out set to include 
 _Avoid_: Bad debt (until written off), city ledger
 
 **Guest**:
-A person staying at the property, held per property. Repeat guests are linked by staff choice, never matched automatically.
+A person staying at the property, held per property. Repeat guests are linked by staff choice, never matched automatically. A booking may start with only the lead guest; check-in requires the registered guest count to equal the booked adults and children, with every guest's required identity details complete.
 _Avoid_: Customer, client
 
 **Lead guest**:

@@ -39,7 +39,7 @@ function vfmsPanelStay(TenantFixture $tenant): Reservation
     return inTenant($tenant->property, function () use ($tenant) {
         $details = BookingForm::details($tenant->owner);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'adults' => 1, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->sole()->id]);
         $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => 'Panel Guest', 'documents' => [['type' => 'passport', 'number' => 'PANEL-DOC-174', 'nationality' => 'DE']]]);
         ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
         app(CheckIn::class)->handle($tenant->owner, $reservation);

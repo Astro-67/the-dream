@@ -33,7 +33,7 @@ uses(TestCase::class, RefreshDatabase::class);
  */
 function financeReportFolios(User $owner, int $count): array
 {
-    $details = BookingForm::details($owner);
+    $details = [...BookingForm::details($owner), 'adults' => 1, 'children' => 0];
     for ($number = 2; $number <= $count; $number++) {
         app(CreateRoom::class)->handle($owner, InventoryForm::room($details['room_type_id'], ['number' => (string) $number]));
     }
@@ -78,7 +78,7 @@ test('open balances after departure total each currency separately and leave in-
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
         foreach ([$departing, $inHouse] as $index => $folio) {
             $reservation = Reservation::query()->findOrFail($folio->reservation_id);
-            $reservation->update(['room_id' => Room::query()->orderBy('number')->skip($index)->value('id')]);
+            $reservation->update(['adults' => 1, 'children' => 0, 'room_id' => Room::query()->orderBy('number')->skip($index)->value('id')]);
             $guest = app(CreateGuest::class)->handle($owner, ['name' => 'Guest '.$index, 'documents' => [['type' => 'passport', 'number' => 'P765432'.$index, 'nationality' => 'DE']]]);
             ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
             app(CheckIn::class)->handle($owner, $reservation);

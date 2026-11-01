@@ -109,6 +109,14 @@ const shared = {
     reservation: { reservation_number: 'R-207' },
     stay: { reservation_number: 'R-207' },
     reservationNumber: 'R-207',
+    expectedGuests: 2,
+    guests: { data: [], total: 0, links: [] },
+    inHouse: false,
+    canAttach: false,
+    canViewIdentity: false,
+    leadGuestId: null,
+    departedGuestIds: [],
+    canRecordDeparture: false,
 };
 
 async function navigation(
@@ -147,6 +155,14 @@ const emptyMerge = await navigation(
 assert.match(emptyMerge, /No other guests at this property\./);
 assert.equal((emptyMerge.match(/Back to /g) ?? []).length, 1);
 assert.match(emptyMerge, /Back to Amina Said<\/a>/);
+
+const registration = await navigation(
+    'reservations/guests',
+    '/reservations/R-207/guests',
+    true,
+);
+assert.match(registration, /0 guests added · 2[^<]*booked/);
+assert.match(registration, /required identity details before check-in/);
 
 for (const [path, parent, href, current] of cases) {
     const markup = await navigation(path);

@@ -44,7 +44,7 @@ function checkInTwoGuests(TenantFixture $tenant, array $booking = [], ?Property 
     return inTenant($property ?? $tenant->property, function () use ($tenant, $booking, $currency) {
         $details = BookingForm::details($tenant->owner);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast', ...$booking]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'adults' => 2, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast', ...$booking]);
         $reservation->priceLines()->update(['currency' => $currency]);
         foreach ([['Anna Berg', 'P1234567', 'DE'], ['Ola Berg', 'P7654321', 'NO']] as [$name, $number, $country]) {
             $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => $name, 'documents' => [['type' => 'passport', 'number' => $number, 'nationality' => $country]]]);
@@ -92,7 +92,7 @@ test('a Sandbox check-in of two guests files one accepted accommodation message'
             'roomId' => $room->vfms_room_id,
             'roomName' => '101',
             'accommodationSource' => 'DIRECT',
-            // 2 adults and 1 child in a room for 2: 100.00 plus one extra child. JSON keeps no float type, so 110.0 reads back as 110.
+            // Two registered guests at the fixture room price of USD 110. JSON keeps no float type, so 110.0 reads back as 110.
             'accommodationPrice' => 110,
             'accommodationDiscount' => 0,
             'referenceNumber' => $reservation->reservation_number.'-2',

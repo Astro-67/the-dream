@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Reservations\Models\Reservation;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
@@ -69,4 +70,21 @@ test('walk-in without ID is allowed when the property switches the requirement o
     $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)
         ->post(route('reservations.store'), [...$details, '_property' => $t->a->property->id, 'source' => 'walk-in', 'lead_guest' => ['first_name' => 'Asha']])
         ->assertRedirect()->assertSessionHasNoErrors();
+});
+
+test('a two-guest booking requires its lead guest but can leave the second guest for registration', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    unset($details['booker_id']);
+    $payload = [...$details, '_property' => $t->a->property->id, 'adults' => 2, 'children' => 0];
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->postJson(route('reservations.store'), $payload)->assertUnprocessable()->assertJsonValidationErrors('lead_guest');
+    $this->post(route('reservations.store'), [...$payload, 'lead_guest' => ['first_name' => 'Lead', 'last_name' => 'Occupant']])
+        ->assertSessionHasNoErrors()->assertRedirect();
+    inTenant($t->a->property, function () {
+        $stay = Reservation::query()->sole();
+        expect($stay->adults)->toBe(2)->and($stay->children)->toBe(0)
+            ->and($stay->leadGuest()->name)->toBe('Lead Occupant')
+            ->and(ReservationGuest::query()->where('reservation_id', $stay->id)->count())->toBe(1);
+    });
 });

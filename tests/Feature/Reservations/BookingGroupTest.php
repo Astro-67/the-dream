@@ -124,6 +124,7 @@ test('group members offer their permitted arrival actions and checking in one le
     $t = twoTenants();
     [$member, $sibling] = bookingGroupMembers($t->a);
     inTenant($t->a->property, function () use ($t, $sibling) {
+        $sibling->update(['adults' => 1, 'children' => 0]);
         $room = Room::query()->orderBy('number')->first();
         app(AssignRoom::class)->handle($t->a->owner, $sibling, $room->id);
         RoomStatus::query()->where('room_id', $room->id)->update(['status' => HousekeepingStatus::Clean]);

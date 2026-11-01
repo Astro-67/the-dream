@@ -33,7 +33,7 @@ function arrivingToday(TenantFixture $tenant, array $documents = [['type' => 'pa
     return inTenant($tenant->property, function () use ($tenant, $documents) {
         $details = BookingForm::details($tenant->owner);
         $room = Room::query()->sole();
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'room_id' => $room->id]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'room_id' => $room->id, 'adults' => 1, 'children' => 0]);
         RoomStatus::query()->where('room_id', $room->id)->update(['status' => HousekeepingStatus::Clean]);
         $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => 'Arriving Guest', 'documents' => $documents]);
         ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
@@ -176,6 +176,7 @@ test('at a Zanzibar property check-in is refused while any guest misses an ident
     $t = twoTenants();
     $reservation = arrivingToday($t->a);
     inTenant($t->a->property, function () use ($t, $reservation, $documents) {
+        $reservation->update(['adults' => 2]);
         $guest = app(CreateGuest::class)->handle($t->a->owner, ['name' => 'Second Guest', 'documents' => $documents]);
         ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
     });
@@ -244,4 +245,41 @@ test('check-in validation returns to the reservation detail in its own error bag
         ->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
         ->where("errors.{$bag}.room", 'Assign a room before checking in.')->where('can.checkIn', true));
     inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed));
+});
+
+// protects=all booked occupants reach VFMS; fails_when=a multi-guest booking checks in with only the lead registered.
+test('a booking can keep only its lead guest until check-in requires every booked guest and their identity', function (int $adults, int $children) {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    inTenant($t->a->property, fn () => $reservation->update(['adults' => $adults, 'children' => $children]));
+
+    assertCheckInRefused($t->a, $reservation, 'guests');
+    inTenant($t->a->property, function () use ($reservation) {
+        expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed);
+        expect(ReservationGuest::query()->where('reservation_id', $reservation->id)->count())->toBe(1);
+    });
+
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->withHeader('Accept', 'text/html')->get(route('reservations.guests.create', $reservation))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('expectedGuests', $adults + $children)->where('guests.total', 1));
+    $this->post(route('reservations.guests.store', $reservation), ['_property' => $t->a->property->id, 'name' => 'Second Occupant'])
+        ->assertSessionHasNoErrors();
+    assertCheckInRefused($t->a, $reservation, 'guests');
+    inTenant($t->a->property, fn () => app(ReplaceIdentityDocuments::class)->handle(Guest::query()->where('name', 'Second Occupant')->sole(), [
+        ['type' => 'passport', 'number' => 'SECOND-PASSPORT', 'nationality' => 'DE'],
+    ]));
+
+    $this->post(route('reservations.check-in', $reservation), ['_property' => $t->a->property->id])->assertSessionHasNoErrors();
+    inTenant($t->a->property, fn () => expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn));
+})->with(['two adults' => [2, 0], 'adult and child' => [1, 1]]);
+
+test('check-in refuses more registered guests than the booked occupancy', function () {
+    $t = twoTenants();
+    $reservation = arrivingToday($t->a);
+    inTenant($t->a->property, function () use ($t, $reservation) {
+        $reservation->update(['adults' => 1, 'children' => 0]);
+        $guest = app(CreateGuest::class)->handle($t->a->owner, ['name' => 'Unexpected Occupant', 'documents' => [['type' => 'passport', 'number' => 'OTHER', 'nationality' => 'DE']]]);
+        ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+    });
+
+    assertCheckInRefused($t->a, $reservation, 'guests');
 });

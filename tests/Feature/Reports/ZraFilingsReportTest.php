@@ -46,7 +46,7 @@ function zraFilingsStays(TenantFixture $tenant, array $rooms): array
     RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
 
     return array_map(function (string $number) use ($tenant, $details) {
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'room_id' => Room::query()->where('number', $number)->sole()->id]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'adults' => 1, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->where('number', $number)->sole()->id]);
         $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => "Guest {$number}", 'documents' => [['type' => 'passport', 'number' => "DOC-{$number}", 'nationality' => 'DE']]]);
         ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
 
