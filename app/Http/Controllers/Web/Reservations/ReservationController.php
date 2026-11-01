@@ -11,6 +11,7 @@ use App\Domains\FiscalReceipting\VfmsFilings;
 use App\Domains\FiscalReceipting\VfmsRefusal;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Guests\Models\Booker;
+use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
@@ -23,13 +24,16 @@ use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\BookingRules;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservations\CreateReservationRequest;
 use App\Support\Money\Currency;
+use App\Support\Tenancy\Access;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -63,7 +67,7 @@ class ReservationController extends Controller
         return to_route('reservations.show', $reservation)->with('toast', ['type' => 'success', 'message' => __('Reservation created.')]);
     }
 
-    public function show(Reservation $reservation): Response
+    public function show(Request $request, Reservation $reservation): Response
     {
         Gate::authorize('view', $reservation);
         $property = Property::query()->findOrFail($reservation->property_id);
@@ -140,6 +144,9 @@ class ReservationController extends Controller
                 'checkOut' => Gate::allows('checkOut', $reservation), 'overrideBalance' => Gate::allows('checkOutWithBalance', $reservation)],
             'moveRooms' => $canMove ? app(AssignableRooms::class)->forMove($reservation) : [],
             'leadGuest' => $reservation->leadGuest()?->only(['id', 'name', 'email', 'phone', 'nationality']),
+            'missingGuests' => $reservation->status === ReservationStatus::Confirmed ? max(0, $reservation->adults - ReservationGuest::query()->where('reservation_id', $reservation->id)->count()) : 0,
+            'canAttachGuest' => Gate::allows('attachGuest', $reservation),
+            'canViewIdentity' => Access::allows($request->user(), OrganizationPermission::GuestIdentityView, $property),
             'booker' => Booker::query()->find($reservation->getAttribute('booker_id'))?->only(['id', 'name']),
             'roomType' => RoomType::query()->findOrFail($reservation->getAttribute('room_type_id'))->only(['id', 'name']),
             'assignedRoom' => Room::query()->find($reservation->room_id)?->number,

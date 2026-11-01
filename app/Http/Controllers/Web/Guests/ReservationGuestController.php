@@ -27,7 +27,7 @@ class ReservationGuestController extends Controller
 
         return Inertia::render('reservations/guests', [
             'reservationNumber' => $reservation->reservation_number,
-            'expectedGuests' => $reservation->adults + $reservation->children,
+            'expectedGuests' => $reservation->adults,
             'guests' => Guest::query()->whereIn('id', ReservationGuest::query()->where('reservation_id', $reservation->id)->select('guest_id'))->orderBy('id')->paginate(50, ['id', ...Guest::FIELDS])->withQueryString(),
             'canAttach' => $request->user()?->can('attachGuest', $reservation),
             'inHouse' => $reservation->status === ReservationStatus::CheckedIn,
@@ -42,6 +42,7 @@ class ReservationGuestController extends Controller
     {
         $action->handle($request->user(), $reservation, $request->validated());
 
-        return to_route('reservations.guests.create', $reservation)->with('toast', ['type' => 'success', 'message' => __('Guest attached.')]);
+        // Back to the page that asked: the guests page, or the check-in dialog on the reservation.
+        return back(fallback: route('reservations.guests.create', $reservation))->with('toast', ['type' => 'success', 'message' => __('Guest attached.')]);
     }
 }

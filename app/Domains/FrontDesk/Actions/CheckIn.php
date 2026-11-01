@@ -52,9 +52,9 @@ class CheckIn
                 throw ValidationException::withMessages(['room' => __('Room :number is not ready.', ['number' => $room->getAttribute('number')])]);
             }
             $guests = Guest::query()->whereIn('id', ReservationGuest::query()->select('guest_id')->where('reservation_id', $locked->id))->get();
-            $expected = $locked->adults + $locked->children;
-            if ($guests->count() !== $expected) {
-                throw ValidationException::withMessages(['guests' => __('Guest registration does not match this booking (expected: :expected; added: :registered). Add every staying guest before check-in, or correct the booked guest count.', ['expected' => $expected, 'registered' => $guests->count()])]);
+            // Every adult is registered for VFMS; children have no government ID and are counted on the booking only.
+            if ($guests->count() < $locked->adults || $guests->count() > $locked->adults + $locked->children) {
+                throw ValidationException::withMessages(['guests' => __('Register every adult before check-in (adults booked: :adults; guests added: :registered). Children do not need to be added.', ['adults' => $locked->adults, 'registered' => $guests->count()])]);
             }
             Registration::ensure($property, $guests);
             InHouseDocuments::ensureAvailable($property, $guests, $locked);

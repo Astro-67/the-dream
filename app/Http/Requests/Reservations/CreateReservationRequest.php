@@ -58,6 +58,13 @@ class CreateReservationRequest extends FormRequest
             'lead_guest.nationality' => ['nullable', Rule::in(array_keys(Countries::NAMES))],
             'lead_guest.document_type' => ['nullable', 'required_with:lead_guest.document_number', Rule::in(['passport', 'nida', 'zanid'])],
             'lead_guest.document_number' => ['nullable', 'required_with:lead_guest.document_type', 'string', 'max:255'],
+            // Other adults staying in the room; children are never registered (VFMS has no child field).
+            'guests' => ['sometimes', 'array', 'max:19'],
+            'guests.*' => ['array:name,nationality,document_type,document_number'],
+            'guests.*.name' => ['nullable', 'required_with:guests.*.document_type', 'string', 'max:255'],
+            'guests.*.nationality' => ['nullable', Rule::in(array_keys(Countries::NAMES))],
+            'guests.*.document_type' => ['nullable', 'required_with:guests.*.document_number', Rule::in(['passport', 'nida', 'zanid'])],
+            'guests.*.document_number' => ['nullable', 'required_with:guests.*.document_type', 'string', 'max:255'],
             'meal_plan' => ['sometimes', Rule::enum(MealPlan::class)],
             'special_requests' => ['nullable', 'string', 'max:5000'],
             'nightly_rate' => ['nullable', 'integer', 'between:0,1000000000000'],

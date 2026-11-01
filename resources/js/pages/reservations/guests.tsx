@@ -111,10 +111,8 @@ export default function Guests({
                     {!inHouse && (
                         <p className="text-sm text-muted-foreground">
                             {guests.total} guests added · {expectedGuests}{' '}
-                            booked. Every staying guest must be added with the
-                            required identity details before check-in.
-                            Additional guests can be added after the booking is
-                            created.
+                            adults booked. Every adult must be added with ID
+                            before check-in; children do not need to be added.
                         </p>
                     )}
                     {guests.data.length === 0 ? (

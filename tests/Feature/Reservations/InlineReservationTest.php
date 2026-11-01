@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Reservations\Models\Reservation;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -86,5 +87,29 @@ test('a two-guest booking requires its lead guest but can leave the second guest
         expect($stay->adults)->toBe(2)->and($stay->children)->toBe(0)
             ->and($stay->leadGuest()->name)->toBe('Lead Occupant')
             ->and(ReservationGuest::query()->where('reservation_id', $stay->id)->count())->toBe(1);
+    });
+});
+
+// protects=extra adults can be registered on the booking form; fails_when=the second adult is lost or attached to every room.
+test('a booking can register its other adults now, each optional, and refuses more than booked', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    unset($details['booker_id']);
+    $payload = [...$details, '_property' => $t->a->property->id, 'adults' => 2, 'children' => 1, 'lead_guest' => ['first_name' => 'Lead', 'last_name' => 'Occupant']];
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $this->postJson(route('reservations.store'), [...$payload, 'guests' => [['name' => 'A'], ['name' => 'B']]])
+        ->assertUnprocessable()->assertJsonValidationErrors('guests');
+    $this->postJson(route('reservations.store'), [...$payload, 'guests' => [['name' => 'A', 'nationality' => 'DE', 'document_type' => 'nida', 'document_number' => 'N1']]])
+        ->assertUnprocessable()->assertJsonValidationErrors('guests.0.document_type');
+
+    $this->post(route('reservations.store'), [...$payload, 'guests' => [
+        ['name' => 'Second Adult', 'nationality' => 'DE', 'document_type' => 'passport', 'document_number' => 'P2'],
+        ['name' => ''],
+    ]])->assertSessionHasNoErrors()->assertRedirect();
+    inTenant($t->a->property, function () {
+        $stay = Reservation::query()->sole();
+        $guests = Guest::query()->whereIn('id', ReservationGuest::query()->where('reservation_id', $stay->id)->select('guest_id'))->with('documents')->orderBy('id')->get();
+        expect($guests->pluck('name')->all())->toBe(['Lead Occupant', 'Second Adult'])
+            ->and($guests[1]->documents->sole()->only(['type', 'number', 'nationality']))->toBe(['type' => 'passport', 'number' => 'P2', 'nationality' => 'DE']);
     });
 });

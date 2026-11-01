@@ -110,6 +110,9 @@ export default function Show({
     ratePlan,
     booker,
     leadGuest,
+    missingGuests,
+    canAttachGuest,
+    canViewIdentity,
     rooms,
     canAssignRoom,
     canAmend,
@@ -140,6 +143,9 @@ export default function Show({
     ratePlan: Named;
     booker: Named | null;
     leadGuest: Named | null;
+    missingGuests: number;
+    canAttachGuest: boolean;
+    canViewIdentity: boolean;
     rooms: { id: string; number: string; isReady: boolean }[];
     canAssignRoom: boolean;
     canAmend: boolean;
@@ -203,7 +209,11 @@ export default function Show({
                         </StatusChip>
                     )}
                     {can.checkIn && (
-                        <CheckInForm number={reservation.reservation_number} />
+                        <CheckInForm
+                            number={reservation.reservation_number}
+                            missingGuests={missingGuests}
+                            canAddGuests={canAttachGuest && canViewIdentity}
+                        />
                     )}
                     {reservation.status === 'confirmed' && (
                         <TerminationActions
