@@ -7,6 +7,10 @@ const css = readFileSync(
     new URL('../../resources/css/app.css', import.meta.url),
     'utf8',
 );
+const blade = readFileSync(
+    new URL('../../resources/views/app.blade.php', import.meta.url),
+    'utf8',
+);
 
 function block(selector: string): Record<string, string> {
     const body = css.match(new RegExp(`^${selector} \\{([^}]*)\\}`, 'm'))?.[1];
@@ -84,6 +88,18 @@ for (const [theme, selector] of [
 ] as const) {
     const t = block(selector);
     const c = (name: string) => resolve(t, name);
+    const prepaint = blade.match(
+        new RegExp(
+            `html${theme === 'dark' ? '\\.dark' : ''}\\s*\\{[^}]*background-color:\\s*(#[0-9a-f]{6})\\s*;`,
+            'i',
+        ),
+    )?.[1];
+    assert.ok(prepaint, `${theme}: pre-paint background missing`);
+    assert.deepEqual(
+        hex(prepaint),
+        c('background'),
+        `${theme}: Blade pre-paint background must match --background`,
+    );
     const pass = (fg: string, bg: string, min: number) => {
         const ratio = contrast(c(fg), c(bg));
         assert.ok(
