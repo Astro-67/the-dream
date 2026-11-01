@@ -125,6 +125,79 @@ if (
     throw new Error('Printed table clips content');
 ```
 
+## Review fixup (#209)
+
+Rechecked on 1 November 2026 in `ticket/205-review-fixup`, based on `2963ba44`,
+using a new owned T3 tab. Setup used
+`scripts/worktree-setup.sh /home/astro/Documents/Invited-Project/the-dream`.
+Builds explicitly selected this worktree's `.scratch/build.sqlite`.
+
+### Repaired acceptance gaps
+
+- Shared buttons, sidebar rows, linked sidebar section labels and dropdown
+  actions now declare minimum **44 x 44px** targets under
+  `any-pointer: coarse`. This includes hybrid devices without expanding
+  mouse-only desktop controls. The coarse-pointer collapsed rail is 60px;
+  its inner frame measured 59px after the border, with unclipped 44px targets.
+- At **390px**, both themes measured Save **86.5 x 44px**, Cancel **78 x 44px**,
+  toggle **44 x 44px**, and all 18 mobile sidebar controls at least
+  **271 x 44px**. At **820px**, both themes measured all 18 sidebar controls
+  at least **239 x 44px** expanded and **44 x 44px** collapsed. No document-wide
+  horizontal overflow occurred. The property menu's short row changed from
+  **32px to 44px**; the long current-property row retained its natural 72px.
+- These are **coarse-rule geometry checks, not coarse-input emulation**.
+  T3's iPhone preset still reported `pointer: fine`,
+  `any-pointer: coarse = false` and `maxTouchPoints = 0`; its exposed tools
+  offer no pointer-mode override. Used T3 evaluation to activate the built
+  stylesheet's actual coarse media rule through CSSOM, then measured it.
+  Unmodified fine-pointer sidebar rows and short menu actions remained 32px.
+  A physical/hybrid touch-device session remains unverified.
+- A hidden sidebar tooltip was consuming the first Escape. Tooltips are now
+  mounted only for the collapsed desktop rail, where labels are unavailable.
+  Mobile Escape closes the sheet in one press and restores the current
+  surviving toggle; Enter reopens it. This passed after an actual property
+  switch, without changing tenant-switch behaviour.
+- A disposable real React/Inertia fixture in `.scratch/sidebar-focus.tsx`
+  also keyed/remounted `AppSidebarHeader` while the sheet remained open.
+  The old toggle became disconnected; Escape focused its replacement,
+  Enter reopened navigation, and an explicit close again focused the
+  replacement. This fixture uses the existing sidebar primitives, not another
+  browser or test framework. The focus assertion after each close was:
+
+```js
+if (
+    document.querySelector('[role="dialog"][data-state="open"]') ||
+    document.activeElement !==
+        document.querySelector('[data-sidebar="trigger"]')
+)
+    throw new Error('Sidebar close lost the surviving toggle');
+```
+
+- Booker and Guest ancestor links now use existing generated route helpers.
+  Empty Guest merge renders its explanation and exactly one shared return
+  link, not a second local Back action. The rendered-Inertia regression
+  failed with two return links before removal and passes with one afterward.
+- `ThemeTokensCheck` now compares both Blade pre-paint backgrounds with
+  the CSS background tokens. A deliberate temporary ivory-to-white drift
+  failed the check; restoring the existing colour passed. No additional
+  token owner or generated configuration was introduced.
+
+### Minimal heuristic decisions
+
+- Kept the short declarative reservation breadcrumb arrays on their pages:
+  each names its own parent and current label; a builder would introduce an
+  interface without hiding meaningful complexity.
+- Touched Booker/Guest current items use the existing `href: '#'` convention.
+  The shared breadcrumb still renders only ancestors as links. No
+  `BreadcrumbItem` API expansion or unrelated placeholder sweep.
+- Invoice scope now uses the existing `useCurrentUrl().isCurrentOrParentUrl`
+  with the generated platform-invoices route, not a literal URL prefix or
+  new server prop. Both invoice contexts and a paginated query URL pass.
+- Kept the repeated standalone-form container classes and the existing
+  `ContactShow` detail composition. The former already express the same
+  simple layout; the latter is not a standalone form. No wrapper, blanket
+  detail-page centring or operational-width reduction was added.
+
 ## Automated checks
 
 - All **22** registered checks: `bun run test:frontend`, including
@@ -146,25 +219,93 @@ Raw command logs and disposable browser helpers remain in `.scratch/`; the
 measurements above are the durable record. Captures were made in this resumed
 session, not inherited from the failed provider.
 
+Review-fixup results:
+
+- All **22** registered frontend checks pass, including the extended sidebar,
+  actual empty-merge rendering, navigation and pre-paint checks.
+- Explicit scratch-SQLite production build and `bun run types:check` pass.
+  Scoped formatting/lint checks and `git diff --check` pass. The Impeccable
+  detector returned `[]` for the changed UI files.
+- Affected SQLite Pest (`GuestsTest`, `GuestAccessTest`, `GuestMergeTest`):
+  **33 passed, 380 assertions**.
+- One full `composer test:mysql` run: **2,410 passed, 1 skipped,
+  40,276 assertions**, exit 0, **822.366 seconds**, with its throwaway Docker
+  container cleaned up. No PHP/server implementation changed; the final
+  frontend-only context-menu sizing follow-up received a fresh build,
+  frontend checks, TypeScript, scoped lint and browser red/green check.
+- Parent integration `2963ba44` fast-check log
+  `/tmp/karafuu-spec205-fast-check.log`: **2,392 passed, 19 skipped,
+  40,151 assertions**, Pint and Larastan passed, TypeScript and lint passed.
+  The fixup did not repeat the full fast suite.
+
+## Pending paged-media verification handoff
+
+**Actual PDF pagination is still unverified.** T3 has no PDF-export operation.
+No auxiliary browser or headless Chromium export was used without permission.
+The earlier virtual-print measurements do not close this acceptance gap.
+
+The fixup owns `.scratch/print.sqlite`, a read-only-source SQLite backup of the
+populated ticket-208 preview database, not the development database. It retains
+the long guest labels, **34 statement rows** and all **32 verification extras**;
+the browser confirmed `verification item 32` is present. The copied fixture
+account's 2FA was re-encrypted for this worktree's own app key only; no
+application security middleware was changed.
+
+To resume locally from the fixup worktree:
+
+```sh
+DB_CONNECTION=sqlite DB_DATABASE="$PWD/.scratch/print.sqlite" \
+  php artisan serve --no-reload --host=127.0.0.1 --port=8125
+```
+
+Log in with the synthetic `design-preview@example.test` / `password` account.
+For its current disposable TOTP code, run:
+
+```sh
+DB_CONNECTION=sqlite DB_DATABASE="$PWD/.scratch/print.sqlite" \
+  php .scratch/print-auth.php
+```
+
+Select **Demo: Sample Waterfront Property**. Confirm the same synthetic password
+if the subscription route requests it. The exact fixtures are:
+
+- Long statement:
+  `http://localhost:8125/reservations/RES-000005/statement`
+- Non-fiscal receipt `RCT-000001`:
+  `http://localhost:8125/receipts/01m6a6a8gvzr6jx93eh6c2h5mc`
+- SaaS invoice `SAAS-000001`:
+  `http://localhost:8125/subscription/invoices/01m6a9n2tdc3z021np1spmnyrs`
+
+For the statement and receipt, choose `a4` then `thermal` using
+`#statement-paper` or `#receipt-paper`; paper selection is client state,
+**not a query-string parameter**. The actual print style declares A4/12mm
+margins or **80mm x 200mm / 4mm margins**. The invoice uses A4.
+
+After explicit auxiliary-export permission, export with CSS page size respected,
+browser headers/footers disabled and fonts settled. Inspect **every page**, not
+only the first: verify all 34 statement postings and the final item 32, repeated
+table headers, no clipped rows/columns, complete totals/identifiers, and
+black-on-white output. The long thermal statement must span multiple 200mm
+pages; continuous-layout height alone proves none of that. Physical printer
+calibration remains a separate unavailable check.
+
+Owned ports 8125 (app/print fixtures) and 8126 (focus fixture) are stopped at
+handoff; the restart command above preserves explicit SQLite overrides.
+
 ## Scoped audit and remaining limits
 
 | Dimension                | Score / 4 | Qualification                                                    |
 | ------------------------ | --------- | ---------------------------------------------------------------- |
-| Accessibility            | 3         | Measured contrast/focus/states pass; inherited gaps below        |
+| Accessibility            | 3         | Repaired focus/targets; no physical device or AT certification   |
 | Performance              | 3         | Production build, no added dependencies; not a runtime profile   |
-| Responsive design        | 3         | Containment and geometry pass; touch qualification incomplete    |
-| Theming                  | 4         | Both themes, token checks and monochrome print verified          |
+| Responsive design        | 3         | Geometry passes; coarse CSS activated, not input emulated        |
+| Theming                  | 4         | Both themes and virtual-print CSS pass; PDF pagination pending   |
 | Implementation integrity | 4         | Shared components retained; no nested elevation or new identity  |
 | Total                    | 17 / 20   | Good for this representative matrix, not universal certification |
 
-- **P1, inherited project-standard gap:** sampled sidebar rows are 32px and many
-  shared actions are 36px, below the documented 44px touch target. These sizes
-  predate #205; this ticket does not claim the whole application meets 44px.
-  Viewport resizing does not emulate a real coarse-pointer device. Parent review
-  must decide the follow-up before claiming full touch acceptance.
-- **P2, inherited keyboard issue:** the mobile sheet can close with Escape, but
-  focus can land on the body rather than its toggle. Context switching remounts
-  the trigger as well. Existing controlled-sheet behaviour was not rewritten.
+- Touch target sizing and mobile-sheet focus defects are repaired as recorded
+  above, not waived as inherited. Real coarse-input/hardware qualification
+  remains distinct from the measured coarse-rule geometry.
 - No physical A4/thermal printer, printer-driver calibration, PDF pagination,
   assistive-technology session, other browser engine or exhaustive route audit.
   Long thermal statements require multiple pages with the accepted 200mm size.
@@ -172,5 +313,6 @@ session, not inherited from the failed provider.
   generated for browser printing.
 - No approved compact mark exists. Existing full branding/product text remains;
   no replacement artwork was introduced.
-- Full `composer check:fast`, MySQL checks and final cross-ticket review are
-  intentionally left to the parent once after final integration. No push or PR.
+- Parent fast checks and fixup MySQL checks passed as recorded above. Final
+  cross-ticket review and paged-media evidence remain with the parent. No
+  integration push or PR was created by the fixup.
