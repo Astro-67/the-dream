@@ -219,7 +219,10 @@ export function ContactForm({
                                     <Link href={base}>Cancel</Link>
                                 </Button>
                                 <Button type="submit">
-                                    {processing && <Spinner />}Save
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
+                                    Save
                                 </Button>
                             </div>
                         </>
