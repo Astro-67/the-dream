@@ -76,7 +76,7 @@ export default function SaasInvoiceShow({
                     {'@page { size: A4; margin: 12mm; }'}
                 </style>
             </Head>
-            <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
+            <div className="receipt-print flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
                 <header className="space-y-3">
                     {billing && (
                         <div className="space-y-1 text-sm">

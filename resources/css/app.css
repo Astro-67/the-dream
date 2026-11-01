@@ -235,6 +235,7 @@
     body:has(.receipt-print) * {
         color: #000 !important;
         background: #fff !important;
+        border-color: #000 !important;
         box-shadow: none !important;
     }
 
@@ -266,6 +267,15 @@
         break-inside: avoid;
     }
 
+    .receipt-print [data-slot='table-container'] {
+        max-height: none;
+        overflow: visible;
+    }
+
+    .receipt-print [data-slot='table-header'] {
+        position: static;
+    }
+
     .receipt-print[data-paper='thermal'] {
         width: 72mm;
         gap: 4mm;
@@ -279,5 +289,14 @@
     .receipt-print[data-paper='thermal'] dl {
         grid-template-columns: 1fr;
         gap: 3mm;
+    }
+
+    .receipt-print[data-paper='thermal'] :is(th, td) {
+        padding-inline: 1mm;
+        white-space: normal;
+    }
+
+    .receipt-print[data-paper='thermal'] td:nth-child(2) {
+        overflow-wrap: anywhere;
     }
 }
