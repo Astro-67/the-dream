@@ -225,7 +225,7 @@ export default function Show({
                                         </dd>
                                     </dl>
                                     <p className="text-sm text-muted-foreground">
-                                        Not yet charged, before added taxes. Not
+                                        Estimate recorded at payment time. Not
                                         included in the posted totals above.
                                     </p>
                                 </>

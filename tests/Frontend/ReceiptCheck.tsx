@@ -106,7 +106,7 @@ const estimated = render({
 assert.match(estimated, /Room charges \(estimated, 3 nights\)/);
 assert.match(estimated, /USD 300\.00/);
 assert.match(estimated, /USD 30\.00/);
-assert.match(estimated, /Not yet charged, before added taxes/);
+assert.match(estimated, /Estimate recorded at payment time/);
 assert.match(
     render({
         ...base,

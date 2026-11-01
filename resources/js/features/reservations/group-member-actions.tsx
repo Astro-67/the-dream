@@ -70,7 +70,7 @@ export function GroupMemberActions({
                             <DialogDescription>
                                 {due?.label}: {due?.amount}
                                 {folio.total.estimate &&
-                                    ' (includes estimated nights before added taxes)'}
+                                    ' (includes upcoming nights and estimated taxes)'}
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-2">

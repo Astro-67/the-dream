@@ -143,7 +143,7 @@ function FolioDue({ total }: { total: FolioTotal }) {
                     Due includes an estimate of {money(total.estimate.amount)}{' '}
                     for {total.estimate.nights}{' '}
                     {total.estimate.nights === 1 ? 'night' : 'nights'} not yet
-                    charged, before added taxes.
+                    charged, including estimated taxes.
                 </p>
             )}
         </div>
@@ -338,7 +338,7 @@ export function FolioPanel({
                                         <DialogDescription>
                                             {due?.label}: {due?.amount}
                                             {total.estimate &&
-                                                ' (includes estimated nights before added taxes)'}
+                                                ' (includes upcoming nights and estimated taxes)'}
                                         </DialogDescription>
                                     </DialogHeader>
                                     <PaymentForm
