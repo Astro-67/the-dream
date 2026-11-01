@@ -165,7 +165,7 @@ final class VfmsAdapter implements DeliveryAdapter, OutboxCorrectionAdapter, Res
         }
         $numbers = is_string($result->references['reportNumbers'] ?? null) ? json_decode($result->references['reportNumbers'], true) : null;
         if (is_array($numbers)) {
-            $urls = array_filter(array_combine($numbers, array_map(fn (string $number) => CheckoutReport::viewerUrl($live, 'checkout-report', $number), $numbers)));
+            $urls = array_filter(array_combine($numbers, array_map(fn (string $number) => CheckoutReport::viewerUrl($live, 'checkout-report/guest', $number), $numbers)));
 
             return $urls === [] ? [] : ['reportUrls' => json_encode($urls, JSON_THROW_ON_ERROR)];
         }

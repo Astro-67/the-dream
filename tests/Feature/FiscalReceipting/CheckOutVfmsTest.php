@@ -202,14 +202,14 @@ test('a Live fiscal report shows the portal QR for its report number', function 
 
     fiscalReport($t->a, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('status', 'live')
-        ->where('portalUrl', 'https://portalvfms.zanrevenue.org/checkout-report/CO-778')
+        ->where('portalUrl', 'https://portalvfms.zanrevenue.org/checkout-report/guest/CO-778')
         ->where('qrSvg', fn (string $svg) => str_starts_with($svg, '<svg'))
         ->where('report.number', 'CO-778'));
 
     // The links are fixed when VFMS accepts, so a reprint keeps the QR first printed.
     $references = collect(checkOutVfmsMessages($t->a))->last()->getAttribute('provider_references');
     expect(json_decode($references['reportUrls'], true))->toBe([
-        'CO-778' => 'https://portalvfms.zanrevenue.org/checkout-report/CO-778', 'CO-779' => 'https://portalvfms.zanrevenue.org/checkout-report/CO-779',
+        'CO-778' => 'https://portalvfms.zanrevenue.org/checkout-report/guest/CO-778', 'CO-779' => 'https://portalvfms.zanrevenue.org/checkout-report/guest/CO-779',
     ]);
 });
 
@@ -359,8 +359,8 @@ test('recorded checkout stores every report and projects authorized identity onl
         ->where('guestReports.0.departedEarly', $earlyDeparture)
         ->missing('guestReports.0.identity.documentNo')->missing('guestReports.1.identity.documentNo')
         ->where('guestReports.0.identity.documentName', 'PASSPORT')
-        ->where('guestReports.0.portalUrl', $viewer.'/checkout-report/'.$numbers[0])
-        ->where('guestReports.1.portalUrl', $viewer.'/checkout-report/'.$numbers[1])
+        ->where('guestReports.0.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[0])
+        ->where('guestReports.1.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[1])
         ->where('guestReports.1.qrSvg', fn (string $svg) => str_starts_with($svg, '<svg')));
     fiscalReport($tenant, $reservation, OrganizationRole::Finance)->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('guestReports.0.identity', null)->where('guestReports.1.identity', null));

@@ -228,7 +228,7 @@ The VAT and infrastructure levy Karafuu's tax rules put on a Zanzibar folio befo
 _Avoid_: Provisional tax, draft tax
 
 **Fiscal check-out report**:
-The guest's fiscal receipt for a whole stay: each guest's VFMS report number, room charges, extras, VFMS tax and levy, and a QR code for the VFMS viewer. Shown once VFMS has accepted every filing of the stay, including early guest departures. In Sandbox it is stamped "TEST, NOT FISCAL"; QR codes use only the configured ZRA test viewer, never the production portal. Each QR link is stored when VFMS accepts the filing, so a reprint shows the QR first printed; it opens ZRA's checkout-report page, which shows the report's own currency (ZRA's guest-viewer page labels every report USD). Identity documents appear only for staff with permission to view guest identity.
+The guest's fiscal receipt for a whole stay: each guest's VFMS report number, room charges, extras, VFMS tax and levy, and a QR code for the VFMS viewer. Shown once VFMS has accepted every filing of the stay, including early guest departures. In Sandbox it is stamped "TEST, NOT FISCAL"; QR codes use only the configured ZRA test viewer, never the production portal. Each QR link is stored when VFMS accepts the filing, so a reprint shows the QR first printed; it opens ZRA's guest viewer, which shows every report in USD, converting reports filed in TZS or EUR; the filing itself stays in its own currency. Identity documents appear only for staff with permission to view guest identity.
 _Avoid_: Checkout invoice, bill, folio statement
 
 **VFMS mode**:
