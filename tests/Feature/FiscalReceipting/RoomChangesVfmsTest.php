@@ -33,7 +33,7 @@ beforeEach(function () {
     $this->reservation = inTenant($this->tenant->property, function () {
         $details = BookingForm::details($this->tenant->owner);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($this->tenant->owner, [...$details, 'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast']);
+        $reservation = app(CreateReservation::class)->handle($this->tenant->owner, [...$details, 'adults' => 2, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast']);
         foreach (['LEAD-161', 'SECOND-161'] as $number) {
             $guest = app(CreateGuest::class)->handle($this->tenant->owner, ['name' => $number, 'documents' => [['type' => 'passport', 'number' => $number, 'nationality' => 'DE']]]);
             ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
@@ -140,7 +140,7 @@ test('a repriced room move files the destination price', function () {
 
         $message = OutboxMessage::query()->where('integration', 'vfms')->where('event', 'changeRoom')->sole();
         expect($message->status)->toBe('delivered')
-            ->and($message->payload['body']['accommodationPrice'])->toEqual(160.5);
+            ->and($message->payload['body']['accommodationPrice'])->toEqual(150.5);
     });
     Http::assertSentCount(2);
 });

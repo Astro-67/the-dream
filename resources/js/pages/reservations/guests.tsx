@@ -32,6 +32,7 @@ type Match = Pick<Contact, 'id' | 'name' | 'email' | 'phone'>;
 
 export default function Guests({
     reservationNumber,
+    expectedGuests,
     guests,
     canAttach,
     inHouse,
@@ -41,6 +42,7 @@ export default function Guests({
     canRecordDeparture,
 }: {
     reservationNumber: string;
+    expectedGuests: number;
     guests: Paginated<Contact>;
     canAttach: boolean;
     inHouse: boolean;
@@ -106,6 +108,15 @@ export default function Guests({
                 </header>
                 <section className="space-y-3">
                     <h2 className="text-lg font-semibold">Staying guests</h2>
+                    {!inHouse && (
+                        <p className="text-sm text-muted-foreground">
+                            {guests.total} guests added · {expectedGuests}{' '}
+                            booked. Every staying guest must be added with the
+                            required identity details before check-in.
+                            Additional guests can be added after the booking is
+                            created.
+                        </p>
+                    )}
                     {guests.data.length === 0 ? (
                         <EmptyState message="No guests attached yet." />
                     ) : (

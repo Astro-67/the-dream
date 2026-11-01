@@ -35,7 +35,7 @@ test('suspension preserves an existing stay from check-in through payment checko
     $property->update(['business_date' => '2026-12-10']);
     [$reservation, $folio] = inTenant($property, function () use ($owner, $mode) {
         $details = BookingForm::details($owner);
-        $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+        $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'adults' => 1, 'children' => 0, 'room_id' => Room::query()->sole()->id]);
         $guest = app(CreateGuest::class)->handle($owner, [
             'name' => 'Existing guest',
             'documents' => [['type' => 'passport', 'number' => 'P7654321', 'nationality' => 'DE']],
