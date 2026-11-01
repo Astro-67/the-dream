@@ -100,7 +100,7 @@ export default function Statement({
     return (
         <>
             <Head title={`Folio statement ${reservation.reservation_number}`}>
-                <style media="print">{`@page { size: ${paper === 'thermal' ? '80mm auto' : 'A4'}; margin: ${paper === 'thermal' ? '4mm' : '12mm'}; }`}</style>
+                <style media="print">{`@page { size: ${paper === 'thermal' ? '80mm 200mm' : 'A4'}; margin: ${paper === 'thermal' ? '4mm' : '12mm'}; }`}</style>
             </Head>
             <div
                 data-paper={paper}
