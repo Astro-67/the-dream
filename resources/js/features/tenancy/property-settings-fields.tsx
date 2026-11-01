@@ -125,9 +125,11 @@ export function PropertySettingsFields({
                     </legend>
                     {group === 'tax_settings' && (
                         <p className="text-sm text-muted-foreground sm:col-span-2">
-                            Tax settings are estimates before VFMS. ZRA assesses
-                            the infrastructure levy at check-out. Tax rule
-                            changes are managed under Taxes and service charges.
+                            Tax settings are estimates before VFMS. The
+                            infrastructure levy is always added on top of the
+                            room price, and ZRA assesses it at check-out. Tax
+                            rule changes are managed under Taxes and service
+                            charges.
                         </p>
                     )}
                     {Object.entries(fields).map(([field, value]) => {
@@ -290,7 +292,6 @@ export type TaxInclusionControl = {
 
 const inclusionLabels: Record<string, string> = {
     vat: 'VAT included in room rate',
-    levy: 'Infrastructure levy included in room rate',
 };
 
 /** Reads and changes the tax rules themselves; nothing here is stored as a property setting. */

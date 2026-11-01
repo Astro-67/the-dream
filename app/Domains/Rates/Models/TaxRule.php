@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Attributes\UsePolicy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\ValidationException;
 
 /**
  * One tax or service charge of a property over its effective dates, both ends included.
@@ -38,6 +39,16 @@ use Illuminate\Database\Eloquent\Model;
 class TaxRule extends Model
 {
     use BelongsToProperty, HasUlids;
+
+    protected static function booted(): void
+    {
+        // ZRA adds its levy on top of the room price at check-out, so a levy inside the price would undercharge every guest.
+        static::saving(function (self $rule): void {
+            if ($rule->zra_tax_category === ZraTaxCategory::HotelLevy && $rule->inclusive && (! $rule->exists || $rule->isDirty(['inclusive', 'zra_tax_category']))) {
+                throw ValidationException::withMessages(['inclusive' => __('The infrastructure levy is always added on top of the room price, as ZRA charges it.')]);
+            }
+        });
+    }
 
     /** @return array<string, string> */
     protected function casts(): array

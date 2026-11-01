@@ -138,8 +138,8 @@ function seededTaxRules(bool $vatIncluded, bool $levyIncluded): array
     ];
 }
 
-// protects=exact USD lines for each VAT/levy inclusion; fails_when=VAT is added to an already-inclusive price or the levy is taxed; no_claim=VFMS assessment.
-test('every VAT and levy inclusion combination reconciles to the price and its lines', function (bool $vat, bool $levy, int $guests, array $expected) {
+// protects=exact USD lines for each VAT/levy rule; the levy is always added on top as ZRA charges it, even from a rule stored as included; fails_when=VAT is added to an already-inclusive price, the levy is taxed or taken out of the price; no_claim=VFMS assessment.
+test('every VAT and levy rule reconciles to the price and its lines with the levy on top', function (bool $vat, bool $levy, int $guests, array $expected) {
     $breakdown = TaxCalculator::breakdown(seededTaxRules($vat, $levy), 10000, Currency::USD, '2026-06-01', $guests, ChargeKind::Room);
 
     expect([$breakdown->net, ...array_column(taxLines($breakdown), 1), $breakdown->gross()])->toBe($expected)
@@ -148,9 +148,8 @@ test('every VAT and levy inclusion combination reconciles to the price and its l
     // 10000 / 1.15 = 8695.65 net; VAT 1304.35 rounds to 1304 and the remainder stays in the net.
     'VAT included, levy added' => [true, false, 1, [8696, 1304, 500, 10500]],
     'both added' => [false, false, 1, [10000, 1500, 500, 12000]],
-    // The levy comes off first: (10000 - 1000) / 1.15 = 7826.09 net.
-    'both included, two guests' => [true, true, 2, [7826, 1174, 1000, 10000]],
-    'VAT added, levy included, two guests' => [false, true, 2, [9000, 1350, 1000, 11350]],
+    'levy stored as included, two guests' => [true, true, 2, [8696, 1304, 1000, 11000]],
+    'VAT added, levy stored as included, two guests' => [false, true, 2, [10000, 1500, 1000, 12500]],
 ]);
 
 test('a zero price and zero levy give zero tax', function () {
@@ -160,13 +159,14 @@ test('a zero price and zero levy give zero tax', function () {
     expect(TaxCalculator::breakdown($rules, 0, Currency::USD, '2026-06-01', 2, ChargeKind::Room)->gross())->toBe(0);
 });
 
-// protects=no posting below zero net; fails_when=included levies exceed the price and the net goes negative or clamps silently.
-test('included flat levies above the price are refused, not clamped', function () {
-    expect(fn () => TaxCalculator::breakdown(seededTaxRules(true, true), 900, Currency::USD, '2026-06-01', 2, ChargeKind::Room))
+// protects=no posting below zero net; fails_when=included flat taxes exceed the price and the net goes negative or clamps silently.
+test('included flat taxes above the price are refused, not clamped', function () {
+    $flat = taxRule(['name' => 'Service', 'kind' => 'flat_per_person_night', 'rate' => null, 'amount' => 500, 'currency' => 'USD', 'inclusive' => true, 'applies_to' => 'room']);
+    expect(fn () => TaxCalculator::breakdown([$flat], 900, Currency::USD, '2026-06-01', 2, ChargeKind::Room))
         ->toThrow(InvalidArgumentException::class);
 
     // Rounding inclusive percentages up on what remains can also take the net below zero.
-    $rules = [...seededTaxRules(false, true), taxRule(['name' => 'A', 'rate' => 10000, 'inclusive' => true, 'rounding' => 'up']), taxRule(['name' => 'B', 'rate' => 10000, 'inclusive' => true, 'rounding' => 'up'])];
+    $rules = [$flat, taxRule(['name' => 'A', 'rate' => 10000, 'inclusive' => true, 'rounding' => 'up']), taxRule(['name' => 'B', 'rate' => 10000, 'inclusive' => true, 'rounding' => 'up'])];
     expect(fn () => TaxCalculator::breakdown($rules, 1001, Currency::USD, '2026-06-01', 2, ChargeKind::Room))->toThrow(InvalidArgumentException::class);
 });
 

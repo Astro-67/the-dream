@@ -5,6 +5,7 @@ namespace App\Domains\Rates;
 use App\Domains\Rates\Data\TaxBreakdown;
 use App\Domains\Rates\Enums\ChargeKind;
 use App\Domains\Rates\Enums\TaxKind;
+use App\Domains\Rates\Enums\ZraTaxCategory;
 use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Money\Currency;
@@ -44,7 +45,9 @@ final class TaxCalculator
      */
     public static function breakdown(iterable $rules, int $amount, Currency $currency, string $date, int $guests, ChargeKind $charge, ?ExchangeRate $rate = null): TaxBreakdown
     {
-        $inForce = collect($rules)->filter(fn (TaxRule $rule) => $rule->coversDate($date) && $rule->applies_to->covers($charge));
+        // ZRA always adds its levy on top of the price, whatever a stored rule says.
+        $inForce = collect($rules)->filter(fn (TaxRule $rule) => $rule->coversDate($date) && $rule->applies_to->covers($charge))
+            ->map(fn (TaxRule $rule) => $rule->zra_tax_category === ZraTaxCategory::HotelLevy && $rule->inclusive ? (clone $rule)->forceFill(['inclusive' => false]) : $rule);
         // The USD levy converts at ZRA's rate, as VFMS does; with no rate stored yet it is left out.
         $unavailable = $rate === null ? $inForce->filter(fn (TaxRule $rule) => $rule->isInfrastructureLevy() && $rule->currency !== $currency) : collect();
         $applying = $inForce->diffKeys($unavailable)->values();

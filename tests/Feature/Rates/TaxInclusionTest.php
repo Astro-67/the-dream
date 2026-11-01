@@ -9,6 +9,7 @@ use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
@@ -48,18 +49,18 @@ function taxInclusionRules(TwoTenants $t): array
 }
 
 // protects=the edit form reads the seeded defaults from the rules; fails_when=a stored switch disagrees with the calculator.
-test('new properties show VAT included and the levy added, read from their rules', function () {
+test('new properties show VAT included, read from their rules, and offer no levy switch', function () {
     $t = taxInclusionProperty();
 
     $this->actingAs($t->a->owner)->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page
         ->where('taxInclusion.vat.state', 'included')->where('taxInclusion.vat.covers_extras', true)
-        ->where('taxInclusion.levy.state', 'added')->where('taxInclusion.levy.covers_extras', false)
+        ->missing('taxInclusion.levy')
         ->where('taxInclusion.vat.earliest', '2026-12-11')->where('canManageTaxes', true)
         ->missing('property.tax_settings.tax_inclusive'));
 });
 
 // protects=one save versions both rules from a date, audited; fails_when=old versions are mutated or posted tax changes.
-test('the property form versions VAT and levy rules from a date and leaves posted charges alone', function () {
+test('the property form versions VAT rules from a date and leaves posted charges alone', function () {
     $t = taxInclusionProperty(stay: true);
     $posting = inTenant($t->a->property, fn () => app(PostRoomCharge::class)->handle($t->a->owner, Reservation::query()->sole(), '2026-12-11'));
     $snapshot = inTenant($t->a->property, fn () => $posting->fresh()->getAttributes());
@@ -69,17 +70,17 @@ test('the property form versions VAT and levy rules from a date and leaves poste
     inTenant($t->a->otherProperty, fn () => app(SeedDefaultTaxRules::class)->handle($t->a->owner, $t->a->otherProperty));
     $sibling = inTenant($t->a->otherProperty, fn () => TaxRule::query()->orderBy('name')->get()->toArray());
 
-    $this->actingAs($t->a->owner)->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '0', 'levy' => '1', 'effective_from' => '2026-12-12']))
+    $this->actingAs($t->a->owner)->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '0', 'effective_from' => '2026-12-12']))
         ->assertSessionHasNoErrors();
     expect(inTenant($t->a->otherProperty, fn () => TaxRule::query()->orderBy('name')->get()->toArray()))->toEqual($sibling);
 
     expect(taxInclusionRules($t))->toBe([
-        ['Infrastructure levy', false, '2026-12-10', '2026-12-11'], ['Infrastructure levy', true, '2026-12-12', null],
+        ['Infrastructure levy', false, '2026-12-10', null],
         ['VAT', true, '2026-12-10', '2026-12-11'], ['VAT', false, '2026-12-12', null],
     ])->and(inTenant($t->a->property, fn () => $posting->fresh()->getAttributes()))->toEqual($snapshot);
     $audit = Activity::query()->where('description', 'Tax inclusion changed')->sole();
-    expect($audit->getExtraProperty('old'))->toEqual(['vat' => 'included', 'levy' => 'added'])
-        ->and($audit->getExtraProperty('attributes'))->toEqual(['vat' => 'added', 'levy' => 'included']);
+    expect($audit->getExtraProperty('old'))->toEqual(['vat' => 'included'])
+        ->and($audit->getExtraProperty('attributes'))->toEqual(['vat' => 'added']);
     $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page
         ->where('taxInclusion.vat.state', 'included')->where('taxInclusion.vat.pending.0.inclusive', false)
         ->where('taxInclusion.vat.pending.0.effective_from', '2026-12-12'));
@@ -90,7 +91,7 @@ test('a change before the earliest date is refused and nothing changes', functio
     $t = taxInclusionProperty();
     $before = taxInclusionRules($t);
 
-    $this->actingAs($t->a->owner)->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '0', 'levy' => '1', 'effective_from' => '2026-12-10']))
+    $this->actingAs($t->a->owner)->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '0', 'effective_from' => '2026-12-10']))
         ->assertSessionHasErrors('tax_inclusion.effective_from');
     // A rule seeded today can change from tomorrow at the earliest.
     $t->a->property->update(['business_date' => '2026-12-10']);
@@ -121,7 +122,7 @@ test('mixed VAT rules stay mixed until staff choose one, then all change togethe
     ]));
     $this->actingAs($t->a->owner)->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('taxInclusion.vat.state', 'mixed'));
 
-    $this->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '', 'levy' => '0']))->assertSessionHasNoErrors();
+    $this->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '']))->assertSessionHasNoErrors();
     expect(count(taxInclusionRules($t)))->toBe(3);
 
     $this->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['vat' => '1', 'effective_from' => '2026-12-12']))->assertSessionHasNoErrors();
@@ -132,11 +133,27 @@ test('mixed VAT rules stay mixed until staff choose one, then all change togethe
 // protects=editing a rule directly stays the authority and refreshes the controls.
 test('changing a rule on the taxes page refreshes the property control', function () {
     $t = taxInclusionProperty();
-    $levy = inTenant($t->a->property, fn () => TaxRule::query()->where('name', 'Infrastructure levy')->sole());
-    $this->actingAs($t->a->owner)->post(route('tax-rules.change', $levy), [...$levy->terms(), '_property' => $t->a->property->id, 'inclusive' => '1', 'effective_from' => '2026-12-11'])
+    $vat = inTenant($t->a->property, fn () => TaxRule::query()->where('name', 'VAT')->sole());
+    $this->actingAs($t->a->owner)->post(route('tax-rules.change', $vat), [...$vat->terms(), '_property' => $t->a->property->id, 'rate' => '15', 'inclusive' => '0', 'effective_from' => '2026-12-11'])
         ->assertSessionHasNoErrors();
 
-    $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('taxInclusion.levy.state', 'included'));
+    $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('taxInclusion.vat.state', 'added'));
+});
+
+// protects=guests' money: ZRA always adds the levy on top, so no path stores an included levy; fails_when=the taxes page, the property form or a direct create puts the levy inside the price.
+test('the infrastructure levy can never be put inside the room price', function () {
+    $t = taxInclusionProperty();
+    $before = taxInclusionRules($t);
+    $levy = inTenant($t->a->property, fn () => TaxRule::query()->where('name', 'Infrastructure levy')->sole());
+
+    $this->actingAs($t->a->owner)->post(route('tax-rules.change', $levy), [...$levy->terms(), '_property' => $t->a->property->id, 'inclusive' => '1', 'effective_from' => '2026-12-11'])
+        ->assertSessionHasErrors('inclusive');
+    $this->put(route('properties.update', $t->a->property), taxInclusionForm($t->a->property->id, ['levy' => '1']))
+        ->assertSessionHasErrors('tax_inclusion');
+    expect(fn () => inTenant($t->a->property, fn () => app(CreateTaxRule::class)->handle($t->a->owner, [...$levy->terms(), 'name' => 'Second levy', 'inclusive' => true])))
+        ->toThrow(ValidationException::class);
+
+    expect(taxInclusionRules($t))->toBe($before);
 });
 
 // protects=properties.update alone cannot change tax rules; fails_when=a group operations manager rewrites taxes through the property form.
@@ -158,7 +175,7 @@ test('a property without matching rules shows no switch, and a new property cann
     [$owner, , $property] = organizationWithOwner();
 
     $this->actingAs($owner)->get(route('properties.edit', $property))->assertInertia(fn (Assert $page) => $page
-        ->where('taxInclusion.vat.state', 'none')->where('taxInclusion.levy.state', 'none'));
+        ->where('taxInclusion.vat.state', 'none')->missing('taxInclusion.levy'));
     $this->post(route('properties.store'), PropertyForm::payload(['_property' => $property->id, 'tax_inclusion' => ['vat' => '0']]))
         ->assertSessionHasErrors('tax_inclusion');
 });

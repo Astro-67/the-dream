@@ -103,12 +103,6 @@ function settings(
                     earliest: '2026-12-11',
                     pending: [],
                 },
-                levy: {
-                    state: 'added',
-                    covers_extras: false,
-                    earliest: '2026-12-12',
-                    pending: [],
-                },
             },
             canManageTaxes: true,
             canManageCashierShifts,
@@ -347,7 +341,6 @@ for (const name of [
     'payment_settings[deposit_percentage]',
     'registration_fields[]',
     'tax_inclusion[vat]',
-    'tax_inclusion[levy]',
     'tax_inclusion[effective_from]',
 ]) {
     assert.ok(html.includes(`name="${name}"`), `${name} must stay mounted`);
@@ -399,9 +392,9 @@ assert.match(
     invalid,
     /id="hotel" role="tabpanel" aria-labelledby="tab-hotel" hidden=""/,
 );
-// The removed generic switch never renders; the change date starts at the latest earliest date.
+// The removed generic switch never renders; the change date starts at VAT's earliest date.
 assert.doesNotMatch(html, /tax_inclusive|Prices include tax/);
-assert.match(html, /min="2026-12-12"/);
+assert.match(html, /min="2026-12-11"/);
 assert.match(html, /This rule also covers extras/);
 // Mixed rules offer to leave them alone; no rule offers a link, not a fake switch.
 assert.match(

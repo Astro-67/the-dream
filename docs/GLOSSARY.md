@@ -209,7 +209,7 @@ A property's classification from the Zanzibar Commission for Tourism, or "not ye
 _Avoid_: Category, grade
 
 **Infrastructure levy**:
-ZRA's flat USD charge per guest per night, set by star rating and assessed by VFMS. Karafuu estimates it on top of the room price, converted at the ZRA exchange rate; the folio then takes the figure VFMS returns at check-out.
+ZRA's flat USD charge per guest per night, set by star rating and assessed by VFMS. Always added on top of the room price, never included in it: Karafuu refuses an included levy rule. Karafuu estimates it converted at the ZRA exchange rate; the folio then takes the figure VFMS returns at check-out.
 _Avoid_: Infrastructure tax, tourism levy
 
 **ZRA tax registration**:
