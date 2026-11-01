@@ -218,3 +218,10 @@ export default function TaxPreview({
         </>
     );
 }
+
+TaxPreview.layout = {
+    breadcrumbs: [
+        { title: 'Tax rules', href: index() },
+        { title: 'Tax preview', href: '#' },
+    ],
+};

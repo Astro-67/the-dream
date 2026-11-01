@@ -6,7 +6,7 @@ import { StatusChip } from '@/components/ui/status-chip';
 import { formatDate } from '@/features/platform/format';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { formatMoney } from '@/lib/utils';
-import { show as showReservation } from '@/routes/reservations';
+import { index, show as showReservation } from '@/routes/reservations';
 
 type Report = {
     number: string;
@@ -372,3 +372,18 @@ export default function CheckoutReport({
         </>
     );
 }
+
+CheckoutReport.layout = ({
+    reservation,
+}: {
+    reservation: { reservation_number: string };
+}) => ({
+    breadcrumbs: [
+        { title: 'Reservations', href: index() },
+        {
+            title: reservation.reservation_number,
+            href: showReservation(reservation.reservation_number),
+        },
+        { title: 'Fiscal check-out report', href: '#' },
+    ],
+});

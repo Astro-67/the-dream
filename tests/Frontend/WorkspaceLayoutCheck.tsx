@@ -5,6 +5,10 @@ import { AppContent } from '@/components/app-content';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import AppLayout from '@/layouts/app-layout';
+import BookerShow from '@/pages/bookers/show';
+import BookerEdit from '@/pages/bookers/edit';
+import BookerCreate from '@/pages/bookers/create';
 import Dashboard from '@/pages/dashboard';
 
 function dashboard(property: boolean) {
@@ -145,3 +149,92 @@ assert.match(headerWorkspace, /min-w-0/);
 assert.match(headerWorkspace, /gap-6/);
 assert.doesNotMatch(headerWorkspace, /max-w-|mx-auto/);
 console.log('Expanded, collapsed and alternate shell contracts: PASS');
+
+const booker = {
+    id: 'booker-207',
+    name: 'Coastal travel partner with a long name',
+    email: null,
+    phone: null,
+    nationality: null,
+    preferences: null,
+    notes: null,
+};
+
+for (const sidebarOpen of [true, false]) {
+    for (const [Page, current, path] of [
+        [BookerShow, 'Booker details', '/bookers/booker-207'],
+        [BookerEdit, 'Edit booker', '/bookers/booker-207/edit'],
+        [BookerCreate, 'Add booker', '/bookers/create'],
+    ] as const) {
+        const markup = renderToStaticMarkup(
+            <TooltipProvider>
+                <App
+                    initialPage={{
+                        component: 'bookers/page',
+                        url: path,
+                        version: null,
+                        clearHistory: false,
+                        encryptHistory: false,
+                        props: {
+                            record: booker,
+                            canManage: true,
+                            errors: {},
+                            countries: [],
+                            sidebarOpen,
+                            auth: {
+                                user: {
+                                    name: 'Front desk',
+                                    email: 'staff@example.test',
+                                },
+                                permissions: ['bookers.manage'],
+                                platformRoles: [],
+                            },
+                            tenant: {
+                                organization: {
+                                    id: 'org-207',
+                                    name: 'Coastal organization',
+                                },
+                                property: {
+                                    id: 'property-207',
+                                    name: 'Stone Town Waterfront Hotel with a long property name',
+                                    businessDate: '2026-12-10',
+                                    paymentSettings: {
+                                        use_cashier_shifts: false,
+                                    },
+                                },
+                                organizations: [],
+                                properties: [],
+                            },
+                        },
+                    }}
+                    initialComponent={Page}
+                    defaultLayout={() => AppLayout}
+                />
+            </TooltipProvider>,
+        );
+        assert.match(markup, /<a[^>]*href="\/bookers"[^>]*>Bookers<\/a>/);
+        assert.match(
+            markup,
+            new RegExp(`<span[^>]*aria-current="page"[^>]*>${current}</span>`),
+        );
+        assert.doesNotMatch(markup, new RegExp(`<a[^>]*>${current}</a>`));
+        assert.match(
+            markup,
+            Page === BookerEdit
+                ? /<a[^>]*href="\/bookers\/booker-207"[^>]*>[\s\S]*?Back to Coastal travel partner with a long name<\/a>/
+                : /<a[^>]*href="\/bookers"[^>]*>[\s\S]*?Back to Bookers<\/a>/,
+        );
+        assert.match(
+            markup,
+            /Stone Town Waterfront Hotel with a long property name/,
+        );
+        assert.match(markup, /10 Dec 2026/);
+        if (Page !== BookerShow) {
+            assert.match(markup, /<a[^>]*href="\/bookers"[^>]*>Cancel<\/a>/);
+            assert.match(markup, /name="_property"[^>]*value="property-207"/);
+            assert.match(markup, /<button[^>]*type="submit"/);
+        }
+    }
+}
+assert.doesNotMatch(operational, /Back to /);
+console.log('Direct-entry Booker parents, breadcrumbs and form actions: PASS');

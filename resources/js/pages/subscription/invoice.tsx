@@ -1,4 +1,9 @@
 import { Head } from '@inertiajs/react';
+import type { PropsWithChildren } from 'react';
+import AppLayout from '@/layouts/app-layout';
+import { useCurrentUrl } from '@/hooks/use-current-url';
+import { index as platformInvoices } from '@/routes/platform/invoices';
+import { show as subscription } from '@/routes/subscription';
 import { Button } from '@/components/ui/button';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
@@ -17,6 +22,23 @@ import type { PaymentSlip } from '@/features/subscriptions/payment-slips';
 import { SaasInvoiceStatus } from '@/features/subscriptions/saas-invoice-status';
 import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
+
+function InvoiceLayout({ children }: PropsWithChildren) {
+    const platform = useCurrentUrl().isCurrentOrParentUrl(platformInvoices());
+
+    return (
+        <AppLayout
+            breadcrumbs={[
+                platform
+                    ? { title: 'SaaS invoices', href: platformInvoices() }
+                    : { title: 'Subscription', href: subscription() },
+                { title: 'Invoice', href: '#' },
+            ]}
+        >
+            {children}
+        </AppLayout>
+    );
+}
 
 type Billing = {
     business_name: string;
@@ -55,7 +77,7 @@ export default function SaasInvoiceShow({
                     {'@page { size: A4; margin: 12mm; }'}
                 </style>
             </Head>
-            <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
+            <div className="receipt-print flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
                 <header className="space-y-3">
                     {billing && (
                         <div className="space-y-1 text-sm">
@@ -229,3 +251,5 @@ export default function SaasInvoiceShow({
         </>
     );
 }
+
+SaasInvoiceShow.layout = InvoiceLayout;

@@ -75,7 +75,7 @@ export function NavMain({
             {labelHref ? (
                 <SidebarGroupLabel
                     asChild
-                    className="group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    className="group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground any-pointer-coarse:min-h-11 any-pointer-coarse:min-w-11"
                 >
                     <Link href={labelHref} onClick={() => setOpenMobile(false)}>
                         {label}

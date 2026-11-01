@@ -2,7 +2,7 @@
 
 ## Overview
 
-A precise, calm interface for people running hotels: front desk, reservations, housekeeping, finance and compliance staff, working long shifts on desktops and tablets, often on slow connections. The aesthetic is quietly confident: clear headings, generous but disciplined spacing, flat surfaces with crisp borders. Information density is high where staff scan and act (calendars, tables, folios) and relaxed where they read or decide (onboarding, settings, confirmations). Every status is readable at a glance and never depends on colour alone.
+A precise, calm interface for people running hotels: front desk, reservations, housekeeping, finance and compliance staff, working long shifts on desktops and tablets, often on slow connections. The aesthetic is a refined hospitality workspace: navy-led like the Karafuu logo, warm ivory surroundings, clean white panels with restrained depth, clear headings and disciplined spacing. The logo's gloss stays in the logo; controls borrow its navy and a little of its dimension, never its effects. Information density is high where staff scan and act (calendars, tables, folios) and relaxed where they read or decide (onboarding, settings, confirmations). Every status is readable at a glance and never depends on colour alone.
 
 The interface is built on the Laravel React starter kit: Tailwind CSS 4, shadcn/ui and Radix. This document sets the values; the starter kit's components implement them. Interfaces ship in English only for this version; Kiswahili and translation infrastructure are deferred.
 
@@ -12,33 +12,42 @@ All text colours below meet WCAG AA (4.5:1) on the surface they're used on, and 
 
 ### Light theme
 
-- **Primary** (#4F46E5): primary button fill, active navigation, links, selected states. White text on it: 6.3:1
-- **Primary Hover** (#4338CA): hover and pressed state for primary elements
-- **Primary Tint** (#EEF2FF): selected rows, active filters, the current date in the calendar
-- **Background** (#FAFAFA): page background
+- **Primary** (#1F3B7A, navy): primary button fill, active navigation, links, selected states. White text on it: 10.7:1
+- **Primary Hover** (#172D5F): hover and pressed state for primary elements (white text 13.3:1)
+- **Primary Tint** (#E9EEF8): selected rows, active filters, the current date in the calendar (Primary text on it 9.2:1)
+- **Background** (#F8F6F1, warm ivory): page background
 - **Surface** (#FFFFFF): cards, panels, tables, dialogs, sidebar
-- **Text Primary** (#0A0A0A): headings and body text
-- **Text Secondary** (#6B6B6B): descriptions, metadata, table secondary columns
-- **Text Muted** (#737373): placeholders, timestamps, helper text (4.5:1 or better on both background and surface)
-- **Border** (#E8E8EC): dividers, card and table borders. Decorative only, never the only edge of a control
-- **Input Border** (#8A8A94): text inputs, selects, checkboxes, switches (3.4:1 on surface)
-- **Focus Ring** (#4F46E5): a solid 2px ring with a 2px offset
+- **Subtle surface** (#F1EDE4): secondary, muted and accent fills
+- **Text Primary** (#111A2E): headings and body text (16.1:1 on Background)
+- **Text Secondary** (#5B6070): descriptions, metadata, table secondary columns (5.4:1 on Subtle surface)
+- **Text Muted** (#676A75): placeholders, timestamps, helper text (5.0:1 on Background)
+- **Border** (#E5DFD3): dividers, card and table borders. Decorative only, never the only edge of a control
+- **Input Border** (#878592): text inputs, selects, checkboxes, switches (3.6:1 on surface)
+- **Focus Ring** (#1F3B7A): a solid 2px ring with a 2px offset
+- **Brand Accent** (#3F8A1E, the logo's leaf green): see Brand accent below
 - **Destructive** (#DC2626): fill for destructive buttons (white text 4.8:1); use #B91C1C for destructive text
 
 ### Dark theme
 
-- **Primary** (#818CF8): primary fill with near-black text (#0A0A0B, 6.6:1); links and focus ring
-- **Primary Hover** (#A5B4FC)
-- **Primary Tint** (#818CF8 at 15% over surface)
-- **Background** (#0A0A0B)
-- **Surface** (#141416); raised surfaces such as popovers and dialogs (#1C1C1F)
-- **Text Primary** (#F4F4F5)
-- **Text Secondary** (#A1A1AA)
-- **Text Muted** (#8B8B94)
-- **Border** (#27272A)
-- **Input Border** (#63636B)
-- **Focus Ring** (#818CF8)
-- **Destructive** (#F87171) with near-black text
+- **Primary** (#93B2F0): primary fill with deep-navy text (#0B1020, 8.9:1); links and focus ring (8.2:1 on surface)
+- **Primary Hover** (#B4C9F5)
+- **Primary Tint** (#93B2F0 at 15% over surface)
+- **Background** (#0B1020, deep navy)
+- **Surface** (#121A2C); raised surfaces such as popovers and dialogs (#18223A); subtle fills (#1A2439)
+- **Text Primary** (#F1F3F8)
+- **Text Secondary** (#A5ADBF)
+- **Text Muted** (#8F97AB)
+- **Border** (#283350)
+- **Input Border** (#68728E, 3.6:1 on surface)
+- **Focus Ring** (#93B2F0)
+- **Brand Accent** (#7CC957)
+- **Destructive** (#F87171) with deep-navy text
+
+### Brand accent
+
+`--brand-accent` (`bg-brand-accent`, `text-brand-accent`, `border-brand-accent`) carries the logo's green into the interface selectively: a thin rule, a small mark beside the product name, an onboarding highlight. It is decorative and meets 3:1 as a graphic, so it is never used for body text, never fills a control, and never means success. Operational results always use the status colours below; a green accent must never sit where a status would be read.
+
+`tests/Frontend/ThemeTokensCheck.ts` reads `resources/css/app.css` and fails if any of the ratios in this section, or the status ratios below, drop below their threshold.
 
 ### Status colours
 
@@ -85,20 +94,25 @@ Headings use General Sans with letter spacing of -0.02em. Body and interface tex
 
 ## Elevation
 
-Surfaces are flat, separated by 1px borders. Shadows mean "this floats" or "you can pick this up":
+Surfaces are separated by 1px borders plus restrained depth. Elevation comes only from the theme tokens, never ad-hoc `shadow-[…]` values:
 
+- **Panels** (`shadow-panel`): `Card`, the `Table` frame and other static content panels get a soft, low shadow (two layers, at most 5% navy in light, stronger in dark so it still reads). Never nest one elevated panel inside another; an inner section uses a border or a subtle fill.
+- **Primary buttons** (`shadow-primary`): a faint inset top highlight and a 1px drop give the navy fill a tonal edge. It flattens when pressed. No other button variant gets depth.
 - Dropdowns, popovers, the command palette and toasts use shadow-lg.
 - Dialogs and sheets use shadow-xl over a 40% black overlay.
-- Clickable cards gain a hover shadow (0 8px 30px rgba(0,0,0,0.08)) and lift 2px. Static cards and table rows never lift.
+- Clickable cards gain a hover shadow (0 8px 30px rgba(0,0,0,0.08)) and lift 2px. Buttons, static cards and table rows never move.
 - The top bar uses a backdrop blur, not a shadow.
 - Focus is shown by the solid focus ring, never by a shadow.
+- Print output drops every shadow (see Receipts and print).
+
+No glossy or gradient surfaces: the dimensional gloss belongs to the logo artwork only.
 
 Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion`: remove lifts and slides, keep fades.
 
 ## Components
 
-- **Buttons:** primary (Primary fill, white text), secondary (surface fill, 1px Input Border), ghost (text only, tinted background on hover), destructive (Destructive fill). Radius 6px, DM Sans 500. Sizes: 32px (dense toolbars and table rows), 36px (default), 44px (touch and tablet primary actions). Buttons don't move on hover; they change colour only. Loading buttons keep their width and show a spinner.
-- **Cards:** Surface, 1px Border, 12px radius. Only clickable cards (for example a property in the property picker) get the hover lift.
+- **Buttons:** primary (Primary fill, white text, `shadow-primary` depth), secondary (surface fill, 1px Input Border), ghost (text only, tinted background on hover), destructive (Destructive fill). Radius 6px, DM Sans 500. Fine-pointer sizes: 32px (dense toolbars and table rows), 36px (default), 44px (large). When any pointer is coarse, shared buttons, dropdown actions and sidebar navigation (including linked section labels) have a minimum 44px height and width, including icon actions; the collapsed sidebar widens to 60px so its padded targets fit. Mouse-only desktop density stays unchanged. Buttons don't move on hover; they change colour only. Loading buttons keep their width and show a spinner.
+- **Cards:** Surface, 1px Border, 12px radius, `shadow-panel`. Only clickable cards (for example a property in the property picker) get the hover lift.
 - **Inputs and selects:** Surface fill, 1px Input Border, 6px radius, 8px × 12px padding, 14px text. Focus: Focus Ring. Error: Error border, plus an error message below the field (Error text, 13px, with an icon). The label always sits above the field, and placeholders are never used as labels.
 - **Checkboxes and switches:** square checkboxes (4px radius, 16px box inside a 24px hit area) for choosing items. Switches for settings that take effect immediately. Radios for one-of-many. Never round checkboxes.
 - **Chips:**
@@ -109,9 +123,17 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 - **Toasts:** bottom-right on desktop, top on mobile. Success, info and default toasts disappear after 4 seconds; error and warning toasts after 8 seconds. Hovering pauses dismissal. Every toast has a close button and is announced to assistive technology.
 - **Empty states:** a one-line explanation plus the next action ("No arrivals today. Create a reservation"). No illustrations.
 - **Navigation:** the starter kit's collapsible sidebar on desktop and tablet, which becomes a sheet on mobile.
+    - **Branding:** the full logo (`BrandLogo`) at a readable size on public and authentication surfaces, never cropped, recoloured or redrawn. The app shell uses `AppLogo`, which shows the same full artwork at 160px wide. No approved compact mark exists yet; until the owner supplies one, constrained navigation keeps the full logo or the product name in text, never an invented or cropped mark.
     - **Organization and property switcher** at the top of the sidebar, always showing the current organization and property (PRD §4).
     - **Top bar:** breadcrumb, the property's current **business date**, the connection status, and the user menu.
     - **Sidebar sections:** Front desk, Reservations, Calendar, Housekeeping, Billing, Reports, Compliance (Zanzibar properties only), Settings.
+- **Page header:** title (Page title style), an optional one-line description below it, and page actions aligned to the right of the title on wide screens, wrapping beneath it on narrow ones. At most one primary action per section; existing permission checks decide which actions show.
+- **Parent navigation:** every nested page (detail, create, edit) shows a visible return link to its parent above the page title ("Back to Bookers"), plus a breadcrumb in the top bar.
+    - The destination is the page's explicit parent, built with the route helpers and an Inertia `Link`, never browser history or a return URL taken from the request. It therefore works when the page is opened directly.
+    - An edit page returns to the record's detail page; a detail page returns to its list; a create page returns to the list it adds to. A new form's Cancel goes to the same parent. Existing forms keep their current Cancel destination, even where it differs from the return link (exceptions listed in `docs/page-navigation.md`), and Cancel never discards more than it already did.
+    - Breadcrumbs list every ancestor as a link and end with the current page as plain, non-clickable text (`aria-current="page"`). A breadcrumb with only the current page is not enough on a nested page.
+    - Root pages (dashboard, top-level lists, reports) get no artificial Back link.
+    - Links keep the current organization and property context and only point at pages the user can open.
 - **Command palette (⌘K / Ctrl+K):** searches reservations by number, guest name, channel reference and room number, within the current property only. Opened from a search bar showing the shortcut badge.
 - **Connection status:** when the browser goes offline, a persistent amber banner below the top bar says "Offline: changes can't be saved", and actions that change data are disabled. No false success messages (PRD connectivity requirement).
 
@@ -134,8 +156,8 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 - Component padding: small 4 × 8, medium 8 × 12, large 12 × 20
 - Page padding: 16px on mobile, 24px on tablet and desktop
 - Section spacing: 24px on mobile, 32px on desktop
-- Content width: full width for calendars and tables. Forms and settings stay at most 720px wide; a long form may set its sections side by side on wide screens, each at most 720px, with a summary column holding the submit button. Short create forms on a list page open in a dialog from a button beside the heading.
-- The operational shell fills the viewport remaining after the visible sidebar (256px expanded, 48px rail); the sidebar owns that gap. No extra page offset or viewport-centred cap. The header and page share the 16px/24px horizontal gutter and a single token border marks each navigation boundary.
+- Content width: full width for calendars, tables, dashboards and report workspaces; never centre or cap them. A standalone short form (one bounded form that is the whole page) is centred horizontally in the work area remaining after the sidebar, at most 720px wide; the shell itself is never centred on the viewport. Detail and reading surfaces keep their readable bounds. Forms inside settings stay at most 720px wide; a long form may set its sections side by side on wide screens, each at most 720px, with a summary column holding the submit button. Short create forms on a list page open in a dialog from a button beside the heading.
+- The operational shell fills the viewport remaining after the visible sidebar (256px expanded, 48px fine-pointer rail or 60px with a coarse pointer); the sidebar owns that gap. No extra page offset or viewport-centred cap. The header and page share the 16px/24px horizontal gutter and a single token border marks each navigation boundary.
 - Dashboard grids, report filters and tables use that full work area, including sparse states. Reading/print surfaces and forms keep their bounds inside it. Account settings use a 192px navigation column, a 32px gap and a form column capped at 720px; navigation stacks above the form below `lg`.
 - Card grid gap: 16–24px
 
@@ -153,25 +175,27 @@ Set the starter kit's `--radius` to 8px. Its derived sizes then give:
 
 Map this document onto the variables in `resources/css/app.css` (`:root` for light, `.dark` for dark):
 
-| Variable                             | Light          | Dark                      |
-| ------------------------------------ | -------------- | ------------------------- |
-| `--background`                       | #FAFAFA        | #0A0A0B                   |
-| `--foreground`                       | #0A0A0A        | #F4F4F5                   |
-| `--card`, `--popover`, `--sidebar`   | #FFFFFF        | #141416 (popover #1C1C1F) |
-| `--primary`                          | #4F46E5        | #818CF8                   |
-| `--primary-foreground`               | #FFFFFF        | #0A0A0B                   |
-| `--secondary`, `--muted`, `--accent` | #F4F4F5        | #1C1C1F                   |
-| `--muted-foreground`                 | #6B6B6B        | #A1A1AA                   |
-| `--destructive`                      | #DC2626        | #F87171                   |
-| `--border`                           | #E8E8EC        | #27272A                   |
-| `--input`                            | #8A8A94        | #63636B                   |
-| `--ring`                             | #4F46E5        | #818CF8                   |
-| `--radius`                           | 0.5rem         | 0.5rem                    |
-| `--font-sans`                        | DM Sans        | DM Sans                   |
-| `--font-heading` (new)               | General Sans   | General Sans              |
-| `--font-mono`                        | JetBrains Mono | JetBrains Mono            |
+| Variable                                   | Light            | Dark                      |
+| ------------------------------------------ | ---------------- | ------------------------- |
+| `--background`                             | #F8F6F1          | #0B1020                   |
+| `--foreground`                             | #111A2E          | #F1F3F8                   |
+| `--card`, `--popover`, `--sidebar`         | #FFFFFF          | #121A2C (popover #18223A) |
+| `--primary`                                | #1F3B7A          | #93B2F0                   |
+| `--primary-foreground`                     | #FFFFFF          | #0B1020                   |
+| `--secondary`, `--muted`, `--accent`       | #F1EDE4          | #1A2439                   |
+| `--muted-foreground`                       | #5B6070          | #A5ADBF                   |
+| `--destructive`                            | #DC2626          | #F87171                   |
+| `--border`                                 | #E5DFD3          | #283350                   |
+| `--input`                                  | #878592          | #68728E                   |
+| `--ring`                                   | #1F3B7A          | #93B2F0                   |
+| `--brand-accent`                           | #3F8A1E          | #7CC957                   |
+| `--elevation-panel`, `--elevation-primary` | soft navy shadow | deeper black shadow       |
+| `--radius`                                 | 0.5rem           | 0.5rem                    |
+| `--font-sans`                              | DM Sans          | DM Sans                   |
+| `--font-heading` (new)                     | General Sans     | General Sans              |
+| `--font-mono`                              | JetBrains Mono   | JetBrains Mono            |
 
-Status colours become additional tokens (`--status-success`, `--status-success-tint` and so on) so that chips, room status and compliance views share one definition.
+`--elevation-*` feed the `shadow-panel` and `shadow-primary` utilities. Status colours become additional tokens (`--status-success`, `--status-success-tint` and so on) so that chips, room status and compliance views share one definition.
 
 ## Building screens
 
@@ -199,7 +223,7 @@ Colours come only from theme tokens (`bg-primary`, `bg-primary-tint`, `text-mute
 
 Public pages that sell Karafuu (the landing page at `/`) follow every rule above, with these exceptions. PMS screens keep the strict rules.
 
-- **Photography:** photorealistic images of warm East-African boutique hotels, each with one small indigo accent so they relate to the UI. They live in `public/images/marketing/` as WebP under 350 KB. No people's faces, no text or logos, and no image that implies a real customer.
+- **Photography:** photorealistic images of warm East-African boutique hotels, each with one small navy accent so they relate to the UI. They live in `public/images/marketing/` as WebP under 350 KB. No people's faces, no text or logos, and no image that implies a real customer.
 - **Product screenshots:** real screens from the showcase data, in the visitor's active theme. Never a mock-up that shows a feature the product lacks.
 - **Image overlays:** a dark scrim (`bg-black/50` or stronger) is allowed over a photo so white text passes contrast. This is the only gradient or overlay allowed.
 - **Proof:** no testimonials, customer logos or usage numbers until they are real.
@@ -215,8 +239,9 @@ Public pages that sell Karafuu (the landing page at `/`) follow every rule above
 - Do test every screen in light and dark themes, in English, and with the keyboard only.
 - Do keep the radius scale: cards 12px, controls 6px, chips as specified.
 - Don't use the bright status shades (#10B981, #F59E0B, #EF4444) for text.
-- Don't use shadows on static elements, or move buttons on hover.
+- Do use the elevation tokens for depth; don't add ad-hoc shadows, nest elevated panels, or move buttons on hover.
+- Don't use the brand accent green for text, controls or anything that could read as a status.
 - Don't use more than three font weights (400, 500, 600) on a screen.
 - Don't place more than one primary button in the same section.
-- Don't add gradients, illustrations or decorative patterns (marketing photography is the one exception; see Marketing surfaces).
+- Don't add gradients, gloss, illustrations or decorative patterns (marketing photography is the one exception; see Marketing surfaces).
 - Don't add amounts in different currencies, or hide which currency an amount is in.

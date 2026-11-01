@@ -23,7 +23,7 @@ import {
 } from '@/features/billing/folio-summary';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney } from '@/lib/utils';
-import { show as showReservation } from '@/routes/reservations';
+import { index, show as showReservation } from '@/routes/reservations';
 
 type StatementPosting = {
     id: string;
@@ -100,7 +100,7 @@ export default function Statement({
     return (
         <>
             <Head title={`Folio statement ${reservation.reservation_number}`}>
-                <style media="print">{`@page { size: ${paper === 'thermal' ? '80mm auto' : 'A4'}; margin: ${paper === 'thermal' ? '4mm' : '12mm'}; }`}</style>
+                <style media="print">{`@page { size: ${paper === 'thermal' ? '80mm 200mm' : 'A4'}; margin: ${paper === 'thermal' ? '4mm' : '12mm'}; }`}</style>
             </Head>
             <div
                 data-paper={paper}
@@ -275,3 +275,18 @@ export default function Statement({
         </>
     );
 }
+
+Statement.layout = ({
+    reservation,
+}: {
+    reservation: { reservation_number: string };
+}) => ({
+    breadcrumbs: [
+        { title: 'Reservations', href: index() },
+        {
+            title: reservation.reservation_number,
+            href: showReservation(reservation.reservation_number),
+        },
+        { title: 'Folio statement', href: '#' },
+    ],
+});

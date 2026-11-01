@@ -10,7 +10,7 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { NativeSelect } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { formatDate, formatMoney } from '@/lib/utils';
-import { create, store } from '@/routes/reservations';
+import { create, index, store } from '@/routes/reservations';
 
 type Stay = {
     room_id?: string;
@@ -754,3 +754,10 @@ export default function Create({
         </>
     );
 }
+
+Create.layout = {
+    breadcrumbs: [
+        { title: 'Reservations', href: index() },
+        { title: 'New reservation', href: create() },
+    ],
+};

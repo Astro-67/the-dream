@@ -32,7 +32,7 @@ export default function EditRoom({
     return (
         <>
             <Head title={`Edit room ${room.number}`} />
-            <div className="flex max-w-[720px] flex-col gap-8 p-4 md:p-6">
+            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-8 p-4 md:p-6">
                 <header className="space-y-1">
                     <h1 className="text-2xl font-semibold tracking-tight break-words">
                         Room {room.number}

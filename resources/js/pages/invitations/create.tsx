@@ -41,7 +41,7 @@ export default function CreateInvitation({
     return (
         <>
             <Head title="Add staff" />
-            <div className="w-full max-w-[720px] p-4 md:p-6">
+            <div className="mx-auto w-full max-w-[720px] min-w-0 p-4 md:p-6">
                 <Heading
                     title="Add staff"
                     description="They'll get an expiring invitation by email and accept by signing in or setting their own password. You never see or set their password."

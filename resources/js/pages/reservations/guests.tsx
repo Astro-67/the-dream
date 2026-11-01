@@ -26,6 +26,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { StatusChip } from '@/components/ui/status-chip';
 import { IdentityFields } from '@/features/guests/identity-documents';
 import type { Contact } from '@/features/guests/contact-pages';
+import { index, show } from '@/routes/reservations';
 
 type Match = Pick<Contact, 'id' | 'name' | 'email' | 'phone'>;
 
@@ -102,12 +103,6 @@ export default function Guests({
                     <h1 className="text-2xl font-semibold">
                         Guests · <Identifier value={reservationNumber} />
                     </h1>
-                    <Link
-                        className="text-primary underline underline-offset-4"
-                        href={base}
-                    >
-                        Back to reservation
-                    </Link>
                 </header>
                 <section className="space-y-3">
                     <h2 className="text-lg font-semibold">Staying guests</h2>
@@ -341,6 +336,14 @@ export default function Guests({
         </>
     );
 }
+
+Guests.layout = ({ reservationNumber }: { reservationNumber: string }) => ({
+    breadcrumbs: [
+        { title: 'Reservations', href: index() },
+        { title: reservationNumber, href: show(reservationNumber) },
+        { title: 'Guests', href: '#' },
+    ],
+});
 
 /** Lead guest and departed marks, or the Guest leaves action for anyone else still in-house. */
 function GuestStayStatus({

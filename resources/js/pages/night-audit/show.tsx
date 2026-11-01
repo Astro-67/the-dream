@@ -209,6 +209,13 @@ export default function Show({
     );
 }
 
+Show.layout = {
+    breadcrumbs: [
+        { title: 'Night audit', href: index() },
+        { title: 'Close details', href: '#' },
+    ],
+};
+
 function ResolveNoShow({
     id,
     labels,

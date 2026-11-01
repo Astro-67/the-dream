@@ -8,7 +8,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { AdjustmentFields } from '@/features/rates/adjustment-fields';
 import { CancellationPolicyFields } from '@/features/rates/cancellation-policy-fields';
 import type { CancellationPolicy } from '@/features/rates/cancellation-policy-fields';
-import { index, update } from '@/routes/rate-plans';
+import { index, prices, update } from '@/routes/rate-plans';
 
 export default function EditRatePlan({
     plan,
@@ -29,7 +29,7 @@ export default function EditRatePlan({
     return (
         <>
             <Head title={`Edit ${plan.name}`} />
-            <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
+            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6 p-4 md:p-6">
                 <h1 className="text-2xl font-semibold tracking-tight">
                     Edit {plan.name}
                 </h1>
@@ -128,3 +128,11 @@ export default function EditRatePlan({
         </>
     );
 }
+
+EditRatePlan.layout = ({ plan }: { plan: { id: string } }) => ({
+    breadcrumbs: [
+        { title: 'Rate plans', href: index() },
+        { title: 'Prices', href: prices(plan.id) },
+        { title: 'Edit rate plan', href: '#' },
+    ],
+});

@@ -18,6 +18,7 @@ import {
     type IdentityDocument,
 } from '@/features/guests/identity-documents';
 import { formatDate } from '@/features/platform/format';
+import { index } from '@/routes/guests';
 import type { Paginated } from '@/types';
 
 type Stay = {
@@ -124,7 +125,7 @@ export default function Show({
 }
 Show.layout = {
     breadcrumbs: [
-        { title: 'Guests', href: '/guests' },
-        { title: 'Guest details', href: '/guests' },
+        { title: 'Guests', href: index() },
+        { title: 'Guest details', href: '#' },
     ],
 };

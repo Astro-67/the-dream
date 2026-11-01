@@ -1,5 +1,6 @@
 import { ContactForm } from '@/features/guests/contact-pages';
 import { IdentityFields } from '@/features/guests/identity-documents';
+import { index } from '@/routes/guests';
 export default function Create({
     canViewIdentity,
 }: {
@@ -17,7 +18,7 @@ export default function Create({
 }
 Create.layout = {
     breadcrumbs: [
-        { title: 'Guests', href: '/guests' },
-        { title: 'Add guest', href: '/guests/create' },
+        { title: 'Guests', href: index() },
+        { title: 'Add guest', href: '#' },
     ],
 };

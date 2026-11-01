@@ -131,7 +131,7 @@ export function ContactForm({
     return (
         <>
             <Head title={title} />
-            <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
+            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6 p-4 md:p-6">
                 <h1 className="text-2xl font-semibold">{title}</h1>
                 <Form
                     transform={(data) =>
@@ -219,7 +219,10 @@ export function ContactForm({
                                     <Link href={base}>Cancel</Link>
                                 </Button>
                                 <Button type="submit">
-                                    {processing && <Spinner />}Save
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
+                                    Save
                                 </Button>
                             </div>
                         </>
@@ -246,8 +249,10 @@ export function ContactShow({
         <>
             <Head title={record.name} />
             <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
-                <header className="flex items-center justify-between gap-4">
-                    <h1 className="text-2xl font-semibold">{record.name}</h1>
+                <header className="flex flex-wrap items-start justify-between gap-4">
+                    <h1 className="min-w-0 text-2xl font-semibold wrap-anywhere">
+                        {record.name}
+                    </h1>
                     {canManage && (
                         <Button asChild>
                             <Link href={`${base}/${record.id}/edit`}>
@@ -269,9 +274,6 @@ export function ContactShow({
                     ))}
                 </dl>
                 {children}
-                <Button variant="ghost" asChild>
-                    <Link href={base}>Back to {title}s</Link>
-                </Button>
             </div>
         </>
     );
