@@ -124,6 +124,9 @@ _Avoid_: Migrated booking
 A property flagged for demonstration, holding sample data. Excluded from reports and plan limits, and never reported to channels or authorities.
 _Avoid_: Sandbox, test property
 
+**ZRA exchange rate**:
+ZRA's TZS rate for USD and EUR on a date, fetched daily from VFMS. Converts the infrastructure levy into a TZS or EUR price; the latest stored rate applies until a newer one arrives.
+
 **Write-off**:
 Clearing an unpaid folio balance as uncollectable. Needs a permission and a reason, and a second approver above the property's threshold.
 
@@ -206,7 +209,7 @@ A property's classification from the Zanzibar Commission for Tourism, or "not ye
 _Avoid_: Category, grade
 
 **Infrastructure levy**:
-ZRA's flat charge per guest per night, set by star rating and assessed by VFMS. Shown on the folio as returned, never calculated by Karafuu.
+ZRA's flat USD charge per guest per night, set by star rating and assessed by VFMS. Karafuu estimates it on top of the room price, converted at the ZRA exchange rate; the folio then takes the figure VFMS returns at check-out.
 _Avoid_: Infrastructure tax, tourism levy
 
 **ZRA tax registration**:

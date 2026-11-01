@@ -5,6 +5,7 @@ use App\Domains\Rates\Enums\ChargeKind;
 use App\Domains\Rates\Models\TaxRule;
 use App\Domains\Rates\TaxCalculator;
 use App\Support\Money\Currency;
+use App\Support\Money\ExchangeRate;
 use Tests\TestCase;
 
 uses(TestCase::class);
@@ -69,7 +70,32 @@ test('a flat per-person-per-night rule charges each guest and works alongside a 
 test('a flat rule in another currency is refused rather than converted', function () {
     $levy = taxRule(['name' => 'Infrastructure tax', 'kind' => 'flat_per_person_night', 'rate' => null, 'amount' => 100, 'currency' => 'USD']);
 
-    expect(fn () => TaxCalculator::breakdown([$levy], 250000, Currency::TZS, '2026-06-01', 2, ChargeKind::Room))->toThrow(InvalidArgumentException::class);
+    expect(fn () => TaxCalculator::breakdown([$levy], 250000, Currency::TZS, '2026-06-01', 2, ChargeKind::Room))->toThrow(InvalidArgumentException::class)
+        // Only the infrastructure levy converts at ZRA's rate.
+        ->and(fn () => TaxCalculator::breakdown([$levy], 250000, Currency::TZS, '2026-06-01', 2, ChargeKind::Room, zraRate()))->toThrow(InvalidArgumentException::class);
+});
+
+function zraRate(): ExchangeRate
+{
+    return (new ExchangeRate)->forceFill(['date' => '2026-10-31', 'usd_tzs' => '2555', 'eur_tzs' => '2581.175']);
+}
+
+// protects=the USD levy converts at ZRA's rate into a TZS or EUR price, added on top; fails_when=it is left out or rounds differently from VFMS (TRV238: USD 5 x 2 nights = TZS 25,550).
+test('the USD infrastructure levy converts at the ZRA rate into the folio currency', function () {
+    $levy = taxRule(['name' => 'Infrastructure levy', 'zra_tax_category' => 'hotel_levy', 'kind' => 'flat_per_person_night', 'rate' => null, 'amount' => 500, 'currency' => 'USD', 'applies_to' => 'room']);
+    $vat = taxRule(['rate' => 1500, 'inclusive' => true, 'zra_tax_category' => 'vat']);
+
+    $tzs = TaxCalculator::breakdown([$vat, $levy], 220000, Currency::TZS, '2026-11-01', 1, ChargeKind::Room, zraRate());
+    expect(taxLines($tzs))->toBe([['VAT', 28696], ['Infrastructure levy', 12775]])
+        ->and($tzs->gross())->toBe(232775)->and($tzs->unavailable)->toBe([])
+        ->and($tzs->lines[1]['per_person_night'])->toBe(12775)
+        ->and($tzs->lines[1]['converted_from'])->toMatchArray(['currency' => 'USD', 'per_person_night' => 500, 'rate_date' => '2026-10-31']);
+
+    // Two guests pay it each; a EUR price converts through ZRA's TZS rates (500 x 2555 / 2581.175 = 494.93 cents).
+    expect(TaxCalculator::breakdown([$levy], 10000, Currency::EUR, '2026-11-01', 2, ChargeKind::Room, zraRate())->tax())->toBe(990);
+
+    // Without a stored rate the levy stays out, marked unavailable, as before.
+    expect(TaxCalculator::breakdown([$vat, $levy], 220000, Currency::TZS, '2026-11-01', 1, ChargeKind::Room)->unavailable)->toBe(['Infrastructure levy']);
 });
 
 test('each line rounds to minor units by its rule', function (string $rounding, int $tax) {

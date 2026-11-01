@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\FiscalReceipting\Actions\CloseWithoutFiling;
+use App\Domains\FiscalReceipting\Actions\FetchExchangeRates;
 use App\Domains\FrontDesk\Actions\RunAutomaticCheckout;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Jobs\CloseDueBusinessDate;
@@ -270,6 +271,19 @@ Artisan::command('inventory:extend', function (RecalculateInventory $recalculate
 })->purpose('Extend inventory records to the configured horizon');
 
 Schedule::command('inventory:extend')->daily()->withoutOverlapping();
+
+Artisan::command('vfms:exchange-rates', function (FetchExchangeRates $fetch): int {
+    if ($fetch->handle(now('Africa/Dar_es_Salaam')->toDateString()) === null) {
+        $this->error('No Live property could fetch ZRA exchange rates; the last stored rate stays in use.');
+
+        return self::FAILURE;
+    }
+
+    return self::SUCCESS;
+})->purpose('Store today\'s ZRA exchange rates');
+
+// Hourly so a missed or failed fetch retries the same day; each date keeps one row.
+Schedule::command('vfms:exchange-rates')->hourly()->withoutOverlapping();
 Schedule::command('outbox:sweep')->everyMinute()->withoutOverlapping();
 
 Artisan::command('housekeeping:sync-service', function (SyncRoomServiceStatus $sync): int {
