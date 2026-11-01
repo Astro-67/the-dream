@@ -20,8 +20,6 @@ use BaconQrCode\Writer;
  */
 final class CheckoutReport
 {
-    public const PORTAL_URL = 'https://portalvfms.zanrevenue.org/checkout-report/guest/';
-
     /** @return array<string, mixed> */
     public static function of(Reservation $reservation, bool $viewIdentity = false, bool $revealIdentity = false): array
     {
@@ -41,7 +39,7 @@ final class CheckoutReport
         $currency = $payloads->fromVfmsCurrency($checkout->payload['body']['currency']);
         $summary = collect(FolioSummary::totals($reservation))->firstWhere('currency', $currency->value);
         $live = ($references['mode'] ?? null) === 'live';
-        $url = $live ? self::PORTAL_URL.rawurlencode((string) $references['reportNo']) : null;
+        $url = $live ? self::reportUrl($checkout, (string) $references['reportNo']) : null;
         $guestReports = [];
         $business = null;
         foreach ($messages->whereIn('event', ['checkout', 'guestDeparture']) as $message) {
@@ -52,7 +50,7 @@ final class CheckoutReport
             }
             foreach ($body as $entry) {
                 $number = $entry['reportNumber'];
-                $guestUrl = self::viewerUrl(($message->getAttribute('provider_references')['mode'] ?? null) === 'live', 'checkout-report/guest', $number);
+                $guestUrl = self::reportUrl($message, $number);
                 $business ??= array_filter(array_intersect_key($entry, array_flip(['businessName', 'street', 'tinNumber', 'vrnNumber', 'znumber'])), is_scalar(...));
                 $guestReports[] = [
                     'number' => $number,
@@ -87,8 +85,8 @@ final class CheckoutReport
                         && ($message->payload['posting_id'] ?? null) === $posting->id
                         && ($message->getAttribute('provider_references')['receiptNumber'] ?? null) === $posting->vfms_receipt_number);
                     $mode = $service?->getAttribute('provider_references')['mode'] ?? null;
-                    $receiptUrl = in_array($mode, ['live', 'sandbox'], true)
-                        ? self::viewerUrl($mode === 'live', 'receipt-form', $posting->vfms_receipt_number) : null;
+                    $receiptUrl = $service?->getAttribute('provider_references')['receiptUrl'] ?? (in_array($mode, ['live', 'sandbox'], true)
+                        ? self::viewerUrl($mode === 'live', 'receipt-form', $posting->vfms_receipt_number) : null);
 
                     return [
                         'number' => $posting->vfms_receipt_number, 'description' => $posting->description, 'amount' => $posting->amount,
@@ -98,7 +96,22 @@ final class CheckoutReport
         ];
     }
 
-    private static function viewerUrl(bool $live, string $path, string $number): ?string
+    /**
+     * The link stored when VFMS accepted the report. Reports accepted before links were stored keep the
+     * guest-viewer link they were printed with, which labels every report USD whatever its currency.
+     */
+    private static function reportUrl(OutboxMessage $message, string $number): ?string
+    {
+        $references = $message->getAttribute('provider_references');
+        $stored = is_string($references['reportUrls'] ?? null) ? json_decode($references['reportUrls'], true) : null;
+
+        return is_array($stored) && is_string($stored[$number] ?? null)
+            ? $stored[$number]
+            : self::viewerUrl(($references['mode'] ?? null) === 'live', 'checkout-report/guest', $number);
+    }
+
+    /** ZRA's viewer link: its checkout-report page shows the report's own currency, receipt-form a service receipt. */
+    public static function viewerUrl(bool $live, string $path, string $number): ?string
     {
         $base = $live ? 'https://portalvfms.zanrevenue.org' : config('services.vfms.test_viewer_url');
         if (blank($base) || ! in_array(parse_url($base, PHP_URL_SCHEME), ['http', 'https'], true)) {

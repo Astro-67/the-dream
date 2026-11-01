@@ -6,6 +6,7 @@ use App\Domains\Billing\Actions\PostVfmsAdjustment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\CheckoutFigures;
+use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FiscalReceipting\VfmsPayloads;
@@ -147,8 +148,31 @@ final class VfmsAdapter implements DeliveryAdapter, OutboxCorrectionAdapter, Res
                 $this->adjustFolio($message->payload, $result->references);
             }
 
-            return new DeliveryResult($result->outcome, ['mode' => $live ? 'live' : 'sandbox', ...$result->references], $result->responseBody, $result->retryAt, $message->id);
+            return new DeliveryResult($result->outcome, ['mode' => $live ? 'live' : 'sandbox', ...$result->references, ...$this->links($live, $result)], $result->responseBody, $result->retryAt, $message->id);
         }, $messages);
+    }
+
+    /**
+     * The ZRA viewer links of an accepted filing, fixed when it is accepted so every reprint shows the
+     * QR first printed: one per check-out report number (as JSON, references being scalars) or the receipt's.
+     *
+     * @return array<string, string>
+     */
+    private function links(bool $live, DeliveryResult $result): array
+    {
+        if ($result->outcome !== 'accepted') {
+            return [];
+        }
+        $numbers = is_string($result->references['reportNumbers'] ?? null) ? json_decode($result->references['reportNumbers'], true) : null;
+        if (is_array($numbers)) {
+            $urls = array_filter(array_combine($numbers, array_map(fn (string $number) => CheckoutReport::viewerUrl($live, 'checkout-report', $number), $numbers)));
+
+            return $urls === [] ? [] : ['reportUrls' => json_encode($urls, JSON_THROW_ON_ERROR)];
+        }
+        $receipt = $result->references['receiptNumber'] ?? null;
+        $url = is_string($receipt) && $receipt !== '' ? CheckoutReport::viewerUrl($live, 'receipt-form', $receipt) : null;
+
+        return $url === null ? [] : ['receiptUrl' => $url];
     }
 
     /**

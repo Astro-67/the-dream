@@ -97,7 +97,7 @@ test('a Sandbox stay is accepted end to end by ZRA\'s test server', function () 
     expect(json_decode($checkout['reportNumbers'], true))->toHaveCount(3)
         ->and($report['status'])->toBe('sandbox')
         ->and($report['guestReports'])->toHaveCount(3)
-        ->and(collect($report['guestReports'])->every(fn (array $guest) => str_starts_with((string) $guest['portalUrl'], $viewer.'/checkout-report/guest/') && filled($guest['qrSvg'])))->toBeTrue()
+        ->and(collect($report['guestReports'])->every(fn (array $guest) => str_starts_with((string) $guest['portalUrl'], $viewer.'/checkout-report/') && filled($guest['qrSvg'])))->toBeTrue()
         ->and(array_values(array_unique($viewerChecks)))->toBe([200])
         ->and($adjustment['reference'])->toBe($checkout['reportNo'])
         ->and($totals[0]['charges'])->toBe(app(VfmsPayloads::class)->minor((float) $checkout['totalAmount'], Currency::USD));
