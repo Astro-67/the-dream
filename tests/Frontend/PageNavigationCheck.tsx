@@ -105,12 +105,17 @@ const shared = {
     plan: { id: 'plan-207' },
     record: { id: 'contact-207', name: 'Amina Said' },
     guest: { id: 'contact-207', name: 'Amina Said' },
+    candidates: { data: [] },
     reservation: { reservation_number: 'R-207' },
     stay: { reservation_number: 'R-207' },
     reservationNumber: 'R-207',
 };
 
-async function navigation(path: string, url = '/direct-entry') {
+async function navigation(
+    path: string,
+    url = '/direct-entry',
+    renderPage = false,
+) {
     const { default: Page } = await import(
         `../../resources/js/pages/${path}.tsx`
     );
@@ -127,12 +132,21 @@ async function navigation(path: string, url = '/direct-entry') {
                     encryptHistory: false,
                     props: shared,
                 }}
-                initialComponent={Content}
+                initialComponent={renderPage ? Page : Content}
                 defaultLayout={() => AppLayout}
             />
         </TooltipProvider>,
     );
 }
+
+const emptyMerge = await navigation(
+    'guests/merge',
+    '/guests/contact-207/merge',
+    true,
+);
+assert.match(emptyMerge, /No other guests at this property\./);
+assert.equal((emptyMerge.match(/Back to /g) ?? []).length, 1);
+assert.match(emptyMerge, /Back to Amina Said<\/a>/);
 
 for (const [path, parent, href, current] of cases) {
     const markup = await navigation(path);

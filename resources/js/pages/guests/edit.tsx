@@ -1,5 +1,5 @@
 import { ContactForm, type Contact } from '@/features/guests/contact-pages';
-import { show } from '@/routes/guests';
+import { index, show } from '@/routes/guests';
 import {
     IdentityFields,
     IdentityDetails,
@@ -36,8 +36,8 @@ export default function Edit({
 }
 Edit.layout = ({ record }: { record: Contact }) => ({
     breadcrumbs: [
-        { title: 'Guests', href: '/guests' },
+        { title: 'Guests', href: index() },
         { title: record.name, href: show(record.id) },
-        { title: 'Edit guest', href: '/guests' },
+        { title: 'Edit guest', href: '#' },
     ],
 });

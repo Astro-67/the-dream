@@ -1,4 +1,4 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/table';
 import type { Paginated } from '@/types';
 import { Spinner } from '@/components/ui/spinner';
-import { show } from '@/routes/guests';
+import { index, show } from '@/routes/guests';
 
 type Candidate = {
     id: string;
@@ -53,16 +53,7 @@ export default function Merge({
                     </p>
                 </header>
                 {candidates.data.length === 0 ? (
-                    <EmptyState
-                        message="No other guests at this property."
-                        action={
-                            <Button variant="outline" asChild>
-                                <Link href={`/guests/${guest.id}`}>
-                                    Back to guest
-                                </Link>
-                            </Button>
-                        }
-                    />
+                    <EmptyState message="No other guests at this property." />
                 ) : (
                     <div>
                         <Table>
@@ -199,8 +190,8 @@ export default function Merge({
 }
 Merge.layout = ({ guest }: { guest: { id: string; name: string } }) => ({
     breadcrumbs: [
-        { title: 'Guests', href: '/guests' },
+        { title: 'Guests', href: index() },
         { title: guest.name, href: show(guest.id) },
-        { title: 'Merge duplicate guests', href: '/guests' },
+        { title: 'Merge duplicate guests', href: '#' },
     ],
 });

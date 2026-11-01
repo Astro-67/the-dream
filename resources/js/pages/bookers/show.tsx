@@ -1,4 +1,5 @@
 import { ContactShow } from '@/features/guests/contact-pages';
+import { index } from '@/routes/bookers';
 export default function Show(
     props: Omit<React.ComponentProps<typeof ContactShow>, 'base' | 'title'>,
 ) {
@@ -7,7 +8,7 @@ export default function Show(
 
 Show.layout = {
     breadcrumbs: [
-        { title: 'Bookers', href: '/bookers' },
-        { title: 'Booker details', href: '/bookers' },
+        { title: 'Bookers', href: index() },
+        { title: 'Booker details', href: '#' },
     ],
 };
