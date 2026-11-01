@@ -182,6 +182,10 @@ function Sidebar({
           <SheetDescription>Displays the mobile sidebar.</SheetDescription>
         </SheetHeader>
         <SheetContent
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            document.querySelector<HTMLButtonElement>('[data-sidebar="trigger"]')?.focus()
+          }}
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
@@ -513,7 +517,7 @@ function SidebarMenuButton({
     />
   )
 
-  if (!tooltip) {
+  if (!tooltip || isMobile || state !== "collapsed") {
     return button
   }
 
@@ -529,7 +533,6 @@ function SidebarMenuButton({
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
         {...tooltip}
       />
     </Tooltip>
