@@ -1,6 +1,7 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { useCurrentUrl } from '@/hooks/use-current-url';
 import { index as platformInvoices } from '@/routes/platform/invoices';
 import { show as subscription } from '@/routes/subscription';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,7 @@ import type { SaasInvoice } from '@/features/subscriptions/saas-invoice-status';
 import { formatMoney } from '@/lib/utils';
 
 function InvoiceLayout({ children }: PropsWithChildren) {
-    const platform = usePage().url.startsWith('/platform/invoices/');
+    const platform = useCurrentUrl().isCurrentOrParentUrl(platformInvoices());
 
     return (
         <AppLayout

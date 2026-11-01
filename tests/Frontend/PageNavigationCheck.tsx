@@ -189,6 +189,11 @@ for (const [path, parent, href, current] of cases) {
 for (const [url, parent, href] of [
     ['/subscription/invoices/invoice-207', 'Subscription', '/subscription'],
     ['/platform/invoices/invoice-207', 'SaaS invoices', '/platform/invoices'],
+    [
+        '/platform/invoices/invoice-207?payments=2',
+        'SaaS invoices',
+        '/platform/invoices',
+    ],
 ] as const) {
     const markup = await navigation('subscription/invoice', url);
     assert.ok(
