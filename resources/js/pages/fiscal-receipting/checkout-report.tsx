@@ -374,15 +374,15 @@ export default function CheckoutReport({
 }
 
 CheckoutReport.layout = ({
-    reservation,
+    stay,
 }: {
-    reservation: { reservation_number: string };
+    stay: { reservation_number: string };
 }) => ({
     breadcrumbs: [
         { title: 'Reservations', href: index() },
         {
-            title: reservation.reservation_number,
-            href: showReservation(reservation.reservation_number),
+            title: stay.reservation_number,
+            href: showReservation(stay.reservation_number),
         },
         { title: 'Fiscal check-out report', href: '#' },
     ],
