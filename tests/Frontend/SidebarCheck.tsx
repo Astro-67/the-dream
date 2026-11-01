@@ -60,7 +60,7 @@ function sidebar(
 
 const administrator = sidebar(['platform_administrator']);
 for (const target of administrator.matchAll(
-    /<(?:a|button)\b[^>]*data-slot="(?:button|sidebar-menu-button)"[^>]*>/g,
+    /<(?:a|button)\b[^>]*data-slot="(?:button|sidebar-menu-button|sidebar-group-label)"[^>]*>/g,
 )) {
     for (const dimension of ['h', 'w']) {
         const minimum = target[0].match(
