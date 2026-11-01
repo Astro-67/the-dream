@@ -10,12 +10,13 @@ use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Collection;
 
 /**
- * Whether VAT and the infrastructure levy sit inside the room rate. Read from the room-covering
- * rules in force on the business date: TaxRule.inclusive is the only authority, nothing is stored here.
+ * Whether VAT sits inside the room rate. Read from the room-covering rules in force on the business date:
+ * TaxRule.inclusive is the only authority, nothing is stored here. The infrastructure levy has no control:
+ * it is always added on top (TaxRule refuses an included levy).
  */
 final class TaxInclusion
 {
-    public const array CONTROLS = ['vat', 'levy'];
+    public const array CONTROLS = ['vat'];
 
     /**
      * Rules in force today and later versions, of the rules a control covers.
@@ -26,7 +27,7 @@ final class TaxInclusion
     {
         $date = $property->business_date->toDateString();
         $rules = TaxRule::query()->where('property_id', $property->id)->orderBy('name')->orderBy('effective_from')->get()
-            ->filter(fn (TaxRule $rule) => $rule->applies_to !== TaxAppliesTo::Extras && ($control === 'vat' ? $rule->isVat() : $rule->isInfrastructureLevy()))
+            ->filter(fn (TaxRule $rule) => $rule->applies_to !== TaxAppliesTo::Extras && $rule->isVat())
             ->values();
 
         return [

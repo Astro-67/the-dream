@@ -62,9 +62,8 @@ class PropertyRequest extends FormRequest
             'close_time' => ['sometimes', 'date_format:H:i'],
             'registration_fields.*' => ['distinct', Rule::in(IdentityDocument::FIELDS)],
             // Only an edit changes existing tax rules; a new property is seeded with the defaults.
-            'tax_inclusion' => [$property instanceof Property ? 'sometimes' : 'prohibited', 'array:vat,levy,effective_from'],
+            'tax_inclusion' => [$property instanceof Property ? 'sometimes' : 'prohibited', 'array:vat,effective_from'],
             'tax_inclusion.vat' => ['sometimes', 'nullable', 'boolean'],
-            'tax_inclusion.levy' => ['sometimes', 'nullable', 'boolean'],
             'tax_inclusion.effective_from' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
         ];
     }
@@ -110,11 +109,11 @@ class PropertyRequest extends FormRequest
     /**
      * The tax inclusion choices, empty when the form leaves taxes alone.
      *
-     * @return array{vat?: bool|null, levy?: bool|null, effective_from?: string|null}
+     * @return array{vat?: bool|null, effective_from?: string|null}
      */
     public function taxInclusion(): array
     {
-        /** @var array{vat?: bool|string|null, levy?: bool|string|null, effective_from?: string|null} $choices */
+        /** @var array{vat?: bool|string|null, effective_from?: string|null} $choices */
         $choices = $this->validated('tax_inclusion', []);
         $property = $this->route('property');
         if ($choices === [] || ! $property instanceof Property) {
@@ -123,7 +122,6 @@ class PropertyRequest extends FormRequest
 
         return [
             'vat' => isset($choices['vat']) ? (bool) $choices['vat'] : null,
-            'levy' => isset($choices['levy']) ? (bool) $choices['levy'] : null,
             'effective_from' => $choices['effective_from'] ?? null,
         ];
     }

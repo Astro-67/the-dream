@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
  */
 class UpdateProperty
 {
-    /** @param array{vat?: bool|null, levy?: bool|null, effective_from?: string|null} $taxInclusion */
+    /** @param array{vat?: bool|null, effective_from?: string|null} $taxInclusion */
     public function handle(?User $actor, Property $property, PropertyDetails $details, array $taxInclusion = []): Property
     {
         return Audit::validationRefusal($actor, $property, 'Property update refused', fn () => DB::transaction(function () use ($actor, $property, $details, $taxInclusion) {

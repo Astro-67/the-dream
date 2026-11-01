@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Puts VAT or the infrastructure levy inside or on top of the room rate from a date, by versioning
+ * Puts VAT inside or on top of the room rate from a date, by versioning
  * every room-covering rule in force that differs. Earlier dates, later scheduled versions and posted
  * tax keep their terms; all versions change together or none do.
  */
