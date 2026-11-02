@@ -8,6 +8,7 @@ import CreateOrganization from '@/pages/organizations/create';
 import { PropertyFields } from '@/features/tenancy/property-fields';
 import { OnboardingChecklist } from '@/features/tenancy/onboarding-checklist';
 import {
+    BrandingFields,
     VfmsFields,
     PropertySettingsFields,
     propertySettingsTabForErrors,
@@ -107,6 +108,8 @@ function settings(
             canManageTaxes: true,
             canManageCashierShifts,
             vfms: null,
+            branding: { logo_url: null, accent_colour: null },
+            canManageBranding: false,
         });
         if (errors && !returnedErrors) {
             assert.ok(returnValidationErrors(page, errors));
@@ -488,4 +491,53 @@ for (const [zra_check, label] of [
 assert.doesNotMatch(live, /name="confirmation"/);
 // The section shows only when the server sends it (VFMS properties the member manages).
 assert.doesNotMatch(html, /Save VFMS credentials/);
+
+// protects=#220 branding is edited in its own form for the opened property; fails_when=the form loses its property, accepts SVG, or shows no current logo.
+function brandingSection(
+    branding: Parameters<typeof BrandingFields>[0]['branding'],
+) {
+    const component = () => (
+        <BrandingFields
+            propertyId="hotel"
+            propertyName="Sample hotel"
+            branding={branding}
+        />
+    );
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'properties/edit',
+                url: '/properties/hotel/edit',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: { errors: {}, tenant: { property: { id: 'hotel' } } },
+            }}
+            initialComponent={component}
+            resolveComponent={async () => component}
+        />,
+    );
+}
+const unbranded = brandingSection({ logo_url: null, accent_colour: null });
+assert.match(unbranded, /action="\/properties\/hotel\/branding"/);
+assert.match(unbranded, /name="_property" value="hotel"/);
+assert.match(
+    unbranded,
+    /type="file"[^>]*name="logo"|name="logo"[^>]*type="file"/,
+);
+assert.match(unbranded, /accept="image\/png,image\/jpeg,image\/webp"/);
+assert.doesNotMatch(unbranded, /accept="[^"]*svg/);
+assert.match(unbranded, /No logo: reports show the property name/);
+assert.doesNotMatch(unbranded, /name="remove_logo"/);
+const brandedSettings = brandingSection({
+    logo_url: 'data:image/png;base64,TE9HTw==',
+    accent_colour: '#1f6f5c',
+});
+assert.match(brandedSettings, /<img[^>]*src="data:image\/png;base64,TE9HTw=="/);
+assert.match(brandedSettings, /name="remove_logo"/);
+assert.match(
+    brandedSettings,
+    /name="accent_colour"[^>]*value="#1f6f5c"|value="#1f6f5c"[^>]*name="accent_colour"/,
+);
+assert.doesNotMatch(html, /Save branding/);
 console.log('Tabbed property settings and validation destinations: PASS');

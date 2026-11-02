@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { StatusChip } from '@/components/ui/status-chip';
 import vfmsRoutes from '@/routes/properties/vfms';
+import brandingRoutes from '@/routes/properties/branding';
 import { formatDate } from '@/features/platform/format';
 import { index as taxRules } from '@/routes/tax-rules';
 import { ZraCheckStatus } from '@/features/tenancy/zra-check-status';
@@ -640,6 +641,130 @@ export function VfmsFields({
                             >
                                 {processing && <Spinner />}
                                 {live ? 'Switch to Sandbox' : 'Switch to Live'}
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </Form>
+        </section>
+    );
+}
+
+/** A property's logo and accent colour for its fiscal check-out report, saved in their own form. */
+export function BrandingFields({
+    propertyId,
+    propertyName,
+    branding,
+}: {
+    propertyId: string;
+    propertyName: string;
+    branding: { logo_url: string | null; accent_colour: string | null };
+}) {
+    return (
+        <section
+            aria-labelledby="branding-heading"
+            className="flex flex-col gap-6 border-t pt-6"
+        >
+            <div className="space-y-1">
+                <h2 id="branding-heading" className="text-lg font-semibold">
+                    Branding
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                    Shown on this property&apos;s fiscal check-out reports.
+                </p>
+            </div>
+            <Form
+                {...brandingRoutes.update.form(propertyId)}
+                disableWhileProcessing
+                options={{ preserveScroll: true }}
+                resetOnSuccess={['logo', 'remove_logo']}
+                className="grid gap-4"
+            >
+                {({ processing, errors }) => (
+                    <>
+                        <PropertyIntent propertyId={propertyId} />
+                        <div className="grid content-start gap-2">
+                            <Label htmlFor="branding_logo">Logo</Label>
+                            {branding.logo_url ? (
+                                <img
+                                    src={branding.logo_url}
+                                    alt={`Current logo of ${propertyName}`}
+                                    className="h-auto max-h-24 w-auto max-w-60 rounded-md border object-contain p-2"
+                                />
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No logo: reports show the property name.
+                                </p>
+                            )}
+                            <Input
+                                id="branding_logo"
+                                name="logo"
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                aria-describedby="branding_logo_hint"
+                                aria-invalid={!!errors.logo}
+                            />
+                            <p
+                                id="branding_logo_hint"
+                                className="text-sm text-muted-foreground"
+                            >
+                                PNG, JPG or WebP, up to 1 MB.
+                            </p>
+                            <InputError message={errors.logo} />
+                            {branding.logo_url && (
+                                <div className="flex items-center gap-3">
+                                    <Checkbox
+                                        id="branding_remove_logo"
+                                        name="remove_logo"
+                                        value="1"
+                                    />
+                                    <Label htmlFor="branding_remove_logo">
+                                        Remove the logo
+                                    </Label>
+                                </div>
+                            )}
+                        </div>
+                        <div className="grid content-start gap-2">
+                            <Label htmlFor="branding_accent_colour">
+                                Accent colour
+                            </Label>
+                            <div className="flex items-center gap-3">
+                                <Input
+                                    id="branding_accent_colour"
+                                    name="accent_colour"
+                                    defaultValue={branding.accent_colour ?? ''}
+                                    placeholder="#1F6F5C"
+                                    pattern="#[0-9a-fA-F]{6}"
+                                    maxLength={7}
+                                    autoComplete="off"
+                                    className="max-w-40"
+                                    aria-describedby="branding_accent_colour_hint"
+                                    aria-invalid={!!errors.accent_colour}
+                                />
+                                {branding.accent_colour && (
+                                    <span
+                                        aria-hidden="true"
+                                        className="size-9 rounded-md border"
+                                        style={{
+                                            backgroundColor:
+                                                branding.accent_colour,
+                                        }}
+                                    />
+                                )}
+                            </div>
+                            <p
+                                id="branding_accent_colour_hint"
+                                className="text-sm text-muted-foreground"
+                            >
+                                A hex code. Leave blank for none. Used only as a
+                                decorative line on screen, never in print.
+                            </p>
+                            <InputError message={errors.accent_colour} />
+                        </div>
+                        <div className="flex justify-end">
+                            <Button type="submit" variant="secondary">
+                                {processing && <Spinner />}
+                                Save branding
                             </Button>
                         </div>
                     </>

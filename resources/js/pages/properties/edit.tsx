@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
+    BrandingFields,
     PropertySettingsFields,
     TaxInclusionFields,
     VfmsFields,
@@ -41,6 +42,8 @@ type Props = PropertyFormOptions & {
     canManageTaxes: boolean;
     canManageCashierShifts: boolean;
     vfms: VfmsSettings | null;
+    branding: { logo_url: string | null; accent_colour: string | null };
+    canManageBranding: boolean;
 };
 
 const registrationFieldLabels: Record<string, string> = {
@@ -58,6 +61,8 @@ export default function EditProperty({
     canManageTaxes,
     canManageCashierShifts,
     vfms,
+    branding,
+    canManageBranding,
     ...options
 }: Props) {
     const configuresRegistration = property.registration_fields !== undefined;
@@ -409,6 +414,13 @@ export default function EditProperty({
                         </>
                     )}
                 </Form>
+                {canManageBranding && activeTab === 'hotel' && (
+                    <BrandingFields
+                        propertyId={property.id}
+                        propertyName={property.name}
+                        branding={branding}
+                    />
+                )}
                 {vfms && activeTab === 'tax_settings' && (
                     <VfmsFields
                         propertyId={property.id}
