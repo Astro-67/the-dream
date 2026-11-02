@@ -271,7 +271,7 @@ export default function CheckoutReport({
                                 <div
                                     role="img"
                                     aria-label={`VFMS QR code for ${portalUrl}`}
-                                    className="size-40 bg-white p-2 [&_svg]:size-full"
+                                    className="size-40 bg-qr-surface p-2 [&_svg]:size-full"
                                     dangerouslySetInnerHTML={{ __html: qrSvg }}
                                 />
                                 <figcaption className="space-y-1 text-sm">
@@ -321,7 +321,7 @@ export default function CheckoutReport({
                                         <div
                                             role="img"
                                             aria-label={`VFMS QR code for ${receipt.portalUrl}`}
-                                            className="size-28 shrink-0 bg-white p-2 [&_svg]:size-full"
+                                            className="size-28 shrink-0 bg-qr-surface p-2 [&_svg]:size-full"
                                             dangerouslySetInnerHTML={{
                                                 __html: receipt.qrSvg,
                                             }}
@@ -365,7 +365,7 @@ export default function CheckoutReport({
                                         <div
                                             role="img"
                                             aria-label={`VFMS QR code for ${guest.portalUrl}`}
-                                            className="size-28 bg-white p-2 [&_svg]:size-full"
+                                            className="size-28 bg-qr-surface p-2 [&_svg]:size-full"
                                             dangerouslySetInnerHTML={{
                                                 __html: guest.qrSvg,
                                             }}
