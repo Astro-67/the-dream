@@ -537,6 +537,10 @@ assert.match(brandedSettings, /<img[^>]*src="data:image\/png;base64,TE9HTw=="/);
 assert.match(brandedSettings, /name="remove_logo"/);
 assert.match(
     brandedSettings,
+    /<label[^>]*for="branding_remove_logo"[^>]*>.*id="branding_remove_logo".*Remove the logo<\/label>/,
+);
+assert.match(
+    brandedSettings,
     /name="accent_colour"[^>]*value="#1f6f5c"|value="#1f6f5c"[^>]*name="accent_colour"/,
 );
 assert.doesNotMatch(html, /Save branding/);

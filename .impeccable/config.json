@@ -9,6 +9,13 @@
                 "files": ["tests/Frontend/CheckoutReportCheck.tsx"],
                 "createdAt": "2026-11-02T12:05:01.460Z",
                 "reason": "Agent: regex assertions inspect server-rendered img markup; they are not image elements shipped to a browser"
+            },
+            {
+                "rule": "broken-image",
+                "value": "*",
+                "files": ["tests/Frontend/PropertySettingsCheck.tsx"],
+                "createdAt": "2026-11-02T13:24:08.159Z",
+                "reason": "Agent: existing regex assertions inspect SSR img markup, not shipped image elements"
             }
         ]
     }

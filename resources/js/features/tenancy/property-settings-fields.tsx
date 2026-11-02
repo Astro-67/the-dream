@@ -712,16 +712,17 @@ export function BrandingFields({
                             </p>
                             <InputError message={errors.logo} />
                             {branding.logo_url && (
-                                <div className="flex items-center gap-3">
+                                <Label
+                                    htmlFor="branding_remove_logo"
+                                    className="flex min-h-11 min-w-11 cursor-pointer items-center gap-3"
+                                >
                                     <Checkbox
                                         id="branding_remove_logo"
                                         name="remove_logo"
                                         value="1"
                                     />
-                                    <Label htmlFor="branding_remove_logo">
-                                        Remove the logo
-                                    </Label>
-                                </div>
+                                    Remove the logo
+                                </Label>
                             )}
                         </div>
                         <div className="grid content-start gap-2">

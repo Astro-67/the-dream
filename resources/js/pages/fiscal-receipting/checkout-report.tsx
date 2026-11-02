@@ -277,7 +277,7 @@ export default function CheckoutReport({
                                 <figcaption className="space-y-1 text-sm">
                                     <a
                                         href={portalUrl}
-                                        className="block underline underline-offset-4"
+                                        className="inline-flex min-h-11 min-w-11 items-center underline underline-offset-4 print:block print:min-h-0 print:min-w-0"
                                     >
                                         Scan to verify with ZRA
                                     </a>
@@ -331,7 +331,7 @@ export default function CheckoutReport({
                                         {receipt.portalUrl && (
                                             <a
                                                 href={receipt.portalUrl}
-                                                className="block underline underline-offset-4"
+                                                className="inline-flex min-h-11 min-w-11 items-center underline underline-offset-4 print:block print:min-h-0 print:min-w-0"
                                             >
                                                 Scan to verify with ZRA
                                             </a>
@@ -371,11 +371,11 @@ export default function CheckoutReport({
                                             }}
                                         />
                                     )}
-                                    <figcaption className="space-y-1 text-sm break-words">
+                                    <figcaption className="space-y-2 text-sm break-words print:space-y-1">
                                         {guest.portalUrl && (
                                             <a
                                                 href={guest.portalUrl}
-                                                className="block underline underline-offset-4"
+                                                className="inline-flex min-h-11 min-w-11 items-center underline underline-offset-4 print:block print:min-h-0 print:min-w-0"
                                             >
                                                 Scan to verify with ZRA
                                             </a>
