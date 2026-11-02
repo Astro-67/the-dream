@@ -81,6 +81,10 @@ assert.match(
 );
 assert.match(live, /data-qr="1"/);
 assert.doesNotMatch(live, /TEST, NOT FISCAL/);
+assert.match(
+    live,
+    /<figcaption[^>]*>.*href="https:\/\/portalvfms\.zanrevenue\.org\/checkout-report\/guest\/CO-778"[^>]*>Scan to verify with ZRA<\/a>.*CO-778.*<\/figcaption>/,
+);
 
 // protects=each recorded guest report is printable with its own verification link (#172); fails_when=one report or the test stamp disappears; no_claim=physical A4 layout.
 const recordedProps: Props = {
@@ -128,8 +132,30 @@ assert.match(
     /href="https:\/\/viewer\.example\/receipt-form\/RECEIPT-172"/,
 );
 assert.doesNotMatch(recorded, /Zanzibar Revenue Authority|zra-logo/);
-assert.match(recorded, /PASSPORT.*GERMANY/);
+assert.doesNotMatch(recorded, /Guest REPORT-[12]|PASSPORT|GERMANY/);
 assert.doesNotMatch(recorded, /PRIVATE-DOCUMENT-172/);
+const verificationBlocks = [
+    ...recorded.matchAll(/<figure\b[^>]*>.*?<\/figure>/g),
+].map(([figure]) => figure);
+assert.equal(verificationBlocks.length, 3);
+for (const number of ['REPORT-1', 'REPORT-2', 'RECEIPT-172']) {
+    const block = verificationBlocks.find((figure) =>
+        figure.includes(`data-qr="${number}"`),
+    );
+    assert.ok(block, `${number} has its own verification block`);
+    const path =
+        number === 'RECEIPT-172' ? 'receipt-form' : 'checkout-report/guest';
+    assert.ok(
+        block.includes(`href="https://viewer.example/${path}/${number}"`),
+    );
+    assert.match(block, />Scan to verify with ZRA<\/a>/);
+    assert.match(block, /<figcaption\b/);
+    assert.ok(block.slice(block.indexOf('<figcaption')).includes(number));
+    assert.doesNotMatch(
+        block,
+        /Guest REPORT|PASSPORT|GERMANY|PRIVATE-DOCUMENT/,
+    );
+}
 
 const revealControl = render({
     ...base,
@@ -157,6 +183,66 @@ const revealed = render({
 });
 assert.match(revealed, /REVEALED-DOCUMENT-172/);
 assert.doesNotMatch(revealed, /Reveal document numbers for printing/);
+assert.match(revealed, /Revealed identity documents/);
+for (const [figure] of revealed.matchAll(/<figure\b[^>]*>.*?<\/figure>/g)) {
+    assert.doesNotMatch(figure, /Anna Berg|PASSPORT|GERMANY|REVEALED-DOCUMENT/);
+}
+
+const withoutDestinations: Props = {
+    ...base,
+    qrSvg: '<svg data-qr="orphan-fallback"></svg>',
+    guestReports: [
+        {
+            number: 'NO-LINK-GUEST',
+            name: 'Private Guest',
+            identity: null,
+            departedEarly: true,
+            portalUrl: null,
+            qrSvg: '<svg data-qr="orphan-guest"></svg>',
+        },
+    ],
+    serviceReceipts: [
+        {
+            number: 'NO-LINK-RECEIPT',
+            description: 'Water',
+            amount: 2000,
+            mode: 'sandbox',
+            portalUrl: null,
+            qrSvg: '<svg data-qr="orphan-receipt"></svg>',
+        },
+    ],
+};
+const noLinks = render(withoutDestinations);
+assert.match(noLinks, /NO-LINK-GUEST/);
+assert.match(noLinks, /NO-LINK-RECEIPT/);
+assert.match(noLinks, /Departed before stay check-out/);
+assert.match(noLinks, /USD 20\.00/);
+assert.match(noLinks, /TEST, NOT FISCAL/);
+assert.doesNotMatch(
+    noLinks,
+    /Scan to verify|data-qr=|VFMS QR code|Private Guest/,
+);
+assert.doesNotMatch(
+    render({ ...withoutDestinations, guestReports: [] }),
+    /Scan to verify|data-qr=|VFMS QR code/,
+);
+
+const linkOnly = render({
+    ...withoutDestinations,
+    guestReports: [
+        {
+            ...withoutDestinations.guestReports[0],
+            portalUrl:
+                'https://viewer.example/checkout-report/guest/NO-LINK-GUEST',
+            qrSvg: null,
+        },
+    ],
+});
+assert.match(
+    linkOnly,
+    /href="https:\/\/viewer\.example\/checkout-report\/guest\/NO-LINK-GUEST"[^>]*>Scan to verify with ZRA<\/a>/,
+);
+assert.doesNotMatch(linkOnly, /data-qr=|VFMS QR code/);
 
 // Until VFMS accepts every filing the report shows no figures.
 const waiting = render({ ...base, status: 'waiting', report: null });
@@ -169,7 +255,7 @@ assert.match(
 
 // protects=#220 the letterhead is the property's, never ZRA's; fails_when=the ZRA logo returns, the logo is missing or fiscal identity is replaced.
 assert.doesNotMatch(sandbox, /zra-logo|Zanzibar Revenue Authority|<img/);
-assert.match(sandbox, /<h2[^>]*>Sea Inn<\/h2>/);
+assert.match(sandbox, /<p[^>]*>Sea Inn<\/p>/);
 const branded = render({
     ...recordedProps,
     branding: {

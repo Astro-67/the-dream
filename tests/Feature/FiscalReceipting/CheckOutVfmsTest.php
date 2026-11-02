@@ -269,10 +269,14 @@ test('fiscal report identity reveal is explicit and audited without changing lat
     fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page->missing('guestReports.0.identity.documentNo'));
 
     $this->actingAs($tenant->member(OrganizationRole::FrontDesk))->post($url, ['_property' => $tenant->property->id])
-        ->assertOk()->assertInertia(fn (Assert $page) => $page->where('guestReports.0.identity.documentNo', 'P1234567'));
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('identityRevealed', true)
+        ->where('guestReports.0.identity.documentNo', 'P1234567'));
     $audit = DB::table('activity_log')->where('subject_id', $reservation->id)->where('event', 'fiscal_identity_revealed')->sole();
     expect($audit->properties)->not->toContain('P1234567', 'P7654321');
-    fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page->missing('guestReports.0.identity.documentNo'));
+    fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page
+        ->where('identityRevealed', false)
+        ->missing('guestReports.0.identity.documentNo'));
     $this->actingAs($tenant->member(OrganizationRole::Finance))->post($url, ['_property' => $tenant->property->id])->assertForbidden();
     expect(DB::table('activity_log')->where('subject_id', $reservation->id)->where('event', 'refused')->exists())->toBeTrue();
 });
@@ -297,6 +301,30 @@ test('service receipt verification retains its accepted filing mode across a mod
         ->where('status', 'live')
         ->where('serviceReceipts.0.portalUrl', 'https://vfms-viewer.example/receipt-form/TEST-RECEIPT-169')
         ->where('serviceReceipts.0.mode', 'sandbox'));
+});
+
+test('Sandbox reports without a configured viewer retain references without verification destinations', function () {
+    $tenant = twoTenants()->a;
+    config(['services.vfms.test_viewer_url' => null]);
+    $reservation = inHouseForCheckOut($tenant);
+    inTenant($tenant->property, fn () => app(PostExtraCharge::class)->handle(
+        $tenant->owner, Folio::query()->where('reservation_id', $reservation->id)->sole(),
+        ['category' => 'bar', 'description' => 'Water', 'quantity' => 2, 'unit_price' => 1000],
+    ));
+    checkOutOnDeparture($tenant, $reservation);
+
+    fiscalReport($tenant, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('status', 'sandbox')
+        ->where('portalUrl', null)->where('qrSvg', null)
+        ->where('report.room', 22000)->where('report.extras', 0)->where('report.total', 22000)
+        ->has('guestReports', 2)
+        ->where('guestReports.0.portalUrl', null)->where('guestReports.0.qrSvg', null)
+        ->where('guestReports.1.portalUrl', null)->where('guestReports.1.qrSvg', null)
+        ->has('serviceReceipts', 1)
+        ->where('serviceReceipts.0.number', 'TEST-RECEIPT-169')
+        ->where('serviceReceipts.0.amount', 2000)
+        ->where('serviceReceipts.0.mode', 'sandbox')
+        ->where('serviceReceipts.0.portalUrl', null)->where('serviceReceipts.0.qrSvg', null));
 });
 
 // protects=recorded guest reports settle shared room VAT once and keep identity encrypted (#172); fails_when=a report is lost, VAT doubles, or Finance sees documents; no_claim=live acceptance or print pagination.
@@ -366,6 +394,11 @@ test('recorded checkout stores every report and projects authorized identity onl
         ->where('guestReports.1.qrSvg', fn (string $svg) => str_starts_with($svg, '<svg')));
     fiscalReport($tenant, $reservation, OrganizationRole::Finance)->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('guestReports.0.identity', null)->where('guestReports.1.identity', null));
+    config(['services.vfms.test_viewer_url' => 'https://changed-viewer.example']);
+    fiscalReport($tenant, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('guestReports.0.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[0])
+        ->where('guestReports.1.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[1])
+        ->where('serviceReceipts.0.portalUrl', $viewer.'/receipt-form/RECEIPT-172'));
 })->with([
     [VfmsMode::Sandbox, false], [VfmsMode::Live, false],
     [VfmsMode::Sandbox, true], [VfmsMode::Live, true],
