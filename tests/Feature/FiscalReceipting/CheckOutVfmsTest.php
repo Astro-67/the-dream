@@ -25,8 +25,10 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
@@ -368,3 +370,24 @@ test('recorded checkout stores every report and projects authorized identity onl
     [VfmsMode::Sandbox, false], [VfmsMode::Live, false],
     [VfmsMode::Sandbox, true], [VfmsMode::Live, true],
 ]);
+
+// protects=#220 reprints show the property's current branding without touching fiscal evidence; fails_when=branding is missing or a rebrand changes figures, numbers or stored QR links.
+test('a fiscal report reprint shows the current property branding and unchanged fiscal evidence', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    inTenant($t->a->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'live_since' => now()]));
+    $reservation = checkOutOnDeparture($t->a, inHouseForCheckOut($t->a));
+    $fiscal = fn () => array_intersect_key(fiscalReport($t->a, $reservation)->assertOk()->viewData('page')['props'], array_flip(['status', 'report', 'portalUrl', 'qrSvg', 'guestReports', 'business', 'serviceReceipts']));
+    $references = fn () => collect(checkOutVfmsMessages($t->a))->map(fn (OutboxMessage $message) => [$message->payload, $message->getAttribute('provider_references')])->all();
+    [$before, $stored] = [$fiscal(), $references()];
+    fiscalReport($t->a, $reservation)->assertInertia(fn (Assert $page) => $page->where('branding', ['logo_url' => null, 'accent_colour' => null]));
+
+    // The finance member can read the report but never edit branding.
+    $this->actingAs($t->a->owner)->post(route('properties.branding.update', $t->a->property), [
+        '_property' => $t->a->property->id, 'logo' => UploadedFile::fake()->image('inn.png', 300, 90), 'accent_colour' => '#1f6f5c',
+    ])->assertSessionHasNoErrors();
+
+    fiscalReport($t->a, $reservation, OrganizationRole::Finance)->assertInertia(fn (Assert $page) => $page
+        ->where('branding.accent_colour', '#1f6f5c')->where('branding.logo_url', fn (string $url) => str_starts_with($url, 'data:image/png;base64,')));
+    expect($fiscal())->toBe($before)->and($references())->toBe($stored);
+});
