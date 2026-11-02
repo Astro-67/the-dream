@@ -25,8 +25,10 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
@@ -267,10 +269,14 @@ test('fiscal report identity reveal is explicit and audited without changing lat
     fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page->missing('guestReports.0.identity.documentNo'));
 
     $this->actingAs($tenant->member(OrganizationRole::FrontDesk))->post($url, ['_property' => $tenant->property->id])
-        ->assertOk()->assertInertia(fn (Assert $page) => $page->where('guestReports.0.identity.documentNo', 'P1234567'));
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('identityRevealed', true)
+        ->where('guestReports.0.identity.documentNo', 'P1234567'));
     $audit = DB::table('activity_log')->where('subject_id', $reservation->id)->where('event', 'fiscal_identity_revealed')->sole();
     expect($audit->properties)->not->toContain('P1234567', 'P7654321');
-    fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page->missing('guestReports.0.identity.documentNo'));
+    fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page
+        ->where('identityRevealed', false)
+        ->missing('guestReports.0.identity.documentNo'));
     $this->actingAs($tenant->member(OrganizationRole::Finance))->post($url, ['_property' => $tenant->property->id])->assertForbidden();
     expect(DB::table('activity_log')->where('subject_id', $reservation->id)->where('event', 'refused')->exists())->toBeTrue();
 });
@@ -295,6 +301,30 @@ test('service receipt verification retains its accepted filing mode across a mod
         ->where('status', 'live')
         ->where('serviceReceipts.0.portalUrl', 'https://vfms-viewer.example/receipt-form/TEST-RECEIPT-169')
         ->where('serviceReceipts.0.mode', 'sandbox'));
+});
+
+test('Sandbox reports without a configured viewer retain references without verification destinations', function () {
+    $tenant = twoTenants()->a;
+    config(['services.vfms.test_viewer_url' => null]);
+    $reservation = inHouseForCheckOut($tenant);
+    inTenant($tenant->property, fn () => app(PostExtraCharge::class)->handle(
+        $tenant->owner, Folio::query()->where('reservation_id', $reservation->id)->sole(),
+        ['category' => 'bar', 'description' => 'Water', 'quantity' => 2, 'unit_price' => 1000],
+    ));
+    checkOutOnDeparture($tenant, $reservation);
+
+    fiscalReport($tenant, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('status', 'sandbox')
+        ->where('portalUrl', null)->where('qrSvg', null)
+        ->where('report.room', 22000)->where('report.extras', 0)->where('report.total', 22000)
+        ->has('guestReports', 2)
+        ->where('guestReports.0.portalUrl', null)->where('guestReports.0.qrSvg', null)
+        ->where('guestReports.1.portalUrl', null)->where('guestReports.1.qrSvg', null)
+        ->has('serviceReceipts', 1)
+        ->where('serviceReceipts.0.number', 'TEST-RECEIPT-169')
+        ->where('serviceReceipts.0.amount', 2000)
+        ->where('serviceReceipts.0.mode', 'sandbox')
+        ->where('serviceReceipts.0.portalUrl', null)->where('serviceReceipts.0.qrSvg', null));
 });
 
 // protects=recorded guest reports settle shared room VAT once and keep identity encrypted (#172); fails_when=a report is lost, VAT doubles, or Finance sees documents; no_claim=live acceptance or print pagination.
@@ -364,7 +394,33 @@ test('recorded checkout stores every report and projects authorized identity onl
         ->where('guestReports.1.qrSvg', fn (string $svg) => str_starts_with($svg, '<svg')));
     fiscalReport($tenant, $reservation, OrganizationRole::Finance)->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('guestReports.0.identity', null)->where('guestReports.1.identity', null));
+    config(['services.vfms.test_viewer_url' => 'https://changed-viewer.example']);
+    fiscalReport($tenant, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('guestReports.0.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[0])
+        ->where('guestReports.1.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[1])
+        ->where('serviceReceipts.0.portalUrl', $viewer.'/receipt-form/RECEIPT-172'));
 })->with([
     [VfmsMode::Sandbox, false], [VfmsMode::Live, false],
     [VfmsMode::Sandbox, true], [VfmsMode::Live, true],
 ]);
+
+// protects=#220 reprints show the property's current branding without touching fiscal evidence; fails_when=branding is missing or a rebrand changes figures, numbers or stored QR links.
+test('a fiscal report reprint shows the current property branding and unchanged fiscal evidence', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    inTenant($t->a->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'live_since' => now()]));
+    $reservation = checkOutOnDeparture($t->a, inHouseForCheckOut($t->a));
+    $fiscal = fn () => array_intersect_key(fiscalReport($t->a, $reservation)->assertOk()->viewData('page')['props'], array_flip(['status', 'report', 'portalUrl', 'qrSvg', 'guestReports', 'business', 'serviceReceipts']));
+    $references = fn () => collect(checkOutVfmsMessages($t->a))->map(fn (OutboxMessage $message) => [$message->payload, $message->getAttribute('provider_references')])->all();
+    [$before, $stored] = [$fiscal(), $references()];
+    fiscalReport($t->a, $reservation)->assertInertia(fn (Assert $page) => $page->where('branding', ['logo_url' => null, 'accent_colour' => null]));
+
+    // The finance member can read the report but never edit branding.
+    $this->actingAs($t->a->owner)->post(route('properties.branding.update', $t->a->property), [
+        '_property' => $t->a->property->id, 'logo' => UploadedFile::fake()->image('inn.png', 300, 90), 'accent_colour' => '#1f6f5c',
+    ])->assertSessionHasNoErrors();
+
+    fiscalReport($t->a, $reservation, OrganizationRole::Finance)->assertInertia(fn (Assert $page) => $page
+        ->where('branding.accent_colour', '#1f6f5c')->where('branding.logo_url', fn (string $url) => str_starts_with($url, 'data:image/png;base64,')));
+    expect($fiscal())->toBe($before)->and($references())->toEqual($stored);
+});

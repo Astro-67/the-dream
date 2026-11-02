@@ -16,7 +16,8 @@ Paths below are relative to `resources/js/pages/`. Braces enumerate files.
 | `bookers/edit`                                       | Named booker `/bookers/{id}`            | Bounded form; Cancel retains `/bookers`                                               |
 | `guests/{create,show}`                               | Guests `/guests`                        | Bounded create; detail/stay history retains composition                               |
 | `guests/{edit,merge}`                                | Named guest `/guests/{id}`              | Bounded edit (Cancel retains `/guests`); merge comparison retains composition         |
-| `properties/{create,edit}`                           | Properties `/properties`                | Bounded create; multi-section edit retains composition                                |
+| `properties/{create,show}`                           | Properties `/properties`                | Bounded create; property details with permitted Edit action                           |
+| `properties/edit`                                    | Property `/properties/{property}`       | Edit and Cancel return to the property details; successful saves return there too     |
 | `invitations/create`, `members/edit`                 | Staff `/members`                        | Bounded invitation; access/ownership/removal sections retain composition              |
 | `inventory/room-types/{create,edit}`                 | Room types `/room-types`                | Bounded forms                                                                         |
 | `inventory/rooms/{create,edit}`                      | Rooms `/rooms`                          | Bounded forms                                                                         |
@@ -56,11 +57,19 @@ Paths below are relative to `resources/js/pages/`. Braces enumerate files.
 ## Checks
 
 `PageNavigationCheck.tsx` renders every nested page's public Inertia layout
-contract (34 destinations including the two invoice contexts) and checks roots.
+contract (35 destinations including the two invoice contexts) and checks roots.
 `WorkspaceLayoutCheck.tsx` renders real Booker detail/create/edit pages with both
 sidebar states, linked ancestors, current labels, context, Cancel and form intent.
 Existing page checks cover the underlying workflows; browser checks establish
 geometry, responsive overflow, focus and actual navigation.
+
+### Property details verification on 2 November 2026
+
+Property names in the active list open a read-only details page. The permitted
+Edit action opens property settings; Cancel, the parent link and successful
+saves return to those details. Browser checks at 1280px and 390px confirmed
+the click-through/save flow and no horizontal overflow. Existing branding
+settings remain accessible from the edit screen.
 
 ### Verification on 1 November 2026
 

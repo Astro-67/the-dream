@@ -18,6 +18,7 @@ use App\Support\Tenancy\Access;
  * - properties.archive (owners only): archive a property, and restore one; delete a demo property.
  * - properties.update also takes a property live; tax.manage marks its taxes reviewed.
  * - vfms.manage (owner, property manager): VFMS credentials and the Sandbox/Live switch.
+ * - branding.manage (owner, property manager): the logo and accent colour on the fiscal check-out report.
  */
 class PropertyPolicy
 {
@@ -34,6 +35,11 @@ class PropertyPolicy
     public function viewAny(User $user): bool
     {
         return Access::allows($user, OrganizationPermission::PropertiesView);
+    }
+
+    public function view(User $user, Property $property): bool
+    {
+        return Access::allows($user, OrganizationPermission::PropertiesView, $property);
     }
 
     /**
@@ -90,5 +96,10 @@ class PropertyPolicy
     public function manageVfms(User $user, Property $property): bool
     {
         return Access::allows($user, OrganizationPermission::VfmsManage, $property);
+    }
+
+    public function manageBranding(User $user, Property $property): bool
+    {
+        return Access::allows($user, OrganizationPermission::BrandingManage, $property);
     }
 }

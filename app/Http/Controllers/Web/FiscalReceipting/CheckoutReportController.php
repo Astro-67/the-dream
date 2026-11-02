@@ -41,6 +41,7 @@ class CheckoutReportController extends Controller
         // Guests still in-house, lead first, as the check-out filed them (#164).
         $ids = ReservationGuest::query()->where('reservation_id', $reservation->id)->whereNull('departed_at')->orderBy('id')->pluck('guest_id');
         $names = Guest::query()->whereIn('id', $ids)->pluck('name', 'id');
+        $property = Property::query()->findOrFail($reservation->property_id);
 
         return Inertia::render('fiscal-receipting/checkout-report', [
             ...$report,
@@ -48,7 +49,9 @@ class CheckoutReportController extends Controller
                 ? route('reservations.fiscal-report.reveal-identity', $reservation) : null,
             'stay' => $reservation->stay(),
             'guests' => $ids->map(fn (string $id) => $names[$id])->values()->all(),
-            'property' => Property::query()->findOrFail($reservation->property_id)->only(['name', 'address_line', 'city', 'phone', 'email']),
+            'property' => $property->only(['name', 'address_line', 'city', 'phone', 'email']),
+            // Current branding, so a reprint after a rebrand shows the new logo; fiscal evidence is untouched.
+            'branding' => $property->branding(),
         ]);
     }
 }

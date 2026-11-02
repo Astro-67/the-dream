@@ -32,6 +32,7 @@ export default function CheckoutReport({
     serviceReceipts,
     revealIdentityUrl,
     identityRevealed = false,
+    branding,
 }: {
     status: 'waiting' | 'sandbox' | 'live';
     report: Report | null;
@@ -83,6 +84,7 @@ export default function CheckoutReport({
         phone: string;
         email: string;
     };
+    branding: { logo_url: string | null; accent_colour: string | null };
 }) {
     return (
         <>
@@ -91,17 +93,27 @@ export default function CheckoutReport({
                     {'@page { size: A4; margin: 12mm; }'}
                 </style>
             </Head>
-            <div className="receipt-print flex max-w-[960px] flex-col gap-6 p-4 md:p-6 print:gap-4 print:p-0">
-                <header className="space-y-3">
-                    <img
-                        src="/images/zra-logo.jpg"
-                        alt="Zanzibar Revenue Authority"
-                        width={80}
-                        height={96}
-                        className="h-24 w-20 object-contain"
-                    />
+            <div className="receipt-print mx-auto flex w-full max-w-[960px] min-w-0 flex-col gap-8 p-4 text-sm [overflow-wrap:anywhere] md:p-6 print:gap-4 print:p-0">
+                {/* The accent is decoration only, and never printed: paper stays black on white. */}
+                <header
+                    className="space-y-3 border-t-4 border-transparent pt-4 text-center print:break-inside-avoid print:border-t-0 print:pt-0"
+                    style={
+                        branding.accent_colour
+                            ? { borderTopColor: branding.accent_colour }
+                            : undefined
+                    }
+                >
+                    {branding.logo_url ? (
+                        <img
+                            src={branding.logo_url}
+                            alt={property.name}
+                            className="mx-auto h-auto max-h-24 w-auto max-w-full object-contain sm:max-w-60"
+                        />
+                    ) : (
+                        <p className="text-xl font-semibold">{property.name}</p>
+                    )}
                     {business && (
-                        <div>
+                        <div className="space-y-1">
                             <p className="text-lg font-semibold">
                                 {business.businessName}
                             </p>
@@ -117,14 +129,17 @@ export default function CheckoutReport({
                         {property.name}, {property.address_line},{' '}
                         {property.city}. {property.phone}, {property.email}
                     </p>
-                    <h1 className="text-2xl font-semibold">
+                    <h1 className="pt-2 text-2xl font-semibold text-balance">
                         FISCAL CHECK-OUT REPORT
                     </h1>
                     {status === 'sandbox' && (
                         <StatusChip tone="warning">TEST, NOT FISCAL</StatusChip>
                     )}
                 </header>
-                <dl className="grid gap-4 sm:grid-cols-3">
+                <dl
+                    aria-label="Stay details"
+                    className="grid grid-cols-2 gap-4 sm:grid-cols-3 print:grid-cols-3"
+                >
                     {(
                         [
                             ['Guests', guests.join(', ')],
@@ -151,7 +166,7 @@ export default function CheckoutReport({
                             ['Nights', String(stay.nights)],
                         ] as [string, React.ReactNode][]
                     ).map(([label, value]) => (
-                        <div key={label}>
+                        <div key={label} className="min-w-0 space-y-1">
                             <dt className="text-sm text-muted-foreground">
                                 {label}
                             </dt>
@@ -168,8 +183,11 @@ export default function CheckoutReport({
                         }
                     />
                 ) : (
-                    <section className="flex flex-wrap items-start gap-8">
-                        <dl className="grid flex-1 grid-cols-[1fr_auto] gap-x-6 gap-y-1">
+                    <section
+                        aria-label="Financial summary"
+                        className="flex min-w-0 flex-wrap items-start gap-6"
+                    >
+                        <dl className="min-w-0 basis-full space-y-2">
                             {(
                                 [
                                     [
@@ -217,7 +235,10 @@ export default function CheckoutReport({
                                     ],
                                 ] as [string, React.ReactNode][]
                             ).map(([label, value]) => (
-                                <div key={label} className="contents">
+                                <div
+                                    key={label}
+                                    className="grid break-inside-avoid grid-cols-2 gap-x-4 last:mt-3 last:border-t last:pt-3"
+                                >
                                     <dt
                                         className={
                                             label === 'Total'
@@ -225,44 +246,64 @@ export default function CheckoutReport({
                                                 : 'text-muted-foreground'
                                         }
                                     >
-                                        {label}
+                                        {label === 'Total' ? (
+                                            <strong className="font-semibold">
+                                                {label}
+                                            </strong>
+                                        ) : (
+                                            label
+                                        )}
                                     </dt>
-                                    <dd className="text-right tabular-nums">
-                                        {value}
+                                    <dd className="min-w-0 text-right tabular-nums">
+                                        {label === 'Total' ? (
+                                            <strong className="font-semibold">
+                                                {value}
+                                            </strong>
+                                        ) : (
+                                            value
+                                        )}
                                     </dd>
                                 </div>
                             ))}
                         </dl>
                         {guestReports.length === 0 && qrSvg && portalUrl && (
-                            <figure className="space-y-2">
+                            <figure className="min-w-0 break-inside-avoid space-y-2">
                                 <div
                                     role="img"
                                     aria-label={`VFMS QR code for ${portalUrl}`}
-                                    className="size-40 bg-white [&_svg]:size-full"
+                                    className="size-40 bg-qr-surface p-2 [&_svg]:size-full"
                                     dangerouslySetInnerHTML={{ __html: qrSvg }}
                                 />
-                                <figcaption className="text-sm text-muted-foreground">
-                                    Scan to verify with VFMS
+                                <figcaption className="space-y-1 text-sm">
+                                    <a
+                                        href={portalUrl}
+                                        className="inline-flex min-h-11 min-w-11 items-center underline underline-offset-4 print:block print:min-h-0 print:min-w-0"
+                                    >
+                                        Scan to verify with ZRA
+                                    </a>
+                                    <p className="text-xs text-muted-foreground">
+                                        ZRA report{' '}
+                                        <Identifier value={report.number} />
+                                    </p>
                                 </figcaption>
                             </figure>
                         )}
                     </section>
                 )}
                 {report && serviceReceipts.length > 0 && (
-                    <section className="space-y-2 print:grid print:grid-cols-2 print:gap-4 print:space-y-0">
-                        <h2 className="font-semibold print:col-span-2">
+                    <section className="grid gap-4 sm:grid-cols-2 print:grid-cols-2">
+                        <h2 className="font-semibold sm:col-span-2 print:col-span-2">
                             Extra service receipts
                         </h2>
                         {serviceReceipts.map((receipt, index) => (
                             <div
                                 key={`${receipt.number}-${index}`}
-                                className="flex break-inside-avoid items-start justify-between gap-4 border-t pt-2 text-sm"
+                                className="min-w-0 break-inside-avoid space-y-3 border-t pt-4"
                             >
                                 <div className="min-w-0 space-y-1 break-words">
                                     <p>
                                         {receipt.description ?? 'Extra service'}
                                     </p>
-                                    <Identifier value={receipt.number} />
                                     {receipt.mode === 'sandbox' && (
                                         <StatusChip tone="warning">
                                             TEST, NOT FISCAL
@@ -274,25 +315,35 @@ export default function CheckoutReport({
                                             report.currency,
                                         )}
                                     </p>
-                                    {receipt.portalUrl && (
-                                        <a
-                                            href={receipt.portalUrl}
-                                            className="block underline underline-offset-4"
-                                        >
-                                            Verify receipt with ZRA
-                                        </a>
-                                    )}
                                 </div>
-                                {receipt.qrSvg && receipt.portalUrl && (
-                                    <div
-                                        role="img"
-                                        aria-label={`VFMS QR code for ${receipt.portalUrl}`}
-                                        className="size-28 shrink-0 [&_svg]:size-full"
-                                        dangerouslySetInnerHTML={{
-                                            __html: receipt.qrSvg,
-                                        }}
-                                    />
-                                )}
+                                <figure className="min-w-0 break-inside-avoid space-y-2">
+                                    {receipt.qrSvg && receipt.portalUrl && (
+                                        <div
+                                            role="img"
+                                            aria-label={`VFMS QR code for ${receipt.portalUrl}`}
+                                            className="size-28 shrink-0 bg-qr-surface p-2 [&_svg]:size-full"
+                                            dangerouslySetInnerHTML={{
+                                                __html: receipt.qrSvg,
+                                            }}
+                                        />
+                                    )}
+                                    <figcaption className="space-y-1 break-words">
+                                        {receipt.portalUrl && (
+                                            <a
+                                                href={receipt.portalUrl}
+                                                className="inline-flex min-h-11 min-w-11 items-center underline underline-offset-4 print:block print:min-h-0 print:min-w-0"
+                                            >
+                                                Scan to verify with ZRA
+                                            </a>
+                                        )}
+                                        <p className="text-xs text-muted-foreground">
+                                            ZRA receipt{' '}
+                                            <Identifier
+                                                value={receipt.number}
+                                            />
+                                        </p>
+                                    </figcaption>
+                                </figure>
                             </div>
                         ))}
                     </section>
@@ -302,57 +353,69 @@ export default function CheckoutReport({
                         {guestReports.map((guest) => (
                             <article
                                 key={guest.number}
-                                className="flex break-inside-avoid items-start justify-between gap-4 border-t pt-4"
+                                className="min-w-0 break-inside-avoid space-y-2 border-t pt-4"
                             >
-                                <div className="min-w-0 space-y-1">
-                                    <h2 className="font-semibold">
-                                        {guest.name ?? 'Guest report'}
-                                    </h2>
-                                    {guest.departedEarly && (
-                                        <p className="text-sm text-muted-foreground">
-                                            Departed before stay check-out
-                                        </p>
-                                    )}
-                                    {guest.identity && (
-                                        <p className="text-sm break-words">
-                                            {guest.identity.documentName}{' '}
-                                            {identityRevealed &&
-                                                guest.identity.documentNo && (
-                                                    <Identifier
-                                                        value={
-                                                            guest.identity
-                                                                .documentNo
-                                                        }
-                                                    />
-                                                )}{' '}
-                                            {guest.identity.country}
-                                        </p>
-                                    )}
+                                {guest.departedEarly && (
                                     <p className="text-sm text-muted-foreground">
-                                        ZRA report number
+                                        Departed before stay check-out
                                     </p>
-                                    <Identifier value={guest.number} copyable />
-                                    {guest.portalUrl && (
-                                        <a
-                                            href={guest.portalUrl}
-                                            className="block text-sm underline underline-offset-4"
-                                        >
-                                            Verify with ZRA
-                                        </a>
-                                    )}
-                                </div>
-                                {guest.qrSvg && guest.portalUrl && (
-                                    <div
-                                        role="img"
-                                        aria-label={`VFMS QR code for ${guest.portalUrl}`}
-                                        className="size-28 shrink-0 [&_svg]:size-full"
-                                        dangerouslySetInnerHTML={{
-                                            __html: guest.qrSvg,
-                                        }}
-                                    />
                                 )}
+                                <figure className="break-inside-avoid space-y-2">
+                                    {guest.qrSvg && guest.portalUrl && (
+                                        <div
+                                            role="img"
+                                            aria-label={`VFMS QR code for ${guest.portalUrl}`}
+                                            className="size-28 bg-qr-surface p-2 [&_svg]:size-full"
+                                            dangerouslySetInnerHTML={{
+                                                __html: guest.qrSvg,
+                                            }}
+                                        />
+                                    )}
+                                    <figcaption className="space-y-2 text-sm break-words print:space-y-1">
+                                        {guest.portalUrl && (
+                                            <a
+                                                href={guest.portalUrl}
+                                                className="inline-flex min-h-11 min-w-11 items-center underline underline-offset-4 print:block print:min-h-0 print:min-w-0"
+                                            >
+                                                Scan to verify with ZRA
+                                            </a>
+                                        )}
+                                        <p className="text-xs text-muted-foreground">
+                                            ZRA report{' '}
+                                            <Identifier
+                                                value={guest.number}
+                                                copyable
+                                            />
+                                        </p>
+                                    </figcaption>
+                                </figure>
                             </article>
                         ))}
+                    </section>
+                )}
+                {report && identityRevealed && (
+                    <section className="space-y-2">
+                        <h2 className="font-semibold">
+                            Revealed identity documents
+                        </h2>
+                        {guestReports
+                            .filter((guest) => guest.identity)
+                            .map((guest) => (
+                                <p
+                                    key={guest.number}
+                                    className="text-sm break-words"
+                                >
+                                    {guest.name ?? 'Guest report'} /{' '}
+                                    <Identifier value={guest.number} />:{' '}
+                                    {guest.identity?.documentName}{' '}
+                                    {guest.identity?.documentNo && (
+                                        <Identifier
+                                            value={guest.identity.documentNo}
+                                        />
+                                    )}{' '}
+                                    {guest.identity?.country}
+                                </p>
+                            ))}
                     </section>
                 )}
                 <div className="flex flex-wrap gap-3 print:hidden">

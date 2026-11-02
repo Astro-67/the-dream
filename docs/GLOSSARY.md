@@ -12,6 +12,10 @@ _Avoid_: Account, customer, client
 One hotel operated by an organization, with its own rooms, settings and jurisdiction.
 _Avoid_: Hotel (in formal requirements), site, unit
 
+**Property branding**:
+A property's optional logo and one accent colour, shown on its fiscal check-out report. Belongs to the property, not the organization; only an Owner or that property's Property manager edits it. Reprints use the current branding; it never changes fiscal evidence or the VFMS business identity.
+_Avoid_: Theme, template, organization logo
+
 ## Reservations and front desk
 
 **Reservation**:

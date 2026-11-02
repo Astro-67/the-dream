@@ -69,13 +69,13 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
     return match ($routeName) {
         'properties.index', 'properties.create', 'invitations.create' => ['GET', route($routeName)],
         'properties.store' => ['POST', route($routeName), PropertyForm::payload($intent)],
-        'properties.edit' => ['GET', route($routeName, $property)],
+        'properties.edit', 'properties.show' => ['GET', route($routeName, $property)],
         'properties.update' => ['PUT', route($routeName, $property), PropertyForm::payload($intent)],
         'properties.archive' => ['POST', route($routeName, $property), $intent],
         'properties.restore' => ['DELETE', route($routeName, $property), $intent],
         'properties.go-live', 'properties.taxes-reviewed' => ['POST', route($routeName, $property), $intent],
         'properties.vfms.update', 'properties.vfms.mode' => ['PUT', route($routeName, $property), $intent],
-        'properties.vfms.check' => ['POST', route($routeName, $property), $intent],
+        'properties.vfms.check', 'properties.branding.update' => ['POST', route($routeName, $property), $intent],
         'properties.demo.store' => ['POST', route($routeName), $intent],
         'properties.destroy' => ['DELETE', route($routeName, $property), $intent],
         'invitations.store' => ['POST', route($routeName), [...$intent, 'email' => 'new@example.test', 'role' => 'front_desk', 'all_properties' => false, 'property_ids' => [$property->id], 'expires_in_days' => 7]],
@@ -130,7 +130,7 @@ test('after turning on two-factor authentication, the owner returns to what they
 
     $this->get(route('properties.edit', $property))->assertOk();
     $this->put(route('properties.update', $property), PropertyForm::payload(['_property' => $property->id]))
-        ->assertRedirect(route('properties.index'));
+        ->assertRedirect(route('properties.show', $property));
 
     expect($property->fresh()->name)->toBe('Serengeti Gate Lodge');
 

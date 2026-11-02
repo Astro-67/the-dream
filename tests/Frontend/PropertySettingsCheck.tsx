@@ -4,10 +4,13 @@ import { isValidElement, useState, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import EditProperty from '@/pages/properties/edit';
 import CreateProperty from '@/pages/properties/create';
+import ShowProperty from '@/pages/properties/show';
+import PropertiesIndex from '@/pages/properties/index';
 import CreateOrganization from '@/pages/organizations/create';
 import { PropertyFields } from '@/features/tenancy/property-fields';
 import { OnboardingChecklist } from '@/features/tenancy/onboarding-checklist';
 import {
+    BrandingFields,
     VfmsFields,
     PropertySettingsFields,
     propertySettingsTabForErrors,
@@ -107,6 +110,8 @@ function settings(
             canManageTaxes: true,
             canManageCashierShifts,
             vfms: null,
+            branding: { logo_url: null, accent_colour: null },
+            canManageBranding: false,
         });
         if (errors && !returnedErrors) {
             assert.ok(returnValidationErrors(page, errors));
@@ -488,4 +493,163 @@ for (const [zra_check, label] of [
 assert.doesNotMatch(live, /name="confirmation"/);
 // The section shows only when the server sends it (VFMS properties the member manages).
 assert.doesNotMatch(html, /Save VFMS credentials/);
-console.log('Tabbed property settings and validation destinations: PASS');
+
+// protects=#220 branding is edited in its own form for the opened property; fails_when=the form loses its property, accepts SVG, or shows no current logo.
+function brandingSection(
+    branding: Parameters<typeof BrandingFields>[0]['branding'],
+) {
+    const component = () => (
+        <BrandingFields
+            propertyId="hotel"
+            propertyName="Sample hotel"
+            branding={branding}
+        />
+    );
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'properties/edit',
+                url: '/properties/hotel/edit',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: { errors: {}, tenant: { property: { id: 'hotel' } } },
+            }}
+            initialComponent={component}
+            resolveComponent={async () => component}
+        />,
+    );
+}
+const unbranded = brandingSection({ logo_url: null, accent_colour: null });
+assert.match(unbranded, /action="\/properties\/hotel\/branding"/);
+assert.match(unbranded, /name="_property" value="hotel"/);
+assert.match(
+    unbranded,
+    /type="file"[^>]*name="logo"|name="logo"[^>]*type="file"/,
+);
+assert.match(unbranded, /accept="image\/png,image\/jpeg,image\/webp"/);
+assert.doesNotMatch(unbranded, /accept="[^"]*svg/);
+assert.match(unbranded, /No logo: reports show the property name/);
+assert.doesNotMatch(unbranded, /name="remove_logo"/);
+const brandedSettings = brandingSection({
+    logo_url: 'data:image/png;base64,TE9HTw==',
+    accent_colour: '#1f6f5c',
+});
+assert.match(brandedSettings, /<img[^>]*src="data:image\/png;base64,TE9HTw=="/);
+assert.match(brandedSettings, /name="remove_logo"/);
+assert.match(
+    brandedSettings,
+    /<label[^>]*for="branding_remove_logo"[^>]*>.*id="branding_remove_logo".*Remove the logo<\/label>/,
+);
+assert.match(
+    brandedSettings,
+    /name="accent_colour"[^>]*value="#1f6f5c"|value="#1f6f5c"[^>]*name="accent_colour"/,
+);
+assert.doesNotMatch(html, /Save branding/);
+function propertyDetails(canUpdate: boolean, logo: string | null = null) {
+    const component = () => (
+        <ShowProperty
+            property={{
+                id: 'hotel',
+                name: 'Sample hotel',
+                propertyType: 'Hotel',
+                address_line: 'Beach road',
+                city: 'Zanzibar',
+                region: 'Urban West',
+                postal_code: null,
+                phone: '+255777000000',
+                email: 'hotel@example.test',
+                timezone: 'Africa/Dar_es_Salaam',
+                currency: 'USD',
+                jurisdictionLabel: 'Zanzibar',
+                businessDate: '2026-11-02',
+                closeTime: '04:00',
+                receipt_prefix: 'STI-',
+                star_rating: null,
+                tin: 'TIN-TEST',
+                vrn: null,
+                z_number: 'Z-TEST',
+                zra_hotel_code: 'HOTEL-TEST',
+                status: 'live',
+                demo: false,
+                archivedAt: null,
+            }}
+            branding={{ logo_url: logo, accent_colour: '#1f6f5c' }}
+            canUpdate={canUpdate}
+        />
+    );
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'properties/show',
+                url: '/properties/hotel',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: { errors: {} },
+            }}
+            initialComponent={component}
+        />,
+    );
+}
+
+const details = propertyDetails(true);
+assert.match(details, /<h1[^>]*>Sample hotel<\/h1>/);
+assert.match(details, /Contact and location/);
+assert.match(details, /hotel@example\.test/);
+assert.match(details, /TIN-TEST/);
+assert.match(details, /HOTEL-TEST/);
+assert.match(details, /No logo uploaded\. Reports use the property name\./);
+assert.match(details, /#1f6f5c/);
+assert.match(
+    details,
+    /href="\/properties\/hotel\/edit"[^>]*>Edit property<\/a>/,
+);
+assert.doesNotMatch(propertyDetails(false), /Edit property|<form/);
+assert.match(
+    propertyDetails(false, 'data:image/png;base64,logo'),
+    /<img[^>]*src="data:image\/png;base64,logo"[^>]*alt="Logo of Sample hotel"/,
+);
+assert.match(html, /href="\/properties\/hotel"[^>]*>Cancel<\/a>/);
+
+const propertyList = () => (
+    <PropertiesIndex
+        canCreate={false}
+        archivedProperties={[]}
+        properties={[
+            {
+                id: 'hotel',
+                name: 'Sample hotel',
+                city: 'Zanzibar',
+                timezone: 'Africa/Dar_es_Salaam',
+                currency: 'USD',
+                jurisdictionProfile: 'zanzibar',
+                jurisdictionLabel: 'Zanzibar',
+                demo: false,
+                goLiveRequested: false,
+                goLiveDeclinedReason: null,
+                can: { update: false, archive: false, delete: false },
+            },
+        ]}
+    />
+);
+const propertyListMarkup = renderToStaticMarkup(
+    <App
+        initialPage={{
+            component: 'properties/index',
+            url: '/properties',
+            version: null,
+            clearHistory: false,
+            encryptHistory: false,
+            props: { errors: {}, tenant: { property: { id: 'hotel' } } },
+        }}
+        initialComponent={propertyList}
+    />,
+);
+assert.match(
+    propertyListMarkup,
+    /href="\/properties\/hotel"[^>]*>Sample hotel<\/a>/,
+);
+assert.doesNotMatch(propertyListMarkup, />Edit<\/a>/);
+
+console.log('Property details, settings and validation destinations: PASS');

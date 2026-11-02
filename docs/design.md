@@ -49,6 +49,8 @@ All text colours below meet WCAG AA (4.5:1) on the surface they're used on, and 
 
 `tests/Frontend/ThemeTokensCheck.ts` reads `resources/css/app.css` and fails if any of the ratios in this section, or the status ratios below, drop below their threshold.
 
+`--qr-surface` (`bg-qr-surface`) is white in both themes so fiscal QR codes retain black-on-white contrast and clear space. It is not a general panel surface; print output remains black on white.
+
 ### Status colours
 
 Status is always shown as a **label (and, where useful, an icon) plus colour**, never colour alone. Light theme: dark text on a pale tint. Dark theme: the 400 shade on a 15% tint of the same hue.

@@ -87,6 +87,11 @@ for (const [theme, selector] of [
     ['dark', '\\.dark'],
 ] as const) {
     const t = block(selector);
+    assert.deepEqual(
+        resolve({ ...block(':root'), ...t }, 'qr-surface'),
+        [255, 255, 255],
+        `${theme}: QR clear space must stay white`,
+    );
     const c = (name: string) => resolve(t, name);
     const prepaint = blade.match(
         new RegExp(
