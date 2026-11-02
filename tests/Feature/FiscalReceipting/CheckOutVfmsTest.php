@@ -392,6 +392,11 @@ test('recorded checkout stores every report and projects authorized identity onl
         ->where('guestReports.1.qrSvg', fn (string $svg) => str_starts_with($svg, '<svg')));
     fiscalReport($tenant, $reservation, OrganizationRole::Finance)->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('guestReports.0.identity', null)->where('guestReports.1.identity', null));
+    config(['services.vfms.test_viewer_url' => 'https://changed-viewer.example']);
+    fiscalReport($tenant, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('guestReports.0.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[0])
+        ->where('guestReports.1.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[1])
+        ->where('serviceReceipts.0.portalUrl', $viewer.'/receipt-form/RECEIPT-172'));
 })->with([
     [VfmsMode::Sandbox, false], [VfmsMode::Live, false],
     [VfmsMode::Sandbox, true], [VfmsMode::Live, true],
