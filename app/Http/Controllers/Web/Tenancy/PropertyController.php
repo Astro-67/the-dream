@@ -131,6 +131,8 @@ class PropertyController extends Controller
             'taxInclusion' => TaxInclusion::of($property),
             'canManageTaxes' => Gate::allows('manageInclusion', [TaxRule::class, $property]),
             'canManageCashierShifts' => Gate::allows('manageCashierShifts', $property),
+            'branding' => $property->branding(),
+            'canManageBranding' => Gate::allows('manageBranding', $property),
             'vfms' => JurisdictionRules::usesVfms($property) && Gate::allows('manageVfms', $property) ? $this->vfms($property) : null,
         ]);
     }

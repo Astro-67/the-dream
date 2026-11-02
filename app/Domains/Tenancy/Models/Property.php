@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 use LogicException;
 
 /**
@@ -59,6 +60,8 @@ use LogicException;
  * @property CarbonImmutable|null $go_live_requested_at
  * @property string|null $go_live_requested_by
  * @property string|null $go_live_declined_reason
+ * @property string|null $logo_path
+ * @property string|null $accent_colour
  * @property CarbonImmutable|null $taxes_reviewed_at
  * @property string|null $taxes_reviewed_by
  * @property bool $demo
@@ -151,6 +154,21 @@ class Property extends Model
         $settings['front_desk_settings']['automatic_checkout_summary_email'] ??= $this->email;
 
         return $settings;
+    }
+
+    /**
+     * The branding its fiscal check-out report shows. The logo is inlined as a data URI, so it is
+     * only ever delivered inside a page the viewer is already authorized to open.
+     *
+     * @return array{logo_url: string|null, accent_colour: string|null}
+     */
+    public function branding(): array
+    {
+        $disk = Storage::disk('local');
+        $logo = $this->logo_path !== null && $disk->exists($this->logo_path)
+            ? 'data:'.$disk->mimeType($this->logo_path).';base64,'.base64_encode((string) $disk->get($this->logo_path)) : null;
+
+        return ['logo_url' => $logo, 'accent_colour' => $this->accent_colour];
     }
 
     public function isDemo(): bool

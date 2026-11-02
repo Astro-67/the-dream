@@ -3,6 +3,8 @@
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Property;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\PropertyForm;
@@ -320,3 +322,32 @@ test('a property manager sets the close time; members who cannot edit the proper
     'front desk' => [OrganizationRole::FrontDesk, false],
     'finance' => [OrganizationRole::Finance, false],
 ]);
+
+/** Saves $form as the branding of $property through the settings form, as the signed-in member. */
+function saveBranding(Property $property, array $form)
+{
+    return test()->post(route('properties.branding.update', $property), ['_property' => $property->id, ...$form]);
+}
+
+/** The branding the property's settings page shows. */
+function brandingShown(Property $property): ?array
+{
+    return test()->get(route('properties.edit', $property))->assertOk()->viewData('page')['props']['branding'];
+}
+
+// protects=#220 branding is per property and reaches its settings page; fails_when=a property shares another's branding or the logo is not shown.
+test('an owner gives two properties of one organization their own logo and accent colour', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    $this->actingAs($t->a->owner);
+    expect(brandingShown($t->a->property))->toBe(['logo_url' => null, 'accent_colour' => null]);
+
+    saveBranding($t->a->property, ['logo' => UploadedFile::fake()->image('inn.png', 400, 100), 'accent_colour' => '#1F6F5C'])->assertSessionHasNoErrors()->assertRedirect();
+    saveBranding($t->a->otherProperty, ['logo' => UploadedFile::fake()->image('lodge.jpg', 100, 300), 'accent_colour' => '#7a3b10'])->assertSessionHasNoErrors();
+
+    expect(brandingShown($t->a->property))->toMatchArray(['accent_colour' => '#1f6f5c'])
+        ->and(brandingShown($t->a->property)['logo_url'])->toStartWith('data:image/png;base64,')
+        ->and(brandingShown($t->a->otherProperty))->toMatchArray(['accent_colour' => '#7a3b10'])
+        ->and(brandingShown($t->a->otherProperty)['logo_url'])->toStartWith('data:image/jpeg;base64,');
+    expect(Activity::query()->where('event', 'branding_updated')->where('subject_id', $t->a->property->id)->exists())->toBeTrue();
+});
