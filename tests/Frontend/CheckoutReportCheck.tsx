@@ -130,8 +130,30 @@ assert.match(
     /href="https:\/\/viewer\.example\/receipt-form\/RECEIPT-172"/,
 );
 assert.match(recorded, /Zanzibar Revenue Authority/);
-assert.match(recorded, /PASSPORT.*GERMANY/);
+assert.doesNotMatch(recorded, /Guest REPORT-[12]|PASSPORT|GERMANY/);
 assert.doesNotMatch(recorded, /PRIVATE-DOCUMENT-172/);
+const verificationBlocks = [
+    ...recorded.matchAll(/<figure\b[^>]*>.*?<\/figure>/g),
+].map(([figure]) => figure);
+assert.equal(verificationBlocks.length, 3);
+for (const number of ['REPORT-1', 'REPORT-2', 'RECEIPT-172']) {
+    const block = verificationBlocks.find((figure) =>
+        figure.includes(`data-qr="${number}"`),
+    );
+    assert.ok(block, `${number} has its own verification block`);
+    const path =
+        number === 'RECEIPT-172' ? 'receipt-form' : 'checkout-report/guest';
+    assert.ok(
+        block.includes(`href="https://viewer.example/${path}/${number}"`),
+    );
+    assert.match(block, />Scan to verify with ZRA<\/a>/);
+    assert.match(block, /<figcaption\b/);
+    assert.ok(block.slice(block.indexOf('<figcaption')).includes(number));
+    assert.doesNotMatch(
+        block,
+        /Guest REPORT|PASSPORT|GERMANY|PRIVATE-DOCUMENT/,
+    );
+}
 
 const revealControl = render({
     ...base,
