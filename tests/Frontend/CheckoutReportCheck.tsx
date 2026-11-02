@@ -40,6 +40,7 @@ const base: Props = {
         phone: '+255',
         email: 'desk@example.test',
     },
+    branding: { logo_url: null, accent_colour: null },
 };
 
 const render = (props: Props) =>
@@ -82,7 +83,7 @@ assert.match(live, /data-qr="1"/);
 assert.doesNotMatch(live, /TEST, NOT FISCAL/);
 
 // protects=each recorded guest report is printable with its own verification link (#172); fails_when=one report or the test stamp disappears; no_claim=physical A4 layout.
-const recorded = render({
+const recordedProps: Props = {
     ...base,
     business: {
         businessName: 'ZRA Test Hotel',
@@ -113,7 +114,8 @@ const recorded = render({
             qrSvg: '<svg data-qr="RECEIPT-172"></svg>',
         },
     ],
-});
+};
+const recorded = render(recordedProps);
 assert.match(recorded, /ZRA Test Hotel/);
 assert.match(recorded, /TIN TEST-TIN/);
 assert.match(recorded, /TEST, NOT FISCAL/);
@@ -125,7 +127,7 @@ assert.match(
     recorded,
     /href="https:\/\/viewer\.example\/receipt-form\/RECEIPT-172"/,
 );
-assert.match(recorded, /Zanzibar Revenue Authority/);
+assert.doesNotMatch(recorded, /Zanzibar Revenue Authority|zra-logo/);
 assert.match(recorded, /PASSPORT.*GERMANY/);
 assert.doesNotMatch(recorded, /PRIVATE-DOCUMENT-172/);
 
@@ -164,5 +166,23 @@ assert.match(
     render({ ...base, status: 'waiting', report: null, needsAttention: true }),
     /Needs attention: ZRA returned no verifiable check-out report/,
 );
+
+// protects=#220 the letterhead is the property's, never ZRA's; fails_when=the ZRA logo returns, the logo is missing or fiscal identity is replaced.
+assert.doesNotMatch(sandbox, /zra-logo|Zanzibar Revenue Authority|<img/);
+assert.match(sandbox, /<h2[^>]*>Sea Inn<\/h2>/);
+const branded = render({
+    ...recordedProps,
+    branding: {
+        logo_url: 'data:image/png;base64,TE9HTw==',
+        accent_colour: '#1f6f5c',
+    },
+});
+assert.match(branded, /<img[^>]*src="data:image\/png;base64,TE9HTw=="/);
+assert.match(branded, /<img[^>]*alt="Sea Inn"/);
+assert.doesNotMatch(branded, /zra-logo/);
+assert.match(branded, /#1f6f5c/);
+assert.match(branded, /ZRA Test Hotel/);
+assert.match(branded, /TIN TEST-TIN/);
+assert.match(branded, /TEST, NOT FISCAL/);
 
 console.log('Fiscal check-out report: PASS');

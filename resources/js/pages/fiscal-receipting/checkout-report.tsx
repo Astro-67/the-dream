@@ -32,6 +32,7 @@ export default function CheckoutReport({
     serviceReceipts,
     revealIdentityUrl,
     identityRevealed = false,
+    branding,
 }: {
     status: 'waiting' | 'sandbox' | 'live';
     report: Report | null;
@@ -83,6 +84,7 @@ export default function CheckoutReport({
         phone: string;
         email: string;
     };
+    branding: { logo_url: string | null; accent_colour: string | null };
 }) {
     return (
         <>
@@ -92,14 +94,26 @@ export default function CheckoutReport({
                 </style>
             </Head>
             <div className="receipt-print flex max-w-[960px] flex-col gap-6 p-4 md:p-6 print:gap-4 print:p-0">
-                <header className="space-y-3">
-                    <img
-                        src="/images/zra-logo.jpg"
-                        alt="Zanzibar Revenue Authority"
-                        width={80}
-                        height={96}
-                        className="h-24 w-20 object-contain"
-                    />
+                {/* The accent is decoration only, and never printed: paper stays black on white. */}
+                <header
+                    className="space-y-3 border-t-4 border-transparent pt-4 print:border-t-0 print:pt-0"
+                    style={
+                        branding.accent_colour
+                            ? { borderTopColor: branding.accent_colour }
+                            : undefined
+                    }
+                >
+                    {branding.logo_url ? (
+                        <img
+                            src={branding.logo_url}
+                            alt={property.name}
+                            className="h-auto max-h-24 w-auto max-w-60 object-contain"
+                        />
+                    ) : (
+                        <h2 className="text-xl font-semibold">
+                            {property.name}
+                        </h2>
+                    )}
                     {business && (
                         <div>
                             <p className="text-lg font-semibold">
