@@ -422,5 +422,5 @@ test('a fiscal report reprint shows the current property branding and unchanged 
 
     fiscalReport($t->a, $reservation, OrganizationRole::Finance)->assertInertia(fn (Assert $page) => $page
         ->where('branding.accent_colour', '#1f6f5c')->where('branding.logo_url', fn (string $url) => str_starts_with($url, 'data:image/png;base64,')));
-    expect($fiscal())->toBe($before)->and($references())->toBe($stored);
+    expect($fiscal())->toBe($before)->and($references())->toEqual($stored);
 });
