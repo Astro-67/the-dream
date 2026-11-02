@@ -180,7 +180,10 @@ export default function CheckoutReport({
                         }
                     />
                 ) : (
-                    <section className="flex flex-wrap items-start gap-8">
+                    <section
+                        aria-label="Financial summary"
+                        className="flex flex-wrap items-start gap-8"
+                    >
                         <dl className="grid flex-1 grid-cols-[1fr_auto] gap-x-6 gap-y-1">
                             {(
                                 [
@@ -237,10 +240,18 @@ export default function CheckoutReport({
                                                 : 'text-muted-foreground'
                                         }
                                     >
-                                        {label}
+                                        {label === 'Total' ? (
+                                            <strong>{label}</strong>
+                                        ) : (
+                                            label
+                                        )}
                                     </dt>
                                     <dd className="text-right tabular-nums">
-                                        {value}
+                                        {label === 'Total' ? (
+                                            <strong>{value}</strong>
+                                        ) : (
+                                            value
+                                        )}
                                     </dd>
                                 </div>
                             ))}
