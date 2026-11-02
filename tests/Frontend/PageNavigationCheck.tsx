@@ -18,7 +18,18 @@ const cases = [
         'Merge duplicate guests',
     ],
     ['properties/create', 'Properties', '/properties', 'Add property'],
-    ['properties/edit', 'Properties', '/properties', 'Edit property'],
+    [
+        'properties/show',
+        'Properties',
+        '/properties',
+        'Stone Town Waterfront Hotel',
+    ],
+    [
+        'properties/edit',
+        'Stone Town Waterfront Hotel',
+        '/properties/property-207',
+        'Edit property',
+    ],
     ['members/edit', 'Staff', '/members', 'Edit access'],
     ['invitations/create', 'Staff', '/members', 'Add staff'],
     [
@@ -103,6 +114,7 @@ const shared = {
         properties: [],
     },
     plan: { id: 'plan-207' },
+    property: { id: 'property-207', name: 'Stone Town Waterfront Hotel' },
     record: { id: 'contact-207', name: 'Amina Said' },
     guest: { id: 'contact-207', name: 'Amina Said' },
     candidates: { data: [] },

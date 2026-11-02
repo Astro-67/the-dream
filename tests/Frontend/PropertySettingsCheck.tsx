@@ -4,6 +4,8 @@ import { isValidElement, useState, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import EditProperty from '@/pages/properties/edit';
 import CreateProperty from '@/pages/properties/create';
+import ShowProperty from '@/pages/properties/show';
+import PropertiesIndex from '@/pages/properties/index';
 import CreateOrganization from '@/pages/organizations/create';
 import { PropertyFields } from '@/features/tenancy/property-fields';
 import { OnboardingChecklist } from '@/features/tenancy/onboarding-checklist';
@@ -544,4 +546,110 @@ assert.match(
     /name="accent_colour"[^>]*value="#1f6f5c"|value="#1f6f5c"[^>]*name="accent_colour"/,
 );
 assert.doesNotMatch(html, /Save branding/);
-console.log('Tabbed property settings and validation destinations: PASS');
+function propertyDetails(canUpdate: boolean, logo: string | null = null) {
+    const component = () => (
+        <ShowProperty
+            property={{
+                id: 'hotel',
+                name: 'Sample hotel',
+                propertyType: 'Hotel',
+                address_line: 'Beach road',
+                city: 'Zanzibar',
+                region: 'Urban West',
+                postal_code: null,
+                phone: '+255777000000',
+                email: 'hotel@example.test',
+                timezone: 'Africa/Dar_es_Salaam',
+                currency: 'USD',
+                jurisdictionLabel: 'Zanzibar',
+                businessDate: '2026-11-02',
+                closeTime: '04:00',
+                receipt_prefix: 'STI-',
+                star_rating: null,
+                tin: 'TIN-TEST',
+                vrn: null,
+                z_number: 'Z-TEST',
+                zra_hotel_code: 'HOTEL-TEST',
+                status: 'live',
+                demo: false,
+                archivedAt: null,
+            }}
+            branding={{ logo_url: logo, accent_colour: '#1f6f5c' }}
+            canUpdate={canUpdate}
+        />
+    );
+    return renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'properties/show',
+                url: '/properties/hotel',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: { errors: {} },
+            }}
+            initialComponent={component}
+        />,
+    );
+}
+
+const details = propertyDetails(true);
+assert.match(details, /<h1[^>]*>Sample hotel<\/h1>/);
+assert.match(details, /Contact and location/);
+assert.match(details, /hotel@example\.test/);
+assert.match(details, /TIN-TEST/);
+assert.match(details, /HOTEL-TEST/);
+assert.match(details, /No logo uploaded\. Reports use the property name\./);
+assert.match(details, /#1f6f5c/);
+assert.match(
+    details,
+    /href="\/properties\/hotel\/edit"[^>]*>Edit property<\/a>/,
+);
+assert.doesNotMatch(propertyDetails(false), /Edit property|<form/);
+assert.match(
+    propertyDetails(false, 'data:image/png;base64,logo'),
+    /<img[^>]*src="data:image\/png;base64,logo"[^>]*alt="Logo of Sample hotel"/,
+);
+assert.match(html, /href="\/properties\/hotel"[^>]*>Cancel<\/a>/);
+
+const propertyList = () => (
+    <PropertiesIndex
+        canCreate={false}
+        archivedProperties={[]}
+        properties={[
+            {
+                id: 'hotel',
+                name: 'Sample hotel',
+                city: 'Zanzibar',
+                timezone: 'Africa/Dar_es_Salaam',
+                currency: 'USD',
+                jurisdictionProfile: 'zanzibar',
+                jurisdictionLabel: 'Zanzibar',
+                demo: false,
+                goLiveRequested: false,
+                goLiveDeclinedReason: null,
+                can: { update: false, archive: false, delete: false },
+            },
+        ]}
+    />
+);
+const propertyListMarkup = renderToStaticMarkup(
+    <App
+        initialPage={{
+            component: 'properties/index',
+            url: '/properties',
+            version: null,
+            clearHistory: false,
+            encryptHistory: false,
+            props: { errors: {}, tenant: { property: { id: 'hotel' } } },
+        }}
+        initialComponent={propertyList}
+    />,
+);
+assert.match(
+    propertyListMarkup,
+    /href="\/properties\/hotel"[^>]*>Sample hotel<\/a>/,
+);
+assert.doesNotMatch(propertyListMarkup, />Edit<\/a>/);
+
+console.log('Property details, settings and validation destinations: PASS');

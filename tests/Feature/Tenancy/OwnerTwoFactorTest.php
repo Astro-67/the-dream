@@ -69,7 +69,7 @@ function ownerOnlyRequest(string $routeName, User $owner, Property $property): a
     return match ($routeName) {
         'properties.index', 'properties.create', 'invitations.create' => ['GET', route($routeName)],
         'properties.store' => ['POST', route($routeName), PropertyForm::payload($intent)],
-        'properties.edit' => ['GET', route($routeName, $property)],
+        'properties.edit', 'properties.show' => ['GET', route($routeName, $property)],
         'properties.update' => ['PUT', route($routeName, $property), PropertyForm::payload($intent)],
         'properties.archive' => ['POST', route($routeName, $property), $intent],
         'properties.restore' => ['DELETE', route($routeName, $property), $intent],
@@ -130,7 +130,7 @@ test('after turning on two-factor authentication, the owner returns to what they
 
     $this->get(route('properties.edit', $property))->assertOk();
     $this->put(route('properties.update', $property), PropertyForm::payload(['_property' => $property->id]))
-        ->assertRedirect(route('properties.index'));
+        ->assertRedirect(route('properties.show', $property));
 
     expect($property->fresh()->name)->toBe('Serengeti Gate Lodge');
 

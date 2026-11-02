@@ -89,6 +89,7 @@ return [
         return $responses;
     }),
     'properties.edit' => RouteCoverage::attempt(fn (TwoTenants $t) => $this->actingAs($t->a->owner)->get(route('properties.edit', $t->b->property->id))->assertNotFound()),
+    'properties.show' => RouteCoverage::attempt(fn (TwoTenants $t) => $this->actingAs($t->a->owner)->get(route('properties.show', $t->b->property->id))->assertNotFound()),
     'properties.update' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoProperties) {
         $before = $bravoProperties($t);
         $payload = PropertyForm::payload(['name' => 'Hijacked by Alpha']);

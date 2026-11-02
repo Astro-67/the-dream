@@ -37,6 +37,11 @@ class PropertyPolicy
         return Access::allows($user, OrganizationPermission::PropertiesView);
     }
 
+    public function view(User $user, Property $property): bool
+    {
+        return Access::allows($user, OrganizationPermission::PropertiesView, $property);
+    }
+
     /**
      * Archived property history is visible to any member who can view properties.
      */

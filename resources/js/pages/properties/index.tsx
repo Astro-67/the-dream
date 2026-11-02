@@ -29,6 +29,7 @@ import {
     edit,
     index,
     restore,
+    show,
 } from '@/routes/properties';
 import { store as storeDemo } from '@/routes/properties/demo';
 import { formatDate } from '@/features/platform/format';
@@ -322,7 +323,12 @@ export default function PropertiesIndex({
                             {properties.map((property) => (
                                 <TableRow key={property.id}>
                                     <TableCell className="font-medium">
-                                        {property.name}
+                                        <Link
+                                            href={show(property.id)}
+                                            className="text-primary underline underline-offset-4"
+                                        >
+                                            {property.name}
+                                        </Link>
                                         {property.demo && <DemoChip />}
                                         {property.goLiveRequested && (
                                             <StatusChip

@@ -11,6 +11,69 @@ use Spatie\Activitylog\Models\Activity;
 use Tests\Support\PropertyForm;
 use Tests\Support\TwoTenants;
 
+test('property readers see details and current branding without storage paths or credentials', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    $this->actingAs($t->a->owner);
+    saveBranding($t->a->property, [
+        'logo' => UploadedFile::fake()->image('inn.png', 200, 80),
+        'accent_colour' => '#1f6f5c',
+    ])->assertSessionHasNoErrors();
+
+    $this->get(route('properties.show', $t->a->property))
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('properties/show')
+        ->where('property.id', $t->a->property->id)
+        ->where('property.name', 'Alpha Stone Town Inn')
+        ->where('property.propertyType', $t->a->property->property_type->label())
+        ->where('property.phone', $t->a->property->phone)
+        ->where('property.jurisdictionLabel', 'Zanzibar')
+        ->where('property.businessDate', $t->a->property->business_date->toDateString())
+        ->where('property.zra_hotel_code', $t->a->property->zra_hotel_code)
+        ->where('branding.accent_colour', '#1f6f5c')
+        ->where('branding.logo_url', fn ($logo) => str_starts_with($logo, 'data:image/png;base64,'))
+        ->where('canUpdate', true)
+        ->missing('property.logo_path')
+        ->missing('vfms'));
+
+    $this->get(route('properties.show', $t->a->otherProperty))
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('property.id', $t->a->otherProperty->id)
+        ->missing('property.zra_hotel_code')
+        ->where('branding', ['logo_url' => null, 'accent_colour' => null]));
+});
+
+test('property details enforce read permissions and property assignments', function (OrganizationRole $role, bool $canView, bool $canUpdate) {
+    $t = twoTenants();
+    $response = $this->actingAs($t->a->member($role))->get(route('properties.show', $t->a->property));
+
+    if ($canView) {
+        $response->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->component('properties/show')->where('canUpdate', $canUpdate));
+    } else {
+        $response->assertForbidden();
+    }
+
+    $this->get(route('properties.show', $t->a->otherProperty))->assertForbidden();
+})->with([
+    'property manager' => [OrganizationRole::PropertyManager, true, true],
+    'auditor' => [OrganizationRole::Auditor, true, false],
+    'front desk' => [OrganizationRole::FrontDesk, false, false],
+    'finance' => [OrganizationRole::Finance, false, false],
+    'housekeeping' => [OrganizationRole::Housekeeping, false, false],
+]);
+
+test('archived property details remain readable but cannot be edited', function () {
+    $t = twoTenants();
+    inTenant($t->a->property, fn () => $t->a->otherProperty->forceFill(['archived_at' => now()])->save());
+
+    $this->actingAs($t->a->owner)->get(route('properties.show', $t->a->otherProperty))
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('property.id', $t->a->otherProperty->id)
+        ->where('property.archivedAt', $t->a->otherProperty->archived_at->toIso8601String())
+        ->where('canUpdate', false));
+});
+
 test('registration remains optional on setup and existing live property edits', function (PropertyStatus $status) {
     [$owner, , $property] = organizationWithOwner();
     $property->forceFill(['status' => $status])->save();
@@ -96,7 +159,10 @@ test('an owner edits a property\'s details', function () {
         'currency' => 'TZS',
         'jurisdiction_profile' => 'zanzibar',
         'zra_hotel_code' => 'ZH-0099',
-    ]))->assertRedirect(route('properties.index'));
+    ]))->assertRedirect(route('properties.show', $property));
+
+    $this->get(route('properties.show', $property))->assertInertia(fn (Assert $page) => $page
+        ->where('property.name', 'Stone Town Grand')->where('property.currency', 'TZS'));
 
     $this->get(route('dashboard'))
         ->assertInertia(fn (Assert $page) => $page
@@ -162,7 +228,7 @@ test('moving a property to mainland Tanzania drops its Zanzibar-only fields', fu
             'jurisdiction_profile' => 'mainland_tanzania',
             'zra_hotel_code' => 'ZH-0042',
         ]))
-        ->assertRedirect(route('properties.index'));
+        ->assertRedirect(route('properties.show', $property));
 
     $this->get(route('properties.edit', $property))
         ->assertInertia(fn (Assert $page) => $page->missing('property.zra_hotel_code'));
@@ -201,7 +267,7 @@ test('a group operations manager adds and edits properties', function () {
     $this->put(route('properties.update', $t->a->otherProperty), PropertyForm::payload([
         '_property' => $t->a->otherProperty->id,
         'name' => 'Alpha Arusha Lodge Renamed',
-    ]))->assertRedirect(route('properties.index'));
+    ]))->assertRedirect(route('properties.show', $t->a->otherProperty));
 
     $this->get(route('properties.index'))
         ->assertInertia(fn (Assert $page) => $page
@@ -246,7 +312,7 @@ test('a property manager edits their own property, but can\'t add properties or 
     $this->put(route('properties.update', $t->a->property), PropertyForm::payload([
         '_property' => $t->a->property->id,
         'name' => 'Alpha Stone Town Grand',
-    ]))->assertRedirect(route('properties.index'));
+    ]))->assertRedirect(route('properties.show', $t->a->property));
 
     $this->get(route('properties.create'))->assertForbidden();
     $this->post(route('properties.store'), PropertyForm::payload(['_property' => $t->a->property->id]))->assertForbidden();

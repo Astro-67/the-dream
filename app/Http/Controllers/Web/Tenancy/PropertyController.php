@@ -23,7 +23,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The organization's properties: list, add and edit (ORG-02).
+ * The organization's properties: list, view, add and edit (ORG-02).
  */
 class PropertyController extends Controller
 {
@@ -137,6 +137,28 @@ class PropertyController extends Controller
         ]);
     }
 
+    public function show(Property $property): Response
+    {
+        Gate::authorize('view', $property);
+
+        return Inertia::render('properties/show', [
+            'property' => [
+                ...$property->only(['id', 'name', 'address_line', 'city', 'region', 'postal_code', 'phone', 'email', 'timezone', 'star_rating', 'tin', 'vrn', 'z_number', 'receipt_prefix']),
+                'propertyType' => $property->property_type->label(),
+                'jurisdictionLabel' => $property->jurisdiction_profile->label(),
+                'currency' => $property->currency->value,
+                'businessDate' => $property->business_date->toDateString(),
+                'closeTime' => substr($property->close_time, 0, 5),
+                'status' => $property->status->value,
+                'demo' => $property->isDemo(),
+                'archivedAt' => $property->archived_at?->toIso8601String(),
+                ...(JurisdictionRules::hasZraHotelCode($property->jurisdiction_profile) ? ['zra_hotel_code' => $property->zra_hotel_code] : []),
+            ],
+            'branding' => $property->branding(),
+            'canUpdate' => Gate::allows('update', $property),
+        ]);
+    }
+
     public function update(PropertyRequest $request, Property $property, UpdateProperty $updateProperty): RedirectResponse
     {
         /** @var User $user */
@@ -146,7 +168,7 @@ class PropertyController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __(':name saved.', ['name' => $property->name])]);
 
-        return redirect()->route('properties.index');
+        return redirect()->route('properties.show', $property);
     }
 
     /**

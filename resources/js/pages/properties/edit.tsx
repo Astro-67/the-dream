@@ -27,7 +27,7 @@ import type {
     PropertyValues,
 } from '@/features/tenancy/property-fields';
 import { PropertyFields } from '@/features/tenancy/property-fields';
-import { index, update } from '@/routes/properties';
+import { index, show, update } from '@/routes/properties';
 
 type Props = PropertyFormOptions & {
     property: PropertyValues &
@@ -401,7 +401,7 @@ export default function EditProperty({
                             )}
                             <div className="flex flex-wrap items-center justify-end gap-3">
                                 <Button variant="ghost" asChild>
-                                    <Link href={index()}>Cancel</Link>
+                                    <Link href={show(property.id)}>Cancel</Link>
                                 </Button>
                                 <Button
                                     type="submit"
@@ -433,9 +433,10 @@ export default function EditProperty({
     );
 }
 
-EditProperty.layout = {
+EditProperty.layout = ({ property }: Props) => ({
     breadcrumbs: [
         { title: 'Properties', href: index() },
-        { title: 'Edit property', href: index() },
+        { title: property.name, href: show(property.id) },
+        { title: 'Edit property', href: '#' },
     ],
-};
+});
