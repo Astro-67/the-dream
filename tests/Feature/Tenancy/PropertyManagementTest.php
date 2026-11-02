@@ -3,6 +3,7 @@
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Property;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -350,4 +351,82 @@ test('an owner gives two properties of one organization their own logo and accen
         ->and(brandingShown($t->a->otherProperty))->toMatchArray(['accent_colour' => '#7a3b10'])
         ->and(brandingShown($t->a->otherProperty)['logo_url'])->toStartWith('data:image/jpeg;base64,');
     expect(Activity::query()->where('event', 'branding_updated')->where('subject_id', $t->a->property->id)->exists())->toBeTrue();
+});
+
+// protects=#220 branding editors are owners and their own property's manager only; fails_when=a role that edits other settings, or a manager of another property, changes branding.
+test('only owners and the property\'s manager edit branding, though group operations managers edit other settings', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    $manager = $t->a->member(OrganizationRole::PropertyManager);
+    $this->actingAs($manager);
+    saveBranding($t->a->property, ['accent_colour' => '#123456'])->assertSessionHasNoErrors();
+    expect(brandingShown($t->a->property)['accent_colour'])->toBe('#123456');
+    $this->get(route('properties.edit', $t->a->property))->assertInertia(fn (Assert $page) => $page->where('canManageBranding', true));
+    saveBranding($t->a->otherProperty, ['accent_colour' => '#654321'])->assertForbidden();
+
+    $operations = $t->a->member(OrganizationRole::GroupOperationsManager);
+    $this->actingAs($operations)->get(route('properties.edit', $t->a->property))->assertOk()->assertInertia(fn (Assert $page) => $page->where('canManageBranding', false));
+    saveBranding($t->a->property, ['accent_colour' => '#000000'])->assertForbidden();
+    foreach ([OrganizationRole::FrontDesk, OrganizationRole::Finance, OrganizationRole::Auditor] as $role) {
+        $this->actingAs($t->a->member($role));
+        saveBranding($t->a->property, ['accent_colour' => '#000000'])->assertForbidden();
+    }
+
+    expect($t->a->property->fresh()->accent_colour)->toBe('#123456')->and($t->a->otherProperty->fresh()->accent_colour)->toBeNull()
+        // The manager's attempt on another property is refused by property.intent, before the form is read.
+        ->and(Activity::query()->where('event', 'refused')->where('properties->action', 'properties.branding.update')->count())->toBe(4);
+});
+
+// protects=#220 a branding form saves to the property it was opened for; fails_when=switching property in between moves the branding.
+test('a branding form opened for one property never saves to another', function () {
+    $t = twoTenants();
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->otherProperty->id])
+        ->post(route('properties.branding.update', $t->a->property), ['_property' => $t->a->property->id, 'accent_colour' => '#abcdef'])->assertSessionHasNoErrors();
+    $this->post(route('properties.branding.update', $t->a->property), ['accent_colour' => '#abcdef'])->assertSessionHasErrors('_property');
+
+    expect($t->a->property->fresh()->accent_colour)->toBe('#abcdef')->and($t->a->otherProperty->fresh()->accent_colour)->toBeNull();
+});
+
+// protects=#220 invalid or active uploads never replace branding; fails_when=a refused save changes or deletes the previous logo or colour.
+test('invalid logos and colours are refused and keep the previous branding', function (Closure $form, string $field) {
+    Storage::fake('local');
+    $t = twoTenants();
+    $this->actingAs($t->a->owner);
+    saveBranding($t->a->property, ['logo' => UploadedFile::fake()->image('inn.png', 200, 80), 'accent_colour' => '#1f6f5c'])->assertSessionHasNoErrors();
+    $before = brandingShown($t->a->property);
+
+    saveBranding($t->a->property, $form())->assertSessionHasErrors($field);
+
+    expect(brandingShown($t->a->property))->toBe($before)
+        ->and(Storage::disk('local')->allFiles())->toHaveCount(1)
+        ->and(Activity::query()->where('event', 'refused')->where('subject_id', $t->a->property->id)->exists())->toBeTrue();
+})->with([
+    'svg with script' => [fn () => ['logo' => UploadedFile::fake()->createWithContent('logo.svg', '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>')], 'logo'],
+    'html named png' => [fn () => ['logo' => UploadedFile::fake()->createWithContent('logo.png', '<html><script>alert(1)</script></html>')], 'logo'],
+    'pdf' => [fn () => ['logo' => UploadedFile::fake()->create('logo.pdf', 10, 'application/pdf')], 'logo'],
+    'too large' => [fn () => ['logo' => UploadedFile::fake()->image('big.png', 200, 80)->size(2048)], 'logo'],
+    'colour name' => [fn () => ['accent_colour' => 'red'], 'accent_colour'],
+    'short hex' => [fn () => ['accent_colour' => '#fff'], 'accent_colour'],
+    'css injection' => [fn () => ['accent_colour' => '#fff;}body{display:none'], 'accent_colour'],
+]);
+
+// protects=#220 removal and a storage failure; fails_when=removal leaves the file, or a failed store loses the old logo.
+test('an owner removes the logo and clears the colour; a storage failure keeps the previous logo', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    $this->actingAs($t->a->owner);
+    saveBranding($t->a->property, ['logo' => UploadedFile::fake()->image('old.png', 200, 80), 'accent_colour' => '#1f6f5c'])->assertSessionHasNoErrors();
+    saveBranding($t->a->property, ['logo' => UploadedFile::fake()->image('new.png', 300, 80), 'accent_colour' => '#1f6f5c'])->assertSessionHasNoErrors();
+    expect(Storage::disk('local')->allFiles())->toHaveCount(1);
+    $before = brandingShown($t->a->property);
+
+    $failing = Mockery::mock(Filesystem::class);
+    $failing->shouldReceive('putFileAs')->andReturn(false);
+    Storage::set('local', $failing);
+    saveBranding($t->a->property, ['logo' => UploadedFile::fake()->image('broken.png', 200, 80)])->assertSessionHasErrors('logo');
+    Storage::fake('local');
+    expect($t->a->property->fresh()->logo_path)->not->toBeNull();
+
+    saveBranding($t->a->property, ['remove_logo' => '1', 'accent_colour' => ''])->assertSessionHasNoErrors();
+    expect(brandingShown($t->a->property))->toBe(['logo_url' => null, 'accent_colour' => null])->and($before['logo_url'])->not->toBeNull();
 });

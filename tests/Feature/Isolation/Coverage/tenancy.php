@@ -3,13 +3,16 @@
 use App\Domains\Tenancy\Actions\ArchiveProperty;
 use App\Domains\Tenancy\Actions\CreateDemoProperty;
 use App\Domains\Tenancy\Actions\SendInvitation;
+use App\Domains\Tenancy\Actions\UpdatePropertyBranding;
 use App\Domains\Tenancy\Data\InvitationDetails;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Domains\Tenancy\Models\Invitation;
 use App\Domains\Tenancy\Models\OrganizationMembership;
 use App\Domains\Tenancy\Models\Property;
 use App\Domains\Tenancy\Notifications\InvitationSent;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\PropertyForm;
 use Tests\Support\TwoTenants;
@@ -94,6 +97,24 @@ return [
             $this->actingAs($t->a->owner)->put(route('properties.update', $t->b->property->id), [...$payload, '_property' => $t->b->property->id])->assertForbidden(),
         ];
         expect($bravoProperties($t))->toBe($before);
+
+        return $responses;
+    }),
+    'properties.branding.update' => RouteCoverage::attempt(function (TwoTenants $t) {
+        Storage::fake('local');
+        inTenant($t->b->property, fn () => app(UpdatePropertyBranding::class)->handle($t->b->owner, $t->b->property, UploadedFile::fake()->image('bravo.png', 200, 80), false, '#123456'));
+        $bravo = fn () => inTenant($t->b->organization, fn () => Property::query()->orderBy('id')->get()->map->only(['id', 'logo_path', 'accent_colour'])->all());
+        $before = $bravo();
+        $form = ['accent_colour' => '#000000', 'remove_logo' => '1'];
+        $responses = [
+            $this->actingAs($t->a->owner)->post(route('properties.branding.update', $t->b->property->id), [...$form, '_property' => $t->a->property->id])->assertNotFound(),
+            $this->actingAs($t->a->owner)->post(route('properties.branding.update', $t->b->property->id), [...$form, '_property' => $t->b->property->id])->assertForbidden(),
+        ];
+        // Same organization: Alpha's manager cannot reach the property they do not manage.
+        $manager = $t->a->member(OrganizationRole::PropertyManager);
+        $responses[] = $this->actingAs($manager)->post(route('properties.branding.update', $t->a->otherProperty->id), [...$form, '_property' => $t->a->property->id])->assertForbidden();
+        expect($bravo())->toBe($before)->and(Storage::disk('local')->allFiles())->toHaveCount(1)
+            ->and($t->a->otherProperty->fresh()->accent_colour)->toBeNull();
 
         return $responses;
     }),
