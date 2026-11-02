@@ -69,6 +69,7 @@ assert.doesNotMatch(sandbox, /VFMS QR code/);
 assert.match(sandbox, /<section[^>]*aria-label="Financial summary"/);
 assert.match(sandbox, /<dt[^>]*><strong>Total<\/strong><\/dt>/);
 assert.match(sandbox, /<dd[^>]*><strong>USD 239\.00<\/strong><\/dd>/);
+assert.match(sandbox, /<dl[^>]*aria-label="Stay details"/);
 
 // A Live report shows the portal QR and no Sandbox stamp.
 const live = render({

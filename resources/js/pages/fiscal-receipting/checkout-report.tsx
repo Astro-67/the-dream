@@ -93,10 +93,10 @@ export default function CheckoutReport({
                     {'@page { size: A4; margin: 12mm; }'}
                 </style>
             </Head>
-            <div className="receipt-print flex max-w-[960px] flex-col gap-6 p-4 md:p-6 print:gap-4 print:p-0">
+            <div className="receipt-print fiscal-report mx-auto flex w-full max-w-[960px] min-w-0 flex-col gap-8 p-4 text-sm [overflow-wrap:anywhere] md:p-6 print:p-0">
                 {/* The accent is decoration only, and never printed: paper stays black on white. */}
                 <header
-                    className="space-y-3 border-t-4 border-transparent pt-4 print:border-t-0 print:pt-0"
+                    className="space-y-3 border-t-4 border-transparent pt-4 text-center print:break-inside-avoid print:border-t-0 print:pt-0"
                     style={
                         branding.accent_colour
                             ? { borderTopColor: branding.accent_colour }
@@ -107,13 +107,13 @@ export default function CheckoutReport({
                         <img
                             src={branding.logo_url}
                             alt={property.name}
-                            className="h-auto max-h-24 w-auto max-w-60 object-contain"
+                            className="mx-auto h-auto max-h-24 w-auto max-w-full object-contain sm:max-w-60"
                         />
                     ) : (
                         <p className="text-xl font-semibold">{property.name}</p>
                     )}
                     {business && (
-                        <div>
+                        <div className="space-y-1">
                             <p className="text-lg font-semibold">
                                 {business.businessName}
                             </p>
@@ -129,14 +129,17 @@ export default function CheckoutReport({
                         {property.name}, {property.address_line},{' '}
                         {property.city}. {property.phone}, {property.email}
                     </p>
-                    <h1 className="text-2xl font-semibold">
+                    <h1 className="pt-2 text-2xl font-semibold text-balance">
                         FISCAL CHECK-OUT REPORT
                     </h1>
                     {status === 'sandbox' && (
                         <StatusChip tone="warning">TEST, NOT FISCAL</StatusChip>
                     )}
                 </header>
-                <dl className="grid gap-4 sm:grid-cols-3">
+                <dl
+                    aria-label="Stay details"
+                    className="grid grid-cols-2 gap-4 sm:grid-cols-3 print:grid-cols-3"
+                >
                     {(
                         [
                             ['Guests', guests.join(', ')],
@@ -163,7 +166,7 @@ export default function CheckoutReport({
                             ['Nights', String(stay.nights)],
                         ] as [string, React.ReactNode][]
                     ).map(([label, value]) => (
-                        <div key={label}>
+                        <div key={label} className="min-w-0 space-y-1">
                             <dt className="text-sm text-muted-foreground">
                                 {label}
                             </dt>
@@ -182,9 +185,9 @@ export default function CheckoutReport({
                 ) : (
                     <section
                         aria-label="Financial summary"
-                        className="flex flex-wrap items-start gap-8"
+                        className="flex min-w-0 flex-wrap items-start gap-6"
                     >
-                        <dl className="grid flex-1 grid-cols-[1fr_auto] gap-x-6 gap-y-1">
+                        <dl className="min-w-0 basis-full space-y-2">
                             {(
                                 [
                                     [
@@ -232,7 +235,10 @@ export default function CheckoutReport({
                                     ],
                                 ] as [string, React.ReactNode][]
                             ).map(([label, value]) => (
-                                <div key={label} className="contents">
+                                <div
+                                    key={label}
+                                    className="grid break-inside-avoid grid-cols-2 gap-x-4 last:mt-3 last:border-t last:pt-3"
+                                >
                                     <dt
                                         className={
                                             label === 'Total'
@@ -246,7 +252,7 @@ export default function CheckoutReport({
                                             label
                                         )}
                                     </dt>
-                                    <dd className="text-right tabular-nums">
+                                    <dd className="min-w-0 text-right tabular-nums">
                                         {label === 'Total' ? (
                                             <strong>{value}</strong>
                                         ) : (
@@ -257,7 +263,7 @@ export default function CheckoutReport({
                             ))}
                         </dl>
                         {guestReports.length === 0 && qrSvg && portalUrl && (
-                            <figure className="break-inside-avoid space-y-2">
+                            <figure className="min-w-0 break-inside-avoid space-y-2">
                                 <div
                                     role="img"
                                     aria-label={`VFMS QR code for ${portalUrl}`}
@@ -281,14 +287,14 @@ export default function CheckoutReport({
                     </section>
                 )}
                 {report && serviceReceipts.length > 0 && (
-                    <section className="space-y-2 print:grid print:grid-cols-2 print:gap-4 print:space-y-0">
-                        <h2 className="font-semibold print:col-span-2">
+                    <section className="grid gap-4 sm:grid-cols-2 print:grid-cols-2">
+                        <h2 className="font-semibold sm:col-span-2 print:col-span-2">
                             Extra service receipts
                         </h2>
                         {serviceReceipts.map((receipt, index) => (
                             <div
                                 key={`${receipt.number}-${index}`}
-                                className="flex break-inside-avoid items-start justify-between gap-4 border-t pt-2 text-sm"
+                                className="min-w-0 break-inside-avoid space-y-3 border-t pt-4"
                             >
                                 <div className="min-w-0 space-y-1 break-words">
                                     <p>
@@ -343,7 +349,7 @@ export default function CheckoutReport({
                         {guestReports.map((guest) => (
                             <article
                                 key={guest.number}
-                                className="break-inside-avoid space-y-2 border-t pt-4"
+                                className="min-w-0 break-inside-avoid space-y-2 border-t pt-4"
                             >
                                 {guest.departedEarly && (
                                     <p className="text-sm text-muted-foreground">
