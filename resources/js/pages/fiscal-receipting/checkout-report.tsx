@@ -93,7 +93,7 @@ export default function CheckoutReport({
                     {'@page { size: A4; margin: 12mm; }'}
                 </style>
             </Head>
-            <div className="receipt-print fiscal-report mx-auto flex w-full max-w-[960px] min-w-0 flex-col gap-8 p-4 text-sm [overflow-wrap:anywhere] md:p-6 print:p-0">
+            <div className="receipt-print mx-auto flex w-full max-w-[960px] min-w-0 flex-col gap-8 p-4 text-sm [overflow-wrap:anywhere] md:p-6 print:gap-4 print:p-0">
                 {/* The accent is decoration only, and never printed: paper stays black on white. */}
                 <header
                     className="space-y-3 border-t-4 border-transparent pt-4 text-center print:break-inside-avoid print:border-t-0 print:pt-0"
@@ -247,14 +247,18 @@ export default function CheckoutReport({
                                         }
                                     >
                                         {label === 'Total' ? (
-                                            <strong>{label}</strong>
+                                            <strong className="font-semibold">
+                                                {label}
+                                            </strong>
                                         ) : (
                                             label
                                         )}
                                     </dt>
                                     <dd className="min-w-0 text-right tabular-nums">
                                         {label === 'Total' ? (
-                                            <strong>{value}</strong>
+                                            <strong className="font-semibold">
+                                                {value}
+                                            </strong>
                                         ) : (
                                             value
                                         )}

@@ -67,8 +67,8 @@ assert.match(sandbox, /Anna Berg, Ola Berg/);
 assert.match(sandbox, /USD 239\.00/);
 assert.doesNotMatch(sandbox, /VFMS QR code/);
 assert.match(sandbox, /<section[^>]*aria-label="Financial summary"/);
-assert.match(sandbox, /<dt[^>]*><strong>Total<\/strong><\/dt>/);
-assert.match(sandbox, /<dd[^>]*><strong>USD 239\.00<\/strong><\/dd>/);
+assert.match(sandbox, /<dt[^>]*><strong\b[^>]*>Total<\/strong><\/dt>/);
+assert.match(sandbox, /<dd[^>]*><strong\b[^>]*>USD 239\.00<\/strong><\/dd>/);
 assert.match(sandbox, /<dl[^>]*aria-label="Stay details"/);
 
 // A Live report shows the portal QR and no Sandbox stamp.
