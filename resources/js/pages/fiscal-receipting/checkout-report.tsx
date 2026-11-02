@@ -234,15 +234,24 @@ export default function CheckoutReport({
                             ))}
                         </dl>
                         {guestReports.length === 0 && qrSvg && portalUrl && (
-                            <figure className="space-y-2">
+                            <figure className="break-inside-avoid space-y-2">
                                 <div
                                     role="img"
                                     aria-label={`VFMS QR code for ${portalUrl}`}
-                                    className="size-40 bg-white [&_svg]:size-full"
+                                    className="size-40 bg-white p-2 [&_svg]:size-full"
                                     dangerouslySetInnerHTML={{ __html: qrSvg }}
                                 />
-                                <figcaption className="text-sm text-muted-foreground">
-                                    Scan to verify with VFMS
+                                <figcaption className="space-y-1 text-sm">
+                                    <a
+                                        href={portalUrl}
+                                        className="block underline underline-offset-4"
+                                    >
+                                        Scan to verify with ZRA
+                                    </a>
+                                    <p className="text-xs text-muted-foreground">
+                                        ZRA report{' '}
+                                        <Identifier value={report.number} />
+                                    </p>
                                 </figcaption>
                             </figure>
                         )}

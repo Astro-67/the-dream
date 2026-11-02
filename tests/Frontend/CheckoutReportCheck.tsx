@@ -80,6 +80,10 @@ assert.match(
 );
 assert.match(live, /data-qr="1"/);
 assert.doesNotMatch(live, /TEST, NOT FISCAL/);
+assert.match(
+    live,
+    /<figcaption[^>]*>.*href="https:\/\/portalvfms\.zanrevenue\.org\/checkout-report\/guest\/CO-778"[^>]*>Scan to verify with ZRA<\/a>.*CO-778.*<\/figcaption>/,
+);
 
 // protects=each recorded guest report is printable with its own verification link (#172); fails_when=one report or the test stamp disappears; no_claim=physical A4 layout.
 const recorded = render({
