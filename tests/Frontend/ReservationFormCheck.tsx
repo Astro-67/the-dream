@@ -85,6 +85,7 @@ const edited = formAfter([
     ['departure', '2026-12-18'],
     ['adults', '3'],
     ['children', '1'],
+    ['rooms', '2'],
     ['source', 'phone'],
     ['source', 'whatsapp'],
 ]);
@@ -93,6 +94,7 @@ for (const [name, value] of [
     ['departure', '2026-12-18'],
     ['adults', '3'],
     ['children', '1'],
+    ['rooms', '2'],
 ]) {
     assert.match(edited, new RegExp(`name="${name}"[^>]*value="${value}"`));
 }
@@ -107,6 +109,7 @@ assert.match(
 assert.match(formAfter([], 'walk-in'), /name="arrival"[^>]*value="2026-12-01"/);
 console.log('Reservation stay edits and walk-in source changes: PASS');
 const guestForm = formAfter([]);
+assert.match(guestForm, /name="distribute_guests"[^>]*value="1"/);
 assert.doesNotMatch(guestForm, /<input[^>]*id="walk-in"/);
 console.log('Walk-in is chosen through Source, not a checkbox: PASS');
 for (const [name, type] of [

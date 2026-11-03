@@ -11,6 +11,7 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
 use App\Domains\Rates\StayRestrictions;
+use App\Domains\Reservations\BookingGroupOccupancy;
 use App\Domains\Reservations\BookingRules;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -40,6 +41,7 @@ class CreateReservation
                 Booker::query()->findOrFail($details['booker_id']);
             }
             $guest = $details['lead_guest'] ?? null;
+            $distributeGuests = ! empty($details['distribute_guests']);
             unset($details['lead_guest']);
             $settings = $property->settings()['front_desk_settings'];
             if (($details['source'] ?? '') === 'walk-in') {
@@ -58,8 +60,9 @@ class CreateReservation
             }
             $others = array_filter($details['guests'] ?? [], fn (array $other) => filled($other['name'] ?? null));
             unset($details['guests']);
-            if (count($others) > (int) $details['adults'] - 1) {
-                throw ValidationException::withMessages(['guests' => __('Add at most one guest per booked adult besides the lead guest.')]);
+            $otherAdultPlaces = (int) $details['adults'] - ($guest !== null || ! $distributeGuests ? 1 : 0);
+            if (count($others) > $otherAdultPlaces) {
+                throw ValidationException::withMessages(['guests' => __('Add at most one guest per booked adult.')]);
             }
             foreach ($others as $index => $other) {
                 if (! empty($other['document_type']) && $other['document_type'] !== 'passport' && JurisdictionRules::requiresPassport($property, $other['nationality'] ?? null)) {
@@ -68,20 +71,22 @@ class CreateReservation
             }
             $nightlyRate = $details['nightly_rate'] ?? null;
             unset($details['nightly_rate']);
-            $quote = app(StayPricing::class)->quote($plan, $type, $details['arrival'], $details['departure'], (int) $details['adults'], (int) $details['children']);
-            if ($quote->unquotable !== null) {
-                throw ValidationException::withMessages(['rate_plan_id' => $quote->unquotable]);
+            $occupancies = app(BookingGroupOccupancy::class)->forRooms($type, $details);
+            $quotes = [];
+            foreach ($occupancies as $occupancy) {
+                $quote = app(StayPricing::class)->quote($plan, $type, $details['arrival'], $details['departure'], $occupancy['adults'], $occupancy['children']);
+                if ($quote->unquotable !== null) {
+                    throw ValidationException::withMessages(['rate_plan_id' => $quote->unquotable]);
+                }
+                $quotes[] = $quote;
             }
             $bookingWarnings = app(BookingRules::class)->warnings($property, $details['arrival'], $details['departure']);
             app(BookingRules::class)->authorizeOverride($actor, $bookingWarnings);
             $warnings = [...$bookingWarnings, ...app(StayRestrictions::class)->warnings($plan, $type, $details['arrival'], $details['departure'])];
             $details['restriction_override_reason'] = app(StayRestrictions::class)->overrideReason($warnings, $details['restriction_override_reason'] ?? null);
-            $rooms = (int) ($details['rooms'] ?? 1);
-            if ($rooms < 1 || $rooms > 20) {
-                throw ValidationException::withMessages(['rooms' => __('Choose between 1 and 20 rooms.')]);
-            }
-            unset($details['rooms']);
-            app(TakeInventory::class)->handle($type, array_column($quote->nights, 'date'), $rooms);
+            $rooms = count($occupancies);
+            unset($details['rooms'], $details['distribute_guests']);
+            app(TakeInventory::class)->handle($type, array_column($quotes[0]->nights, 'date'), $rooms);
             $groupId = $rooms > 1 ? (string) Str::ulid() : null;
             // The property lock serializes initial sequence creation as well as allocation.
             $property = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
@@ -89,11 +94,13 @@ class CreateReservation
             $sequence ??= ReservationNumberSequence::query()->create(['last_number' => 0]);
             $room = 0;
             do {
+                $quote = $quotes[$room];
                 $sequence->increment('last_number');
                 // Unique per property only (staff read it aloud); existing long numbers are kept as issued.
                 $number = 'RES-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT);
                 $reservation = Reservation::query()->create([
                     ...array_diff_key($details, ['room_id' => true]),
+                    ...$occupancies[$room],
                     'booking_group_id' => $groupId,
                     'reservation_number' => $number,
                     'requires_reconciliation' => ($details['source'] ?? '') === 'outside-integration',
@@ -104,16 +111,20 @@ class CreateReservation
                 foreach ($quote->nights as $night) {
                     $reservation->priceLines()->create(['date' => $night['date'], 'amount' => $nightlyRate ?? $night['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
                 }
-                if ($guest !== null && $actor !== null) {
+                if ($guest !== null && $actor !== null && (! $distributeGuests || $room === 0)) {
                     app(AttachReservationGuest::class)->handle($actor, $reservation, [
                         'name' => trim($guest['first_name'].' '.($guest['last_name'] ?? '')),
                         'email' => $guest['email'] ?? null, 'phone' => $guest['phone'] ?? null, 'nationality' => $guest['nationality'] ?? null,
                         'documents' => empty($guest['document_type']) ? [] : [['type' => $guest['document_type'], 'number' => $guest['document_number'], 'nationality' => $guest['nationality'] ?? null]],
                     ]);
                 }
-                // Other adults belong to the first room only; one document is in-house once per property (ADR 0016).
-                if ($room === 0 && $actor !== null) {
-                    foreach ($others as $other) {
+                $roomGuests = $room === 0 ? $others : [];
+                if ($distributeGuests) {
+                    $places = $occupancies[$room]['adults'] - ($room === 0 && $guest !== null ? 1 : 0);
+                    $roomGuests = array_splice($others, 0, $places);
+                }
+                if ($actor !== null) {
+                    foreach ($roomGuests as $other) {
                         app(AttachReservationGuest::class)->handle($actor, $reservation, [
                             'name' => $other['name'], 'nationality' => $other['nationality'] ?? null,
                             'documents' => empty($other['document_type']) ? [] : [['type' => $other['document_type'], 'number' => $other['document_number'], 'nationality' => $other['nationality'] ?? null]],
