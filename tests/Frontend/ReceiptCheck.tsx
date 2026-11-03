@@ -234,12 +234,13 @@ const advanceForm = render({
     ...base,
     advancePayment: {
         status: 'not_filed',
-        company: 'Island Tours',
+        payer: { name: 'Island Tours', regNumber: 'TIN-1' },
         fileUrl: '/receipts/rc-1/vfms-advance',
     },
 });
 assert.match(advanceForm, /name="_property"/);
 assert.match(advanceForm, /name="is_zra_registered"/);
+assert.match(advanceForm, /name="name"[^>]*value="Island Tours"/);
 assert.match(advanceForm, /automatic advance refunds and cancellation/);
 assert.match(advanceForm, /File advance receipt with ZRA/);
 assert.match(

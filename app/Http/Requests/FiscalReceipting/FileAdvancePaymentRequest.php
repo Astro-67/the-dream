@@ -24,8 +24,10 @@ class FileAdvancePaymentRequest extends FormRequest
 
         return [
             'link_existing' => ['sometimes', 'boolean'],
-            'email' => $link ? ['exclude'] : ['required', 'email', 'max:255'],
-            'phone' => $link ? ['exclude'] : ['required', 'string', 'max:50'],
+            'name' => $link ? ['exclude'] : ['required', 'string', 'max:255'],
+            'reg_number' => $link ? ['exclude'] : ['nullable', 'string', 'max:50'],
+            'email' => $link ? ['exclude'] : ['nullable', 'email', 'max:255'],
+            'phone' => $link ? ['exclude'] : ['nullable', 'string', 'max:50'],
             'is_zra_registered' => $link ? ['exclude'] : ['required', 'boolean'],
             'booking_number' => $link ? ['required', 'string', 'max:255'] : ['exclude'],
             'receipt_number' => $link ? ['required', 'string', 'max:255'] : ['exclude'],

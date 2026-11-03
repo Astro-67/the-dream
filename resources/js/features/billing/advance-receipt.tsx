@@ -12,7 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 export type AdvancePayment = {
     status: string;
     reason?: string | null;
-    company?: string | null;
+    payer?: { name: string | null; regNumber: string | null };
     fileUrl?: string | null;
     linkUrl?: string | null;
     source?: 'pms' | 'external';
@@ -151,14 +151,14 @@ export function AdvanceReceipt({ advance }: { advance: AdvancePayment }) {
             {advance.fileUrl && (
                 <details>
                     <summary className="cursor-pointer text-sm underline underline-offset-4">
-                        File a tour-operator advance receipt
+                        File an advance receipt with ZRA
                     </summary>
                     <p className="mt-3 text-sm text-muted-foreground">
-                        File this payment for {advance.company}. Only one
-                        advance filing per reservation is supported. Afterwards,
-                        reservation changes and payment corrections require ZRA
-                        reconciliation; automatic advance refunds and
-                        cancellation are not supported.
+                        ZRA issues the advance receipt to the payer below. Only
+                        one advance filing per reservation is supported.
+                        Afterwards, reservation changes and payment corrections
+                        require ZRA reconciliation; automatic advance refunds
+                        and cancellation are not supported.
                     </p>
                     <Form
                         action={advance.fileUrl}
@@ -170,27 +170,58 @@ export function AdvanceReceipt({ advance }: { advance: AdvancePayment }) {
                                 <PropertyIntent />
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <div className="space-y-2">
+                                        <Label htmlFor="advance-name">
+                                            Payer name
+                                        </Label>
+                                        <Input
+                                            id="advance-name"
+                                            name="name"
+                                            required
+                                            maxLength={255}
+                                            defaultValue={
+                                                advance.payer?.name ?? ''
+                                            }
+                                        />
+                                        <InputError message={errors.name} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="advance-reg-number">
+                                            Payer TIN (optional)
+                                        </Label>
+                                        <Input
+                                            id="advance-reg-number"
+                                            name="reg_number"
+                                            maxLength={50}
+                                            defaultValue={
+                                                advance.payer?.regNumber ?? ''
+                                            }
+                                        />
+                                        <InputError
+                                            message={errors.reg_number}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="space-y-2">
                                         <Label htmlFor="advance-email">
-                                            Tour operator email
+                                            Payer email (optional)
                                         </Label>
                                         <Input
                                             id="advance-email"
                                             name="email"
                                             type="email"
-                                            required
                                             maxLength={255}
                                         />
                                         <InputError message={errors.email} />
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="advance-phone">
-                                            Tour operator phone
+                                            Payer phone (optional)
                                         </Label>
                                         <Input
                                             id="advance-phone"
                                             name="phone"
                                             type="tel"
-                                            required
                                             maxLength={50}
                                         />
                                         <InputError message={errors.phone} />
@@ -198,7 +229,7 @@ export function AdvanceReceipt({ advance }: { advance: AdvancePayment }) {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="advance-zra-registration">
-                                        Tour operator ZRA registration
+                                        Payer ZRA registration
                                     </Label>
                                     <NativeSelect
                                         id="advance-zra-registration"

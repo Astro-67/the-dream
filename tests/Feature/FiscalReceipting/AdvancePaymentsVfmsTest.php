@@ -65,7 +65,7 @@ function advanceVfmsPayment(TenantFixture $tenant, array $overrides = [], string
 
 function advanceVfmsDetails(): array
 {
-    return ['email' => 'accounts@island.example', 'phone' => '+255700000001', 'is_zra_registered' => false];
+    return ['name' => 'Island Tours', 'reg_number' => 'TIN-ADVANCE', 'email' => 'accounts@island.example', 'phone' => '+255700000001', 'is_zra_registered' => false];
 }
 
 function advanceVfmsLinkDetails(array $overrides = []): array
@@ -91,7 +91,7 @@ test('an existing deposit gets an accepted advance receipt without rewriting its
             ->and($message->payload['body'])->toEqual([
                 'bookingCompany' => 'Island Tours', 'email' => 'accounts@island.example', 'phoneNumber' => '+255700000001',
                 'amountToBePaid' => 50.0, 'noOfGuest' => 1, 'currency' => 'USD',
-                'startDate' => '2026-12-10T11:00:00.000Z', 'endDate' => '2026-12-12T08:00:00.000Z',
+                'startDate' => '2026-12-09T21:00:00.000Z', 'endDate' => '2026-12-11T21:00:00.000Z',
                 'rooms' => [['roomId' => 1, 'roomPrice' => 100.0, 'noOfGuestPerRoom' => 1]],
                 'customerType' => 2, 'salesCustomer' => 'Island Tours', 'regNumber' => 'TIN-ADVANCE',
                 'referenceNumber' => $reservation->reservation_number.'-2',
@@ -140,6 +140,41 @@ test('advance check-in links the accepted booking and receipt and never sends or
     Http::assertNotSent(fn (Request $request) => $request->url() === VfmsHttp::TEST_URL.'accommodation/');
 });
 
+test('a direct guest advance is issued to the guest and checks in with ZRA\'s booking and receipt', function () {
+    $tenant = twoTenants()->a;
+    [$reservation, $receipt] = advanceVfmsPayment($tenant, ['booked_through' => 'guest', 'tour_operator_name' => null, 'tour_operator_registration' => null, 'tour_operator_pays_for' => null]);
+    expect(inTenant($tenant->property, fn () => VfmsAdvance::forReceipt($receipt, true)))
+        ->fileUrl->not->toBeNull()->payer->toBe(['name' => 'Advance Guest', 'regNumber' => null]);
+    $this->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->actingAs($tenant->owner)->post(route('receipts.vfms-advance.store', $receipt), [
+            '_property' => $tenant->property->id, 'name' => 'Advance Guest', 'is_zra_registered' => '0',
+        ])->assertSessionHasNoErrors();
+    inTenant($tenant->property, function () use ($tenant, $reservation) {
+        $advance = VfmsAdvance::latest($reservation);
+        expect($advance->status)->toBe('delivered')
+            ->and($advance->payload['body'])->toMatchArray([
+                'bookingCompany' => 'Advance Guest', 'salesCustomer' => 'Advance Guest', 'regNumber' => '', 'email' => '', 'phoneNumber' => '',
+                'isIncludeInfrastructure' => false, 'isIncludeOtherService' => false,
+            ]);
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        app(CheckIn::class)->handle($tenant->owner, $reservation);
+        $checkIn = VfmsAdvance::checkInFiling($reservation);
+        expect($checkIn->status)->toBe('delivered')
+            ->and($checkIn->payload['body'])->toMatchArray(['bookingNumber' => 'TEST-BOOKING-1', 'receiptno' => 'TEST-ADVANCE-1'])
+            ->and($checkIn->getAttribute('provider_references')['bookingNumber'])->toBe('TEST-BOOKING-1');
+    });
+});
+
+test('a one-night advance sends dates exactly one day apart', function () {
+    $tenant = twoTenants()->a;
+    [$reservation, $receipt] = advanceVfmsPayment($tenant, ['departure' => '2026-12-11']);
+    inTenant($tenant->property, function () use ($tenant, $reservation, $receipt) {
+        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsDetails());
+        $body = VfmsAdvance::latest($reservation)->payload['body'];
+        expect(CarbonImmutable::parse($body['startDate'])->diffInHours(CarbonImmutable::parse($body['endDate'])))->toEqual(24);
+    });
+});
+
 test('incomplete or ambiguous advance responses never invent a receipt or permit check-in', function (array $body, int $status, string $outcome) {
     $tenant = twoTenants()->a;
     [$reservation, $receipt] = advanceVfmsPayment($tenant);
@@ -159,9 +194,10 @@ test('incomplete or ambiguous advance responses never invent a receipt or permit
     });
 })->with([
     [[], 200, 'unknown'],
-    [['bookingNumber' => 'B-1'], 200, 'unknown'],
-    [['receiptNo' => 'R-1'], 200, 'unknown'],
-    [['bookingNumber' => 'B-1', 'receiptNo' => 'R-1', 'receiptNumber' => 'R-2'], 200, 'unknown'],
+    [['receiptNumber' => 'R-1'], 200, 'unknown'],
+    [['booking' => ['bookingNumber' => 'B-1']], 200, 'unknown'],
+    [['bookingNumber' => 'B-1', 'receiptNo' => 'R-1'], 200, 'unknown'],
+    [['statusCode' => 5000, 'statusMessage' => 'EndDate must be greater than StartDate'], 200, 'rejected'],
     [['error' => 'duplicate reference'], 400, 'unknown'],
     [['error' => 'invalid company'], 400, 'rejected'],
 ]);
@@ -175,7 +211,7 @@ test('advance filing refuses unsupported deposits without changing the payment',
             ->and($receipt->posting()->firstOrFail()->amount)->toBe(-5000);
     });
     Http::assertNothingSent();
-})->with([[['room_id' => null]], [['booked_through' => 'guest']]]);
+})->with([[['room_id' => null]]]);
 
 test('advance filing has payment permissions property intent validation and rejects invalid contact input', function () {
     $t = twoTenants();
@@ -227,7 +263,7 @@ test('Live advances use unprefixed room IDs actual payment amounts and the exist
     Http::swap(new Factory);
     Http::preventStrayRequests();
     Http::fake(['https://vfms-live.example/api/reservation/booking/' => Http::response([
-        'bookingNumber' => 'LIVE-BOOKING', 'receiptNumber' => 'LIVE-RECEIPT',
+        'receiptNumber' => 'LIVE-RECEIPT', 'booking' => ['bookingNumber' => 'LIVE-BOOKING'],
     ])]);
     inTenant($tenant->property, function () use ($tenant, $receipt, $reservation) {
         VfmsCredential::for($tenant->property)->fill([
@@ -377,7 +413,7 @@ test('a confirmed rejection allows audited correction of externally supplied adv
     Http::swap(new Factory);
     Http::preventStrayRequests();
     Http::fake([VfmsHttp::TEST_URL.'accommodation/booking/' => Http::sequence()
-        ->push(['error' => 'Invalid receipt'], 400)->push(['responseNumber' => 'EXTERNAL-CHECK-IN'])]);
+        ->push(['error' => 'Invalid receipt'], 400)->push(['booking' => ['bookingNumber' => 'EXTERNAL-BOOKING']])]);
     inTenant($tenant->property, function () use ($tenant, $receipt, $reservation) {
         app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsLinkDetails());
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
@@ -410,7 +446,7 @@ test('accepted or uncertain advance check-ins cannot have their external referen
         expect($reservation->lifecycleEvents()->where('type', 'advance_booking_linked')->count())->toBe(1);
     });
     Http::assertSentCount(1);
-})->with([[[], 'unknown'], [['responseNumber' => 'ACCEPTED'], 'delivered']]);
+})->with([[[], 'unknown'], [['booking' => ['bookingNumber' => 'OTHER-BOOKING']], 'unknown'], [['booking' => ['bookingNumber' => 'EXTERNAL-BOOKING']], 'delivered']]);
 
 test('confirmed advance rejections can be recovered more than once without changing money', function () {
     $tenant = twoTenants()->a;
@@ -419,7 +455,7 @@ test('confirmed advance rejections can be recovered more than once without chang
     Http::preventStrayRequests();
     Http::fake([VfmsHttp::TEST_URL.'reservation/booking/' => Http::sequence()
         ->push(['error' => 'Refused'], 400)->push(['error' => 'Still refused'], 400)
-        ->push(['bookingNumber' => 'RECOVERED-BOOKING', 'receiptNo' => 'RECOVERED-RECEIPT'])]);
+        ->push(['receiptNumber' => 'RECOVERED-RECEIPT', 'booking' => ['bookingNumber' => 'RECOVERED-BOOKING']])]);
     inTenant($tenant->property, function () use ($tenant, $reservation, $receipt) {
         app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsDetails());
         $message = VfmsAdvance::latest($reservation);

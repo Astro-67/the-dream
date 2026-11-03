@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 class FileAdvancePayment
 {
-    /** @param array{link_existing?: bool, booking_number?: string, receipt_number?: string, reason?: string, email?: string, phone?: string, is_zra_registered?: bool} $details */
+    /** @param array{link_existing?: bool, booking_number?: string, receipt_number?: string, reason?: string, name?: string, reg_number?: string|null, email?: string|null, phone?: string|null, is_zra_registered?: bool} $details */
     public function handle(User $actor, Receipt $receipt, array $details): void
     {
         $payment = $receipt->posting()->firstOrFail();

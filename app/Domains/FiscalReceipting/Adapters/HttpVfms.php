@@ -167,21 +167,19 @@ final class HttpVfms
         if (array_key_exists('statusCode', $response)) {
             return null;
         }
+        // ZRA nests the booking: {"receiptNumber": …, "referenceNumber": …, "booking": {"bookingNumber": …}} (test server, 3 Nov 2026).
+        $booking = is_array($response['booking'] ?? null) ? ($response['booking']['bookingNumber'] ?? null) : null;
+        $reference = $this->number($response['referenceNumber'] ?? null) ? ['referenceNumber' => $response['referenceNumber']] : [];
         if ($operation === 'RESERVATION_BOOKING') {
-            $receipt = $response['receiptNumber'] ?? $response['receiptNo'] ?? $response['receiptno'] ?? null;
-            if (! $this->number($response['bookingNumber'] ?? null) || ! $this->number($receipt)
-                || (isset($response['referenceNumber']) && ! $this->number($response['referenceNumber']))) {
-                return null;
-            }
-            foreach (['receiptNumber', 'receiptNo', 'receiptno'] as $field) {
-                if (array_key_exists($field, $response) && $response[$field] !== $receipt) {
-                    return null;
-                }
-            }
-
-            return ['bookingNumber' => $response['bookingNumber'], 'receiptNumber' => $receipt, ...array_intersect_key($response, ['referenceNumber' => true])];
+            return $this->number($booking) && $this->number($response['receiptNumber'] ?? null)
+                ? ['bookingNumber' => $booking, 'receiptNumber' => $response['receiptNumber'], ...$reference]
+                : null;
         }
-        if (in_array($operation, ['ACCOMMODATION_REQUEST', 'ACCOMMODATION_BOOKING_REQUEST', 'ACCOMMODATION_CHANGE_ROOM', 'ACCOMMODATION_ADD_GUEST', 'GUEST_PROFILE'], true)) {
+        // The advance check-in returns no responseNumber; it echoes the booking it linked.
+        if ($operation === 'ACCOMMODATION_BOOKING_REQUEST') {
+            return $this->number($booking) && $booking === ($request['bookingNumber'] ?? null) ? ['bookingNumber' => $booking, ...$reference] : null;
+        }
+        if (in_array($operation, ['ACCOMMODATION_REQUEST', 'ACCOMMODATION_CHANGE_ROOM', 'ACCOMMODATION_ADD_GUEST', 'GUEST_PROFILE'], true)) {
             return $this->number($response['responseNumber'] ?? null) ? ['responseNumber' => $response['responseNumber']] : null;
         }
         if ($operation === 'ACCOMMODATION_ADD_SERVICE') {
