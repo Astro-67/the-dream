@@ -26,33 +26,43 @@ exist. It is not restricted to tour operators.
    rewritten. Accepted, pending or uncertain filings cannot be overwritten or
    bypassed with manually supplied references.
 
-### Creating a new ZRA advance: documented B2B payload
+### Creating a new ZRA advance: any guest or payer
 
-1. Create a reservation booked through a tour operator, including its name,
-   registration number and payment responsibilities. Assign its room.
+1. Create the reservation and assign its room. Any source works: direct guests,
+   tour operators and every other channel.
 2. Record the payment normally. Karafuu still issues its immutable **non-fiscal
    receipt**; recording money never depends on ZRA being reachable.
-3. Open that receipt and expand **File a tour-operator advance receipt**. Enter the
-   operator's email, phone and actual ZRA registration status, then submit.
-4. The existing VFMS outbox files `RESERVATION_BOOKING`. Once ZRA accepts it and
-   returns both a booking number and receipt number, the receipt page displays
-   those references and the ZRA receipt viewer/QR. Sandbox receipts remain
-   explicitly non-fiscal.
-5. Refresh the receipt page or open its reservation's ZRA filings to see delivery
+3. Open that receipt and expand **File an advance receipt with ZRA**. The payer
+   name and TIN are prefilled (tour operator, else the lead guest); email,
+   phone and TIN are optional. Choose the payer's ZRA registration and submit.
+4. The VFMS outbox files `RESERVATION_BOOKING`. ZRA answers with
+   `receiptNumber` and a nested `booking.bookingNumber`; both are stored and the
+   receipt page shows them with the ZRA receipt viewer/QR.
+5. Refresh the receipt page or open the reservation's ZRA filings to see delivery
    status. A queued, refused or unknown advance must be resolved before check-in.
-6. Check-in still requires the assigned, ready room and every registered adult.
-   It submits `ACCOMMODATION_BOOKING_REQUEST` with the accepted booking number
-   and `receiptno`, **not** an additional ordinary accommodation request.
-   Later room moves, guest changes, services and check-out keep their existing
-   lifecycle operations.
+6. Check-in sends `ACCOMMODATION_BOOKING_REQUEST` with ZRA's booking number and
+   `receiptno` and the registered guests, **not** an ordinary accommodation
+   request. ZRA accepts it when it echoes the same booking number.
 
 ## API contract and storage
 
 Sources: the supplied `VFMS_Advance_Payment_Implementation_Notes.pdf` and
 `VFMS_LIVE_HOTEL_API_GUIDE_V1.6 (1).pdf`, sections 2.9-2.10, read on
-3 November 2026. The implementation follows the guide's explicit B2B
-`customerType: 2` for creation; it does not invent a consumer customer type.
-Linking an already issued advance and its check-in have no tour-operator gate.
+3 November 2026. The guide documents only `customerType: 2`; ZRA's test server accepted it for a
+direct guest with an empty `regNumber`, email and phone, so every payer uses it.
+
+Observed on ZRA's test server (3 November 2026), not printed in the Live guide:
+
+- `reservation/booking/` returns `receiptNumber`, `referenceNumber` and
+  `booking: {bookingId, bookingNumber, amountLeft}`. The receipt is room price
+  times nights; `amountToBePaid` comes back as `amountLeft`.
+- ZRA counts whole 24-hour days between `startDate` and `endDate`, so both are
+  sent as property-local midnight. Check-in/out times made a one-night stay fail
+  with "EndDate must be greater than StartDate".
+- `accommodation/booking/` returns the booking, guests and reference, but no
+  `responseNumber`. It refuses an unknown booking or a room not on the booking.
+- Live gateway `vfms/api/reservation/booking/` and `vfms/api/accommodation/booking/`
+  both answer; the guide's `api/api/` path returns 404.
 
 Wire paths are relative to the existing, configured VFMS gateway:
 
@@ -88,20 +98,20 @@ represented as a delivered PMS advance-booking message. Their exact references
 are copied into the advance check-in evidence, and only a confirmed rejection
 permits a corrected, audited retry.
 
-The notes name `receiptNo`, while the existing research names `receiptNumber`;
-the adapter also recognizes the guide's `receiptno` spelling. Acceptance requires
-non-empty booking and receipt numbers. Incomplete successful responses and
-duplicate/uncertain responses remain **unknown**, never accepted or retried
-blindly. Repeated submission for the same payment queues nothing new.
+Acceptance requires a non-empty receipt number and nested booking number, and an
+advance check-in must echo the booking number it sent. Incomplete successful
+responses and duplicate/uncertain responses remain **unknown**, never accepted
+or retried blindly. Repeated submission for the same payment queues nothing new.
 
 ## Deliberate limits
 
 - Opt-in, one advance per reservation/payment, including individual members of a
   booking group. A group payment is not silently assigned to every member.
-- Creating new advances is limited to the documented tour-operator/B2B payload.
-  Existing ZRA advances can be linked for direct guests, channel-collected
-  payments and other payer/source types too. Both paths require an assigned
-  room, a real recorded deposit and the reservation's currency.
+- Both creating and linking require an assigned room, a real recorded deposit
+  and the reservation's currency.
+- On ZRA's test server a guest checked in only through `accommodation/booking/`
+  could not be checked out ("Guest Document Not Found"). ZRA approved this flow
+  for Live; watch the first Live advance stay's check-out.
 - Once an advance is queued, reservation amendments, room reassignment,
   cancellation/no-show/void and corrections of the filed payment require
   reconciliation. The guide supplies no advance refund/cancellation workflow;

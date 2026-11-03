@@ -87,20 +87,23 @@ final class VfmsPayloads
             ->findOrFail($event->snapshot['posting_id']);
         $room = Room::query()->findOrFail($reservation->room_id);
         $price = $this->roomPrice($reservation, $property, $reservation->arrival->toDateString());
-        $options = $this->costOptions($reservation->getAttribute('tour_operator_pays_for'));
+        $paysFor = $reservation->getAttribute('tour_operator_pays_for');
+        $options = $paysFor instanceof TourOperatorPaysFor ? $this->costOptions($paysFor) : '';
         $details = $event->snapshot['advance_payment'];
+        // ZRA counts whole 24-hour days between the dates, so both use local midnight (test server, 3 Nov 2026).
+        $day = fn (CarbonImmutable $date) => CarbonImmutable::parse($date->toDateString(), $property->timezone)->utc()->format('Y-m-d\TH:i:s.v\Z');
 
         return [
-            'bookingCompany' => $reservation->getAttribute('tour_operator_name'),
-            'email' => $details['email'], 'phoneNumber' => $details['phone'],
+            'bookingCompany' => $details['name'],
+            'email' => $details['email'] ?? '', 'phoneNumber' => $details['phone'] ?? '',
             'amountToBePaid' => $this->amount(-$payment->amount, $payment->currency),
             'noOfGuest' => $reservation->adults,
             'currency' => $this->currency($payment->currency),
-            'startDate' => $this->stayDate($reservation, $property, true),
-            'endDate' => $this->stayDate($reservation, $property, false),
+            'startDate' => $day($reservation->arrival),
+            'endDate' => $day($reservation->departure),
             'rooms' => [['roomId' => $room->vfms_room_id, 'roomPrice' => $price['accommodationPrice'], 'noOfGuestPerRoom' => $reservation->adults]],
-            'customerType' => 2, 'salesCustomer' => $reservation->getAttribute('tour_operator_name'),
-            'regNumber' => $reservation->getAttribute('tour_operator_registration'),
+            'customerType' => 2, 'salesCustomer' => $details['name'],
+            'regNumber' => $details['reg_number'] ?? '',
             'referenceNumber' => $this->referenceNumber($event, $reservation),
             'isIncludeInfrastructure' => str_contains($options, '6'),
             'isIncludeAccommodation' => true,

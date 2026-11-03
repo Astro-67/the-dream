@@ -9,7 +9,6 @@ use App\Domains\Billing\Models\Receipt;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Reservations\Enums\ReservationStatus;
-use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -35,14 +34,21 @@ final class VfmsAdvance
             return $reason;
         }
 
-        return match (true) {
-            $reservation->status !== ReservationStatus::Confirmed => __('Only a payment received before check-in can be filed as an advance.'),
-            $payment->method === 'channel_collected' => __('Channel-collected payments are not supported by the documented B2B advance flow.'),
-            $reservation->getAttribute('booked_through') !== 'tour-operator' => __('The documented receipt-creation payload is B2B. For other guests, link an existing ZRA advance booking and receipt below.'),
-            ! filled($reservation->getAttribute('tour_operator_name')) || ! filled($reservation->getAttribute('tour_operator_registration'))
-                || ! $reservation->getAttribute('tour_operator_pays_for') instanceof TourOperatorPaysFor => __('Complete the tour operator name, registration and payment responsibilities before filing.'),
-            default => null,
-        };
+        return $reservation->status !== ReservationStatus::Confirmed ? __('Only a payment received before check-in can be filed as an advance.') : null;
+    }
+
+    /**
+     * The payer ZRA names on the advance receipt, prefilled for staff: the tour operator, else the lead guest.
+     *
+     * @return array{name: string|null, regNumber: string|null}
+     */
+    private static function payer(Reservation $reservation): array
+    {
+        $operator = $reservation->getAttribute('booked_through') === 'tour-operator' && filled($reservation->getAttribute('tour_operator_name'));
+
+        return $operator
+            ? ['name' => $reservation->getAttribute('tour_operator_name'), 'regNumber' => $reservation->getAttribute('tour_operator_registration')]
+            : ['name' => Reservation::guestNames(collect([$reservation]))->get($reservation->id), 'regNumber' => null];
     }
 
     private static function paymentIneligible(Posting $payment, Reservation $reservation, Property $property): ?string
@@ -159,7 +165,7 @@ final class VfmsAdvance
             'source' => $linked === null ? 'pms' : 'external',
             'checkInStatus' => $filing->status ?? null,
             'reason' => $reason,
-            'company' => $reservation->getAttribute('tour_operator_name'),
+            'payer' => self::payer($reservation),
             'fileUrl' => $message === null && $linked === null && $canFile && $reason === null ? route('receipts.vfms-advance.store', $receipt) : null,
             'linkUrl' => $canFile && self::linkIneligible($payment, $reservation, $property) === null ? route('receipts.vfms-advance.store', $receipt) : null,
             'reservationUrl' => route('reservations.show', $reservation),
