@@ -31,6 +31,7 @@ class CreateReservationRequest extends FormRequest
                 'departure' => rescue(fn () => CarbonImmutable::parse($this->input('arrival', BusinessDate::current()))->addDay()->toDateString(), BusinessDate::current(), report: false),
                 'adults' => 1,
                 'children' => 0,
+                'distribute_guests' => true,
             ]);
         }
 
@@ -73,6 +74,7 @@ class CreateReservationRequest extends FormRequest
             'tour_operator_registration' => ['exclude_unless:booked_through,tour-operator', 'required', 'string', 'max:255'],
             'tour_operator_pays_for' => ['exclude_unless:booked_through,tour-operator', 'required', Rule::enum(TourOperatorPaysFor::class)],
             'rooms' => ['sometimes', 'integer', 'between:1,20'],
+            'distribute_guests' => ['sometimes', 'boolean'],
             'booker_id' => ['nullable', 'string', Rule::in(Booker::query()->pluck('id')->all())],
             'source' => [$this->isMethod('GET') ? 'nullable' : 'required', Rule::in(['direct', 'walk-in', 'phone', 'whatsapp', 'email', 'website', 'outside-integration'])],
             'channel_reference' => ['exclude_unless:source,outside-integration', $this->isMethod('GET') ? 'nullable' : 'required', 'string', 'max:255'],

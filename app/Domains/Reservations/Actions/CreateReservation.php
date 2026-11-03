@@ -11,6 +11,7 @@ use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Rates\StayPricing;
 use App\Domains\Rates\StayRestrictions;
+use App\Domains\Reservations\BookingGroupOccupancy;
 use App\Domains\Reservations\BookingRules;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -68,20 +69,22 @@ class CreateReservation
             }
             $nightlyRate = $details['nightly_rate'] ?? null;
             unset($details['nightly_rate']);
-            $quote = app(StayPricing::class)->quote($plan, $type, $details['arrival'], $details['departure'], (int) $details['adults'], (int) $details['children']);
-            if ($quote->unquotable !== null) {
-                throw ValidationException::withMessages(['rate_plan_id' => $quote->unquotable]);
+            $occupancies = app(BookingGroupOccupancy::class)->forRooms($type, $details);
+            $quotes = [];
+            foreach ($occupancies as $occupancy) {
+                $quote = app(StayPricing::class)->quote($plan, $type, $details['arrival'], $details['departure'], $occupancy['adults'], $occupancy['children']);
+                if ($quote->unquotable !== null) {
+                    throw ValidationException::withMessages(['rate_plan_id' => $quote->unquotable]);
+                }
+                $quotes[] = $quote;
             }
             $bookingWarnings = app(BookingRules::class)->warnings($property, $details['arrival'], $details['departure']);
             app(BookingRules::class)->authorizeOverride($actor, $bookingWarnings);
             $warnings = [...$bookingWarnings, ...app(StayRestrictions::class)->warnings($plan, $type, $details['arrival'], $details['departure'])];
             $details['restriction_override_reason'] = app(StayRestrictions::class)->overrideReason($warnings, $details['restriction_override_reason'] ?? null);
-            $rooms = (int) ($details['rooms'] ?? 1);
-            if ($rooms < 1 || $rooms > 20) {
-                throw ValidationException::withMessages(['rooms' => __('Choose between 1 and 20 rooms.')]);
-            }
-            unset($details['rooms']);
-            app(TakeInventory::class)->handle($type, array_column($quote->nights, 'date'), $rooms);
+            $rooms = count($occupancies);
+            unset($details['rooms'], $details['distribute_guests']);
+            app(TakeInventory::class)->handle($type, array_column($quotes[0]->nights, 'date'), $rooms);
             $groupId = $rooms > 1 ? (string) Str::ulid() : null;
             // The property lock serializes initial sequence creation as well as allocation.
             $property = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
@@ -89,11 +92,13 @@ class CreateReservation
             $sequence ??= ReservationNumberSequence::query()->create(['last_number' => 0]);
             $room = 0;
             do {
+                $quote = $quotes[$room];
                 $sequence->increment('last_number');
                 // Unique per property only (staff read it aloud); existing long numbers are kept as issued.
                 $number = 'RES-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT);
                 $reservation = Reservation::query()->create([
                     ...array_diff_key($details, ['room_id' => true]),
+                    ...$occupancies[$room],
                     'booking_group_id' => $groupId,
                     'reservation_number' => $number,
                     'requires_reconciliation' => ($details['source'] ?? '') === 'outside-integration',

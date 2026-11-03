@@ -9,6 +9,7 @@ use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Reservations\Actions\AssignRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
@@ -170,6 +171,95 @@ test('group arrival actions respect business date and staff permissions', functi
     [OrganizationRole::FrontDesk, '2026-12-09', false],
     [OrganizationRole::FrontDesk, '2026-12-12', false],
 ]);
+
+test('front desk distributes total guests across rooms and can assign rooms later', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+
+        return $details;
+    });
+    $this->actingAs($t->a->owner)->post(route('reservations.store'), [
+        ...$details, 'rooms' => 2, 'adults' => 4, 'children' => 1,
+        'distribute_guests' => true, '_property' => $t->a->property->id,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    inTenant($t->a->property, function () {
+        $members = Reservation::query()->orderBy('reservation_number')->get();
+        expect($members)->toHaveCount(2)
+            ->and($members->sum('adults'))->toBe(4)
+            ->and($members->sum('children'))->toBe(1)
+            ->and($members->pluck('room_id')->filter())->toHaveCount(0)
+            ->and($members->pluck('booking_group_id')->unique())->toHaveCount(1);
+        expect($members[0]->priceLines->pluck('amount')->all())->toBe([11000, 11000])
+            ->and($members[1]->priceLines->pluck('amount')->all())->toBe([10000, 10000]);
+        foreach ($members as $member) {
+            expect($member->status->value)->toBe('confirmed')
+                ->and($member->lifecycleEvents->sole()->type)->toBe('created')
+                ->and($member->lifecycleEvents->sole()->snapshot['adults'])->toBe($member->adults)
+                ->and($member->lifecycleEvents->sole()->snapshot['children'])->toBe($member->children);
+        }
+    });
+});
+
+test('total guest preview agrees with confirmation and preserves room count', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->owner)->get(route('reservations.create', [
+            ...$details, 'rooms' => 2, 'adults' => 4, 'children' => 1,
+        ]))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+        ->where('stay.rooms', '2')
+        ->where('guestAllocation', [['adults' => 2, 'children' => 1], ['adults' => 2, 'children' => 0]])
+        ->where('nightlyRate', 11000));
+});
+
+test('total guests can be booked into single occupancy rooms and assigned later', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        RoomType::query()->findOrFail($details['room_type_id'])->update([
+            'base_occupancy' => 1, 'max_adults' => 1, 'max_children' => 0, 'max_occupancy' => 1,
+        ]);
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+
+        return $details;
+    });
+    $this->actingAs($t->a->owner)->post(route('reservations.store'), [
+        ...$details, 'rooms' => 2, 'adults' => 2, 'children' => 0,
+        'distribute_guests' => true, '_property' => $t->a->property->id,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+    inTenant($t->a->property, function () use ($t) {
+        $members = Reservation::query()->orderBy('reservation_number')->get();
+        $rooms = Room::query()->orderBy('number')->get();
+        expect($members)->toHaveCount(2);
+        foreach ($members as $index => $member) {
+            expect($member->adults)->toBe(1)->and($member->room_id)->toBeNull();
+            app(AssignRoom::class)->handle($t->a->owner, $member, $rooms[$index]->id);
+            expect($member->fresh()->room_id)->toBe($rooms[$index]->id);
+        }
+    });
+});
+
+test('total guest allocation refuses unsafe occupancy without selling inventory', function (int $adults, int $children, string $field) {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+
+        return $details;
+    });
+    $this->actingAs($t->a->owner)->postJson(route('reservations.store'), [
+        ...$details, 'rooms' => 2, 'adults' => $adults, 'children' => $children,
+        'distribute_guests' => true, '_property' => $t->a->property->id,
+    ])->assertUnprocessable()->assertJsonValidationErrors($field);
+    inTenant($t->a->property, function () {
+        expect(Reservation::query()->count())->toBe(0)
+            ->and(ReservationLifecycleEvent::query()->count())->toBe(0)
+            ->and(InventoryRecord::query()->sum('sold_count'))->toBe(0);
+    });
+})->with([[1, 0, 'adults'], [5, 0, 'rooms'], [2, 3, 'rooms']]);
 
 test('front desk books several rooms with one booker and separate numbers prices and created events', function () {
     $t = twoTenants();
