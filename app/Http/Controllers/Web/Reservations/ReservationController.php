@@ -20,6 +20,7 @@ use App\Domains\Reports\PropertyKpis;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\AssignableRooms;
 use App\Domains\Reservations\BookingGroupMembers;
+use App\Domains\Reservations\BookingGroupOccupancy;
 use App\Domains\Reservations\BookingRules;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -43,15 +44,17 @@ class ReservationController extends Controller
         $plans = RatePlan::query()->whereNull('deactivated_at')->with('roomTypes:id,name')->orderBy('name')->orderBy('id')->get();
         $plan = isset($stay['rate_plan_id']) ? $plans->firstWhere('id', $stay['rate_plan_id']) : $plans->first(fn (RatePlan $plan) => $type === null || $plan->roomTypes->contains('id', $type->id));
         $stay['rate_plan_id'] = $plan?->id;
+        $occupancies = $type ? rescue(fn () => app(BookingGroupOccupancy::class)->forRooms($type, $stay), [], report: false) : [];
 
         return Inertia::render('reservations/create', [
             'stay' => $stay,
             'rooms' => app(AssignableRooms::class)->forStay(null, $stay['arrival'], $stay['departure']),
             'roomType' => $type?->only(['id', 'name']),
+            'guestAllocation' => $occupancies,
             'ratePlan' => $plan?->only(['id', 'name', 'currency']),
             'ratePlans' => $plans->map(fn (RatePlan $plan) => [...$plan->only(['id', 'name', 'currency']), 'room_type_ids' => $plan->roomTypes->modelKeys()]),
             'restrictionWarnings' => [...app(BookingRules::class)->warnings(Tenancy::property(), $stay['arrival'], $stay['departure']), ...($plan && $type ? $restrictions->warnings($plan, $type, $stay['arrival'], $stay['departure']) : [])],
-            'nightlyRate' => $plan && $type ? (app(StayPricing::class)->quote($plan, $type, $stay['arrival'], $stay['departure'], (int) $stay['adults'], (int) $stay['children'])->nights[0]['total'] ?? null) : null,
+            'nightlyRate' => $plan && $type && $occupancies !== [] ? (app(StayPricing::class)->quote($plan, $type, $stay['arrival'], $stay['departure'], $occupancies[0]['adults'], $occupancies[0]['children'])->nights[0]['total'] ?? null) : null,
             'businessDate' => BusinessDate::current(),
         ]);
     }

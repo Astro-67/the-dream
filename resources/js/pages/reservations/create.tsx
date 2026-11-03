@@ -34,6 +34,7 @@ export default function Create({
     restrictionWarnings,
     nightlyRate,
     businessDate,
+    guestAllocation = [],
 }: {
     stay: Stay;
     roomType: Named | null;
@@ -48,6 +49,7 @@ export default function Create({
     restrictionWarnings: string[];
     nightlyRate: number | null;
     businessDate: string;
+    guestAllocation?: { adults: number; children: number }[];
 }) {
     const [source, setSource] = useState(stay.source ?? 'direct');
     const [values, setValues] = useState({
@@ -55,9 +57,9 @@ export default function Create({
         departure: stay.departure,
         adults: stay.adults.toString(),
         children: stay.children.toString(),
+        rooms: (stay.rooms ?? 1).toString(),
     });
     const [roomId, setRoomId] = useState(stay.room_id ?? '');
-    const [requiresRoom] = useState(!stay.room_type_id);
     const [ownRate, setOwnRate] = useState(false);
     const selectedType =
         rooms.find((room) => room.id === roomId)?.room_type_id ??
@@ -116,6 +118,8 @@ export default function Create({
                 departure,
                 adults,
                 children,
+                rooms: data.get('rooms'),
+                distribute_guests: 1,
             },
             {
                 only: [
@@ -125,6 +129,7 @@ export default function Create({
                     'rooms',
                     'nightlyRate',
                     'restrictionWarnings',
+                    'guestAllocation',
                 ],
                 preserveState: true,
                 preserveScroll: true,
@@ -150,6 +155,11 @@ export default function Create({
                     {({ errors, processing }) => (
                         <>
                             <PropertyIntent />
+                            <input
+                                type="hidden"
+                                name="distribute_guests"
+                                value="1"
+                            />
                             <input
                                 type="hidden"
                                 name="room_type_id"
@@ -314,17 +324,48 @@ export default function Create({
                                         type="number"
                                         min={1}
                                         max={20}
-                                        defaultValue={stay.rooms ?? 1}
+                                        value={values.rooms}
+                                        onChange={(event) =>
+                                            setValues((values) => ({
+                                                ...values,
+                                                rooms: event.target.value,
+                                            }))
+                                        }
+                                        onBlur={(event) =>
+                                            refreshStay(event.currentTarget)
+                                        }
                                         required
                                     />
                                     <p className="text-sm text-muted-foreground">
-                                        Several rooms create a booking group.
-                                        Guest details and prices apply to each
-                                        room; the assignment applies to the
-                                        first. Free rooms refresh when you
-                                        finish editing the stay.
+                                        Enter total adults and children for all
+                                        rooms. Each room needs an adult and must
+                                        fit the room type's capacity. Several
+                                        rooms create a booking group, priced
+                                        separately. Assign the first room now or
+                                        leave rooms unassigned until check-in.
                                     </p>
-                                    <Label htmlFor="room_id">Room</Label>
+                                    <InputError message={errors.rooms} />
+                                    {guestAllocation.length > 1 && (
+                                        <ul
+                                            className="text-sm text-muted-foreground"
+                                            aria-label="Guests per room"
+                                        >
+                                            {guestAllocation.map(
+                                                (occupancy, index) => (
+                                                    <li key={index}>
+                                                        Room {index + 1}:{' '}
+                                                        {occupancy.adults}{' '}
+                                                        adults,{' '}
+                                                        {occupancy.children}{' '}
+                                                        children
+                                                    </li>
+                                                ),
+                                            )}
+                                        </ul>
+                                    )}
+                                    <Label htmlFor="room_id">
+                                        First room assignment (optional)
+                                    </Label>
                                     <NativeSelect
                                         id="room_id"
                                         name="room_id"
@@ -335,7 +376,7 @@ export default function Create({
                                                 ? roomId
                                                 : ''
                                         }
-                                        required={requiresRoom}
+                                        required={!selectedType}
                                         onChange={(event) => {
                                             setRoomId(event.target.value);
                                             refreshStay(event.currentTarget);
@@ -432,7 +473,8 @@ export default function Create({
                                         />
                                         <p className="text-sm text-muted-foreground">
                                             Leave blank to use the rate plan's
-                                            price for each night. First night:{' '}
+                                            price for each night. First room,
+                                            first night:{' '}
                                             {nightlyRate === null
                                                 ? 'Unavailable'
                                                 : formatMoney(
@@ -451,8 +493,8 @@ export default function Create({
                                                 >
                                                     <Label htmlFor={name}>
                                                         {name === 'adults'
-                                                            ? 'Adults'
-                                                            : 'Children'}
+                                                            ? 'Total adults'
+                                                            : 'Total children'}
                                                     </Label>
                                                     <Input
                                                         id={name}
@@ -668,7 +710,7 @@ export default function Create({
                                                 (plan) => plan.id === planId,
                                             )?.name ?? 'Not chosen'}
                                         </dd>
-                                        <dt>First night</dt>
+                                        <dt>First room, first night</dt>
                                         <dd className="tabular-nums">
                                             {nightlyRate === null
                                                 ? 'Unavailable'
