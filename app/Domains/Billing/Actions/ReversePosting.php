@@ -53,7 +53,7 @@ class ReversePosting
     {
         if ($posting->type === 'payment') {
             $reservation = Reservation::query()->findOrFail(Folio::query()->findOrFail($posting->folio_id)->reservation_id);
-            if ((VfmsAdvance::latest($reservation)?->payload['posting_id'] ?? null) === $posting->id) {
+            if (VfmsAdvance::paymentId($reservation) === $posting->id) {
                 VfmsAdvance::ensureMutable($reservation, $field);
             }
         }

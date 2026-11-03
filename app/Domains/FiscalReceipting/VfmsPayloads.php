@@ -113,6 +113,9 @@ final class VfmsPayloads
     public function advanceAccommodation(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
     {
         $normal = $this->accommodation($event, $reservation, $property);
+        $advance = ($event->snapshot['advance_booking']['source'] ?? null) === 'external'
+            ? VfmsAdvance::checkInDetails($reservation, $property)['advance_booking']
+            : $event->snapshot['advance_booking'];
 
         return [
             'referenceNumber' => $normal['referenceNumber'],
@@ -121,8 +124,8 @@ final class VfmsPayloads
             'salesCurrency' => $normal['currency'],
             'checkInDate' => $normal['checkInDate'],
             'checkOutDate' => $this->stayDate($reservation, $property, false),
-            'bookingNumber' => $event->snapshot['advance_booking']['bookingNumber'],
-            'receiptno' => $event->snapshot['advance_booking']['receiptNumber'],
+            'bookingNumber' => $advance['bookingNumber'],
+            'receiptno' => $advance['receiptNumber'],
             'guest' => $this->guests($reservation),
         ];
     }

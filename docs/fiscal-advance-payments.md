@@ -2,6 +2,32 @@
 
 ## Supported workflow
 
+The `ACCOMMODATION_BOOKING_REQUEST` check-in endpoint is shared by **all guests,
+payers and reservation sources** once a valid ZRA `bookingNumber` and `receiptno`
+exist. It is not restricted to tour operators.
+
+### Existing ZRA advance: any guest or payer
+
+1. Record the actual payment normally, then assign the room.
+2. Open its non-fiscal payment receipt and choose **Link existing ZRA advance
+   (any guest or payer)**. Supply the booking number and advance receipt number
+   already issued by ZRA for this payment, property and VFMS mode, plus an
+   auditable reason/source. Do not use a PMS receipt number or bank reference.
+3. Karafuu records externally supplied references, not a fabricated accepted
+   fiscal response. This sends no advance-booking request and creates no new
+   ZRA receipt. The receipt page labels their provenance and links to the
+   existing provider receipt for verification.
+4. Complete guest registration and check in. The shared endpoint receives the
+   actual guests and the supplied booking/receipt pair; ZRA validates that pair.
+   Karafuu never also sends ordinary accommodation for this check-in.
+5. Incorrect references can be corrected with a new audit entry before check-in
+   or after a **confirmed rejection** of its advance check-in. A manager then
+   uses the existing refused-filing recovery. Original check-in evidence is not
+   rewritten. Accepted, pending or uncertain filings cannot be overwritten or
+   bypassed with manually supplied references.
+
+### Creating a new ZRA advance: documented B2B payload
+
 1. Create a reservation booked through a tour operator, including its name,
    registration number and payment responsibilities. Assign its room.
 2. Record the payment normally. Karafuu still issues its immutable **non-fiscal
@@ -25,7 +51,8 @@
 Sources: the supplied `VFMS_Advance_Payment_Implementation_Notes.pdf` and
 `VFMS_LIVE_HOTEL_API_GUIDE_V1.6 (1).pdf`, sections 2.9-2.10, read on
 3 November 2026. The implementation follows the guide's explicit B2B
-`customerType: 2`; it does not invent a consumer customer type.
+`customerType: 2` for creation; it does not invent a consumer customer type.
+Linking an already issued advance and its check-in have no tour-operator gate.
 
 Wire paths are relative to the existing, configured VFMS gateway:
 
@@ -55,6 +82,12 @@ the returned reference when supplied, mode and the accepted receipt viewer URL.
 The original payment receipt is not rewritten. No new database columns or
 parallel fiscal ledger are needed.
 
+Externally issued references instead belong to audited `advance_booking_linked`
+lifecycle snapshots with their source, payment ID and VFMS mode. They are never
+represented as a delivered PMS advance-booking message. Their exact references
+are copied into the advance check-in evidence, and only a confirmed rejection
+permits a corrected, audited retry.
+
 The notes name `receiptNo`, while the existing research names `receiptNumber`;
 the adapter also recognizes the guide's `receiptno` spelling. Acceptance requires
 non-empty booking and receipt numbers. Incomplete successful responses and
@@ -65,9 +98,10 @@ blindly. Repeated submission for the same payment queues nothing new.
 
 - Opt-in, one advance per reservation/payment, including individual members of a
   booking group. A group payment is not silently assigned to every member.
-- Only documented tour-operator/B2B payments with an assigned room and the
-  reservation's currency. Direct-guest, channel-collected and unsupported
-  payments continue to receive the existing non-fiscal receipt.
+- Creating new advances is limited to the documented tour-operator/B2B payload.
+  Existing ZRA advances can be linked for direct guests, channel-collected
+  payments and other payer/source types too. Both paths require an assigned
+  room, a real recorded deposit and the reservation's currency.
 - Once an advance is queued, reservation amendments, room reassignment,
   cancellation/no-show/void and corrections of the filed payment require
   reconciliation. The guide supplies no advance refund/cancellation workflow;
@@ -79,7 +113,7 @@ blindly. Repeated submission for the same payment queues nothing new.
   history cannot be silently rebuilt. Unknown outcomes retain the existing
   manual reconciliation protections.
 - Sandbox booking/receipt references cannot be used for a Live check-in.
-- After issuing a Live advance, do not roll back to code that uses ordinary
+- After issuing or linking a Live advance, do not roll back to code that uses ordinary
   check-in for that reservation. Stop new advance filings separately while
   retaining receipt linkage and safeguards until open advances are reconciled.
 - Tests use synthetic VFMS responses and prevent stray HTTP requests. No Live

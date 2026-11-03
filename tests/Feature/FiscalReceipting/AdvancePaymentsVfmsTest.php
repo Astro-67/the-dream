@@ -68,6 +68,15 @@ function advanceVfmsDetails(): array
     return ['email' => 'accounts@island.example', 'phone' => '+255700000001', 'is_zra_registered' => false];
 }
 
+function advanceVfmsLinkDetails(array $overrides = []): array
+{
+    return [
+        'link_existing' => true, 'booking_number' => 'EXTERNAL-BOOKING', 'receipt_number' => 'EXTERNAL-RECEIPT',
+        'reason' => 'Advance already issued outside Karafuu; link its references to this payment',
+        ...$overrides,
+    ];
+}
+
 test('an existing deposit gets an accepted advance receipt without rewriting its payment receipt', function () {
     $tenant = twoTenants()->a;
     [$reservation, $receipt] = advanceVfmsPayment($tenant);
@@ -141,6 +150,8 @@ test('incomplete or ambiguous advance responses never invent a receipt or permit
         app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsDetails());
         $message = VfmsAdvance::latest($reservation);
         expect($message->status)->toBe($outcome)->and($message->getAttribute('provider_references')['receiptNumber'] ?? null)->toBeNull();
+        expect(fn () => app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsLinkDetails()))->toThrow(ValidationException::class);
+        expect(VfmsAdvance::linked($reservation))->toBeNull();
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
         expect(fn () => app(CheckIn::class)->handle($tenant->owner, $reservation))->toThrow(ValidationException::class);
         expect($reservation->fresh()->status->value)->toBe('confirmed')
@@ -197,17 +208,17 @@ test('advance receipts cannot silently be refunded reversed cancelled amended or
     });
 });
 
-test('an advance from Sandbox cannot be linked to a Live check-in', function () {
+test('an advance from Sandbox cannot be linked to a Live check-in', function (bool $external) {
     $tenant = twoTenants()->a;
     [$reservation, $receipt] = advanceVfmsPayment($tenant);
-    inTenant($tenant->property, function () use ($tenant, $reservation, $receipt) {
-        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsDetails());
+    inTenant($tenant->property, function () use ($tenant, $reservation, $receipt, $external) {
+        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, $external ? advanceVfmsLinkDetails() : advanceVfmsDetails());
         VfmsCredential::for($tenant->property)->fill(['mode' => VfmsMode::Live])->save();
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
         expect(fn () => app(CheckIn::class)->handle($tenant->owner, $reservation))->toThrow(ValidationException::class);
         expect($reservation->fresh()->status->value)->toBe('confirmed');
     });
-});
+})->with([false, true]);
 
 test('Live advances use unprefixed room IDs actual payment amounts and the existing currency mapping', function (string $currency, string $wireCurrency, float $amount) {
     $tenant = twoTenants()->a;
@@ -245,11 +256,11 @@ test('payments not included in the fiscal advance remain correctable', function 
     });
 });
 
-test('an advance stay keeps normal services and check-out without counting the deposit twice', function () {
+test('an advance stay keeps normal services and check-out without counting the deposit twice', function (bool $external) {
     $tenant = twoTenants()->a;
-    [$reservation, $receipt] = advanceVfmsPayment($tenant);
-    inTenant($tenant->property, function () use ($tenant, $receipt, $reservation) {
-        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsDetails());
+    [$reservation, $receipt] = advanceVfmsPayment($tenant, $external ? ['booked_through' => 'guest'] : []);
+    inTenant($tenant->property, function () use ($tenant, $receipt, $reservation, $external) {
+        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, $external ? advanceVfmsLinkDetails() : advanceVfmsDetails());
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
         app(CheckIn::class)->handle($tenant->owner, $reservation);
         $report = json_decode(file_get_contents(base_path('tests/Fixtures/vfms/checkout.json')), true, flags: JSON_THROW_ON_ERROR)[0];
@@ -274,7 +285,132 @@ test('an advance stay keeps normal services and check-out without counting the d
             ->and($receipt->posting()->firstOrFail()->amount)->toBe(-5000)
             ->and($folio->balance()->amount)->toBe(15500);
     });
+})->with([false, true]);
+
+test('every reservation source can link existing ZRA references and use the shared advance check-in', function (string $source, string $bookedThrough) {
+    $tenant = twoTenants()->a;
+    [$reservation, $receipt] = advanceVfmsPayment($tenant, ['source' => $source, 'booked_through' => $bookedThrough]);
+    inTenant($tenant->property, function () use ($tenant, $reservation, $receipt) {
+        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsLinkDetails());
+        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsLinkDetails());
+        expect($reservation->lifecycleEvents()->where('type', 'advance_booking_linked')->count())->toBe(1)
+            ->and(VfmsAdvance::latest($reservation))->toBeNull()
+            ->and(VfmsAdvance::forReceipt($receipt, true)['status'])->toBe('linked')
+            ->and(VfmsAdvance::forReceipt($receipt, true)['source'])->toBe('external');
+        Http::assertNothingSent();
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        app(CheckIn::class)->handle($tenant->owner, $reservation);
+        $message = VfmsAdvance::checkInFiling($reservation);
+        expect($message->status)->toBe('delivered')
+            ->and($message->payload['request_type'])->toBe('ACCOMMODATION_BOOKING_REQUEST')
+            ->and($message->payload['body'])->toEqual([
+                'referenceNumber' => $reservation->reservation_number.'-3',
+                'roomId' => 1, 'roomName' => '101',
+                'accomodationPrice' => 100.0, 'accomodationDiscount' => 0.0, 'salesCurrency' => 'USD',
+                'checkInDate' => '2026-12-10T06:00:00.000Z', 'checkOutDate' => '2026-12-12T08:00:00.000Z',
+                'bookingNumber' => 'EXTERNAL-BOOKING', 'receiptno' => 'EXTERNAL-RECEIPT',
+                'guest' => [['documentName' => 'PASSPORT', 'documentNo' => 'ADV-P1', 'country' => 'GERMANY', 'fullName' => 'Advance Guest']],
+            ])
+            ->and(OutboxMessage::query()->where('event', 'accommodation')->count())->toBe(0);
+    });
+    Http::assertSentCount(1);
+    Http::assertNotSent(fn (Request $request) => $request->url() === VfmsHttp::TEST_URL.'reservation/booking/');
+})->with([['direct', 'guest'], ['phone', 'guest'], ['walk-in', 'guest'], ['outside-integration', 'guest'], ['whatsapp', 'guest'], ['email', 'guest'], ['website', 'guest'], ['direct', 'tour-operator']]);
+
+test('linking an existing advance requires references reason permissions and never fabricates receipt acceptance', function () {
+    $t = twoTenants();
+    [$reservation, $receipt] = advanceVfmsPayment($t->a, ['booked_through' => 'guest']);
+    $payload = [...advanceVfmsLinkDetails(), '_property' => $t->a->property->id];
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->member(OrganizationRole::Auditor))
+        ->postJson(route('receipts.vfms-advance.store', $receipt), $payload)->assertForbidden();
+    $this->actingAs($t->a->owner)->postJson(route('receipts.vfms-advance.store', $receipt), [...$payload, 'receipt_number' => '', 'reason' => ''])
+        ->assertUnprocessable()->assertJsonValidationErrors(['receipt_number', 'reason']);
+    $this->post(route('receipts.vfms-advance.store', $receipt), $payload)->assertSessionHasNoErrors()->assertRedirect();
+    $this->get(route('receipts.show', $receipt))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('receipt.label', 'Non-fiscal receipt')
+        ->where('advancePayment.source', 'external')
+        ->where('advancePayment.status', 'linked')
+        ->where('advancePayment.fileUrl', null)
+        ->where('advancePayment.bookingNumber', 'EXTERNAL-BOOKING'));
+    inTenant($t->a->property, function () use ($reservation, $receipt) {
+        expect(VfmsAdvance::linked($reservation)->snapshot['posting_id'])->toBe($receipt->posting_id)
+            ->and(OutboxMessage::query()->where('event', 'advanceBooking')->count())->toBe(0);
+    });
+    Http::assertNothingSent();
 });
+
+test('a linked existing advance prevents a second receipt and protects its payment', function () {
+    $tenant = twoTenants()->a;
+    [$reservation, $receipt] = advanceVfmsPayment($tenant);
+    inTenant($tenant->property, function () use ($tenant, $receipt, $reservation) {
+        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsLinkDetails());
+        expect(fn () => app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsDetails()))->toThrow(ValidationException::class);
+        expect(fn () => app(ReversePosting::class)->handle($tenant->owner, $receipt->posting()->firstOrFail(), 'Reverse'))->toThrow(ValidationException::class);
+        expect(VfmsAdvance::paymentId($reservation))->toBe($receipt->posting_id);
+    });
+    Http::assertNothingSent();
+});
+
+test('a channel-collected deposit can link an existing advance without claiming a second collection', function () {
+    $tenant = twoTenants()->a;
+    [$reservation] = advanceVfmsPayment($tenant, [
+        'booked_through' => 'guest', 'payment_collector' => 'channel', 'channel_collected_amount' => 7000,
+    ]);
+    inTenant($tenant->property, function () use ($tenant, $reservation) {
+        $payment = app(RecordPayment::class)->handle($tenant->owner, Folio::query()->sole(), [
+            'method' => 'channel_collected', 'currency' => 'USD', 'idempotency_key' => 'channel-advance',
+        ]);
+        app(FileAdvancePayment::class)->handle($tenant->owner, $payment->receipt, advanceVfmsLinkDetails());
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        app(CheckIn::class)->handle($tenant->owner, $reservation);
+        expect(VfmsAdvance::checkInFiling($reservation)->status)->toBe('delivered')
+            ->and($payment->fresh()->amount)->toBe(-7000)
+            ->and(VfmsAdvance::paymentId($reservation))->toBe($payment->id);
+    });
+    Http::assertSentCount(1);
+});
+
+test('a confirmed rejection allows audited correction of externally supplied advance references', function () {
+    $tenant = twoTenants()->a;
+    [$reservation, $receipt] = advanceVfmsPayment($tenant, ['booked_through' => 'guest']);
+    Http::swap(new Factory);
+    Http::preventStrayRequests();
+    Http::fake([VfmsHttp::TEST_URL.'accommodation/booking/' => Http::sequence()
+        ->push(['error' => 'Invalid receipt'], 400)->push(['responseNumber' => 'EXTERNAL-CHECK-IN'])]);
+    inTenant($tenant->property, function () use ($tenant, $receipt, $reservation) {
+        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsLinkDetails());
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        app(CheckIn::class)->handle($tenant->owner, $reservation);
+        $message = VfmsAdvance::checkInFiling($reservation);
+        expect($message->status)->toBe('rejected');
+        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsLinkDetails(['receipt_number' => 'CORRECT-RECEIPT', 'reason' => 'Corrected a transcription error after ZRA rejected the first check-in']));
+        expect($reservation->lifecycleEvents()->where('type', 'checked_in')->sole()->snapshot['advance_booking']['receiptNumber'])->toBe('EXTERNAL-RECEIPT');
+        app(RecoverVfmsFiling::class)->handle($tenant->owner, $reservation, $message, 'Retry with the corrected references', refile: true);
+        app(DeliveryEngine::class)->deliver($message->id);
+        expect($message->fresh()->status)->toBe('delivered')
+            ->and($message->fresh()->payload['body']['receiptno'])->toBe('CORRECT-RECEIPT')
+            ->and($receipt->posting()->firstOrFail()->amount)->toBe(-5000);
+    });
+    Http::assertSentCount(2);
+});
+
+test('accepted or uncertain advance check-ins cannot have their external references replaced', function (array $response, string $status) {
+    $tenant = twoTenants()->a;
+    [$reservation, $receipt] = advanceVfmsPayment($tenant, ['booked_through' => 'guest']);
+    Http::swap(new Factory);
+    Http::preventStrayRequests();
+    Http::fake([VfmsHttp::TEST_URL.'accommodation/booking/' => Http::response($response)]);
+    inTenant($tenant->property, function () use ($tenant, $reservation, $receipt, $status) {
+        app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsLinkDetails());
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        app(CheckIn::class)->handle($tenant->owner, $reservation);
+        expect(VfmsAdvance::checkInFiling($reservation)->status)->toBe($status);
+        expect(fn () => app(FileAdvancePayment::class)->handle($tenant->owner, $receipt, advanceVfmsLinkDetails(['receipt_number' => 'DIFFERENT'])))->toThrow(ValidationException::class);
+        expect($reservation->lifecycleEvents()->where('type', 'advance_booking_linked')->count())->toBe(1);
+    });
+    Http::assertSentCount(1);
+})->with([[[], 'unknown'], [['responseNumber' => 'ACCEPTED'], 'delivered']]);
 
 test('confirmed advance rejections can be recovered more than once without changing money', function () {
     $tenant = twoTenants()->a;

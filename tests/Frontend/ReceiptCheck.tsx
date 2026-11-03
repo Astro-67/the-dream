@@ -247,3 +247,50 @@ assert.match(
     /Unknown - do not file again/,
 );
 console.log('Advance receipt, Sandbox warning, QR and explicit filing: PASS');
+
+const linkedAdvance = render({
+    ...base,
+    advancePayment: {
+        status: 'linked',
+        source: 'external',
+        mode: 'live',
+        linkUrl: '/receipts/rc-1/vfms-advance',
+        bookingNumber: 'EXTERNAL-BOOKING',
+        receiptNumber: 'EXTERNAL-RECEIPT',
+        receiptUrl: 'https://vfms.example/receipt-form/EXTERNAL-RECEIPT',
+        reason: 'References supplied externally; verified by ZRA at check-in.',
+    },
+});
+assert.match(linkedAdvance, /Existing ZRA advance linked/);
+assert.match(linkedAdvance, /Verify existing ZRA receipt/);
+assert.match(linkedAdvance, /name="link_existing"[^>]*value="1"/);
+assert.match(linkedAdvance, /name="booking_number"/);
+assert.match(linkedAdvance, /name="receipt_number"/);
+assert.match(linkedAdvance, /name="reason"/);
+assert.doesNotMatch(linkedAdvance, /Accepted by ZRA/);
+assert.doesNotMatch(linkedAdvance, /name="is_zra_registered"/);
+assert.doesNotMatch(linkedAdvance, /File advance receipt with ZRA/);
+assert.match(
+    render({
+        ...base,
+        advancePayment: {
+            status: 'not_filed',
+            linkUrl: '/receipts/rc-1/vfms-advance',
+        },
+    }),
+    /Link existing ZRA advance \(any guest or payer\)/,
+);
+console.log(
+    'Existing advance linkage works for any payer without claiming new fiscal acceptance: PASS',
+);
+assert.match(
+    render({
+        ...base,
+        advancePayment: {
+            status: 'linked',
+            source: 'external',
+            checkInStatus: 'unknown',
+        },
+    }),
+    /Advance check-in unknown - do not refile/,
+);

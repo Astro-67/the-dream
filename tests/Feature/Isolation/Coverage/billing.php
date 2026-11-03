@@ -18,6 +18,7 @@ use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CancelReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Support\Outbox\OutboxMessage;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
@@ -219,9 +220,14 @@ return [
             $responses[] = $this->actingAs($member)->post(route('receipts.vfms-advance.store', $receipt), [
                 '_property' => $t->a->property->id, 'email' => 'operator@example.com', 'phone' => '+255700000000', 'is_zra_registered' => false,
             ])->assertNotFound();
+            $responses[] = $this->actingAs($member)->post(route('receipts.vfms-advance.store', $receipt), [
+                '_property' => $t->a->property->id, 'link_existing' => true, 'booking_number' => 'OTHER-BOOKING',
+                'receipt_number' => 'OTHER-RECEIPT', 'reason' => 'Attempt to link another property receipt',
+            ])->assertNotFound();
         }
         inTenant($t->b->property, function () use ($receipt) {
             expect(OutboxMessage::query()->where('event', 'advanceBooking')->count())->toBe(0)
+                ->and(ReservationLifecycleEvent::query()->where('type', 'advance_booking_linked')->count())->toBe(0)
                 ->and($receipt->fresh()->posting_id)->toBe($receipt->posting_id);
         });
 

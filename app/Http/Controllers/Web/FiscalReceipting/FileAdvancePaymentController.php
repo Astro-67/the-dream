@@ -15,8 +15,11 @@ class FileAdvancePaymentController extends Controller
     {
         $file->handle($request->user(), $receipt, [
             ...$request->validated(), 'is_zra_registered' => $request->boolean('is_zra_registered'),
+            'link_existing' => $request->boolean('link_existing'),
         ]);
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Advance payment queued for ZRA. The fiscal receipt is available only after acceptance.')]);
+        Inertia::flash('toast', ['type' => 'success', 'message' => $request->boolean('link_existing')
+            ? __('Existing advance references linked. No new receipt was issued; ZRA validates the references at check-in.')
+            : __('Advance payment queued for ZRA. The fiscal receipt is available only after acceptance.')]);
 
         return to_route('receipts.show', $receipt);
     }

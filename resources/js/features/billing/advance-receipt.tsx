@@ -14,6 +14,9 @@ export type AdvancePayment = {
     reason?: string | null;
     company?: string | null;
     fileUrl?: string | null;
+    linkUrl?: string | null;
+    source?: 'pms' | 'external';
+    checkInStatus?: string | null;
     reservationUrl?: string;
     bookingNumber?: string | null;
     receiptNumber?: string | null;
@@ -24,18 +27,25 @@ export type AdvancePayment = {
 
 export function AdvanceReceipt({ advance }: { advance: AdvancePayment }) {
     const accepted = advance.status === 'delivered';
+    const linked = advance.status === 'linked';
     const sandbox = advance.mode === 'sandbox';
-    const label = accepted
+    const label = linked
         ? sandbox
-            ? 'Sandbox - not fiscal'
-            : 'Accepted by ZRA'
-        : advance.status === 'unknown' || advance.status === 'exhausted_unknown'
-          ? 'Unknown - do not file again'
-          : advance.status === 'rejected'
-            ? 'Refused by ZRA'
-            : advance.status === 'not_filed' || advance.status === 'unavailable'
-              ? 'Not filed'
-              : 'Waiting for ZRA';
+            ? 'External references - Sandbox, not fiscal'
+            : 'Existing ZRA advance linked'
+        : accepted
+          ? sandbox
+              ? 'Sandbox - not fiscal'
+              : 'Accepted by ZRA'
+          : advance.status === 'unknown' ||
+              advance.status === 'exhausted_unknown'
+            ? 'Unknown - do not file again'
+            : advance.status === 'rejected'
+              ? 'Refused by ZRA'
+              : advance.status === 'not_filed' ||
+                  advance.status === 'unavailable'
+                ? 'Not filed'
+                : 'Waiting for ZRA';
     return (
         <section className="space-y-4 rounded-xl border bg-card p-4 print:hidden">
             <div className="flex flex-wrap items-center gap-3">
@@ -44,20 +54,46 @@ export function AdvanceReceipt({ advance }: { advance: AdvancePayment }) {
                     tone={
                         accepted && !sandbox
                             ? 'success'
-                            : advance.status === 'rejected'
-                              ? 'error'
-                              : 'warning'
+                            : linked && !sandbox
+                              ? 'info'
+                              : advance.status === 'rejected'
+                                ? 'error'
+                                : 'warning'
                     }
                 >
                     {label}
                 </StatusChip>
+                {linked && advance.checkInStatus && (
+                    <StatusChip
+                        tone={
+                            advance.checkInStatus === 'rejected'
+                                ? 'error'
+                                : advance.checkInStatus === 'delivered' &&
+                                    !sandbox
+                                  ? 'success'
+                                  : 'warning'
+                        }
+                    >
+                        {advance.checkInStatus === 'delivered'
+                            ? sandbox
+                                ? 'Sandbox check-in accepted - not fiscal'
+                                : 'Advance check-in accepted'
+                            : advance.checkInStatus === 'rejected'
+                              ? 'Advance check-in refused'
+                              : ['unknown', 'exhausted_unknown'].includes(
+                                      advance.checkInStatus,
+                                  )
+                                ? 'Advance check-in unknown - do not refile'
+                                : 'Advance check-in waiting'}
+                    </StatusChip>
+                )}
             </div>
             {advance.reason && (
                 <p className="text-sm text-muted-foreground">
                     {advance.reason}
                 </p>
             )}
-            {accepted && (
+            {(accepted || linked) && (
                 <>
                     <dl className="grid gap-2 text-sm sm:grid-cols-2">
                         <div>
@@ -81,11 +117,14 @@ export function AdvanceReceipt({ advance }: { advance: AdvancePayment }) {
                             </dd>
                         </div>
                     </dl>
-                    <p className="text-sm text-muted-foreground">
-                        {sandbox ? 'This test receipt is not fiscal. ' : ''}
-                        This booking and receipt will be linked at check-in. The
-                        original payment receipt stays non-fiscal and unchanged.
-                    </p>
+                    {accepted && (
+                        <p className="text-sm text-muted-foreground">
+                            {sandbox ? 'This test receipt is not fiscal. ' : ''}
+                            This booking and receipt will be linked at check-in.
+                            The original payment receipt stays non-fiscal and
+                            unchanged.
+                        </p>
+                    )}
                     {advance.receiptUrl && (
                         <a
                             href={advance.receiptUrl}
@@ -102,7 +141,9 @@ export function AdvanceReceipt({ advance }: { advance: AdvancePayment }) {
                                     }}
                                 />
                             )}
-                            View ZRA advance receipt
+                            {linked
+                                ? 'Verify existing ZRA receipt'
+                                : 'View ZRA advance receipt'}
                         </a>
                     )}
                 </>
@@ -191,6 +232,98 @@ export function AdvanceReceipt({ advance }: { advance: AdvancePayment }) {
                                         {processing && <Spinner />}
                                     </span>
                                     File advance receipt with ZRA
+                                </Button>
+                            </>
+                        )}
+                    </Form>
+                </details>
+            )}
+            {advance.linkUrl && (
+                <details>
+                    <summary className="cursor-pointer text-sm underline underline-offset-4">
+                        {linked
+                            ? 'Correct linked advance references'
+                            : 'Link existing ZRA advance (any guest or payer)'}
+                    </summary>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                        Use the bookingNumber and receiptno already issued by
+                        ZRA for this payment, property and VFMS mode, not the
+                        PMS receipt or bank reference. No new receipt is
+                        created; ZRA validates the pair at check-in. Linked
+                        advances have the same reservation-change and refund
+                        restrictions as filed advances.
+                    </p>
+                    <Form
+                        action={advance.linkUrl}
+                        method="post"
+                        className="mt-4 space-y-4"
+                    >
+                        {({ processing, errors }) => (
+                            <>
+                                <PropertyIntent />
+                                <input
+                                    type="hidden"
+                                    name="link_existing"
+                                    value="1"
+                                />
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {(
+                                        [
+                                            'booking_number',
+                                            'receipt_number',
+                                        ] as const
+                                    ).map((name) => (
+                                        <div className="space-y-2" key={name}>
+                                            <Label htmlFor={`linked-${name}`}>
+                                                {name === 'booking_number'
+                                                    ? 'ZRA booking number'
+                                                    : 'ZRA advance receipt number (receiptno)'}
+                                            </Label>
+                                            <Input
+                                                id={`linked-${name}`}
+                                                name={name}
+                                                required
+                                                maxLength={255}
+                                                autoComplete="off"
+                                                defaultValue={
+                                                    (name === 'booking_number'
+                                                        ? advance.bookingNumber
+                                                        : advance.receiptNumber) ??
+                                                    ''
+                                                }
+                                            />
+                                            <InputError
+                                                message={errors[name]}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="advance-link-reason">
+                                        Reason and source of these references
+                                    </Label>
+                                    <Input
+                                        id="advance-link-reason"
+                                        name="reason"
+                                        required
+                                        maxLength={500}
+                                    />
+                                    <InputError message={errors.reason} />
+                                </div>
+                                <InputError
+                                    message={
+                                        errors.vfms ??
+                                        errors.reservation ??
+                                        errors.posting
+                                    }
+                                />
+                                <Button type="submit" disabled={processing}>
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
+                                    {linked
+                                        ? 'Save corrected references'
+                                        : 'Link existing ZRA advance'}
                                 </Button>
                             </>
                         )}
