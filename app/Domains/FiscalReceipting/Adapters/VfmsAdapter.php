@@ -70,7 +70,7 @@ final class VfmsAdapter implements DeliveryAdapter, OutboxCorrectionAdapter, Res
         }
         $event = ReservationLifecycleEvent::query()->where('reservation_id', $reservation->id)
             ->find(explode(':', $message->idempotency_key)[1] ?? null);
-        $call = $event === null ? null : (VfmsTranslator::CALLS[$event->type] ?? null);
+        $call = $event === null ? null : VfmsTranslator::callFor($event);
         if ($call === null || $call[2] !== $message->event
             || $call[0] !== ($message->payload['request_type'] ?? null) || $call[1] !== ($message->payload['path'] ?? null)) {
             throw new RuntimeException('The original lifecycle evidence is required to rebuild this filing.');
@@ -81,12 +81,16 @@ final class VfmsAdapter implements DeliveryAdapter, OutboxCorrectionAdapter, Res
             throw new RuntimeException('Later guest profile changes require reconciliation before re-filing this operation.');
         }
         // shortcut: check-in has no guest-membership snapshot; reconstruct that history before supporting later guest changes.
-        if ($message->event === 'accommodation' && $reservation->lifecycleEvents()->where('sequence', '>', $event->sequence)
+        if (in_array($message->event, ['accommodation', 'advanceAccommodation'], true) && $reservation->lifecycleEvents()->where('sequence', '>', $event->sequence)
             ->whereIn('type', ['guest_added', 'guest_profile_changed'])->exists()) {
             throw new RuntimeException('Later guest changes require reconciliation before re-filing this check-in.');
         }
 
         $body = $this->payloads->{$call[2]}($event, $reservation, $property);
+        if ($message->event === 'advanceBooking'
+            && array_diff_key($body, ['referenceNumber' => true]) != array_diff_key($message->payload['body'], ['referenceNumber' => true])) {
+            throw new RuntimeException('Changed advance booking history requires reconciliation before re-filing.');
+        }
         if (($message->event === 'changeRoom' && array_intersect_key($body, array_flip(['accommodationPrice', 'currency', 'accommodationDiscount']))
                 != array_intersect_key($message->payload['body'], array_flip(['accommodationPrice', 'currency', 'accommodationDiscount'])))
             || ($message->event === 'changeRoomPrice' && $body['rooms'][0]['roomPrice'] != $message->payload['body']['rooms'][0]['roomPrice'])) {

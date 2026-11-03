@@ -18,6 +18,7 @@ use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CancelReservation;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Support\Outbox\OutboxMessage;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
@@ -207,6 +208,25 @@ return [
         return $responses;
     }),
 
+    'receipts.vfms-advance.store' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $receipt = inTenant($t->b->property, function () use ($t) {
+            app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+
+            return app(RecordPayment::class)->handle($t->b->owner, Folio::query()->sole(), ['method' => 'bank_transfer', 'amount' => 100, 'currency' => 'USD'])->receipt;
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('receipts.vfms-advance.store', $receipt), [
+                '_property' => $t->a->property->id, 'email' => 'operator@example.com', 'phone' => '+255700000000', 'is_zra_registered' => false,
+            ])->assertNotFound();
+        }
+        inTenant($t->b->property, function () use ($receipt) {
+            expect(OutboxMessage::query()->where('event', 'advanceBooking')->count())->toBe(0)
+                ->and($receipt->fresh()->posting_id)->toBe($receipt->posting_id);
+        });
+
+        return $responses;
+    }),
     'receipts.show' => RouteCoverage::attempt(function (TwoTenants $t) {
         $receipt = inTenant($t->b->property, function () use ($t) {
             app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));

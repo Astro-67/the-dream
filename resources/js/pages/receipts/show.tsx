@@ -5,6 +5,10 @@ import { Identifier } from '@/components/ui/identifier';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import { paymentMethods } from '@/features/billing/payment-form';
+import {
+    AdvanceReceipt,
+    type AdvancePayment,
+} from '@/features/billing/advance-receipt';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
 import {
@@ -52,8 +56,10 @@ export default function Show({
     summary,
     stay,
     corrections: later,
+    advancePayment = null,
 }: {
     receipt: Receipt;
+    advancePayment?: AdvancePayment | null;
     summary:
         | (FolioSummary & {
               currency: string;
@@ -237,6 +243,7 @@ export default function Show({
                         </p>
                     )}
                 </section>
+                {advancePayment && <AdvanceReceipt advance={advancePayment} />}
                 {later.length > 0 && (
                     <section className="space-y-1">
                         <h2 className="font-semibold">Later corrections</h2>

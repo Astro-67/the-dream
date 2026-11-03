@@ -118,7 +118,7 @@ final class CheckoutReport
         return rtrim($base, '/').'/'.$path.'/'.rawurlencode($number);
     }
 
-    private static function qr(string $url): string
+    public static function qr(string $url): string
     {
         $svg = (new Writer(new ImageRenderer(new RendererStyle(192, 4), new SvgImageBackEnd)))->writeString($url);
 

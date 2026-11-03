@@ -9,6 +9,7 @@ use App\Http\Controllers\Web\Billing\FolioCorrectionController;
 use App\Http\Controllers\Web\Billing\OpenBalanceController;
 use App\Http\Controllers\Web\Billing\PaymentController;
 use App\Http\Controllers\Web\Billing\ReceiptController;
+use App\Http\Controllers\Web\FiscalReceipting\FileAdvancePaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
@@ -28,4 +29,5 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::post('cashier-shifts', [CashierShiftController::class, 'store'])->middleware('property.intent')->name('cashier-shifts.store');
     Route::post('cashier-shifts/{cashierShift}/close', [CashierShiftController::class, 'close'])->middleware('property.intent')->name('cashier-shifts.close');
     Route::get('receipts/{receipt}', [ReceiptController::class, 'show'])->name('receipts.show');
+    Route::post('receipts/{receipt}/vfms-advance', FileAdvancePaymentController::class)->middleware('property.intent')->name('receipts.vfms-advance.store');
 });

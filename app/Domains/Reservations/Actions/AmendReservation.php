@@ -2,6 +2,7 @@
 
 namespace App\Domains\Reservations\Actions;
 
+use App\Domains\FiscalReceipting\VfmsAdvance;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Inventory\Actions\RetakeInventory;
 use App\Domains\Inventory\Models\RoomType;
@@ -27,6 +28,7 @@ class AmendReservation
     {
         return Audit::validationRefusal($actor, $reservation, 'Reservation amendment refused', fn () => DB::transaction(function () use ($actor, $reservation, $details) {
             $reservation = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();
+            VfmsAdvance::ensureMutable($reservation);
             if ($reservation->status !== ReservationStatus::Confirmed) {
                 throw ValidationException::withMessages(['reservation' => __('Only confirmed reservations can be amended.')]);
             }

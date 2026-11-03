@@ -22,6 +22,7 @@ final class VfmsTranslator implements LifecycleTranslator
 {
     /** Lifecycle event => [VFMS request type, gateway path, payload builder]. Later calls add rows. */
     public const CALLS = [
+        'advance_payment_recorded' => ['RESERVATION_BOOKING', 'reservation/booking/', 'advanceBooking'],
         'checked_in' => ['ACCOMMODATION_REQUEST', 'accommodation/', 'accommodation'],
         'checked_out' => ['ACCOMMODATION_CHECK_OUT', 'guest/checkout/', 'checkout'],
         'extra_posted' => ['ACCOMMODATION_ADD_SERVICE', 'service/', 'services'],
@@ -34,9 +35,17 @@ final class VfmsTranslator implements LifecycleTranslator
 
     public function __construct(private readonly VfmsPayloads $payloads, private readonly Outbox $outbox) {}
 
+    /** @return array{string, string, string}|null */
+    public static function callFor(ReservationLifecycleEvent $event): ?array
+    {
+        return $event->type === 'checked_in' && isset($event->snapshot['advance_booking'])
+            ? ['ACCOMMODATION_BOOKING_REQUEST', 'accommodation/booking/', 'advanceAccommodation']
+            : (self::CALLS[$event->type] ?? null);
+    }
+
     public function translate(ReservationLifecycleEvent $event): void
     {
-        [$requestType, $path, $builder] = self::CALLS[$event->type] ?? [null, null, null];
+        [$requestType, $path, $builder] = self::callFor($event) ?? [null, null, null];
         if ($builder === null) {
             return;
         }
@@ -58,7 +67,7 @@ final class VfmsTranslator implements LifecycleTranslator
                 'request_type' => $requestType,
                 'path' => $path,
                 'reservation_id' => $reservation->id,
-                ...($event->type === 'extra_posted' ? ['posting_id' => $event->snapshot['posting_id']] : []),
+                ...(in_array($event->type, ['extra_posted', 'advance_payment_recorded'], true) ? ['posting_id' => $event->snapshot['posting_id']] : []),
                 'body' => $this->payloads->{$builder}($event, $reservation, $property),
             ], "vfms:{$event->id}");
         });

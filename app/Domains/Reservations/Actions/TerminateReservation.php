@@ -2,6 +2,7 @@
 
 namespace App\Domains\Reservations\Actions;
 
+use App\Domains\FiscalReceipting\VfmsAdvance;
 use App\Domains\Inventory\Actions\ReleaseInventory;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Reservations\Enums\ReservationStatus;
@@ -24,6 +25,7 @@ class TerminateReservation
 
         return Audit::validationRefusal($actor, $reservation, $refusal, fn () => DB::transaction(function () use ($actor, $reservation, $reason, $status, $event, $message) {
             $locked = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();
+            VfmsAdvance::ensureMutable($locked);
             if ($locked->status !== ReservationStatus::Confirmed) {
                 throw ValidationException::withMessages(['reservation' => $message]);
             }
