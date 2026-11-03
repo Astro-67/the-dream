@@ -6,7 +6,9 @@ use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\PostingApproval;
+use App\Domains\FiscalReceipting\VfmsAdvance;
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -41,6 +43,9 @@ class RecordAdjustment
                 throw ValidationException::withMessages(['method' => __('Choose a refund method.')]);
             }
             $paymentId = $type === 'refund' ? ($details['payment_posting_id'] ?? null) : null;
+            if ($type === 'refund' && $paymentId === null) {
+                VfmsAdvance::ensureMutable(Reservation::query()->findOrFail($folio->reservation_id), 'payment_posting_id');
+            }
             if ($paymentId !== null) {
                 $payment = Posting::query()->where('folio_id', $folio->id)->where('type', 'payment')->find($paymentId)
                     ?? throw ValidationException::withMessages(['payment_posting_id' => __('Choose a payment on this folio.')]);

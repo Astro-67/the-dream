@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 final class VfmsFilings
 {
     private const CALLS = [
+        'advanceBooking' => 'Advance payment', 'advanceAccommodation' => 'Check-in with advance receipt',
         'accommodation' => 'Check-in', 'changeRoom' => 'Room move', 'changeRoomPrice' => 'Room price changed',
         'addGuest' => 'Guest added', 'changeProfile' => 'Profile corrected', 'services' => 'Extras',
         'guestDeparture' => 'Guest left', 'checkout' => 'Check-out',
@@ -138,8 +139,11 @@ final class VfmsFilings
         $references = $message->getAttribute('provider_references') ?? [];
         $body = $message->payload['body'] ?? [];
         $payloads = app(VfmsPayloads::class);
-        $currency = isset($body['currency']) ? $payloads->fromVfmsCurrency($body['currency']) : null;
+        $currencyCode = $body['currency'] ?? $body['salesCurrency'] ?? null;
+        $currency = $currencyCode === null ? null : $payloads->fromVfmsCurrency($currencyCode);
         $major = match ($message->event) {
+            'advanceBooking' => $body['amountToBePaid'] ?? null,
+            'advanceAccommodation' => $body['accomodationPrice'] ?? null,
             'accommodation', 'changeRoom' => $body['accommodationPrice'] ?? null,
             'services' => array_sum(array_map(fn (array $item) => $item['price'] * $item['quantity'] - $item['discount'], $body['service'] ?? [])),
             'checkout', 'guestDeparture' => $references['totalAmount'] ?? null,

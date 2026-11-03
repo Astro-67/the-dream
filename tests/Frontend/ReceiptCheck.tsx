@@ -3,6 +3,7 @@ import { App } from '@inertiajs/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { PaymentsTable } from '@/features/reports/collections-table';
 import Show from '@/pages/receipts/show';
+import type { AdvancePayment } from '@/features/billing/advance-receipt';
 
 const base = {
     receipt: {
@@ -61,6 +62,7 @@ const base = {
 };
 const render = (
     props: Omit<typeof base, 'summary'> & {
+        advancePayment?: AdvancePayment;
         summary:
             | (typeof base.summary & {
                   estimate?: {
@@ -210,3 +212,85 @@ assert.match(table, /USD -20\.00/);
 assert.match(table, /Unassigned/);
 assert.equal((table.match(/>Other</g) ?? []).length, 3);
 console.log('Receipt summary and individual payments: PASS');
+
+const advance = render({
+    ...base,
+    advancePayment: {
+        status: 'delivered',
+        mode: 'sandbox',
+        bookingNumber: 'ADV-BOOKING-1',
+        receiptNumber: 'ADV-RECEIPT-1',
+        receiptUrl: 'https://vfms.example/receipt-form/ADV-RECEIPT-1',
+        qrSvg: '<svg data-test="advance-qr"></svg>',
+    },
+});
+assert.match(advance, /NON-FISCAL RECEIPT/);
+assert.match(advance, /Sandbox - not fiscal/);
+assert.match(advance, /ADV-BOOKING-1/);
+assert.match(advance, /data-test="advance-qr"/);
+assert.match(advance, /View ZRA advance receipt/);
+assert.doesNotMatch(advance, /File advance receipt with ZRA/);
+const advanceForm = render({
+    ...base,
+    advancePayment: {
+        status: 'not_filed',
+        company: 'Island Tours',
+        fileUrl: '/receipts/rc-1/vfms-advance',
+    },
+});
+assert.match(advanceForm, /name="_property"/);
+assert.match(advanceForm, /name="is_zra_registered"/);
+assert.match(advanceForm, /automatic advance refunds and cancellation/);
+assert.match(advanceForm, /File advance receipt with ZRA/);
+assert.match(
+    render({ ...base, advancePayment: { status: 'unknown' } }),
+    /Unknown - do not file again/,
+);
+console.log('Advance receipt, Sandbox warning, QR and explicit filing: PASS');
+
+const linkedAdvance = render({
+    ...base,
+    advancePayment: {
+        status: 'linked',
+        source: 'external',
+        mode: 'live',
+        linkUrl: '/receipts/rc-1/vfms-advance',
+        bookingNumber: 'EXTERNAL-BOOKING',
+        receiptNumber: 'EXTERNAL-RECEIPT',
+        receiptUrl: 'https://vfms.example/receipt-form/EXTERNAL-RECEIPT',
+        reason: 'References supplied externally; verified by ZRA at check-in.',
+    },
+});
+assert.match(linkedAdvance, /Existing ZRA advance linked/);
+assert.match(linkedAdvance, /Verify existing ZRA receipt/);
+assert.match(linkedAdvance, /name="link_existing"[^>]*value="1"/);
+assert.match(linkedAdvance, /name="booking_number"/);
+assert.match(linkedAdvance, /name="receipt_number"/);
+assert.match(linkedAdvance, /name="reason"/);
+assert.doesNotMatch(linkedAdvance, /Accepted by ZRA/);
+assert.doesNotMatch(linkedAdvance, /name="is_zra_registered"/);
+assert.doesNotMatch(linkedAdvance, /File advance receipt with ZRA/);
+assert.match(
+    render({
+        ...base,
+        advancePayment: {
+            status: 'not_filed',
+            linkUrl: '/receipts/rc-1/vfms-advance',
+        },
+    }),
+    /Link existing ZRA advance \(any guest or payer\)/,
+);
+console.log(
+    'Existing advance linkage works for any payer without claiming new fiscal acceptance: PASS',
+);
+assert.match(
+    render({
+        ...base,
+        advancePayment: {
+            status: 'linked',
+            source: 'external',
+            checkInStatus: 'unknown',
+        },
+    }),
+    /Advance check-in unknown - do not refile/,
+);

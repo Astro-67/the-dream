@@ -16,6 +16,7 @@ use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Countries;
 use App\Support\Money\Currency;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -77,6 +78,64 @@ final class VfmsPayloads
             'referenceNumber' => $this->referenceNumber($event, $reservation),
             ...($tourOperator ? ['tourRegNo' => $reservation->getAttribute('tour_operator_registration'), 'costOptions' => $this->costOptions($paysFor)] : []),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    public function advanceBooking(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $payment = Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
+            ->findOrFail($event->snapshot['posting_id']);
+        $room = Room::query()->findOrFail($reservation->room_id);
+        $price = $this->roomPrice($reservation, $property, $reservation->arrival->toDateString());
+        $options = $this->costOptions($reservation->getAttribute('tour_operator_pays_for'));
+        $details = $event->snapshot['advance_payment'];
+
+        return [
+            'bookingCompany' => $reservation->getAttribute('tour_operator_name'),
+            'email' => $details['email'], 'phoneNumber' => $details['phone'],
+            'amountToBePaid' => $this->amount(-$payment->amount, $payment->currency),
+            'noOfGuest' => $reservation->adults,
+            'currency' => $this->currency($payment->currency),
+            'startDate' => $this->stayDate($reservation, $property, true),
+            'endDate' => $this->stayDate($reservation, $property, false),
+            'rooms' => [['roomId' => $room->vfms_room_id, 'roomPrice' => $price['accommodationPrice'], 'noOfGuestPerRoom' => $reservation->adults]],
+            'customerType' => 2, 'salesCustomer' => $reservation->getAttribute('tour_operator_name'),
+            'regNumber' => $reservation->getAttribute('tour_operator_registration'),
+            'referenceNumber' => $this->referenceNumber($event, $reservation),
+            'isIncludeInfrastructure' => str_contains($options, '6'),
+            'isIncludeAccommodation' => true,
+            'isIncludeOtherService' => str_contains($options, '7'),
+            'isZraRegistered' => $details['is_zra_registered'],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function advanceAccommodation(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $normal = $this->accommodation($event, $reservation, $property);
+        $advance = ($event->snapshot['advance_booking']['source'] ?? null) === 'external'
+            ? VfmsAdvance::checkInDetails($reservation, $property)['advance_booking']
+            : $event->snapshot['advance_booking'];
+
+        return [
+            'referenceNumber' => $normal['referenceNumber'],
+            'roomId' => $normal['roomId'], 'roomName' => $normal['roomName'],
+            'accomodationPrice' => $normal['accommodationPrice'], 'accomodationDiscount' => 0.0,
+            'salesCurrency' => $normal['currency'],
+            'checkInDate' => $normal['checkInDate'],
+            'checkOutDate' => $this->stayDate($reservation, $property, false),
+            'bookingNumber' => $advance['bookingNumber'],
+            'receiptno' => $advance['receiptNumber'],
+            'guest' => $this->guests($reservation),
+        ];
+    }
+
+    private function stayDate(Reservation $reservation, Property $property, bool $arrival): string
+    {
+        $date = $arrival ? $reservation->arrival : $reservation->departure;
+        $time = $property->settings()['front_desk_settings'][$arrival ? 'default_check_in_time' : 'default_check_out_time'];
+
+        return CarbonImmutable::parse($date->toDateString().' '.$time, $property->timezone)->utc()->format('Y-m-d\TH:i:s.v\Z');
     }
 
     /** @return array<string, mixed> */

@@ -42,7 +42,7 @@ final class HttpVfms
             $prefix = (string) (crc32($credential->property_id) % 90000 + 10000);
             $roomIds = isset($body['roomId']) ? [$body['roomId']] : [];
             foreach ($body['rooms'] ?? [] as $room) {
-                $roomIds[] = $room['hotelRoomRoom'];
+                $roomIds[] = $room[$payload['request_type'] === 'RESERVATION_BOOKING' ? 'roomId' : 'hotelRoomRoom'];
             }
             foreach ($roomIds as $roomId) {
                 if (! is_int($roomId) || $roomId < 1 || $roomId > 9999) {
@@ -53,7 +53,8 @@ final class HttpVfms
                 $body['roomId'] = (int) ($prefix.str_pad((string) $body['roomId'], 4, '0', STR_PAD_LEFT));
             }
             foreach ($body['rooms'] ?? [] as $index => $room) {
-                $body['rooms'][$index]['hotelRoomRoom'] = (int) ($prefix.str_pad((string) $room['hotelRoomRoom'], 4, '0', STR_PAD_LEFT));
+                $field = $payload['request_type'] === 'RESERVATION_BOOKING' ? 'roomId' : 'hotelRoomRoom';
+                $body['rooms'][$index][$field] = (int) ($prefix.str_pad((string) $room[$field], 4, '0', STR_PAD_LEFT));
             }
             if (isset($body['referenceNumber'])) {
                 $body['referenceNumber'] = 'T'.$prefix.'-'.$body['referenceNumber'];
@@ -166,7 +167,21 @@ final class HttpVfms
         if (array_key_exists('statusCode', $response)) {
             return null;
         }
-        if (in_array($operation, ['ACCOMMODATION_REQUEST', 'ACCOMMODATION_CHANGE_ROOM', 'ACCOMMODATION_ADD_GUEST', 'GUEST_PROFILE'], true)) {
+        if ($operation === 'RESERVATION_BOOKING') {
+            $receipt = $response['receiptNumber'] ?? $response['receiptNo'] ?? $response['receiptno'] ?? null;
+            if (! $this->number($response['bookingNumber'] ?? null) || ! $this->number($receipt)
+                || (isset($response['referenceNumber']) && ! $this->number($response['referenceNumber']))) {
+                return null;
+            }
+            foreach (['receiptNumber', 'receiptNo', 'receiptno'] as $field) {
+                if (array_key_exists($field, $response) && $response[$field] !== $receipt) {
+                    return null;
+                }
+            }
+
+            return ['bookingNumber' => $response['bookingNumber'], 'receiptNumber' => $receipt, ...array_intersect_key($response, ['referenceNumber' => true])];
+        }
+        if (in_array($operation, ['ACCOMMODATION_REQUEST', 'ACCOMMODATION_BOOKING_REQUEST', 'ACCOMMODATION_CHANGE_ROOM', 'ACCOMMODATION_ADD_GUEST', 'GUEST_PROFILE'], true)) {
             return $this->number($response['responseNumber'] ?? null) ? ['responseNumber' => $response['responseNumber']] : null;
         }
         if ($operation === 'ACCOMMODATION_ADD_SERVICE') {

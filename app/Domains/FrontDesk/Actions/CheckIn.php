@@ -2,6 +2,7 @@
 
 namespace App\Domains\FrontDesk\Actions;
 
+use App\Domains\FiscalReceipting\VfmsAdvance;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\InHouseDocuments;
 use App\Domains\FrontDesk\Registration;
@@ -58,10 +59,11 @@ class CheckIn
             }
             Registration::ensure($property, $guests);
             InHouseDocuments::ensureAvailable($property, $guests, $locked);
+            $advance = VfmsAdvance::checkInDetails($locked, $property);
 
             $locked->update(['status' => ReservationStatus::CheckedIn]);
             app(SetRoomOccupied::class)->handle($actor, $room, 'Check-in '.$locked->reservation_number);
-            app(RecordLifecycleEvent::class)->handle($locked, 'checked_in', $actor);
+            app(RecordLifecycleEvent::class)->handle($locked, 'checked_in', $actor, $advance);
             Audit::record($actor, 'checked_in', $locked, 'Reservation checked in');
 
             return $locked;

@@ -7,7 +7,9 @@ use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\PostingApproval;
+use App\Domains\FiscalReceipting\VfmsAdvance;
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\Reservations\Models\Reservation;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
@@ -49,6 +51,12 @@ class ReversePosting
     /** Refuses a posting that already cancels another, or that something already cancels. */
     public static function ensureCancellable(Posting $posting, string $field = 'posting', ?string $exceptApproval = null): void
     {
+        if ($posting->type === 'payment') {
+            $reservation = Reservation::query()->findOrFail(Folio::query()->findOrFail($posting->folio_id)->reservation_id);
+            if (VfmsAdvance::paymentId($reservation) === $posting->id) {
+                VfmsAdvance::ensureMutable($reservation, $field);
+            }
+        }
         if (in_array($posting->type, ['reversal', 'transfer_out'], true)) {
             throw ValidationException::withMessages([$field => __('This posting cancels another and cannot be reversed or moved.')]);
         }

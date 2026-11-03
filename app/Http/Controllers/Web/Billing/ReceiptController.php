@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Billing;
 
 use App\Domains\Billing\Models\Receipt;
 use App\Domains\Billing\ReceiptView;
+use App\Domains\FiscalReceipting\VfmsAdvance;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -15,6 +16,9 @@ class ReceiptController extends Controller
     {
         Gate::authorize('view', $receipt);
 
-        return Inertia::render('receipts/show', ReceiptView::of($receipt));
+        return Inertia::render('receipts/show', [
+            ...ReceiptView::of($receipt),
+            'advancePayment' => VfmsAdvance::forReceipt($receipt, Gate::allows('fileAdvance', $receipt)),
+        ]);
     }
 }
