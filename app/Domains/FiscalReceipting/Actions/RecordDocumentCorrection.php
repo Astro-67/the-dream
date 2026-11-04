@@ -8,6 +8,7 @@ use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\DocumentCorrection;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
+use App\Domains\FiscalReceipting\VfmsPayloads;
 use App\Domains\FiscalReceipting\VfmsTranslator;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -24,6 +25,42 @@ use RuntimeException;
 
 class RecordDocumentCorrection
 {
+    /** @return array{business: array<string, mixed>, replacements: list<array<string, mixed>>, refusal: string|null} */
+    public function prepare(IssuedDocument $document): array
+    {
+        $property = Property::query()->findOrFail($document->property_id);
+        $credential = VfmsCredential::for($property);
+        $empty = ['business' => [], 'replacements' => []];
+        if ($document->mode === 'sandbox' || $credential->mode === VfmsMode::Sandbox) {
+            return [...$empty, 'refusal' => __('ZRA does not provide error correction in Sandbox.')];
+        }
+        try {
+            $stay = Reservation::query()->where('property_id', $property->id)->findOrFail($document->reservation_id);
+            [$transaction, $business] = $this->evidence($document, $stay, $credential);
+            $identity = app(VfmsPayloads::class)->correctionIdentity($property, $business);
+            $linked = DocumentCorrection::query()->where('property_id', $property->id)->get();
+            $used = $linked->pluck('original_document_id')->merge($linked->pluck('replacement_document_id'));
+            $replacements = [];
+            foreach (IssuedDocument::query()->where('property_id', $property->id)
+                ->where('reservation_id', $stay->id)->where('type', $document->type)->where('mode', 'live')
+                ->whereKeyNot($document->id)->whereNotIn('id', $used)->orderByDesc('issued_at')->get() as $candidate) {
+                try {
+                    [$candidateTransaction] = $this->evidence($candidate, $stay, $credential);
+                    if ($candidateTransaction === $transaction) {
+                        $replacements[] = $candidate->only(['id', 'number', 'type', 'issued_at', 'amount', 'currency', 'mode']);
+                    }
+                } catch (RuntimeException) {
+                    continue;
+                }
+            }
+
+            return ['business' => ['name' => $identity['b_unit_name'], 'email' => $identity['email'], 'phone' => $identity['phone_no'], 'znumber' => $identity['zrb_number'], 'unitId' => $identity['unitId']],
+                'replacements' => $replacements, 'refusal' => null];
+        } catch (RuntimeException|ValidationException $refused) {
+            return [...$empty, 'refusal' => __($refused->getMessage())];
+        }
+    }
+
     public function handle(User $actor, IssuedDocument $document, string $replacementId, string $reason): DocumentCorrection
     {
         return Audit::validationRefusal($actor, $document, 'Issued-document correction refused', function () use ($actor, $document, $replacementId, $reason): DocumentCorrection {

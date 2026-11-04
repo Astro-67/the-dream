@@ -92,7 +92,7 @@ final class CheckoutReport
         $currency = $payloads->fromVfmsCurrency($checkout->payload['body']['currency']);
         $summary = collect(FolioSummary::totals($reservation))->firstWhere('currency', $currency->value);
         $live = ($references['mode'] ?? null) === 'live';
-        $url = $live ? self::reportUrl($checkout, (string) $references['reportNo']) : null;
+        $url = $live ? self::reportUrl($checkout, (string) ($references['reportNo'] ?? '')) : null;
 
         return [
             'status' => $live ? 'live' : 'sandbox',

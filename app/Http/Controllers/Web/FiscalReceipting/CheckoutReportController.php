@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\FiscalReceipting;
 
 use App\Domains\FiscalReceipting\Actions\RevealFiscalIdentity;
 use App\Domains\FiscalReceipting\CheckoutReport;
+use App\Domains\FiscalReceipting\DocumentCorrections;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Reservations\Models\Reservation;
@@ -45,6 +46,7 @@ class CheckoutReportController extends Controller
 
         return Inertia::render('fiscal-receipting/checkout-report', [
             ...$report,
+            'documentCorrections' => DocumentCorrections::forReservation($reservation),
             'revealIdentityUrl' => $request->user()?->can('revealFiscalIdentity', $reservation)
                 ? route('reservations.fiscal-report.reveal-identity', $reservation) : null,
             'stay' => $reservation->stay(),
