@@ -85,6 +85,14 @@ final class HttpVfms
             $this->markRefused($credential);
         }
 
+        if ($payload['request_type'] === 'ERRORS_MANAGEMENTS') {
+            // Section 2.13 has no response schema: only a 2xx JSON list is passed on, for the caller's provisional row parser.
+            if ($status >= 200 && $status < 300 && is_array($data) && array_is_list($data)) {
+                return new DeliveryResult('accepted', responseBody: $responseBody);
+            }
+
+            return new DeliveryResult(in_array($status, [400, 401, 403, 404], true) ? 'rejected' : 'unknown', responseBody: $responseBody);
+        }
         if ($payload['request_type'] === 'ERROR_SAVE') {
             // Section 3's 200/201 interpretation is unverified against an authenticated acknowledgement.
             if (is_array($data) && preg_match('/duplicate|already\s+exists/i', json_encode($data, JSON_THROW_ON_ERROR))) {

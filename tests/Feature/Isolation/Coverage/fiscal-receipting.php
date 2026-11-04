@@ -2,12 +2,15 @@
 
 use App\Domains\FiscalReceipting\Actions\SaveVfmsCredentials;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
+use App\Domains\FiscalReceipting\Models\DocumentCorrection;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Support\Outbox\DrainOutboxMessage;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Tests\Support\BookingForm;
 use Tests\Support\Isolation\RouteCoverage;
 use Tests\Support\TwoTenants;
@@ -67,6 +70,29 @@ return [
         expect(DB::table('issued_documents')->where('id', $document->id)->sole())->toEqual($before)
             ->and(DB::table('document_corrections')->where('property_id', $t->b->property->id)->count())->toBe(0)
             ->and(DB::table('outbox_messages')->where('property_id', $t->b->property->id)->where('event', 'errorSave')->count())->toBe(0);
+
+        return $responses;
+    }),
+    'document-corrections.refresh' => RouteCoverage::attempt(function (TwoTenants $t) {
+        Http::fake();
+        Queue::fake([DrainOutboxMessage::class]);
+        $correction = inTenant($t->b->property, function () use ($t) {
+            [, $old, $new] = correctionDocuments($t->b);
+            $message = OutboxMessage::query()->where('property_id', $t->b->property->id)->firstOrFail();
+
+            return DocumentCorrection::query()->create([
+                'original_document_id' => $old->id, 'replacement_document_id' => $new->id, 'original_number' => $old->number,
+                'replacement_number' => $new->number, 'actor_id' => $t->b->owner->id, 'reason' => 'Bravo reason', 'mode' => 'live',
+                'unit_id' => 232, 'outbox_message_id' => $message->id,
+            ]);
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('document-corrections.refresh', $correction), ['_property' => $t->a->property->id])->assertNotFound();
+        }
+        expect(DB::table('correction_decision_reads')->count())->toBe(0)
+            ->and(DB::table('correction_decisions')->count())->toBe(0);
+        Http::assertNothingSent();
 
         return $responses;
     }),

@@ -2,6 +2,7 @@
 
 namespace App\Domains\FiscalReceipting\Models;
 
+use App\Support\Outbox\OutboxMessage;
 use App\Support\Tenancy\BelongsToProperty;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -18,6 +19,13 @@ class DocumentCorrection extends Model
     protected function casts(): array
     {
         return ['reason' => 'encrypted', 'unit_id' => 'integer'];
+    }
+
+    /** The latest observed ZRA decision; 'awaiting' once ERROR_SAVE was delivered; null before then. */
+    public function decision(): ?string
+    {
+        return CorrectionDecision::query()->where('document_correction_id', $this->id)->latest('id')->value('status')
+            ?? (OutboxMessage::query()->whereKey($this->outbox_message_id)->value('status') === 'delivered' ? 'awaiting' : null);
     }
 
     protected static function booted(): void
