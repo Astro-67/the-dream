@@ -28,14 +28,14 @@ import { formatDate, formatMoney, formatTime } from '@/lib/utils';
 import {
     CorrectionAnnotation,
     type CorrectionNote,
+    fiscalDocumentTypes,
 } from '@/features/fiscal-receipting/document-correction';
 import { index } from '@/routes/receipts';
 import type { Paginated } from '@/types';
 
 const types = {
     non_fiscal: 'Non-fiscal receipt',
-    services_receipt: 'ZRA services receipt',
-    checkout_report: 'Guest check-out report',
+    ...fiscalDocumentTypes,
 };
 const statuses = {
     live: 'Issued Live',
@@ -46,7 +46,7 @@ type Document = {
     id: string;
     number: string;
     type: keyof typeof types;
-    issuedAt: string;
+    issuedAt: string | null;
     guest: string | null;
     amount: number | null;
     currency: string | null;
@@ -215,16 +215,22 @@ export default function Receipts({
                                             {types[document.type]}
                                         </TableCell>
                                         <TableCell className="whitespace-nowrap">
-                                            <time dateTime={document.issuedAt}>
-                                                {formatDate(
-                                                    document.issuedAt,
-                                                    timezone,
-                                                )}{' '}
-                                                {formatTime(
-                                                    document.issuedAt,
-                                                    timezone,
-                                                )}
-                                            </time>
+                                            {document.issuedAt === null ? (
+                                                'Unavailable'
+                                            ) : (
+                                                <time
+                                                    dateTime={document.issuedAt}
+                                                >
+                                                    {formatDate(
+                                                        document.issuedAt,
+                                                        timezone,
+                                                    )}{' '}
+                                                    {formatTime(
+                                                        document.issuedAt,
+                                                        timezone,
+                                                    )}
+                                                </time>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             {document.guest ?? 'Unavailable'}

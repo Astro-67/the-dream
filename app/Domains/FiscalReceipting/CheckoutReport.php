@@ -6,6 +6,7 @@ use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
+use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\Reservations\Models\Reservation;
 use App\Support\Outbox\OutboxMessage;
@@ -107,7 +108,7 @@ final class CheckoutReport
         $payloads = app(VfmsPayloads::class);
         $currency = $payloads->fromVfmsCurrency($checkout->payload['body']['currency']);
         $summary = collect(FolioSummary::totals($reservation))->firstWhere('currency', $currency->value);
-        $live = ($references['mode'] ?? null) === 'live';
+        $live = ($references['mode'] ?? null) === VfmsMode::Live->value;
         $url = $live ? self::reportUrl($checkout, (string) ($references['reportNo'] ?? '')) : null;
 
         return [

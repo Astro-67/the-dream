@@ -9,7 +9,6 @@ use App\Domains\FiscalReceipting\Models\CorrectionDecision;
 use App\Domains\FiscalReceipting\Models\CorrectionDecisionRead;
 use App\Domains\FiscalReceipting\Models\DocumentCorrection;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
-use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -64,7 +63,7 @@ class RefreshCorrectionDecisions
             try {
                 $read = DB::transaction(function () use ($actor, $correction): CorrectionDecisionRead {
                     $property = Property::query()->whereKey($correction->property_id)->lockForUpdate()->firstOrFail();
-                    $this->assertRefreshable($property);
+                    RecordDocumentCorrection::assertCorrectable($property, VfmsCredential::for($property));
                     $message = OutboxMessage::query()->where('property_id', $property->id)->findOrFail($correction->outbox_message_id);
                     if (! in_array($message->status, self::SENT, true)) {
                         throw new RuntimeException('The correction must reach ZRA before its status can be refreshed.');
@@ -74,7 +73,7 @@ class RefreshCorrectionDecisions
                     }
                     $key = 'zra-correction-refresh:'.$property->id;
                     if (RateLimiter::tooManyAttempts($key, 1)) {
-                        throw new RuntimeException(__('ZRA status was refreshed less than a minute ago. Try again in :seconds seconds.', ['seconds' => RateLimiter::availableIn($key)]));
+                        throw ValidationException::withMessages(['refresh' => __('ZRA status was refreshed less than a minute ago. Try again in :seconds seconds.', ['seconds' => RateLimiter::availableIn($key)])]);
                     }
                     RateLimiter::hit($key, 60);
                     $submitted = DocumentCorrection::query()->where('property_id', $property->id)->min('created_at');
@@ -106,8 +105,8 @@ class RefreshCorrectionDecisions
         }
         $property = Tenancy::property() ?? throw new RuntimeException('Correction status reads require a property in context.');
         try {
-            $this->assertRefreshable($property);
-            $result = $this->http->send(['mode' => 'live', 'request_type' => 'ERRORS_MANAGEMENTS', 'path' => 'errors', 'body' => $read->request_body], VfmsCredential::for($property));
+            RecordDocumentCorrection::assertCorrectable($property, VfmsCredential::for($property));
+            $result = $this->http->send(['mode' => VfmsMode::Live->value, 'request_type' => 'ERRORS_MANAGEMENTS', 'path' => 'errors', 'body' => $read->request_body], VfmsCredential::for($property));
             $rows = $result->outcome === 'accepted' ? $this->rows($result->responseBody['body'] ?? null) : null;
             DB::transaction(function () use ($read, $result, $rows): void {
                 $outcome = $result->outcome !== 'accepted' ? 'failed' : ($rows === null ? 'unresolved' : $this->observe($read, $rows));
@@ -119,16 +118,6 @@ class RefreshCorrectionDecisions
             if (! $failure instanceof RuntimeException) {
                 report($failure);
             }
-        }
-    }
-
-    private function assertRefreshable(Property $property): void
-    {
-        if (VfmsCredential::for($property)->mode !== VfmsMode::Live) {
-            throw new RuntimeException('ZRA does not provide error correction in Sandbox.');
-        }
-        if ($property->demo || $property->archived_at !== null || ! JurisdictionRules::usesVfms($property)) {
-            throw new RuntimeException('Issued-document corrections require an active real Zanzibar property.');
         }
     }
 

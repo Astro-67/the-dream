@@ -25,16 +25,28 @@ use RuntimeException;
 
 class RecordDocumentCorrection
 {
+    /** The one guard for recording and refreshing corrections: ZRA corrects only Live filings of active real Zanzibar properties. */
+    public static function assertCorrectable(Property $property, VfmsCredential $credential): void
+    {
+        if ($credential->mode !== VfmsMode::Live) {
+            throw new RuntimeException('ZRA does not provide error correction in Sandbox.');
+        }
+        if ($property->demo || $property->archived_at !== null || ! JurisdictionRules::usesVfms($property)) {
+            throw new RuntimeException('Issued-document corrections require an active real Zanzibar property.');
+        }
+    }
+
     /** @return array{business: array<string, mixed>, replacements: list<array<string, mixed>>, refusal: string|null} */
     public function prepare(IssuedDocument $document): array
     {
         $property = Property::query()->findOrFail($document->property_id);
         $credential = VfmsCredential::for($property);
         $empty = ['business' => [], 'replacements' => []];
-        if ($document->mode === 'sandbox' || $credential->mode === VfmsMode::Sandbox) {
-            return [...$empty, 'refusal' => __('ZRA does not provide error correction in Sandbox.')];
-        }
         try {
+            if ($document->mode !== VfmsMode::Live->value) {
+                throw new RuntimeException('ZRA does not provide error correction in Sandbox.');
+            }
+            self::assertCorrectable($property, $credential);
             $stay = Reservation::query()->where('property_id', $property->id)->findOrFail($document->reservation_id);
             [$transaction, $business] = $this->evidence($document, $stay, $credential);
             $identity = app(VfmsPayloads::class)->correctionIdentity($property, $business);
@@ -42,7 +54,7 @@ class RecordDocumentCorrection
             $used = $linked->pluck('original_document_id')->merge($linked->pluck('replacement_document_id'));
             $replacements = [];
             foreach (IssuedDocument::query()->where('property_id', $property->id)
-                ->where('reservation_id', $stay->id)->where('type', $document->type)->where('mode', 'live')
+                ->where('reservation_id', $stay->id)->where('type', $document->type)->where('mode', VfmsMode::Live->value)
                 ->whereKeyNot($document->id)->whereNotIn('id', $used)->orderByDesc('issued_at')->get() as $candidate) {
                 try {
                     [$candidateTransaction] = $this->evidence($candidate, $stay, $credential);
@@ -77,22 +89,14 @@ class RecordDocumentCorrection
                     }
                     $stay = Reservation::query()->where('property_id', $property->id)->whereKey($document->reservation_id)->lockForUpdate()->firstOrFail();
                     $credential = VfmsCredential::for($property);
-                    if ($credential->mode === VfmsMode::Sandbox) {
-                        throw new RuntimeException('ZRA does not provide error correction in Sandbox.');
-                    }
-                    if ($property->demo || $property->archived_at !== null || ! JurisdictionRules::usesVfms($property)) {
-                        throw new RuntimeException('Issued-document corrections require an active real Zanzibar property.');
-                    }
-                    if (trim($reason) === '' || mb_strlen($reason) > 500) {
-                        throw new RuntimeException('A reason of at most 500 characters is required.');
-                    }
+                    self::assertCorrectable($property, $credential);
                     $documents = IssuedDocument::query()->where('property_id', $property->id)->whereIn('id', [$document->id, $replacementId])->orderBy('id')->lockForUpdate()->get();
                     $old = $documents->find($document->id);
                     $new = $documents->find($replacementId);
                     if ($old === null || $new === null || $old->id === $new->id || $old->number === $new->number
-                        || $old->mode !== 'live' || $new->mode !== 'live' || $old->type !== $new->type
+                        || $old->mode !== VfmsMode::Live->value || $new->mode !== VfmsMode::Live->value || $old->type !== $new->type
                         || $old->reservation_id !== $stay->id || $new->reservation_id !== $stay->id) {
-                        throw new RuntimeException('Select two distinct issued Live documents of the same property, type and transaction.');
+                        throw new RuntimeException('Select two distinct Live issued documents of the same property, type and stay.');
                     }
                     // Keep all submissions, even refused/unknown ones: none grants permission for another write.
                     if (DocumentCorrection::query()->where('property_id', $property->id)->where(function ($query) use ($old, $new) {
@@ -103,14 +107,14 @@ class RecordDocumentCorrection
                     [$oldTransaction, $business] = $this->evidence($old, $stay, $credential);
                     [$newTransaction] = $this->evidence($new, $stay, $credential);
                     if ($oldTransaction !== $newTransaction) {
-                        throw new RuntimeException('Both issued documents must represent the same service or guest transaction.');
+                        throw new RuntimeException('Both issued documents must be for the same service or the same guest.');
                     }
                     $id = (string) Str::ulid();
                     $message = app(VfmsTranslator::class)->recordCorrection($id, $stay, $property, $old, $new, trim($reason), $business);
                     $correction = DocumentCorrection::query()->create([
                         'id' => $id, 'original_document_id' => $old->id, 'replacement_document_id' => $new->id,
                         'original_number' => $old->number, 'replacement_number' => $new->number,
-                        'actor_id' => $actor->id, 'reason' => trim($reason), 'mode' => 'live', 'unit_id' => $credential->unit_id,
+                        'actor_id' => $actor->id, 'reason' => trim($reason), 'mode' => VfmsMode::Live->value, 'unit_id' => $credential->unit_id,
                         'outbox_message_id' => $message->id,
                     ]);
                     // The reason is encrypted on the pair; ordinary audit properties contain identifiers only.
@@ -135,8 +139,8 @@ class RecordDocumentCorrection
         $attempt = $message->attempts()->whereKey($document->outbox_attempt_id)->where('outcome', 'accepted')->lockForUpdate()->first();
         if ($message->integration !== VfmsAdapter::INTEGRATION || $message->subject_type !== $stay->getMorphClass()
             || $message->subject_id !== $stay->id || $message->status !== 'delivered' || $attempt === null
-            || ($payload['mode'] ?? null) !== 'live' || ($payload['reservation_id'] ?? null) !== $stay->id
-            || ($references['mode'] ?? null) !== 'live' || ! is_int($references['unitId'] ?? null)
+            || ($payload['mode'] ?? null) !== VfmsMode::Live->value || ($payload['reservation_id'] ?? null) !== $stay->id
+            || ($references['mode'] ?? null) !== VfmsMode::Live->value || ! is_int($references['unitId'] ?? null)
             || $references['unitId'] !== $credential->unit_id) {
             throw new RuntimeException('Accepted Live evidence with the same recorded business unit is required for both documents.');
         }
@@ -156,6 +160,6 @@ class RecordDocumentCorrection
             }
         }
 
-        throw new RuntimeException('The selected document lacks uniquely matched accepted transaction evidence.');
+        throw new RuntimeException('The selected document has no accepted VFMS answer that matches it uniquely.');
     }
 }

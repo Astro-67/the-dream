@@ -25,8 +25,8 @@ return new class extends Migration
             $table->string('type', 32);
             $table->string('number', 100);
             $table->string('mode', 16);
-            $table->timestamp('issued_at');
             // Null when the issue-time evidence no longer holds it: never reconstructed from today's folio or settings.
+            $table->timestamp('issued_at')->nullable();
             $table->bigInteger('amount')->nullable();
             $table->string('currency', 3)->nullable();
             $table->string('guest_name')->nullable();

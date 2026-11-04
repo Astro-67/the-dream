@@ -61,7 +61,7 @@ final class DocumentCorrections
                         : ($decision === 'approved' ? __('Replacement for') : __('Proposed replacement for')),
                     'number' => $other->number,
                     'url' => $stay !== null && Gate::allows('viewFiscalReport', $stay)
-                        ? route('reservations.fiscal-report', $stay).'#document-'.$other->type.'-'.rawurlencode($other->number) : null,
+                        ? IssuedDocuments::reportUrl($stay, $other->type, $other->number) : null,
                     'delivery' => $messages->get($pair->outbox_message_id)?->status,
                     'decision' => $decision,
                     'refreshUrl' => Gate::allows('refresh', $pair) ? route('document-corrections.refresh', $pair) : null,

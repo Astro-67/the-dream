@@ -86,7 +86,7 @@ test('accepted services receipts and guest reports each project one issued row',
         ->and(array_map(fn (array $row) => array_intersect_key($row, array_flip(['type', 'number', 'guest', 'amount', 'currency', 'zraStatus', 'viewerUrl'])), issuedFiscalRows($tenant)))->toEqual([
             ['type' => 'checkout_report', 'number' => 'TEST-CHECKOUT-169', 'guest' => 'Anna Berg', 'amount' => 22000, 'currency' => 'USD', 'zraStatus' => 'sandbox', 'viewerUrl' => 'https://vfms-viewer.example/checkout-report/guest/TEST-CHECKOUT-169'],
             ['type' => 'checkout_report', 'number' => 'TEST-CHECKOUT-169-2', 'guest' => 'Ola Berg', 'amount' => 22000, 'currency' => 'USD', 'zraStatus' => 'sandbox', 'viewerUrl' => 'https://vfms-viewer.example/checkout-report/guest/TEST-CHECKOUT-169-2'],
-            ['type' => 'services_receipt', 'number' => 'TEST-RECEIPT-169', 'guest' => 'Anna Berg', 'amount' => 2000, 'currency' => 'USD', 'zraStatus' => 'sandbox', 'viewerUrl' => 'https://vfms-viewer.example/receipt-form/TEST-RECEIPT-169'],
+            ['type' => 'services_receipt', 'number' => 'TEST-RECEIPT-169', 'guest' => null, 'amount' => 2000, 'currency' => 'USD', 'zraStatus' => 'sandbox', 'viewerUrl' => 'https://vfms-viewer.example/receipt-form/TEST-RECEIPT-169'],
         ]);
     $json = json_encode(issuedFiscalRows($tenant));
     expect($json)->not->toContain('P1234567', 'P7654321', 'TEST-TOKEN');
@@ -156,7 +156,7 @@ test('legacy evidence without stored links or readable reports is marked unavail
     expect(array_map(fn (array $row) => [$row['number'], $row['guest'], $row['amount'], $row['viewerUrl']], issuedFiscalRows($tenant)))->toBe([
         ['TEST-CHECKOUT-169', null, null, null],
         ['TEST-CHECKOUT-169-2', null, null, null],
-        ['TEST-RECEIPT-169', 'Anna Berg', 2000, null],
+        ['TEST-RECEIPT-169', null, 2000, null],
     ]);
 });
 
@@ -227,4 +227,44 @@ test('the register filters by local date, type and ZRA status and paginates at 5
     expect($all->total())->toBe(53)->and($all->perPage())->toBe(50)->and(count($all->items()))->toBe(50);
     expect(fn () => $register(['from' => '13/12/2026']))->toThrow(ValidationException::class)
         ->and(fn () => $register(['type' => 'advance']))->toThrow(ValidationException::class);
+});
+
+// protects=a services receipt's guest is issue-time evidence only (#229); fails_when=the projection names the stay's current lead guest, which the services filing never carried.
+test('a services receipt never takes its guest from today\'s stay', function () {
+    $tenant = twoTenants()->a;
+    issuedDocumentsStay($tenant, earlyDeparture: false);
+
+    expect(collect(issuedFiscalRows($tenant))->firstWhere('type', 'services_receipt')['guest'])->toBeNull();
+});
+
+// protects=a legacy filing without a delivery time shows its issue time as unavailable (#229); fails_when=the update time stands in for it, it sorts among dated rows or a date filter matches it.
+test('a document without a recorded issue time is unavailable, listed last and outside date filters', function () {
+    $tenant = twoTenants()->a;
+    issuedDocumentsStay($tenant, earlyDeparture: false);
+    inTenant($tenant->property, function () {
+        DB::table('issued_documents')->delete();
+        DB::table('outbox_messages')->where('event', 'services')->update(['delivered_at' => null]);
+    });
+    $this->artisan('vfms:issued-documents')->assertSuccessful();
+    $register = fn (array $filters) => inTenant($tenant->property, fn () => app(IssuedDocuments::class)->register($tenant->property, $filters)->items());
+
+    $rows = $register([]);
+    expect(end($rows))->toMatchArray(['number' => 'TEST-RECEIPT-169', 'issuedAt' => null])
+        ->and(array_column($register(['from' => '2026-01-01']), 'number'))->not->toContain('TEST-RECEIPT-169')
+        ->and(array_column($register(['to' => '2027-12-31']), 'number'))->not->toContain('TEST-RECEIPT-169');
+});
+
+// protects=the inclusive upper date is the next local midnight, not 24 hours on, on a 23-hour DST day (#229); fails_when=a document just after local midnight leaks into the day before.
+test('the register date filter follows the property local day across a DST change', function () {
+    $tenant = twoTenants()->a;
+    $tenant->property->update(['timezone' => 'Europe/Berlin']);
+    $folio = issuedDocumentsFolio($tenant);
+    // Berlin's clocks go forward on 28 March 2027, so that day is 23 hours long.
+    $this->travelTo(CarbonImmutable::parse('2027-03-28 23:30:00', 'Europe/Berlin'));
+    $sameDay = issuedDocumentsPayment($tenant, $folio, 100);
+    $this->travelTo(CarbonImmutable::parse('2027-03-29 00:30:00', 'Europe/Berlin'));
+    issuedDocumentsPayment($tenant, $folio, 100);
+
+    $rows = inTenant($tenant->property, fn () => app(IssuedDocuments::class)->register($tenant->property, ['from' => '2027-03-28', 'to' => '2027-03-28'])->items());
+    expect(array_column($rows, 'id'))->toBe([$sameDay]);
 });

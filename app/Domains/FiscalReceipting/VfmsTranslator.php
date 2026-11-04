@@ -4,6 +4,7 @@ namespace App\Domains\FiscalReceipting;
 
 use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
+use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Reservations\Contracts\LifecycleTranslator;
@@ -47,7 +48,7 @@ final class VfmsTranslator implements LifecycleTranslator
         [$requestType, $path, $builder] = self::CORRECTION_CALL;
 
         return $this->outbox->record(VfmsAdapter::INTEGRATION, $stay, $builder, [
-            'mode' => 'live', 'unit_id' => VfmsCredential::for($property)->unit_id, 'request_type' => $requestType, 'path' => $path,
+            'mode' => VfmsMode::Live->value, 'unit_id' => VfmsCredential::for($property)->unit_id, 'request_type' => $requestType, 'path' => $path,
             'reservation_id' => $stay->id, 'correction_id' => $id,
             'body' => $this->payloads->errorSave($property, $old, $new, $reason, $business),
         ], "vfms-correction:{$id}");

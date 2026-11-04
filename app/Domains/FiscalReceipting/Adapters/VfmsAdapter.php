@@ -163,7 +163,7 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
                 $this->adjustFolio($message->payload, $result->references);
             }
 
-            return new DeliveryResult($result->outcome, ['mode' => $live ? 'live' : 'sandbox', ...(isset($message->payload['unit_id']) ? ['unitId' => $message->payload['unit_id']] : []), ...$result->references, ...$this->links($live, $result)], $result->responseBody, $result->retryAt, $message->id);
+            return new DeliveryResult($result->outcome, ['mode' => $credential->mode->value, ...(isset($message->payload['unit_id']) ? ['unitId' => $message->payload['unit_id']] : []), ...$result->references, ...$this->links($live, $result)], $result->responseBody, $result->retryAt, $message->id);
         }, $messages);
     }
 

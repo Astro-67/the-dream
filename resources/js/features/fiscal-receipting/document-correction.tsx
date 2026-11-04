@@ -23,11 +23,16 @@ import { Input } from '@/components/ui/input';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
 
+export const fiscalDocumentTypes = {
+    services_receipt: 'ZRA services receipt',
+    checkout_report: 'Guest check-out report',
+};
+
 type FiscalDocument = {
     id: string;
     number: string;
-    type: 'services_receipt' | 'checkout_report';
-    issued_at: string;
+    type: keyof typeof fiscalDocumentTypes;
+    issued_at: string | null;
     amount: number | null;
     currency: string | null;
     mode: 'live' | 'sandbox';
@@ -181,11 +186,11 @@ function DocumentFacts({ document }: { document: FiscalDocument }) {
         <div className="space-y-1 break-words">
             <Identifier value={document.number} copyable />
             <p className="text-sm text-muted-foreground">
-                {document.type === 'services_receipt'
-                    ? 'Services receipt'
-                    : 'Guest check-out report'}
+                {fiscalDocumentTypes[document.type]}
                 {' / '}
-                {formatDate(document.issued_at, tenant.property?.timezone)}
+                {document.issued_at === null
+                    ? 'Issue date unavailable'
+                    : formatDate(document.issued_at, tenant.property?.timezone)}
                 {' / '}
                 {document.mode === 'live' ? 'Live' : 'TEST, NOT FISCAL'}
             </p>
