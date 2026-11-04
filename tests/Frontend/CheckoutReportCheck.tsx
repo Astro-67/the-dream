@@ -23,6 +23,7 @@ const base: Props = {
     business: null,
     needsAttention: false,
     revealIdentityUrl: null,
+    reservationUrl: '/reservations/R-1042',
     serviceReceipts: [],
     stay: {
         reservation_number: 'R-1042',
@@ -102,6 +103,7 @@ const recordedProps: Props = {
     },
     guestReports: ['REPORT-1', 'REPORT-2'].map((number) => ({
         number,
+        mode: 'sandbox',
         name: `Guest ${number}`,
         identity: {
             documentName: 'PASSPORT',
@@ -117,6 +119,7 @@ const recordedProps: Props = {
             number: 'RECEIPT-172',
             description: 'Water',
             amount: 2000,
+            currency: 'USD',
             mode: 'sandbox',
             portalUrl: 'https://viewer.example/receipt-form/RECEIPT-172',
             qrSvg: '<svg data-qr="RECEIPT-172"></svg>',
@@ -173,6 +176,7 @@ const revealed = render({
     guestReports: [
         {
             number: 'REPORT-1',
+            mode: 'sandbox',
             name: 'Anna Berg',
             identity: {
                 documentName: 'PASSPORT',
@@ -198,6 +202,7 @@ const withoutDestinations: Props = {
     guestReports: [
         {
             number: 'NO-LINK-GUEST',
+            mode: 'sandbox',
             name: 'Private Guest',
             identity: null,
             departedEarly: true,
@@ -210,6 +215,7 @@ const withoutDestinations: Props = {
             number: 'NO-LINK-RECEIPT',
             description: 'Water',
             amount: 2000,
+            currency: 'USD',
             mode: 'sandbox',
             portalUrl: null,
             qrSvg: '<svg data-qr="orphan-receipt"></svg>',
@@ -250,8 +256,24 @@ assert.doesNotMatch(linkOnly, /data-qr=|VFMS QR code/);
 
 // Until VFMS accepts every filing the report shows no figures.
 const waiting = render({ ...base, status: 'waiting', report: null });
-assert.match(waiting, /Waiting for VFMS/);
+assert.match(waiting, /final check-out report is not complete/);
+assert.match(waiting, /ISSUED FISCAL DOCUMENTS/);
 assert.doesNotMatch(waiting, /SBX-1A2B|USD 239\.00/);
+
+const earlyDocuments = render({
+    ...recordedProps,
+    status: 'waiting',
+    report: null,
+    reservationUrl: null,
+});
+assert.match(earlyDocuments, /id="document-services_receipt-RECEIPT-172"/);
+assert.match(earlyDocuments, /id="document-checkout_report-REPORT-1"/);
+assert.match(earlyDocuments, /USD 20\.00/);
+assert.match(earlyDocuments, /TEST, NOT FISCAL/);
+assert.doesNotMatch(
+    earlyDocuments,
+    /FISCAL CHECK-OUT REPORT|href="\/reservations\/R-1042"/,
+);
 assert.match(
     render({ ...base, status: 'waiting', report: null, needsAttention: true }),
     /Needs attention: ZRA returned no verifiable check-out report/,

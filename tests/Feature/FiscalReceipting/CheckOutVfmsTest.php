@@ -215,8 +215,8 @@ test('a Live fiscal report shows the portal QR for its report number', function 
     ]);
 });
 
-// protects=reports accepted before links were stored reprint with the link they were first printed with; fails_when=an old printed QR changes on reprint.
-test('a report accepted before links were stored keeps its original guest-viewer link', function () {
+// protects=missing historical viewer destinations stay unavailable (#228); fails_when=a reprint invents a destination.
+test('a report accepted before links were stored has no invented viewer link', function () {
     $t = twoTenants();
     inTenant($t->a->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'live_since' => now()]));
     Http::fake(['gateway.zanrevenue.org/vfms/api/guest/checkout/' => Http::response(array_map(function (array $report, int $index) {
@@ -232,8 +232,10 @@ test('a report accepted before links were stored keeps its original guest-viewer
     $checkout->forceFill(['provider_references' => $references])->save();
 
     fiscalReport($t->a, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
-        ->where('portalUrl', 'https://portalvfms.zanrevenue.org/checkout-report/guest/CO-778')
-        ->where('guestReports.1.portalUrl', 'https://portalvfms.zanrevenue.org/checkout-report/guest/CO-779'));
+        ->where('portalUrl', null)
+        ->where('qrSvg', null)
+        ->where('guestReports.1.portalUrl', null)
+        ->where('guestReports.1.qrSvg', null));
 });
 
 // protects=FSC-07: VFMS being down never blocks check-out, and the report waits for every message (#160); fails_when=check-out fails or the report shows figures before VFMS accepts; no_claim=when the retry succeeds.

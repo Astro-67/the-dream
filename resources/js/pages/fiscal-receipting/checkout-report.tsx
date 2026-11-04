@@ -7,6 +7,7 @@ import { formatDate } from '@/features/platform/format';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { formatMoney } from '@/lib/utils';
 import { index, show as showReservation } from '@/routes/reservations';
+import { index as receipts } from '@/routes/receipts';
 
 type Report = {
     number: string;
@@ -33,6 +34,7 @@ export default function CheckoutReport({
     revealIdentityUrl,
     identityRevealed = false,
     branding,
+    reservationUrl,
 }: {
     status: 'waiting' | 'sandbox' | 'live';
     report: Report | null;
@@ -40,17 +42,20 @@ export default function CheckoutReport({
     qrSvg: string | null;
     needsAttention: boolean;
     revealIdentityUrl: string | null;
+    reservationUrl: string | null;
     identityRevealed?: boolean;
     serviceReceipts: {
         number: string;
         description: string | null;
         amount: number;
+        currency: string;
         mode: 'sandbox' | 'live' | null;
         portalUrl: string | null;
         qrSvg: string | null;
     }[];
     guestReports: {
         number: string;
+        mode: 'sandbox' | 'live' | null;
         name: string | null;
         identity: {
             documentName?: string;
@@ -88,7 +93,9 @@ export default function CheckoutReport({
 }) {
     return (
         <>
-            <Head title={`Fiscal check-out report ${stay.reservation_number}`}>
+            <Head
+                title={`${report ? 'Fiscal check-out report' : 'Issued fiscal documents'} ${stay.reservation_number}`}
+            >
                 <style media="print">
                     {'@page { size: A4; margin: 12mm; }'}
                 </style>
@@ -130,7 +137,9 @@ export default function CheckoutReport({
                         {property.city}. {property.phone}, {property.email}
                     </p>
                     <h1 className="pt-2 text-2xl font-semibold text-balance">
-                        FISCAL CHECK-OUT REPORT
+                        {report
+                            ? 'FISCAL CHECK-OUT REPORT'
+                            : 'ISSUED FISCAL DOCUMENTS'}
                     </h1>
                     {status === 'sandbox' && (
                         <StatusChip tone="warning">TEST, NOT FISCAL</StatusChip>
@@ -145,17 +154,21 @@ export default function CheckoutReport({
                             ['Guests', guests.join(', ')],
                             [
                                 'Reservation',
-                                <Link
-                                    key="reservation"
-                                    href={showReservation(
-                                        stay.reservation_number,
-                                    )}
-                                    className="underline underline-offset-4"
-                                >
+                                reservationUrl ? (
+                                    <Link
+                                        key="reservation"
+                                        href={reservationUrl}
+                                        className="underline underline-offset-4"
+                                    >
+                                        <Identifier
+                                            value={stay.reservation_number}
+                                        />
+                                    </Link>
+                                ) : (
                                     <Identifier
                                         value={stay.reservation_number}
                                     />
-                                </Link>,
+                                ),
                             ],
                             [
                                 'Room',
@@ -179,7 +192,7 @@ export default function CheckoutReport({
                         message={
                             needsAttention
                                 ? 'Needs attention: ZRA returned no verifiable check-out report. Review the filing before retrying.'
-                                : 'Waiting for VFMS. The report appears once VFMS has accepted every filing of this stay.'
+                                : 'The final check-out report is not complete. Any already-issued documents remain available below.'
                         }
                     />
                 ) : (
@@ -290,7 +303,7 @@ export default function CheckoutReport({
                         )}
                     </section>
                 )}
-                {report && serviceReceipts.length > 0 && (
+                {serviceReceipts.length > 0 && (
                     <section className="grid gap-4 sm:grid-cols-2 print:grid-cols-2">
                         <h2 className="font-semibold sm:col-span-2 print:col-span-2">
                             Extra service receipts
@@ -298,6 +311,7 @@ export default function CheckoutReport({
                         {serviceReceipts.map((receipt, index) => (
                             <div
                                 key={`${receipt.number}-${index}`}
+                                id={`document-services_receipt-${receipt.number}`}
                                 className="min-w-0 break-inside-avoid space-y-3 border-t pt-4"
                             >
                                 <div className="min-w-0 space-y-1 break-words">
@@ -312,7 +326,7 @@ export default function CheckoutReport({
                                     <p className="tabular-nums">
                                         {formatMoney(
                                             receipt.amount,
-                                            report.currency,
+                                            receipt.currency,
                                         )}
                                     </p>
                                 </div>
@@ -348,13 +362,19 @@ export default function CheckoutReport({
                         ))}
                     </section>
                 )}
-                {report && guestReports.length > 0 && (
+                {guestReports.length > 0 && (
                     <section className="grid gap-4 sm:grid-cols-2 print:grid-cols-2">
                         {guestReports.map((guest) => (
                             <article
                                 key={guest.number}
+                                id={`document-checkout_report-${guest.number}`}
                                 className="min-w-0 break-inside-avoid space-y-2 border-t pt-4"
                             >
+                                {guest.mode === 'sandbox' && (
+                                    <StatusChip tone="warning">
+                                        TEST, NOT FISCAL
+                                    </StatusChip>
+                                )}
                                 {guest.departedEarly && (
                                     <p className="text-sm text-muted-foreground">
                                         Departed before stay check-out
@@ -428,7 +448,7 @@ export default function CheckoutReport({
                         </Form>
                     )}
                     <Button variant="outline" onClick={() => window.print()}>
-                        Print report
+                        {report ? 'Print report' : 'Print issued documents'}
                     </Button>
                 </div>
             </div>
@@ -438,15 +458,21 @@ export default function CheckoutReport({
 
 CheckoutReport.layout = ({
     stay,
+    reservationUrl,
 }: {
     stay: { reservation_number: string };
+    reservationUrl: string | null;
 }) => ({
     breadcrumbs: [
-        { title: 'Reservations', href: index() },
-        {
-            title: stay.reservation_number,
-            href: showReservation(stay.reservation_number),
-        },
-        { title: 'Fiscal check-out report', href: '#' },
+        ...(reservationUrl
+            ? [
+                  { title: 'Reservations', href: index() },
+                  {
+                      title: stay.reservation_number,
+                      href: showReservation(stay.reservation_number),
+                  },
+              ]
+            : [{ title: 'Receipts', href: receipts() }]),
+        { title: 'Fiscal documents', href: '#' },
     ],
 });

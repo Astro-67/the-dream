@@ -6,6 +6,7 @@ use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
+use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\Reservations\Models\Reservation;
 use App\Support\Outbox\OutboxMessage;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
@@ -15,8 +16,8 @@ use BaconQrCode\Writer;
 
 /**
  * The fiscal check-out report of a stay (glossary): VFMS's report number and the folio
- * as VFMS settled it. Shown only once every VFMS message of the stay is accepted (FSC-07);
- * identity documents stay in encrypted attempts and are projected only for authorized viewers.
+ * as VFMS settled it. Final figures wait for every filing (FSC-07); already-issued documents
+ * remain readable. Identity documents are projected only for authorized viewers.
  */
 final class CheckoutReport
 {
@@ -28,22 +29,9 @@ final class CheckoutReport
             ->where('event', '!=', 'errorSave')
             ->with(['attempts' => fn ($query) => $query->where('outcome', 'accepted')->orderByDesc('attempt_number')])
             ->orderBy('sequence')->get();
-        $checkout = $messages->firstWhere('event', 'checkout');
-        if ($checkout === null || $messages->contains(fn (OutboxMessage $message) => $message->status !== 'delivered')) {
-            return [
-                'status' => 'waiting', 'report' => null, 'portalUrl' => null, 'qrSvg' => null, 'guestReports' => [], 'business' => null, 'serviceReceipts' => [],
-                'needsAttention' => $checkout !== null && $checkout->status === 'unknown',
-            ];
-        }
-        $references = $checkout->getAttribute('provider_references');
-        $payloads = app(VfmsPayloads::class);
-        $currency = $payloads->fromVfmsCurrency($checkout->payload['body']['currency']);
-        $summary = collect(FolioSummary::totals($reservation))->firstWhere('currency', $currency->value);
-        $live = ($references['mode'] ?? null) === 'live';
-        $url = $live ? self::reportUrl($checkout, (string) $references['reportNo']) : null;
         $guestReports = [];
         $business = null;
-        foreach ($messages->whereIn('event', ['checkout', 'guestDeparture']) as $message) {
+        foreach ($messages->where('status', 'delivered')->whereIn('event', ['checkout', 'guestDeparture']) as $message) {
             $attempt = $message->attempts->first();
             $body = $attempt?->response_body === null ? null : json_decode($attempt->response_body, true, flags: JSON_THROW_ON_ERROR)['body'] ?? null;
             if (! is_array($body) || app(CheckoutFigures::class)->of($body, $message->payload['body']) === null) {
@@ -55,6 +43,7 @@ final class CheckoutReport
                 $business ??= array_filter(array_intersect_key($entry, array_flip(['businessName', 'street', 'tinNumber', 'vrnNumber', 'znumber'])), is_scalar(...));
                 $guestReports[] = [
                     'number' => $number,
+                    'mode' => $message->getAttribute('provider_references')['mode'] ?? null,
                     'name' => $entry['guest']['fullName'] ?? null,
                     'identity' => $viewIdentity ? array_intersect_key($entry['guest'], array_flip(['documentName', 'country', ...($revealIdentity ? ['documentNo'] : [])])) : null,
                     'departedEarly' => $message->event === 'guestDeparture',
@@ -63,6 +52,47 @@ final class CheckoutReport
                 ];
             }
         }
+        foreach (IssuedDocument::query()->where('property_id', $reservation->property_id)
+            ->where('reservation_id', $reservation->id)->where('type', 'checkout_report')
+            ->whereNotIn('number', array_column($guestReports, 'number'))->orderBy('issued_at')->orderBy('id')->get() as $document) {
+            $guestUrl = $document->getAttribute('viewer_url');
+            $guestReports[] = [
+                'number' => $document->number, 'mode' => $document->mode,
+                'name' => $document->getAttribute('guest_name'), 'identity' => null,
+                'departedEarly' => $messages->firstWhere('id', $document->getAttribute('outbox_message_id'))?->event === 'guestDeparture',
+                'portalUrl' => $guestUrl, 'qrSvg' => $guestUrl === null ? null : self::qr($guestUrl),
+            ];
+        }
+        $serviceReceipts = Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
+            ->whereNotNull('vfms_receipt_number')->orderBy('posted_at')->orderBy('id')->get()
+            ->map(function (Posting $posting) use ($messages) {
+                $service = $messages->first(fn (OutboxMessage $message) => $message->event === 'services'
+                    && $message->status === 'delivered'
+                    && ($message->payload['posting_id'] ?? null) === $posting->id
+                    && ($message->getAttribute('provider_references')['receiptNumber'] ?? null) === $posting->vfms_receipt_number);
+                $mode = $service?->getAttribute('provider_references')['mode'] ?? null;
+                $receiptUrl = $service?->getAttribute('provider_references')['receiptUrl'] ?? null;
+
+                return [
+                    'number' => $posting->vfms_receipt_number, 'description' => $posting->description, 'amount' => $posting->amount,
+                    'currency' => $posting->currency->value,
+                    'mode' => $mode, 'portalUrl' => $receiptUrl, 'qrSvg' => $receiptUrl === null ? null : self::qr($receiptUrl),
+                ];
+            })->all();
+        $checkout = $messages->firstWhere('event', 'checkout');
+        if ($checkout === null || $messages->contains(fn (OutboxMessage $message) => $message->status !== 'delivered')) {
+            return [
+                'status' => 'waiting', 'report' => null, 'portalUrl' => null, 'qrSvg' => null,
+                'guestReports' => $guestReports, 'business' => $business, 'serviceReceipts' => $serviceReceipts,
+                'needsAttention' => $checkout !== null && $checkout->status === 'unknown',
+            ];
+        }
+        $references = $checkout->getAttribute('provider_references');
+        $payloads = app(VfmsPayloads::class);
+        $currency = $payloads->fromVfmsCurrency($checkout->payload['body']['currency']);
+        $summary = collect(FolioSummary::totals($reservation))->firstWhere('currency', $currency->value);
+        $live = ($references['mode'] ?? null) === 'live';
+        $url = $live ? self::reportUrl($checkout, (string) $references['reportNo']) : null;
 
         return [
             'status' => $live ? 'live' : 'sandbox',
@@ -79,25 +109,11 @@ final class CheckoutReport
             'guestReports' => $guestReports,
             'business' => $business,
             'needsAttention' => false,
-            'serviceReceipts' => Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
-                ->where('currency', $currency->value)->whereNotNull('vfms_receipt_number')->orderBy('posted_at')->orderBy('id')->get()
-                ->map(function (Posting $posting) use ($messages) {
-                    $service = $messages->first(fn (OutboxMessage $message) => $message->event === 'services'
-                        && ($message->payload['posting_id'] ?? null) === $posting->id
-                        && ($message->getAttribute('provider_references')['receiptNumber'] ?? null) === $posting->vfms_receipt_number);
-                    $mode = $service?->getAttribute('provider_references')['mode'] ?? null;
-                    $receiptUrl = $service?->getAttribute('provider_references')['receiptUrl'] ?? (in_array($mode, ['live', 'sandbox'], true)
-                        ? self::viewerUrl($mode === 'live', 'receipt-form', $posting->vfms_receipt_number) : null);
-
-                    return [
-                        'number' => $posting->vfms_receipt_number, 'description' => $posting->description, 'amount' => $posting->amount,
-                        'mode' => $mode, 'portalUrl' => $receiptUrl, 'qrSvg' => $receiptUrl === null ? null : self::qr($receiptUrl),
-                    ];
-                })->all(),
+            'serviceReceipts' => $serviceReceipts,
         ];
     }
 
-    /** The link stored when VFMS accepted the report, or for reports accepted before links were stored, the same guest-viewer link. */
+    /** The original viewer destination is unavailable when it was not stored. */
     private static function reportUrl(OutboxMessage $message, string $number): ?string
     {
         $references = $message->getAttribute('provider_references');
@@ -105,7 +121,7 @@ final class CheckoutReport
 
         return is_array($stored) && is_string($stored[$number] ?? null)
             ? $stored[$number]
-            : self::viewerUrl(($references['mode'] ?? null) === 'live', 'checkout-report/guest', $number);
+            : null;
     }
 
     /** ZRA's viewer link: checkout-report/guest for a report (ZRA's portal shows every report in USD, converted), receipt-form for a service receipt. */
