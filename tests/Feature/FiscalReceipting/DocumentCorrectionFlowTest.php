@@ -1,6 +1,8 @@
 <?php
 
+use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\DocumentCorrection;
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\DrainOutboxMessage;
@@ -14,9 +16,9 @@ beforeEach(function () {
     Http::preventStrayRequests();
 });
 
-test('document register folio and reprints annotate every correction state without changing evidence', function (string $delivery, ?string $decision) {
+test('document register folio and reprints annotate every correction state without changing evidence', function (string $type, string $delivery, ?string $decision) {
     $tenant = twoTenants()->a;
-    [$stay, $old, $new] = correctionDocuments($tenant, 'checkout_report');
+    [$stay, $old, $new] = correctionDocuments($tenant, $type);
     $before = DB::table('issued_documents')->orderBy('id')->get()->toJson();
     $postings = DB::table('postings')->get()->toJson();
     $this->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id]);
@@ -42,7 +44,7 @@ test('document register folio and reprints annotate every correction state witho
     $expected = $decision ?? ($delivery === 'delivered' ? 'awaiting' : null);
     $this->get(route('reservations.fiscal-report', $stay))->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('status', 'live')
+            ->where('status', $type === 'checkout_report' ? 'live' : 'waiting')
             ->where("documentCorrections.{$old->id}.annotations.0.delivery", $delivery)
             ->where("documentCorrections.{$old->id}.annotations.0.decision", $expected)
             ->where("documentCorrections.{$old->id}.annotations.0.number", 'NEW-232')
@@ -59,10 +61,42 @@ test('document register folio and reprints annotate every correction state witho
         ->where("documentCorrections.{$old->id}.annotations.0.decision", $expected));
     expect(DB::table('issued_documents')->orderBy('id')->get()->toJson())->toBe($before)
         ->and(DB::table('postings')->get()->toJson())->toBe($postings);
-})->with([
+})->with(['services_receipt', 'checkout_report'])->with([
     ['pending', null], ['unknown', null], ['rejected', null], ['delivered', null],
     ['delivered', 'pending'], ['delivered', 'verification'], ['delivered', 'approved'], ['delivered', 'rejected'],
 ]);
+
+test('a correction without an already issued replacement shows its prerequisite and never sends traffic', function () {
+    $tenant = twoTenants()->a;
+    [$stay, $old, $new] = correctionDocuments($tenant);
+    inTenant($tenant->property, fn () => $new->delete());
+
+    $this->actingAs($tenant->owner)
+        ->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reservations.fiscal-report', $stay))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where("documentCorrections.{$old->id}.replacements", [])
+            ->where("documentCorrections.{$old->id}.refusal", null));
+    Http::assertNothingSent();
+});
+
+test('sandbox refuses correction on the issued document without hiding its evidence', function () {
+    $tenant = twoTenants()->a;
+    [$stay, $old] = correctionDocuments($tenant);
+    inTenant($tenant->property, function () use ($tenant) {
+        VfmsCredential::for($tenant->property)
+            ->forceFill(['mode' => VfmsMode::Sandbox])->save();
+    });
+
+    $this->actingAs($tenant->owner)
+        ->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reservations.fiscal-report', $stay))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where("documentCorrections.{$old->id}.document.number", 'OLD-232')
+            ->where("documentCorrections.{$old->id}.refusal", 'ZRA does not provide error correction in Sandbox.')
+            ->where("documentCorrections.{$old->id}.replacements", []));
+    Http::assertNothingSent();
+});
 
 test('the issued document opens correction with its own number and only verified replacements', function (string $type) {
     $tenant = twoTenants()->a;
