@@ -1,10 +1,13 @@
 <?php
 
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
+use App\Domains\FiscalReceipting\IssuedDocuments;
+use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Platform\Actions\AssignPlatformRole;
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Rates\Models\TaxRule;
+use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Tenancy\Actions\CreateOrganization;
 use App\Domains\Tenancy\Data\OrganizationSetup;
@@ -12,10 +15,14 @@ use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Organization;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
+use App\Support\Outbox\Outbox;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\BookingForm;
+use Tests\Support\TenantFixture;
 use Tests\Support\TwoTenants;
 use Tests\TestCase;
 
@@ -186,4 +193,42 @@ function withBillingDetails(array $overrides = []): BillingDetails
 function twoTenants(): TwoTenants
 {
     return TwoTenants::build();
+}
+
+/** Accepted evidence fixture, not a claim of a provider replacement-issuance procedure. */
+function correctionDocuments(TenantFixture $tenant, string $type = 'services_receipt'): array
+{
+    return inTenant($tenant->property, function () use ($tenant, $type) {
+        $tenant->property->update(['email' => 'desk@example.test', 'phone' => '+255777123456', 'z_number' => 'Z0123456789-5940']);
+        VfmsCredential::for($tenant->property)->fill(['mode' => VfmsMode::Live, 'unit_id' => 232, 'integration_id' => 'CORRECTION-ID', 'registration_id' => 'REG', 'token' => 'SECRET-TOKEN'])->save();
+        $stay = app(CreateReservation::class)->handle($tenant->owner, BookingForm::details($tenant->owner));
+        foreach (['OLD-232', 'NEW-232'] as $number) {
+            $message = DB::transaction(fn () => app(Outbox::class)->record('vfms', $stay, $type === 'services_receipt' ? 'services' : 'checkout', [
+                'mode' => 'live', 'reservation_id' => $stay->id, 'posting_id' => 'same-service',
+                'request_type' => $type === 'services_receipt' ? 'ACCOMMODATION_ADD_SERVICE' : 'ACCOMMODATION_CHECK_OUT',
+                'path' => $type === 'services_receipt' ? 'service/' : 'guest/checkout/',
+                'body' => $type === 'services_receipt'
+                    ? ['currency' => 'USD', 'documentNumber' => 'PRIVATE-GUEST-ID', 'service' => [['price' => 10, 'quantity' => 1, 'discount' => 0]]]
+                    : ['currency' => 'USD', 'documentNumberList' => [['documentNumber' => 'P1234567']]],
+            ], 'fixture:'.$number));
+            $report = json_decode(file_get_contents(__DIR__.'/Fixtures/vfms/checkout.json'), true)[0];
+            $response = $type === 'services_receipt' ? ['receiptNumber' => $number, 'businessName' => 'Accepted business'] : [[...$report, 'reportNumber' => $number, 'businessName' => 'Accepted business']];
+            $message->forceFill(['status' => 'delivered', 'delivered_at' => now(), 'provider_references' => [
+                'mode' => 'live', 'unitId' => 232,
+                ...($type === 'services_receipt' ? ['receiptNumber' => $number] : ['reportNumbers' => json_encode([$number])]),
+            ]])->save();
+            $message->attempts()->create(['attempt_number' => 1, 'outcome' => 'accepted', 'request_body' => json_encode($message->payload), 'response_body' => json_encode(['status' => 200, 'body' => $response])]);
+            app(IssuedDocuments::class)->project($message);
+        }
+
+        return [$stay, IssuedDocument::query()->where('number', 'OLD-232')->sole(), IssuedDocument::query()->where('number', 'NEW-232')->sole()];
+    });
+}
+
+/** Submits the fixture pair as its owner through the real route. */
+function submitCorrection($test, TenantFixture $tenant, IssuedDocument $old, IssuedDocument $new)
+{
+    return $test->actingAs($tenant->owner)->post(route('issued-documents.corrections.store', $old), [
+        '_property' => $tenant->property->id, 'replacement_id' => $new->id, 'reason' => 'Wrong particulars', 'confirmed' => true,
+    ]);
 }
