@@ -20,7 +20,7 @@ import { NativeSelect } from '@/components/ui/select';
 import { StatusChip } from '@/components/ui/status-chip';
 import { Input } from '@/components/ui/input';
 import { formatDate } from '@/features/platform/format';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, formatTime } from '@/lib/utils';
 
 type FiscalDocument = {
     id: string;
@@ -76,7 +76,7 @@ const deliveryLabels: Record<string, string> = {
 };
 
 export function CorrectionAnnotation({ note }: { note: CorrectionNote }) {
-    const { correctionRefresh } = usePage<{
+    const { correctionRefresh, tenant } = usePage<{
         correctionRefresh?: { refreshing: boolean; observedAt: string | null };
     }>().props;
     return (
@@ -143,7 +143,15 @@ export function CorrectionAnnotation({ note }: { note: CorrectionNote }) {
                             {correctionRefresh?.observedAt && (
                                 <p className="text-xs text-muted-foreground">
                                     Last observed{' '}
-                                    {formatDate(correctionRefresh.observedAt)}
+                                    {formatDate(
+                                        correctionRefresh.observedAt,
+                                        tenant.property?.timezone,
+                                    )}
+                                    {' / '}
+                                    {formatTime(
+                                        correctionRefresh.observedAt,
+                                        tenant.property?.timezone ?? 'UTC',
+                                    )}
                                 </p>
                             )}
                         </>

@@ -6,6 +6,8 @@ use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\DrainOutboxMessage;
+use App\Support\Outbox\OutboxMessage;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -137,4 +139,27 @@ test('non managers can read documents but cannot receive correction controls', f
         ->assertInertia(fn (Assert $page) => $page
             ->where("documentCorrections.{$old->id}.submitUrl", null)
             ->where("documentCorrections.{$old->id}.replacements", []));
+});
+
+test('a different guests issued report is never offered as a replacement', function () {
+    $tenant = twoTenants()->a;
+    [$stay, $old, $new] = correctionDocuments($tenant, 'checkout_report');
+    inTenant($tenant->property, function () use ($new) {
+        $message = OutboxMessage::query()->findOrFail($new->getAttribute('outbox_message_id'));
+        $payload = $message->payload;
+        $payload['body']['documentNumberList'] = [['documentNumber' => 'OTHER-PRIVATE-IDENTITY']];
+        $message->forceFill(['payload' => $payload])->save();
+        $attempt = $message->attempts()->sole();
+        $response = json_decode($attempt->response_body, true);
+        $response['body'][0]['guest']['documentNo'] = 'OTHER-PRIVATE-IDENTITY';
+        $message->attempts()->whereKey($attempt->id)->update(['response_body' => Crypt::encryptString(json_encode($response))]);
+    });
+
+    $this->actingAs($tenant->owner)
+        ->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reservations.fiscal-report', $stay))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where("documentCorrections.{$old->id}.replacements", []))
+        ->assertDontSee('OTHER-PRIVATE-IDENTITY');
+    Http::assertNothingSent();
 });

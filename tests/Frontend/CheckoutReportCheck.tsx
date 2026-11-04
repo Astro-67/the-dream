@@ -358,6 +358,11 @@ for (const [decision, label] of [
     assert.match(corrected, /REPLACEMENT-172/);
     assert.match(corrected, /Refresh ZRA status/);
     assert.match(corrected, /RECEIPT-172/);
+    assert.match(corrected, /data-qr="RECEIPT-172"/);
+    assert.match(
+        corrected,
+        /href="https:\/\/viewer\.example\/receipt-form\/RECEIPT-172"/,
+    );
     assert.match(corrected, /USD 20\.00/);
     assert.doesNotMatch(corrected, /Correct this document/);
 }
