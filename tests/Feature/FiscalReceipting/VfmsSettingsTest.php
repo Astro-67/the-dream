@@ -142,3 +142,19 @@ test('a mainland property has no VFMS settings', function () {
     $this->put(route('properties.vfms.update', $t->a->otherProperty), vfmsCredentials($t->a, ['_property' => $t->a->otherProperty->id]))
         ->assertSessionHasErrors(['vfms' => 'This property does not use VFMS.']);
 });
+
+test('VFMS business unit ID is optional and preserves signed 64 bit precision', function () {
+    $tenant = twoTenants()->a;
+    $this->actingAs($tenant->member(OrganizationRole::PropertyManager));
+
+    $this->put(route('properties.vfms.update', $tenant->property), vfmsCredentials($tenant, ['unit_id' => '9223372036854775807']))
+        ->assertSessionHasNoErrors();
+    $this->get(route('properties.edit', $tenant->property))
+        ->assertInertia(fn (Assert $page) => $page->where('vfms.unit_id', '9223372036854775807'));
+    expect(VfmsCredential::for($tenant->property)->unit_id)->toBe(PHP_INT_MAX)
+        ->and(Activity::query()->where('event', 'vfms_credentials_saved')->latest('id')->first()->getExtraProperty('attributes')['unit_id'])->toBe(PHP_INT_MAX);
+
+    $this->put(route('properties.vfms.update', $tenant->property), vfmsCredentials($tenant, ['unit_id' => null]))
+        ->assertSessionHasNoErrors();
+    expect(VfmsCredential::for($tenant->property)->unit_id)->toBeNull();
+});

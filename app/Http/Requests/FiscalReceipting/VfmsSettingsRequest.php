@@ -39,6 +39,7 @@ class VfmsSettingsRequest extends FormRequest
         return [
             'integration_id' => ['required', 'string', 'max:100'],
             'registration_id' => ['required', 'string', 'max:100'],
+            'unit_id' => ['nullable', 'integer', 'min:1', 'max:9223372036854775807'],
             // Blank keeps the saved token: the form never receives it back.
             'token' => ['nullable', 'string', 'max:500'],
         ];
