@@ -3,11 +3,22 @@
 namespace App\Domains\FiscalReceipting\Models;
 
 use App\Support\Tenancy\BelongsToProperty;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use LogicException;
 
-/** One section 2.13 read; written once when it finishes. Request and response are encrypted evidence. */
+/**
+ * One section 2.13 read; written once when it finishes. Request and response are encrypted evidence.
+ *
+ * @property int $id
+ * @property string $property_id
+ * @property string $actor_id
+ * @property array<string, mixed> $request_body
+ * @property array<string, mixed>|null $response_body
+ * @property 'observed'|'unresolved'|'failed'|null $outcome
+ * @property CarbonImmutable|null $finished_at
+ */
 #[Fillable(['actor_id', 'request_body', 'response_body', 'outcome', 'finished_at'])]
 class CorrectionDecisionRead extends Model
 {
