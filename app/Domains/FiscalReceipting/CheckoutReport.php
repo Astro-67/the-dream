@@ -26,6 +26,7 @@ final class CheckoutReport
     {
         $messages = OutboxMessage::query()->where('integration', VfmsAdapter::INTEGRATION)
             ->where('subject_type', $reservation->getMorphClass())->where('subject_id', $reservation->id)
+            ->where('event', '!=', 'errorSave')
             ->with(['attempts' => fn ($query) => $query->where('outcome', 'accepted')->orderByDesc('attempt_number')])
             ->orderBy('sequence')->get();
         $guestReports = [];

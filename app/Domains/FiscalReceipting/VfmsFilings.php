@@ -43,7 +43,7 @@ final class VfmsFilings
     {
         return OutboxMessage::query()->where('property_id', $reservation->property_id)
             ->where('integration', VfmsAdapter::INTEGRATION)->where('subject_type', $reservation->getMorphClass())
-            ->where('subject_id', $reservation->id)->orderBy('sequence')->get()
+            ->where('subject_id', $reservation->id)->where('event', '!=', 'errorSave')->orderBy('sequence')->get()
             ->map(function (OutboxMessage $message) use ($reservation, $canRecover) {
                 $references = $message->getAttribute('provider_references') ?? [];
                 $number = $references['reportNo'] ?? $references['receiptNumber'] ?? $references['responseNumber'] ?? null;

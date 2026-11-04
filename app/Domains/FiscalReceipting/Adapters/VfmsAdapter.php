@@ -14,6 +14,7 @@ use App\Domains\FiscalReceipting\VfmsPayloads;
 use App\Domains\FiscalReceipting\VfmsTranslator;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Outbox\AcceptanceProjector;
 use App\Support\Outbox\DeliveryAdapter;
@@ -63,6 +64,9 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
     /** @return array<string, mixed> */
     private function rebuild(OutboxMessage $message): array
     {
+        if ($message->event === 'errorSave') {
+            throw new RuntimeException('Issued-document corrections require reconciliation, not filing recovery.');
+        }
         $reservation = Reservation::query()->where('property_id', $message->property_id)->findOrFail($message->subject_id);
         $property = Property::query()->findOrFail($message->property_id);
         if ($message->integration !== self::INTEGRATION || $message->subject_type !== $reservation->getMorphClass()
@@ -105,7 +109,12 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
     public function send(array $messages): array
     {
         return array_map(function ($message) {
-            $credential = VfmsCredential::for(Property::query()->findOrFail($message->property_id));
+            $property = Property::query()->findOrFail($message->property_id);
+            if ($message->event === 'errorSave' && ($property->demo || $property->archived_at !== null
+                || ! JurisdictionRules::usesVfms($property))) {
+                return new DeliveryResult('rejected', responseBody: ['error' => 'Issued-document corrections require an active real Zanzibar property.'], messageId: $message->id);
+            }
+            $credential = VfmsCredential::for($property);
             if ($message->payload['mode'] !== $credential->mode->value) {
                 return new DeliveryResult('rejected', responseBody: ['error' => 'VFMS mode changed; review the queued filing before sending.'], messageId: $message->id);
             }
@@ -154,7 +163,7 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
                 $this->adjustFolio($message->payload, $result->references);
             }
 
-            return new DeliveryResult($result->outcome, ['mode' => $live ? 'live' : 'sandbox', ...$result->references, ...$this->links($live, $result)], $result->responseBody, $result->retryAt, $message->id);
+            return new DeliveryResult($result->outcome, ['mode' => $live ? 'live' : 'sandbox', ...(isset($message->payload['unit_id']) ? ['unitId' => $message->payload['unit_id']] : []), ...$result->references, ...$this->links($live, $result)], $result->responseBody, $result->retryAt, $message->id);
         }, $messages);
     }
 

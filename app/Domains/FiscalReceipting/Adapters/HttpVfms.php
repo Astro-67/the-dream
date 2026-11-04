@@ -85,6 +85,30 @@ final class HttpVfms
             $this->markRefused($credential);
         }
 
+        if ($payload['request_type'] === 'ERROR_SAVE') {
+            // Section 3's 200/201 interpretation is unverified against an authenticated acknowledgement.
+            if (is_array($data) && preg_match('/duplicate|already\s+exists/i', json_encode($data, JSON_THROW_ON_ERROR))) {
+                return new DeliveryResult('unknown', responseBody: $responseBody);
+            }
+            if ($status >= 500 || ! is_array($data) || array_is_list($data)) {
+                return new DeliveryResult('unknown', responseBody: $responseBody);
+            }
+            $applicationStatus = $data['status'] ?? null;
+            $success = in_array($applicationStatus, [200, 201, '200', '201'], true);
+            if ($status >= 200 && $status < 300 && $success && ! array_key_exists('statusCode', $data)
+                && ! isset($data['error']) && ! isset($data['errors'])
+                && ! preg_match('/fail|reject|refus|invalid|error|unsuccess/i', json_encode([$data['statusMessage'] ?? '', $data['message'] ?? ''], JSON_THROW_ON_ERROR))) {
+                return new DeliveryResult('accepted', responseBody: $responseBody);
+            }
+            if (! $success && (in_array($status, [400, 401, 403, 404], true)
+                || in_array($applicationStatus, [400, 401, 403, 404, 5000, '400', '401', '403', '404', '5000'], true)
+                || in_array($data['statusCode'] ?? null, [5000, '5000'], true))) {
+                return new DeliveryResult('rejected', responseBody: $responseBody);
+            }
+
+            return new DeliveryResult('unknown', responseBody: $responseBody);
+        }
+
         $errors = is_array($data)
             ? ($status >= 400 ? $data : array_intersect_key($data, array_flip(['statusMessage', 'error', 'errors'])))
             : ($status >= 400 ? $response->body() : '');
