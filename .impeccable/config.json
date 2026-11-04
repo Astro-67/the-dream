@@ -16,6 +16,20 @@
                 "files": ["tests/Frontend/PropertySettingsCheck.tsx"],
                 "createdAt": "2026-11-02T13:24:08.159Z",
                 "reason": "Agent: existing regex assertions inspect SSR img markup, not shipped image elements"
+            },
+            {
+                "rule": "cream-palette",
+                "value": "*",
+                "files": [".scratch/preview/index.html"],
+                "createdAt": "2026-11-04T20:45:37.214Z",
+                "reason": "Agent reviewed: disposable preview reuses the intentional warm-ivory background mandated by docs/design.md; no new palette was introduced."
+            },
+            {
+                "rule": "ai-color-palette",
+                "value": "*",
+                "files": [".scratch/preview/index.html"],
+                "createdAt": "2026-11-04T20:45:37.219Z",
+                "reason": "Agent reviewed: disposable preview loads existing navy-led production CSS, including unused status tokens; rendered correction UI has no purple gradient or cyan-on-dark palette."
             }
         ]
     }
