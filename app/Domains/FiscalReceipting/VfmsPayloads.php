@@ -4,6 +4,7 @@ namespace App\Domains\FiscalReceipting;
 
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Models\Room;
@@ -27,6 +28,21 @@ use InvalidArgumentException;
  */
 final class VfmsPayloads
 {
+    /**
+     * @param  array<string, mixed>|null  $acceptedBusiness
+     * @return array<string, mixed>
+     */
+    public function correctionIdentity(Property $property, ?array $acceptedBusiness = null): array
+    {
+        return [
+            'b_unit_name' => filled($acceptedBusiness['businessName'] ?? null) ? $acceptedBusiness['businessName'] : $property->name,
+            'email' => $property->email,
+            'phone_no' => $property->phone,
+            'zrb_number' => $property->z_number,
+            'unitId' => VfmsCredential::for($property)->unit_id,
+        ];
+    }
+
     /** @return array<string, mixed> */
     public function services(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
     {
