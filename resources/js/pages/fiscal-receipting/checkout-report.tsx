@@ -375,7 +375,6 @@ export default function CheckoutReport({
                                         TEST, NOT FISCAL
                                     </StatusChip>
                                 )}
-                                <p>{guest.name ?? 'Guest report'}</p>
                                 {guest.departedEarly && (
                                     <p className="text-sm text-muted-foreground">
                                         Departed before stay check-out
