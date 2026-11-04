@@ -25,6 +25,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { formatDate, formatMoney, formatTime } from '@/lib/utils';
+import {
+    CorrectionAnnotation,
+    type CorrectionNote,
+} from '@/features/fiscal-receipting/document-correction';
 import { index } from '@/routes/receipts';
 import type { Paginated } from '@/types';
 
@@ -50,6 +54,7 @@ type Document = {
     mode: 'live' | 'sandbox' | null;
     viewerUrl: string | null;
     localUrl: string | null;
+    annotations: CorrectionNote[];
 };
 type Filters = {
     from?: string;
@@ -258,7 +263,21 @@ export default function Receipts({
                                             </Tag>
                                         </TableCell>
                                         <TableCell>
-                                            <Tag>None</Tag>
+                                            {document.annotations.length ===
+                                            0 ? (
+                                                <Tag>None</Tag>
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    {document.annotations.map(
+                                                        (note, index) => (
+                                                            <CorrectionAnnotation
+                                                                key={index}
+                                                                note={note}
+                                                            />
+                                                        ),
+                                                    )}
+                                                </div>
+                                            )}
                                         </TableCell>
                                         <TableCell className="whitespace-nowrap">
                                             <div className="flex flex-col gap-2">

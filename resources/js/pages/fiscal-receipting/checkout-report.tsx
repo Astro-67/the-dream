@@ -3,6 +3,10 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
+import {
+    DocumentCorrectionControl,
+    type DocumentCorrectionView,
+} from '@/features/fiscal-receipting/document-correction';
 import { formatDate } from '@/features/platform/format';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { formatMoney } from '@/lib/utils';
@@ -35,7 +39,9 @@ export default function CheckoutReport({
     identityRevealed = false,
     branding,
     reservationUrl,
+    documentCorrections = {},
 }: {
+    documentCorrections?: Record<string, DocumentCorrectionView>;
     status: 'waiting' | 'sandbox' | 'live';
     report: Report | null;
     portalUrl: string | null;
@@ -314,6 +320,21 @@ export default function CheckoutReport({
                                 id={`document-services_receipt-${receipt.number}`}
                                 className="min-w-0 break-inside-avoid space-y-3 border-t pt-4"
                             >
+                                {Object.values(documentCorrections)
+                                    .filter(
+                                        (view) =>
+                                            view.document.type ===
+                                                'services_receipt' &&
+                                            view.document.number ===
+                                                receipt.number &&
+                                            view.document.mode === receipt.mode,
+                                    )
+                                    .map((view) => (
+                                        <DocumentCorrectionControl
+                                            key={view.document.id}
+                                            view={view}
+                                        />
+                                    ))}
                                 <div className="min-w-0 space-y-1 break-words">
                                     <p>
                                         {receipt.description ?? 'Extra service'}
@@ -370,6 +391,21 @@ export default function CheckoutReport({
                                 id={`document-checkout_report-${guest.number}`}
                                 className="min-w-0 break-inside-avoid space-y-2 border-t pt-4"
                             >
+                                {Object.values(documentCorrections)
+                                    .filter(
+                                        (view) =>
+                                            view.document.type ===
+                                                'checkout_report' &&
+                                            view.document.number ===
+                                                guest.number &&
+                                            view.document.mode === guest.mode,
+                                    )
+                                    .map((view) => (
+                                        <DocumentCorrectionControl
+                                            key={view.document.id}
+                                            view={view}
+                                        />
+                                    ))}
                                 {guest.mode === 'sandbox' && (
                                     <StatusChip tone="warning">
                                         TEST, NOT FISCAL

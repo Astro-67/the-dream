@@ -6,6 +6,10 @@ import {
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Form, Link, usePage } from '@inertiajs/react';
+import {
+    CorrectionAnnotation,
+    type DocumentCorrectionView,
+} from '@/features/fiscal-receipting/document-correction';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -194,7 +198,9 @@ export function FolioPanel({
     acceptedPaymentMethods: string[];
     extraCategories: string[];
 }) {
-    const { tenant } = usePage().props;
+    const { tenant, documentCorrections = {} } = usePage<{
+        documentCorrections?: Record<string, DocumentCorrectionView>;
+    }>().props;
     const timezone = tenant.property?.timezone ?? 'UTC';
     const folios = folioPage.data;
     const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null);
@@ -208,6 +214,19 @@ export function FolioPanel({
     return (
         <section className="space-y-4">
             <h2 className="text-lg font-semibold">Folio</h2>
+            {Object.values(documentCorrections)
+                .filter((view) => view.annotations.length > 0)
+                .map((view) => (
+                    <div key={view.document.id} className="space-y-2">
+                        <p className="text-sm">
+                            Fiscal document{' '}
+                            <Identifier value={view.document.number} />
+                        </p>
+                        {view.annotations.map((note, index) => (
+                            <CorrectionAnnotation key={index} note={note} />
+                        ))}
+                    </div>
+                ))}
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
                 <span>{stay.guest}</span>
                 <span aria-hidden="true">·</span>

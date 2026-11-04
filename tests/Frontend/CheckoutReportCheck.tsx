@@ -297,4 +297,69 @@ assert.match(branded, /ZRA Test Hotel/);
 assert.match(branded, /TIN TEST-TIN/);
 assert.match(branded, /TEST, NOT FISCAL/);
 
+const correctionDocument = {
+    id: 'issued-1',
+    number: 'RECEIPT-172',
+    type: 'services_receipt' as const,
+    issued_at: '2026-12-10T09:00:00Z',
+    amount: 2000,
+    currency: 'USD',
+    mode: 'live' as const,
+};
+const correctionProps = {
+    ...recordedProps,
+    serviceReceipts: recordedProps.serviceReceipts.map((receipt) => ({
+        ...receipt,
+        mode: 'live' as const,
+    })),
+    documentCorrections: {
+        'issued-1': {
+            document: correctionDocument,
+            submitUrl: '/issued-documents/issued-1/corrections',
+            replacements: [],
+            business: {},
+            refusal: null,
+            annotations: [],
+        },
+    },
+};
+assert.match(render(correctionProps), /Correct this document/);
+for (const [decision, label] of [
+    ['awaiting', 'Awaiting ZRA status'],
+    ['pending', 'Pending'],
+    ['verification', 'Under verification'],
+    ['approved', 'Approved'],
+    ['rejected', 'Correction rejected'],
+]) {
+    const corrected = render({
+        ...correctionProps,
+        documentCorrections: {
+            'issued-1': {
+                ...correctionProps.documentCorrections['issued-1'],
+                submitUrl: null,
+                annotations: [
+                    {
+                        label:
+                            decision === 'approved'
+                                ? 'Replaced by'
+                                : 'Proposed replacement',
+                        number: 'REPLACEMENT-172',
+                        url: '/replacement',
+                        delivery: 'delivered',
+                        decision,
+                        refreshUrl: '/refresh',
+                    },
+                ],
+            },
+        },
+    });
+    assert.match(corrected, new RegExp(label));
+    assert.match(corrected, /Submission delivered/);
+    assert.match(corrected, /REPLACEMENT-172/);
+    assert.match(corrected, /Refresh ZRA status/);
+    assert.match(corrected, /RECEIPT-172/);
+    assert.match(corrected, /USD 20\.00/);
+    assert.doesNotMatch(corrected, /Correct this document/);
+}
+
 console.log('Fiscal check-out report: PASS');
