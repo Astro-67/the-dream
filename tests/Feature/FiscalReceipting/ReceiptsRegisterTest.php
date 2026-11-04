@@ -4,6 +4,7 @@ use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Receipt;
+use App\Domains\FiscalReceipting\IssuedDocuments;
 use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\FrontDesk\Actions\GuestLeaves;
 use App\Domains\Guests\Actions\CreateGuest;
@@ -14,7 +15,9 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
@@ -186,4 +189,30 @@ test('register and document reads refuse sibling properties even for an owner of
         $this->get(route('receipts.show', $receipt))->assertNotFound();
         $this->get(route('reservations.fiscal-report', $stay))->assertNotFound();
     }
+});
+
+test('legacy issued reports remain readable at their document anchors without inventing missing evidence', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
+    VfmsHttp::fake();
+    $tenant = twoTenants()->a;
+    [$stay] = receiptsRegisterStay($tenant);
+    inTenant($tenant->property, function () use ($tenant, $stay) {
+        app(GuestLeaves::class)->handle($tenant->owner, $stay, ReservationGuest::query()->orderByDesc('id')->firstOrFail()->guest_id);
+        $departure = OutboxMessage::query()->where('event', 'guestDeparture')->sole();
+        $departure->setAttribute('provider_references', array_diff_key($departure->getAttribute('provider_references'), ['reportUrls' => true]))->save();
+        DB::table('issued_documents')->where('outbox_message_id', $departure->id)->delete();
+        DB::table('outbox_attempts')->where('outbox_message_id', $departure->id)->delete();
+        app(IssuedDocuments::class)->project($departure);
+    });
+    $this->actingAs($tenant->member(OrganizationRole::Auditor))->withSession([
+        'tenancy.organization_id' => $tenant->organization->id,
+        'tenancy.property_id' => $tenant->property->id,
+    ])->get(route('reservations.fiscal-report', $stay))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('report', null)
+        ->has('guestReports', 1)
+        ->where('guestReports.0.number', 'TEST-CHECKOUT-169-2')
+        ->where('guestReports.0.name', null)
+        ->where('guestReports.0.identity', null)
+        ->where('guestReports.0.portalUrl', null)
+        ->where('guestReports.0.qrSvg', null));
 });

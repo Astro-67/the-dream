@@ -6,6 +6,7 @@ use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
+use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\Reservations\Models\Reservation;
 use App\Support\Outbox\OutboxMessage;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
@@ -15,8 +16,8 @@ use BaconQrCode\Writer;
 
 /**
  * The fiscal check-out report of a stay (glossary): VFMS's report number and the folio
- * as VFMS settled it. Shown only once every VFMS message of the stay is accepted (FSC-07);
- * identity documents stay in encrypted attempts and are projected only for authorized viewers.
+ * as VFMS settled it. Final figures wait for every filing (FSC-07); already-issued documents
+ * remain readable. Identity documents are projected only for authorized viewers.
  */
 final class CheckoutReport
 {
@@ -49,6 +50,17 @@ final class CheckoutReport
                     'qrSvg' => $guestUrl === null ? null : self::qr($guestUrl),
                 ];
             }
+        }
+        foreach (IssuedDocument::query()->where('property_id', $reservation->property_id)
+            ->where('reservation_id', $reservation->id)->where('type', 'checkout_report')
+            ->whereNotIn('number', array_column($guestReports, 'number'))->orderBy('issued_at')->orderBy('id')->get() as $document) {
+            $guestUrl = $document->getAttribute('viewer_url');
+            $guestReports[] = [
+                'number' => $document->number, 'mode' => $document->mode,
+                'name' => $document->getAttribute('guest_name'), 'identity' => null,
+                'departedEarly' => $messages->firstWhere('id', $document->getAttribute('outbox_message_id'))?->event === 'guestDeparture',
+                'portalUrl' => $guestUrl, 'qrSvg' => $guestUrl === null ? null : self::qr($guestUrl),
+            ];
         }
         $serviceReceipts = Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
             ->whereNotNull('vfms_receipt_number')->orderBy('posted_at')->orderBy('id')->get()
