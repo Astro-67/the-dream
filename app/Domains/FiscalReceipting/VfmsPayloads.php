@@ -4,6 +4,8 @@ namespace App\Domains\FiscalReceipting;
 
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FiscalReceipting\Enums\VfmsMode;
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Models\Room;
@@ -18,6 +20,7 @@ use App\Support\Countries;
 use App\Support\Money\Currency;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -27,6 +30,32 @@ use InvalidArgumentException;
  */
 final class VfmsPayloads
 {
+    /**
+     * @param  array<string, mixed>|null  $acceptedBusiness
+     * @return array<string, mixed>
+     */
+    public function correctionIdentity(Property $property, ?array $acceptedBusiness = null): array
+    {
+        $credential = VfmsCredential::for($property);
+        if ($credential->mode !== VfmsMode::Live) {
+            throw ValidationException::withMessages(['mode' => __('Issued-document corrections are only available in VFMS Live.')]);
+        }
+
+        return Validator::make([
+            'b_unit_name' => filled($acceptedBusiness['businessName'] ?? null) ? $acceptedBusiness['businessName'] : $property->name,
+            'email' => $property->email,
+            'phone_no' => $property->phone,
+            'zrb_number' => $property->z_number,
+            'unitId' => $credential->unit_id,
+        ], [
+            'b_unit_name' => ['required', 'string'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone_no' => ['required', 'string', 'max:32'],
+            'zrb_number' => ['required', 'string', 'max:64'],
+            'unitId' => ['required', 'integer', 'min:1', 'max:9223372036854775807'],
+        ])->validate();
+    }
+
     /** @return array<string, mixed> */
     public function services(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
     {

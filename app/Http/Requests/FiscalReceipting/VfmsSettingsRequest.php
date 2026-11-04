@@ -5,6 +5,7 @@ namespace App\Http\Requests\FiscalReceipting;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\Tenancy\Models\Property;
 use App\Http\Requests\AuditsRefusals;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,7 +20,9 @@ class VfmsSettingsRequest extends FormRequest
     {
         $property = $this->route('property');
 
-        return $property instanceof Property && ($this->user()?->can('manageVfms', $property) ?? false);
+        return $property instanceof Property
+            && Tenancy::property()?->id === $property->id
+            && ($this->user()?->can('manageVfms', $property) ?? false);
     }
 
     /** @return array<string, mixed> */
@@ -39,6 +42,7 @@ class VfmsSettingsRequest extends FormRequest
         return [
             'integration_id' => ['required', 'string', 'max:100'],
             'registration_id' => ['required', 'string', 'max:100'],
+            'unit_id' => ['nullable', 'integer', 'min:1', 'max:9223372036854775807'],
             // Blank keeps the saved token: the form never receives it back.
             'token' => ['nullable', 'string', 'max:500'],
         ];

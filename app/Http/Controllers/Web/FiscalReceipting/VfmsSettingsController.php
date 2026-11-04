@@ -22,7 +22,7 @@ class VfmsSettingsController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $save->handle($user, $property, $request->string('integration_id')->value(), $request->string('registration_id')->value(), $request->input('token'));
+        $save->handle($user, $property, $request->string('integration_id')->value(), $request->string('registration_id')->value(), $request->input('token'), $request->filled('unit_id') ? $request->integer('unit_id') : null);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('VFMS credentials saved.')]);
 
         return back();

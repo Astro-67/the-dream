@@ -183,6 +183,7 @@ class PropertyController extends Controller
         return [
             'integration_id' => $credential->integration_id,
             'registration_id' => $credential->registration_id,
+            'unit_id' => $credential->unit_id === null ? null : (string) $credential->unit_id,
             'token_saved' => filled($credential->token),
             'mode' => $credential->mode->value,
             'live_since' => $credential->live_since?->toIso8601String(),

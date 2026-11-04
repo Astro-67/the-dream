@@ -419,6 +419,7 @@ export function TaxInclusionFields({
 export type VfmsSettings = {
     integration_id: string | null;
     registration_id: string | null;
+    unit_id: string | null;
     token_saved: boolean;
     mode: 'sandbox' | 'live';
     live_since: string | null;
@@ -508,6 +509,31 @@ export function VfmsFields({
                                 aria-invalid={!!errors.registration_id}
                             />
                             <InputError message={errors.registration_id} />
+                        </div>
+                        <div className="grid content-start gap-2 sm:col-span-2">
+                            <Label htmlFor="vfms_unit_id">
+                                ZRA business-unit ID
+                            </Label>
+                            <Input
+                                id="vfms_unit_id"
+                                name="unit_id"
+                                inputMode="numeric"
+                                pattern="[0-9]+"
+                                maxLength={19}
+                                autoComplete="off"
+                                defaultValue={vfms.unit_id ?? ''}
+                                aria-describedby="vfms_unit_id_hint"
+                                aria-invalid={!!errors.unit_id}
+                            />
+                            <p
+                                id="vfms_unit_id_hint"
+                                className="text-sm text-muted-foreground"
+                            >
+                                Required only for issued-document corrections.
+                                Use the business-unit ID assigned by ZRA, not
+                                the Registration ID or Z-number suffix.
+                            </p>
+                            <InputError message={errors.unit_id} />
                         </div>
                         <div className="grid content-start gap-2 sm:col-span-2">
                             <Label htmlFor="vfms_token">Token</Label>
