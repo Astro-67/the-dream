@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Reports;
 
+use App\Domains\FiscalReceipting\DocumentCorrections;
 use App\Domains\FiscalReceipting\IssuedDocuments;
 use App\Domains\Reports\PropertyKpis;
 use App\Domains\Reservations\Models\Reservation;
@@ -25,6 +26,7 @@ class ReceiptsController extends Controller
             }
         }
         $page = $documents->register($property, $filters);
+        $annotations = DocumentCorrections::annotations($property, collect($page->items())->pluck('id')->all());
         $reservations = Reservation::query()->where('property_id', $property->id)
             ->whereIn('id', collect($page->items())->pluck('reservationId'))->pluck('reservation_number', 'id');
 
@@ -32,6 +34,7 @@ class ReceiptsController extends Controller
             'filters' => $filters,
             'documents' => $page->through(fn (array $row) => [
                 ...$row,
+                'annotations' => $annotations[$row['id']] ?? [],
                 'mode' => $row['type'] === 'non_fiscal' ? null : $row['zraStatus'],
                 'localUrl' => $row['type'] === 'non_fiscal'
                     ? route('receipts.show', $row['id'])

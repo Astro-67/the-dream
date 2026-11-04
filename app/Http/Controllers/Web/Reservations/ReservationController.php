@@ -7,6 +7,7 @@ use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FiscalReceipting\DocumentCorrections;
 use App\Domains\FiscalReceipting\VfmsFilings;
 use App\Domains\FiscalReceipting\VfmsRefusal;
 use App\Domains\FrontDesk\BusinessDate;
@@ -113,6 +114,7 @@ class ReservationController extends Controller
                     ]),
             ]),
             'totals' => FolioSummary::totals($reservation),
+            'documentCorrections' => DocumentCorrections::forReservation($reservation),
             'taxSource' => FolioSummary::taxSource($reservation, $property),
             'stay' => $reservation->stay(),
             'checkoutBalances' => FolioSummary::checkoutBalances(collect([$reservation]))[$reservation->id] ?? [],

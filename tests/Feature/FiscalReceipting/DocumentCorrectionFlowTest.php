@@ -1,14 +1,68 @@
 <?php
 
+use App\Domains\FiscalReceipting\Models\DocumentCorrection;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Support\Outbox\DeliveryEngine;
+use App\Support\Outbox\DrainOutboxMessage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
-    Queue::fake();
+    Queue::fake([DrainOutboxMessage::class]);
     Http::preventStrayRequests();
 });
+
+test('document register folio and reprints annotate every correction state without changing evidence', function (string $delivery, ?string $decision) {
+    $tenant = twoTenants()->a;
+    [$stay, $old, $new] = correctionDocuments($tenant, 'checkout_report');
+    $before = DB::table('issued_documents')->orderBy('id')->get()->toJson();
+    $postings = DB::table('postings')->get()->toJson();
+    $this->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id]);
+    config(['services.vfms.live_url' => 'https://vfms-live.example/vfms/api/']);
+    // Provisional section 2.12/2.13 shapes, not observed provider conformance.
+    Http::fake([
+        'https://vfms-live.example/vfms/error-management/new' => Http::response(
+            $delivery === 'unknown' ? [] : ['status' => $delivery === 'rejected' ? 400 : 200],
+        ),
+        'https://vfms-live.example/vfms/error-management/errors' => Http::response([[
+            'old_receipt_number' => 'OLD-232', 'new_receipt_number' => 'NEW-232', 'unitId' => 232,
+            'status' => ucfirst($decision ?? 'Pending'),
+        ]]),
+    ]);
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect();
+    $correction = inTenant($tenant->property, fn () => DocumentCorrection::query()->sole());
+    if ($delivery !== 'pending') {
+        inTenant($tenant->property, fn () => app(DeliveryEngine::class)->deliver($correction->outbox_message_id));
+    }
+    if ($decision !== null) {
+        $this->post(route('document-corrections.refresh', $correction), ['_property' => $tenant->property->id])->assertRedirect();
+    }
+    $expected = $decision ?? ($delivery === 'delivered' ? 'awaiting' : null);
+    $this->get(route('reservations.fiscal-report', $stay))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('status', 'live')
+            ->where("documentCorrections.{$old->id}.annotations.0.delivery", $delivery)
+            ->where("documentCorrections.{$old->id}.annotations.0.decision", $expected)
+            ->where("documentCorrections.{$old->id}.annotations.0.number", 'NEW-232')
+            ->where("documentCorrections.{$old->id}.annotations.0.label", $decision === 'approved' ? 'Replaced by' : 'Proposed replacement')
+            ->where("documentCorrections.{$new->id}.annotations.0.label", $decision === 'approved' ? 'Replacement for' : 'Proposed replacement for')
+            ->where("documentCorrections.{$old->id}.submitUrl", null));
+    $this->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('documents.data', function ($rows) use ($old, $expected) {
+            expect(collect($rows)->firstWhere('id', $old->id)['annotations'][0]['decision'])->toBe($expected);
+
+            return true;
+        }));
+    $this->get(route('reservations.show', $stay))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where("documentCorrections.{$old->id}.annotations.0.decision", $expected));
+    expect(DB::table('issued_documents')->orderBy('id')->get()->toJson())->toBe($before)
+        ->and(DB::table('postings')->get()->toJson())->toBe($postings);
+})->with([
+    ['pending', null], ['unknown', null], ['rejected', null], ['delivered', null],
+    ['delivered', 'pending'], ['delivered', 'verification'], ['delivered', 'approved'], ['delivered', 'rejected'],
+]);
 
 test('the issued document opens correction with its own number and only verified replacements', function (string $type) {
     $tenant = twoTenants()->a;
