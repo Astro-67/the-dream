@@ -83,7 +83,7 @@ final class IssuedDocuments
      * The property's issued documents, newest first (unknown issue times last), 50 a page.
      *
      * @param  array<string, mixed>  $filters  from/to (property-local Y-m-d, inclusive), type, zra_status; 'all' means no filter
-     * @return LengthAwarePaginator<int|string, array{id: string, type: string, number: string, issuedAt: string|null, guest: mixed, amount: int|null, currency: mixed, zraStatus: string, mode: string|null, viewerUrl: mixed, localUrl: string|null, reservationId: string}> guest, currency and viewerUrl are strings or null
+     * @return LengthAwarePaginator<int|string, array{id: string, type: string, number: string, issuedAt: string|null, guest: mixed, amount: int|null, currency: mixed, zraStatus: string, mode: string|null, viewerUrl: mixed, reservationId: string, localUrl: string|null}> guest, currency and viewerUrl are strings or null
      */
     public function register(Property $property, array $filters): LengthAwarePaginator
     {
@@ -119,21 +119,16 @@ final class IssuedDocuments
         $names = Reservation::guestNames($stays->only(collect($page->items())->where('type', 'non_fiscal')->pluck('reservation_id')->all()));
 
         // Raw union rows are untyped; every column but issued_at/amount/guest/currency/viewer is non-null in both sources.
-        return $page->through(function (stdClass $row) use ($names, $stays): array {
-            $fiscal = $row->type !== 'non_fiscal';
-            $stay = $stays->get((string) $row->reservation_id);
-
-            return [
-                'id' => (string) $row->id, 'type' => (string) $row->type, 'number' => (string) $row->number,
-                'issuedAt' => $row->issued_at === null ? null : CarbonImmutable::parse((string) $row->issued_at, 'UTC')->toIso8601String(),
-                'guest' => $fiscal ? $row->guest_name : $names->get((string) $row->reservation_id),
-                'amount' => $row->amount === null ? null : (int) $row->amount, 'currency' => $row->currency,
-                'zraStatus' => (string) $row->zra_status, 'mode' => $fiscal ? (string) $row->zra_status : null,
-                'viewerUrl' => $row->viewer_url, 'reservationId' => (string) $row->reservation_id,
-                'localUrl' => ! $fiscal ? route('receipts.show', (string) $row->id)
-                    : ($stay === null ? null : self::reportUrl($stay, (string) $row->type, (string) $row->number)),
-            ];
-        });
+        return $page->through(fn (stdClass $row): array => [
+            'id' => (string) $row->id, 'type' => (string) $row->type, 'number' => (string) $row->number,
+            'issuedAt' => $row->issued_at === null ? null : CarbonImmutable::parse((string) $row->issued_at, 'UTC')->toIso8601String(),
+            'guest' => $row->type === 'non_fiscal' ? $names->get((string) $row->reservation_id) : $row->guest_name,
+            'amount' => $row->amount === null ? null : (int) $row->amount, 'currency' => $row->currency,
+            'zraStatus' => (string) $row->zra_status, 'mode' => $row->type === 'non_fiscal' ? null : (string) $row->zra_status,
+            'viewerUrl' => $row->viewer_url, 'reservationId' => (string) $row->reservation_id,
+            'localUrl' => $row->type === 'non_fiscal' ? route('receipts.show', (string) $row->id)
+                : ($stays->has($row->reservation_id) ? self::reportUrl($stays[$row->reservation_id], (string) $row->type, (string) $row->number) : null),
+        ]);
     }
 
     /** The fiscal-report page, scrolled to one issued document. */
