@@ -6,8 +6,16 @@ use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\IssuedDocuments;
+use App\Domains\FrontDesk\Actions\CheckIn;
+use App\Domains\FrontDesk\Actions\CheckOut;
+use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\FrontDesk\Actions\GuestLeaves;
+use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\Guest;
+use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\PropertyStatus;
@@ -28,7 +36,17 @@ beforeEach(function () {
 /** A two-guest Sandbox stay with one extra; Ola leaves early when $earlyDeparture, then the stay checks out. */
 function issuedDocumentsStay(TenantFixture $tenant, bool $earlyDeparture = true): Reservation
 {
-    $reservation = inHouseForCheckOut($tenant);
+    $reservation = inTenant($tenant->property, function () use ($tenant) {
+        $details = BookingForm::details($tenant->owner);
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'adults' => 2, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast']);
+        foreach ([['Anna Berg', 'P1234567'], ['Ola Berg', 'P7654321']] as [$name, $number]) {
+            $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => $name, 'documents' => [['type' => 'passport', 'number' => $number, 'nationality' => 'DE']]]);
+            ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+        }
+
+        return app(CheckIn::class)->handle($tenant->owner, $reservation);
+    });
     inTenant($tenant->property, fn () => app(PostExtraCharge::class)->handle(
         $tenant->owner, Folio::query()->where('reservation_id', $reservation->id)->sole(),
         ['category' => 'bar', 'description' => 'Water', 'quantity' => 2, 'unit_price' => 1000],
@@ -37,7 +55,11 @@ function issuedDocumentsStay(TenantFixture $tenant, bool $earlyDeparture = true)
         inTenant($tenant->property, fn () => app(GuestLeaves::class)->handle($tenant->owner, $reservation, Guest::query()->where('name', 'Ola Berg')->sole()->id));
     }
 
-    return checkOutOnDeparture($tenant, $reservation);
+    foreach (['2026-12-10', '2026-12-11'] as $date) {
+        inTenant($tenant->property, fn () => app(CloseBusinessDate::class)->handle($tenant->owner, $tenant->property->fresh(), $date));
+    }
+
+    return inTenant($tenant->property, fn () => app(CheckOut::class)->handle($tenant->owner, $reservation, 'Guest settles at the desk'));
 }
 
 /** @return list<array<string, mixed>> the property's issued fiscal rows as the register shows them, less their rebuildable IDs */
@@ -109,7 +131,7 @@ test('a failed projection leaves the filing delivered and the catch-up heals it'
     app()->offsetUnset(IssuedDocuments::class);
 
     inTenant($tenant->property, fn () => expect(OutboxMessage::query()->pluck('status')->unique()->all())->toBe(['delivered'])
-        ->and(OutboxMessage::query()->sum('attempt_count'))->toBe(OutboxMessage::query()->count())
+        ->and(OutboxMessage::query()->pluck('attempt_count')->unique()->all())->toEqual([1])
         ->and(DB::table('issued_documents')->count())->toBe(0));
     $this->artisan('vfms:issued-documents')->assertSuccessful();
 
