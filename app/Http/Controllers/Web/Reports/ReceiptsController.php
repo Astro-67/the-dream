@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\Reports;
 
+use App\Domains\FiscalReceipting\Actions\RefreshCorrectionDecisions;
 use App\Domains\FiscalReceipting\DocumentCorrections;
 use App\Domains\FiscalReceipting\IssuedDocuments;
 use App\Domains\Reports\PropertyKpis;
@@ -32,6 +33,7 @@ class ReceiptsController extends Controller
 
         return Inertia::render('receipts/index', [
             'filters' => $filters,
+            'correctionRefresh' => RefreshCorrectionDecisions::status($property),
             'documents' => $page->through(fn (array $row) => [
                 ...$row,
                 'annotations' => $annotations[$row['id']] ?? [],

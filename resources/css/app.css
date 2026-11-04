@@ -243,6 +243,8 @@
 
     body:has(.receipt-print) [data-slot='sidebar'],
     body:has(.receipt-print) [data-slot='sidebar-inset'] > header,
+    body:has(.receipt-print) [data-slot='dialog-overlay'],
+    body:has(.receipt-print) [data-slot='dialog-content'],
     .receipt-print button {
         display: none !important;
     }
