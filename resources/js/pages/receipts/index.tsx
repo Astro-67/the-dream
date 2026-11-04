@@ -78,13 +78,6 @@ export default function Receipts({
                     key={JSON.stringify(filters)}
                     action={index.url()}
                     method="get"
-                    transform={(data) =>
-                        Object.fromEntries(
-                            Object.entries(data).filter(
-                                ([, value]) => value !== '' && value !== 'all',
-                            ),
-                        )
-                    }
                     options={{ preserveState: true }}
                     className="flex flex-wrap items-end gap-4"
                 >

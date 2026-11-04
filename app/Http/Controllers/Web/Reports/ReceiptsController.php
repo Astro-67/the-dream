@@ -19,6 +19,11 @@ class ReceiptsController extends Controller
         Gate::authorize('view', PropertyKpis::class);
         $property = Tenancy::property() ?? abort(404);
         $filters = $request->only(['from', 'to', 'type', 'zra_status']);
+        foreach (['type', 'zra_status'] as $filter) {
+            if (($filters[$filter] ?? null) === 'all') {
+                unset($filters[$filter]);
+            }
+        }
         $page = $documents->register($property, $filters);
         $reservations = Reservation::query()->where('property_id', $property->id)
             ->whereIn('id', collect($page->items())->pluck('reservationId'))->pluck('reservation_number', 'id');

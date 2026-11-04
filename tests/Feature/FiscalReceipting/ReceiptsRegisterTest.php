@@ -133,6 +133,15 @@ test('register supports an optional upper date without requiring a lower date', 
         ->assertOk();
 });
 
+test('register accepts the all filter choices submitted by its form', function () {
+    $tenant = twoTenants()->a;
+    $this->actingAs($tenant->owner)->withSession([
+        'tenancy.organization_id' => $tenant->organization->id,
+        'tenancy.property_id' => $tenant->property->id,
+    ])->getJson(route('receipts.index', ['from' => '', 'to' => '', 'type' => 'all', 'zra_status' => 'all']))
+        ->assertOk();
+});
+
 test('register combines filters in property local time and keeps them on pagination links', function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 23:59:00', 'Africa/Dar_es_Salaam'));
     VfmsHttp::fake();
