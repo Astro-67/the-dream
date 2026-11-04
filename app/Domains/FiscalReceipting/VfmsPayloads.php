@@ -5,6 +5,7 @@ namespace App\Domains\FiscalReceipting;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
+use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
@@ -54,6 +55,17 @@ final class VfmsPayloads
             'zrb_number' => ['required', 'string', 'max:64'],
             'unitId' => ['required', 'integer', 'min:1', 'max:9223372036854775807'],
         ])->validate();
+    }
+
+    /**
+     * @param  array<string, mixed>  $business
+     * @return array<string, mixed>
+     */
+    public function errorSave(Property $property, IssuedDocument $old, IssuedDocument $new, string $reason, array $business): array
+    {
+        return [...$this->correctionIdentity($property, $business),
+            'old_receipt_number' => $old->number, 'new_receipt_number' => $new->number, 'reasons' => $reason,
+        ];
     }
 
     /** @return array<string, mixed> */
