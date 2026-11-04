@@ -15,6 +15,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { StatusChip, Tag } from '@/components/ui/status-chip';
+import { Spinner } from '@/components/ui/spinner';
 import {
     Table,
     TableBody,
@@ -156,6 +157,9 @@ export default function Receipts({
                                 variant="secondary"
                                 disabled={processing}
                             >
+                                <span className="size-4">
+                                    {processing && <Spinner />}
+                                </span>
                                 Apply filters
                             </Button>
                             <Button asChild variant="ghost">
@@ -203,13 +207,13 @@ export default function Receipts({
                                     <TableRow
                                         key={`${document.type}-${document.id}`}
                                     >
-                                        <TableCell>
+                                        <TableCell className="whitespace-nowrap">
                                             <Identifier
                                                 value={document.number}
                                                 copyable
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="whitespace-nowrap">
                                             {types[document.type]}
                                         </TableCell>
                                         <TableCell className="whitespace-nowrap">
@@ -263,7 +267,7 @@ export default function Receipts({
                                         <TableCell>
                                             <Tag>None</Tag>
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="whitespace-nowrap">
                                             <div className="flex flex-col gap-2">
                                                 {document.localUrl ? (
                                                     <Link
