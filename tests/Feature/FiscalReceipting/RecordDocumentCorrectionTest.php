@@ -1,14 +1,20 @@
 <?php
 
+use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\IssuedDocuments;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
+use App\Domains\FiscalReceipting\VfmsFilings;
+use App\Domains\FiscalReceipting\VfmsRefusal;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxMessage;
+use App\Support\Outbox\OutboxRecovery;
+use App\Support\Outbox\RestoreGate;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -269,3 +275,129 @@ test('correction submit refuses unsafe pairs without exposing sensitive evidence
     expect(DB::table('activity_log')->where('event', 'refused')->get()->toJson())->not->toContain('PRIVATE-GUEST-ID', 'P1234567', 'SECRET-TOKEN', 'OTHER-PRIVATE-ID');
     Http::assertNothingSent();
 })->with(['self', 'Sandbox', 'Mainland', 'demo', 'different mode', 'different type', 'different service', 'missing unit', 'different unit', 'unaccepted evidence', 'different guest', 'foreign replacement', 'sibling replacement']);
+
+test('correction policy grants only OutboxRecover roles and audits sensitive form refusals', function (string $role, bool $allowed) {
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant);
+    $actor = $tenant->member(OrganizationRole::from($role));
+    $response = $this->actingAs($actor)->post(route('issued-documents.corrections.store', $old), [
+        '_property' => $tenant->property->id, 'replacement_id' => $new->id, 'reason' => 'Wrong particulars', 'confirmed' => true,
+    ]);
+    if ($allowed) {
+        $response->assertRedirect()->assertSessionDoesntHaveErrors();
+        expect(DB::table('document_corrections')->value('actor_id'))->toBe($actor->id);
+    } else {
+        $response->assertForbidden();
+        expect(DB::table('document_corrections')->count())->toBe(0)
+            ->and(DB::table('activity_log')->where('event', 'refused')->count())->toBeGreaterThan(0);
+    }
+    Http::assertNothingSent();
+})->with(fn () => array_map(fn ($role) => [$role->value, in_array($role, [OrganizationRole::Owner, OrganizationRole::PropertyManager], true)], OrganizationRole::cases()));
+
+test('correction requires current property intent confirmation and a reason', function (string $missing) {
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant);
+    $form = ['_property' => $tenant->property->id, 'replacement_id' => $new->id, 'reason' => 'Wrong particulars', 'confirmed' => true];
+    if ($missing === 'intent') {
+        $form['_property'] = $tenant->otherProperty->id;
+    } else {
+        unset($form[$missing]);
+    }
+    $response = $this->actingAs($tenant->owner)->post(route('issued-documents.corrections.store', $old), $form);
+    $missing === 'intent' ? $response->assertNotFound() : $response->assertSessionHasErrors($missing);
+    expect(DB::table('document_corrections')->count())->toBe(0)
+        ->and(DB::table('outbox_messages')->where('event', 'errorSave')->count())->toBe(0);
+    Http::assertNothingSent();
+})->with(['intent', 'confirmed', 'reason']);
+
+test('a timeout holds ERROR_SAVE and recovery cannot blindly retry or rebuild it', function () {
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant);
+    Http::fake(['https://vfms-live.example/vfms/error-management/new' => Http::failedConnection()]);
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect();
+    inTenant($tenant->property, function () use ($tenant) {
+        $message = OutboxMessage::query()->where('event', 'errorSave')->sole();
+        app(DeliveryEngine::class)->deliver($message->id);
+        expect($message->fresh()->status)->toBe('unknown');
+        expect(fn () => app(OutboxRecovery::class)->retry($tenant->owner, $tenant->property->id, $message->id, 'Please retry'))->toThrow(RuntimeException::class, 'Unknown delivery requires reconciliation');
+        app(DeliveryEngine::class)->deliver($message->id);
+        expect($message->fresh()->attempt_count)->toBe(1);
+    });
+});
+
+test('ERROR_SAVE respects its ordered predecessor and the restore gate with original fenced evidence', function (string $guard) {
+    $tenant = twoTenants()->a;
+    [$stay, $old, $new] = correctionDocuments($tenant);
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect();
+    Http::fake(['https://vfms-live.example/vfms/error-management/new' => Http::response(['status' => 200])]);
+    inTenant($tenant->property, function () use ($tenant, $guard) {
+        $message = OutboxMessage::query()->where('event', 'errorSave')->sole();
+        if ($guard === 'predecessor') {
+            OutboxMessage::query()->where('sequence', 2)->update(['status' => 'unknown']);
+        } else {
+            app(RestoreGate::class)->close($tenant->property, 'Restore test', $tenant->owner);
+        }
+        app(DeliveryEngine::class)->deliver($message->id);
+        expect($message->fresh()->status)->toBe($guard === 'predecessor' ? 'blocked' : 'pending')
+            ->and($message->fresh()->attempt_count)->toBe(0);
+    });
+    Http::assertNothingSent();
+})->with(['predecessor', 'restore']);
+
+test('the original and replacement cannot be reused or form a correction cycle', function (string $attack) {
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant);
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect();
+    if ($attack === 'reverse cycle') {
+        submitCorrection($this, $tenant, $new, $old)->assertSessionHasErrors('correction');
+    } else {
+        $third = inTenant($tenant->property, fn () => IssuedDocument::query()->create([
+            ...$old->getAttributes(), 'number' => 'THIRD-232',
+        ]));
+        submitCorrection($this, $tenant, $attack === 'duplicate original' ? $old : $third, $new)->assertSessionHasErrors('correction');
+    }
+    expect(DB::table('document_corrections')->count())->toBe(1)
+        ->and(DB::table('outbox_messages')->where('event', 'errorSave')->count())->toBe(1);
+    Http::assertNothingSent();
+})->with(['reverse cycle', 'duplicate original', 'reused replacement']);
+
+test('a refused ERROR_SAVE has no filing recovery link and cannot be rebuilt', function () {
+    $tenant = twoTenants()->a;
+    [$stay, $old, $new] = correctionDocuments($tenant);
+    Http::fake(['https://vfms-live.example/vfms/error-management/new' => Http::response(['status' => 5000])]);
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect();
+    inTenant($tenant->property, function () use ($stay) {
+        $message = OutboxMessage::query()->where('event', 'errorSave')->sole();
+        app(DeliveryEngine::class)->deliver($message->id);
+        expect(VfmsRefusal::of($stay, true))->toBeNull();
+        expect(collect(VfmsFilings::of($stay, true))->pluck('id')->all())->not->toContain($message->id);
+        expect(fn () => app(VfmsAdapter::class)->correct($message->fresh(), []))
+            ->toThrow(RuntimeException::class, 'Issued-document corrections require reconciliation');
+    });
+});
+
+test('correction locks its property stay and accepted document records within the submission transaction', function () {
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant);
+    $queries = [];
+    DB::listen(function ($query) use (&$queries) {
+        if (str_starts_with(strtolower($query->sql), 'select')) {
+            $queries[] = [$query->sql, DB::transactionLevel()];
+        }
+    });
+    submitCorrection($this, $tenant, $old, $new)->assertSessionDoesntHaveErrors();
+    foreach (['properties', 'reservations', 'issued_documents', 'outbox_messages', 'outbox_attempts'] as $table) {
+        expect(collect($queries)->contains(fn (array $query) => str_contains($query[0], $table) && $query[1] >= 2
+            && (DB::getDriverName() === 'sqlite' || str_contains(strtolower($query[0]), 'for update'))))->toBeTrue('Submission must lock '.$table.' inside its transaction.');
+    }
+});
+
+test('submission refuses a closed restore gate without recording a correction', function () {
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant);
+    inTenant($tenant->property, fn () => app(RestoreGate::class)->close($tenant->property, 'Restored backup', $tenant->owner));
+    submitCorrection($this, $tenant, $old, $new)->assertSessionHasErrors('correction');
+    expect(DB::table('document_corrections')->count())->toBe(0)
+        ->and(DB::table('outbox_messages')->where('event', 'errorSave')->count())->toBe(0);
+    Http::assertNothingSent();
+});

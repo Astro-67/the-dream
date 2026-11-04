@@ -13,7 +13,7 @@ final class VfmsRefusal
     {
         $message = OutboxMessage::query()->where('property_id', $reservation->property_id)
             ->where('integration', VfmsAdapter::INTEGRATION)->where('subject_type', $reservation->getMorphClass())
-            ->where('subject_id', $reservation->id)->where('status', 'rejected')->orderBy('sequence')->first();
+            ->where('subject_id', $reservation->id)->where('event', '!=', 'errorSave')->where('status', 'rejected')->orderBy('sequence')->first();
         if ($message === null) {
             return null;
         }

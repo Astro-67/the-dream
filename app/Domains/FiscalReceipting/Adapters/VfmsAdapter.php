@@ -64,6 +64,9 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
     /** @return array<string, mixed> */
     private function rebuild(OutboxMessage $message): array
     {
+        if ($message->event === 'errorSave') {
+            throw new RuntimeException('Issued-document corrections require reconciliation, not filing recovery.');
+        }
         $reservation = Reservation::query()->where('property_id', $message->property_id)->findOrFail($message->subject_id);
         $property = Property::query()->findOrFail($message->property_id);
         if ($message->integration !== self::INTEGRATION || $message->subject_type !== $reservation->getMorphClass()

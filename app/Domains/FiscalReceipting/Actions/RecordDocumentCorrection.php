@@ -35,7 +35,9 @@ class RecordDocumentCorrection
             try {
                 return DB::transaction(function () use ($actor, $document, $replacementId, $reason): DocumentCorrection {
                     $property = Property::query()->whereKey($document->property_id)->lockForUpdate()->firstOrFail();
-                    app(RestoreGate::class)->assertOpen($property->id);
+                    if (app(RestoreGate::class)->isClosed($property->id)) {
+                        throw new RuntimeException('Outbox restore gate is closed for this property.');
+                    }
                     $stay = Reservation::query()->where('property_id', $property->id)->whereKey($document->reservation_id)->lockForUpdate()->firstOrFail();
                     $credential = VfmsCredential::for($property);
                     if ($credential->mode === VfmsMode::Sandbox) {
