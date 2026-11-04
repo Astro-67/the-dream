@@ -9,6 +9,7 @@ use App\Domains\FiscalReceipting\VfmsPayloads;
 use App\Support\Outbox\DeliveryResult;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -86,8 +87,70 @@ final class HttpVfms
             && ($payload['request_type'] !== 'CHANGEROOM_PRICE' || is_array(json_decode($response->body())))
             ? $this->acceptedReferences($payload['request_type'], $body, $data)
             : null;
+        if ($references !== null && $payload['request_type'] === 'ACCOMMODATION_BOOKING_REQUEST') {
+            $responseBody['registrationVerified'] = $this->advanceRegistered($url, $integrationId, $token, $body, $references);
+            if (! $responseBody['registrationVerified']) {
+                $references = null;
+            }
+        }
 
         return new DeliveryResult($references === null ? 'unknown' : 'accepted', $references ?? [], $responseBody);
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     * @param  array<string, scalar|null>  $references
+     */
+    private function advanceRegistered(string $url, string $integrationId, string $token, array $body, array $references): bool
+    {
+        $reference = $references['referenceNumber'] ?? null;
+        if (! is_string($reference) || ! is_string($body['referenceNumber'] ?? null)
+            || ! preg_match('/^'.preg_quote($body['referenceNumber'], '/').'(?:-(\d+))?$/D', $reference, $match)
+            || ! is_string($body['checkInDate'] ?? null) || ! is_string($body['checkOutDate'] ?? null)
+            || ! is_array($body['guest'] ?? null) || $body['guest'] === [] || ! isset($body['roomId'])) {
+            return false;
+        }
+        try {
+            $response = $this->post($url, 'ACCOMMODATION_REPORT', 'accommodationReport/', $integrationId, $token, [
+                'refno' => $reference,
+                'startDate' => CarbonImmutable::parse($body['checkInDate'])->subDay()->toDateString(),
+                'endDate' => max(CarbonImmutable::parse($body['checkOutDate'])->addDay()->toDateString(), CarbonImmutable::now()->addDay()->toDateString()),
+            ]);
+        } catch (ConnectionException) {
+            return false;
+        }
+        $data = $response->json();
+        if (! $response->successful() || ! is_array($data) || array_key_exists('statusCode', $data)) {
+            return false;
+        }
+        $records = array_is_list($data) ? $data : [$data];
+        $records = array_values(array_filter($records, fn ($record) => is_array($record) && ($record['referenceNumber'] ?? null) === $reference));
+        if (count($records) !== 1) {
+            return false;
+        }
+        $record = $records[0];
+        if (array_key_exists('statusCode', $record) || ($record['isClosed'] ?? null) !== false || ($record['isCanceled'] ?? null) !== false
+            || ($record['currency'] ?? null) !== ($body['salesCurrency'] ?? null)
+            || ! is_array($record['guest'] ?? null) || ! array_is_list($record['guest'])
+            || ! is_array($record['room'] ?? null) || ! array_is_list($record['room']) || count($record['room']) !== 1) {
+            return false;
+        }
+        $documents = [];
+        foreach ($record['guest'] as $guest) {
+            if (! is_array($guest) || ! $this->number($guest['documentNo'] ?? null) || ($guest['isChackedOut'] ?? null) !== false) {
+                return false;
+            }
+            $documents[] = $guest['documentNo'];
+        }
+        $expected = array_column($body['guest'], 'documentNo');
+        sort($documents);
+        sort($expected);
+        $room = $record['room'][0];
+
+        return count($expected) === count($body['guest']) && $documents === $expected
+            && is_array($room) && ($room['isOut'] ?? null) === false
+            && (is_int($room['room'] ?? null) || is_string($room['room'] ?? null))
+            && in_array((string) $room['room'], [(string) $body['roomId'], $body['roomId'].($match[1] ?? '')], true);
     }
 
     /**

@@ -36,5 +36,26 @@ final class VfmsHttp
             self::TEST_URL.'guest/accommodation/' => Http::response(['responseNumber' => 'TEST-GUEST-171']),
             self::TEST_URL.'guest/changeProfile/' => Http::response(['responseNumber' => 'TEST-PROFILE-171']),
         ]);
+        self::fakeAdvanceReport();
+    }
+
+    public static function fakeAdvanceReport(): void
+    {
+        Http::fake([
+            self::TEST_URL.'accommodationReport/' => function (Request $request) {
+                $checkIn = Http::recorded(fn (Request $sent) => $sent->url() === self::TEST_URL.'accommodation/booking/')->last();
+                if ($checkIn === null) {
+                    return Http::response([]);
+                }
+                $body = $checkIn[0]->data();
+
+                return Http::response([
+                    'referenceNumber' => $request['refno'], 'currency' => $body['salesCurrency'],
+                    'isClosed' => false, 'isCanceled' => false,
+                    'guest' => array_map(fn (array $guest) => [...$guest, 'isChackedOut' => false], $body['guest']),
+                    'room' => [['room' => $body['roomId'], 'isOut' => false]],
+                ]);
+            },
+        ]);
     }
 }
