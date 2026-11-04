@@ -22,7 +22,7 @@ class CheckoutReportController extends Controller
 {
     public function __invoke(Request $request, Reservation $reservation): Response
     {
-        Gate::authorize('view', $reservation);
+        Gate::authorize('viewFiscalReport', $reservation);
 
         return $this->report($request, $reservation, CheckoutReport::of($reservation, Access::allows($request->user(), OrganizationPermission::GuestIdentityView, $reservation)));
     }
@@ -52,6 +52,7 @@ class CheckoutReportController extends Controller
             'property' => $property->only(['name', 'address_line', 'city', 'phone', 'email']),
             // Current branding, so a reprint after a rebrand shows the new logo; fiscal evidence is untouched.
             'branding' => $property->branding(),
+            'reservationUrl' => $request->user()?->can('view', $reservation) ? route('reservations.show', $reservation) : null,
         ]);
     }
 }

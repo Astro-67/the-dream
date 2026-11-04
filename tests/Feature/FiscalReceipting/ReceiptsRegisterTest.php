@@ -5,12 +5,14 @@ use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Receipt;
 use App\Domains\FrontDesk\Actions\CheckIn;
+use App\Domains\FrontDesk\Actions\GuestLeaves;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -24,9 +26,9 @@ function receiptsRegisterStay(TenantFixture $tenant): array
         $details = BookingForm::details($tenant->owner);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
         $reservation = app(CreateReservation::class)->handle($tenant->owner, [
-            ...$details, 'adults' => 2, 'children' => 0, 'room_id' => Room::query()->sole()->id,
+            ...$details, 'adults' => 2, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->sole()->id,
         ]);
-        foreach ([['Anna Berg', 'SECRET-PASSPORT-230'], ['Ola Berg', 'PRIVATE-PASSPORT-230']] as [$name, $number]) {
+        foreach ([['Anna Berg', 'P1234567'], ['Ola Berg', 'P7654321']] as [$name, $number]) {
             $guest = app(CreateGuest::class)->handle($tenant->owner, [
                 'name' => $name, 'documents' => [['type' => 'passport', 'number' => $number, 'nationality' => 'DE']],
             ]);
@@ -83,5 +85,38 @@ test('register links issued documents to their local pages and stored viewers wi
 
             return true;
         }));
-    $response->assertDontSee('SECRET-PASSPORT-230')->assertDontSee('PRIVATE-PASSPORT-230')->assertDontSee('documentNo');
+    $response->assertDontSee('P1234567')->assertDontSee('P7654321')->assertDontSee('documentNo');
+});
+
+test('reports-only readers can open issued receipts and early documents without reservation or identity access', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
+    VfmsHttp::fake();
+    config(['services.vfms.test_viewer_url' => 'https://vfms-viewer.example']);
+    $tenant = twoTenants()->a;
+    [$stay, $receipt] = receiptsRegisterStay($tenant);
+    $reader = $tenant->member(OrganizationRole::Auditor);
+    inTenant($tenant->property, function () use ($tenant, $stay, $reader) {
+        $reader->syncRoles([]);
+        $reader->givePermissionTo(OrganizationPermission::ReportsView->value);
+        app(GuestLeaves::class)->handle($tenant->owner, $stay, ReservationGuest::query()->orderByDesc('id')->firstOrFail()->guest_id);
+    });
+    $this->actingAs($reader)->withSession([
+        'tenancy.organization_id' => $tenant->organization->id,
+        'tenancy.property_id' => $tenant->property->id,
+    ]);
+    $this->get(route('reservations.show', $stay))->assertForbidden();
+    $this->get(route('receipts.show', $receipt))->assertOk()->assertDontSee('P1234567');
+    $response = $this->get(route('reservations.fiscal-report', $stay))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('status', 'waiting')
+        ->where('report', null)
+        ->where('revealIdentityUrl', null)
+        ->has('serviceReceipts', 1)
+        ->where('serviceReceipts.0.number', 'TEST-RECEIPT-169')
+        ->where('serviceReceipts.0.currency', 'USD')
+        ->where('serviceReceipts.0.portalUrl', 'https://vfms-viewer.example/receipt-form/TEST-RECEIPT-169')
+        ->has('guestReports', 1)
+        ->where('guestReports.0.number', 'TEST-CHECKOUT-169-2')
+        ->where('guestReports.0.departedEarly', true)
+        ->where('guestReports.0.identity', null));
+    $response->assertDontSee('P1234567')->assertDontSee('P7654321')->assertDontSee('documentName');
 });
