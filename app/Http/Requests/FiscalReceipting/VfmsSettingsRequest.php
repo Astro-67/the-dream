@@ -5,6 +5,7 @@ namespace App\Http\Requests\FiscalReceipting;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\Tenancy\Models\Property;
 use App\Http\Requests\AuditsRefusals;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,7 +20,9 @@ class VfmsSettingsRequest extends FormRequest
     {
         $property = $this->route('property');
 
-        return $property instanceof Property && ($this->user()?->can('manageVfms', $property) ?? false);
+        return $property instanceof Property
+            && Tenancy::property()?->id === $property->id
+            && ($this->user()?->can('manageVfms', $property) ?? false);
     }
 
     /** @return array<string, mixed> */

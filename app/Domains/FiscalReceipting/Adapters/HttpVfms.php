@@ -33,6 +33,19 @@ final class HttpVfms
         if ($live && parse_url($url, PHP_URL_SCHEME) !== 'https') {
             return new DeliveryResult('rejected', responseBody: ['error' => 'The Live VFMS endpoint must use HTTPS.']);
         }
+        if (in_array($payload['request_type'], ['ERROR_SAVE', 'ERRORS_MANAGEMENTS'], true)) {
+            $path = $payload['request_type'] === 'ERROR_SAVE' ? 'new' : 'errors';
+            if (! $live || $payload['path'] !== $path || ($credential->unit_id ?? 0) < 1
+                || ($payload['request_type'] === 'ERROR_SAVE'
+                    && (! is_int($payload['body']['unitId'] ?? null) || $payload['body']['unitId'] !== $credential->unit_id))) {
+                return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires Live mode, a valid business-unit ID and the fixed operation target.']);
+            }
+            $origin = parse_url($url);
+            if (! is_array($origin) || ($origin['scheme'] ?? null) !== 'https' || empty($origin['host']) || isset($origin['user']) || isset($origin['pass'])) {
+                return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires an HTTPS gateway origin without URL credentials.']);
+            }
+            $url = 'https://'.$origin['host'].(isset($origin['port']) ? ':'.$origin['port'] : '').'/vfms/error-management/';
+        }
         $body = $payload['body'];
         if (! $live) {
             if (blank($credential->property_id)) {
@@ -143,7 +156,7 @@ final class HttpVfms
     /** @param  array<string, mixed>  $body */
     private function post(string $url, string $requestType, string $path, string $integrationId, string $token, array $body): Response
     {
-        return Http::timeout(30)->withHeaders([
+        return Http::timeout(30)->withoutRedirecting()->withHeaders([
             'Content-type' => 'application/json',
             'vfms-request-type' => $requestType,
             // The guide's spelling, kept verbatim.

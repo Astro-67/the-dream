@@ -30,11 +30,11 @@ test('only the owner and property manager save VFMS credentials', function (Orga
     $t = twoTenants();
     $member = $role === OrganizationRole::Owner ? $t->a->owner : $t->a->member($role);
 
-    $response = $this->actingAs($member)->put(route('properties.vfms.update', $t->a->property), vfmsCredentials($t->a));
+    $response = $this->actingAs($member)->put(route('properties.vfms.update', $t->a->property), vfmsCredentials($t->a, ['unit_id' => '231']));
 
     $manages ? $response->assertSessionHasNoErrors()->assertRedirect() : $response->assertForbidden();
     $this->actingAs($t->a->owner)->get(route('properties.edit', $t->a->property))
-        ->assertInertia(fn (Assert $page) => $page->where('vfms.integration_id', $manages ? 'INT-1001' : null));
+        ->assertInertia(fn (Assert $page) => $page->where('vfms.integration_id', $manages ? 'INT-1001' : null)->where('vfms.unit_id', $manages ? '231' : null));
 })->with([
     'owner' => [OrganizationRole::Owner, true],
     'property manager' => [OrganizationRole::PropertyManager, true],
@@ -157,4 +157,26 @@ test('VFMS business unit ID is optional and preserves signed 64 bit precision', 
     $this->put(route('properties.vfms.update', $tenant->property), vfmsCredentials($tenant, ['unit_id' => null]))
         ->assertSessionHasNoErrors();
     expect(VfmsCredential::for($tenant->property)->unit_id)->toBeNull();
+});
+
+test('VFMS settings reject invalid business unit IDs', function (mixed $unitId) {
+    $tenant = twoTenants()->a;
+    $this->actingAs($tenant->owner)
+        ->put(route('properties.vfms.update', $tenant->property), vfmsCredentials($tenant, ['unit_id' => $unitId]))
+        ->assertSessionHasErrors('unit_id');
+    expect(VfmsCredential::for($tenant->property)->exists)->toBeFalse();
+})->with([0, -1, '1.5', '9223372036854775808', 'REG-2002', '1e3']);
+
+test('business unit saves cannot target another organization or sibling property through stale intent', function () {
+    $tenants = twoTenants();
+    $this->actingAs($tenants->a->owner);
+    $this->put(route('properties.vfms.update', $tenants->b->property), vfmsCredentials($tenants->b, ['unit_id' => '231']))
+        ->assertForbidden();
+    $this->put(route('properties.vfms.update', $tenants->a->otherProperty), vfmsCredentials($tenants->a, ['unit_id' => '231']))
+        ->assertForbidden();
+    $this->put(route('properties.vfms.update', $tenants->a->property), vfmsCredentials($tenants->a, ['_property' => '', 'unit_id' => '231']))
+        ->assertSessionHasErrors('_property');
+    foreach ([$tenants->a->property, $tenants->a->otherProperty, $tenants->b->property] as $property) {
+        expect(VfmsCredential::for($property)->exists)->toBeFalse();
+    }
 });
