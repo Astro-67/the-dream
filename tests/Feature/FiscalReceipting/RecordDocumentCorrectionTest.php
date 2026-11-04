@@ -4,6 +4,7 @@ use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\IssuedDocuments;
+use App\Domains\FiscalReceipting\Models\DocumentCorrection;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FiscalReceipting\VfmsFilings;
@@ -197,19 +198,13 @@ test('an in-flight double submit records one immutable correction and one stable
 test('correction rollback includes its pair outbox and success audit', function () {
     $tenant = twoTenants()->a;
     [, $old, $new] = correctionDocuments($tenant);
-    $connection = DB::connection()->getDriverName();
-    DB::unprepared($connection === 'sqlite'
-        ? "CREATE TRIGGER fail_correction BEFORE INSERT ON document_corrections BEGIN SELECT RAISE(ABORT, 'injected pair failure'); END"
-        : "CREATE TRIGGER fail_correction BEFORE INSERT ON document_corrections FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'injected pair failure'");
-    try {
-        submitCorrection($this, $tenant, $old, $new);
-        expect(DB::table('document_corrections')->count())->toBe(0)
-            ->and(DB::table('outbox_messages')->where('event', 'errorSave')->count())->toBe(0)
-            ->and(DB::table('activity_log')->where('event', 'document_correction_recorded')->count())->toBe(0);
-        Http::assertNothingSent();
-    } finally {
-        DB::unprepared('DROP TRIGGER fail_correction');
-    }
+    // A model event, not DDL: MySQL DDL would commit the test transaction.
+    DocumentCorrection::creating(fn () => throw new RuntimeException('Injected pair failure.'));
+    submitCorrection($this, $tenant, $old, $new)->assertSessionHasErrors('correction');
+    expect(DB::table('document_corrections')->count())->toBe(0)
+        ->and(DB::table('outbox_messages')->where('event', 'errorSave')->count())->toBe(0)
+        ->and(DB::table('activity_log')->where('event', 'document_correction_recorded')->count())->toBe(0);
+    Http::assertNothingSent();
 });
 
 test('correction administration cannot hide a previously issued checkout report', function () {
