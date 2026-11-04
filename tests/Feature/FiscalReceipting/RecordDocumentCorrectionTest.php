@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\IssuedDocuments;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
@@ -9,6 +10,7 @@ use App\Support\Outbox\DeliveryEngine;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -148,3 +150,122 @@ test('queued corrections refuse mode unit demo Mainland or archive changes befor
     });
     Http::assertNothingSent();
 })->with(['mode', 'unit', 'demo', 'Mainland', 'archive']);
+
+test('accepted filings retain their recorded business unit instead of inferring it at correction time', function () {
+    $tenant = twoTenants()->a;
+    [$stay] = correctionDocuments($tenant);
+    $message = inTenant($tenant->property, fn () => DB::transaction(fn () => app(Outbox::class)->record('vfms', $stay, 'services', [
+        'mode' => 'live', 'unit_id' => 232, 'reservation_id' => $stay->id, 'posting_id' => 'missing-posting',
+        'request_type' => 'ACCOMMODATION_ADD_SERVICE', 'path' => 'service/',
+        'body' => ['currency' => 'USD', 'service' => [['price' => 10, 'quantity' => 1, 'discount' => 0]]],
+    ], 'unit-snapshot')));
+    // A check-in response avoids financial side effects; the subject's recorded unit still comes from its payload.
+    inTenant($tenant->property, fn () => $message->update(['event' => 'accommodation']));
+    Http::fake(['https://vfms-live.example/vfms/api/service/' => Http::response(['receiptNumber' => 'UNIT-232'])]);
+    inTenant($tenant->property, function () use ($message, $tenant) {
+        VfmsCredential::for($tenant->property)->update(['unit_id' => 999]);
+        app(DeliveryEngine::class)->deliver($message->id);
+        expect($message->fresh()->getAttribute('provider_references')['unitId'] ?? null)->toBe(232);
+    });
+});
+
+test('an in-flight double submit records one immutable correction and one stable outbox identity', function () {
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant);
+    $test = $this;
+    Http::fake(['https://vfms-live.example/vfms/error-management/new' => function () use ($test, $tenant, $old, $new) {
+        submitCorrection($test, $tenant, $old, $new)->assertSessionHasErrors('correction');
+
+        return Http::response(['status' => '200']);
+    }]);
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect();
+    $message = inTenant($tenant->property, fn () => OutboxMessage::query()->where('event', 'errorSave')->sole());
+    $key = $message->idempotency_key;
+    inTenant($tenant->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    expect(DB::table('document_corrections')->count())->toBe(1)
+        ->and(DB::table('outbox_messages')->where('event', 'errorSave')->count())->toBe(1)
+        ->and(DB::table('outbox_messages')->where('id', $message->id)->value('idempotency_key'))->toBe($key);
+    Http::assertSentCount(1);
+});
+
+test('correction rollback includes its pair outbox and success audit', function () {
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant);
+    $connection = DB::connection()->getDriverName();
+    DB::unprepared($connection === 'sqlite'
+        ? "CREATE TRIGGER fail_correction BEFORE INSERT ON document_corrections BEGIN SELECT RAISE(ABORT, 'injected pair failure'); END"
+        : "CREATE TRIGGER fail_correction BEFORE INSERT ON document_corrections FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'injected pair failure'");
+    try {
+        submitCorrection($this, $tenant, $old, $new);
+        expect(DB::table('document_corrections')->count())->toBe(0)
+            ->and(DB::table('outbox_messages')->where('event', 'errorSave')->count())->toBe(0)
+            ->and(DB::table('activity_log')->where('event', 'document_correction_recorded')->count())->toBe(0);
+        Http::assertNothingSent();
+    } finally {
+        DB::unprepared('DROP TRIGGER fail_correction');
+    }
+});
+
+test('correction administration cannot hide a previously issued checkout report', function () {
+    $tenant = twoTenants()->a;
+    [$stay, $old, $new] = correctionDocuments($tenant, 'checkout_report');
+    inTenant($tenant->property, function () {
+        OutboxMessage::query()->where('event', 'checkout')->get()->each(function ($message) {
+            $message->forceFill(['provider_references' => [...$message->getAttribute('provider_references'), 'reportNo' => 'OLD-232', 'totalAmount' => 220, 'roomAmount' => 220, 'extrasAmount' => 0]])->save();
+        });
+    });
+    $before = inTenant($tenant->property, fn () => CheckoutReport::of($stay));
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect();
+    expect(inTenant($tenant->property, fn () => CheckoutReport::of($stay)))->toEqual($before);
+});
+
+test('correction submit refuses unsafe pairs without exposing sensitive evidence', function (string $attack) {
+    $t = twoTenants();
+    $tenant = $t->a;
+    [$stay, $old, $new] = correctionDocuments($tenant, $attack === 'different guest' ? 'checkout_report' : 'services_receipt');
+    inTenant($tenant->property, function () use ($tenant, $new, $attack) {
+        $source = OutboxMessage::query()->findOrFail($new->outbox_message_id);
+        match ($attack) {
+            'Sandbox' => VfmsCredential::for($tenant->property)->update(['mode' => VfmsMode::Sandbox]),
+            'Mainland' => $tenant->property->update(['jurisdiction_profile' => 'mainland_tanzania']),
+            'demo' => DB::table('properties')->where('id', $tenant->property->id)->update(['demo' => true]),
+            'different mode' => DB::table('issued_documents')->where('id', $new->id)->update(['mode' => 'sandbox']),
+            'different type' => DB::table('issued_documents')->where('id', $new->id)->update(['type' => 'checkout_report']),
+            'different service' => DB::table('issued_documents')->where('id', $new->id)->update(['posting_id' => 'other-service']),
+            'missing unit' => $source->forceFill(['provider_references' => [...$source->getAttribute('provider_references'), 'unitId' => null]])->save(),
+            'different unit' => $source->forceFill(['provider_references' => [...$source->getAttribute('provider_references'), 'unitId' => 999]])->save(),
+            'unaccepted evidence' => $source->update(['status' => 'unknown']),
+            'different guest' => $source->attempts()->where('outcome', 'accepted')->update(['response_body' => Crypt::encryptString(json_encode(['body' => [[
+                ...json_decode(file_get_contents(__DIR__.'/../../Fixtures/vfms/checkout.json'), true)[0],
+                'reportNumber' => 'NEW-232', 'guest' => ['fullName' => 'Another guest', 'documentNo' => 'OTHER-PRIVATE-ID'],
+            ]]]))]),
+            default => null,
+        };
+    });
+    if ($attack === 'self') {
+        $new = $old;
+    }
+    if ($attack === 'foreign replacement') {
+        [, , $new] = correctionDocuments($t->b);
+    }
+    if ($attack === 'sibling replacement') {
+        $new = inTenant($tenant->otherProperty, function () use ($new) {
+            $message = OutboxMessage::query()->create([
+                'integration' => 'vfms', 'subject_type' => 'reservation', 'subject_id' => 'sibling', 'sequence' => 1,
+                'stream_key' => hash('sha256', 'sibling'), 'idempotency_key' => 'sibling', 'event' => 'services', 'payload' => [],
+            ]);
+
+            return IssuedDocument::query()->create([...$new->getAttributes(), 'outbox_message_id' => $message->id]);
+        });
+    }
+    $response = submitCorrection($this, $tenant, $old, $new)->assertSessionHasErrors('correction');
+    expect($response->getContent())->not->toContain('PRIVATE-GUEST-ID', 'P1234567', 'SECRET-TOKEN', 'OTHER-PRIVATE-ID');
+    expect(DB::table('document_corrections')->count())->toBe(0)
+        ->and(DB::table('outbox_messages')->where('event', 'errorSave')->count())->toBe(0)
+        ->and(DB::table('activity_log')->where('event', 'refused')->count())->toBeGreaterThan(0);
+    if ($attack === 'Sandbox') {
+        $response->assertSessionHasErrors(['correction' => 'ZRA does not provide error correction in Sandbox.']);
+    }
+    expect(DB::table('activity_log')->where('event', 'refused')->get()->toJson())->not->toContain('PRIVATE-GUEST-ID', 'P1234567', 'SECRET-TOKEN', 'OTHER-PRIVATE-ID');
+    Http::assertNothingSent();
+})->with(['self', 'Sandbox', 'Mainland', 'demo', 'different mode', 'different type', 'different service', 'missing unit', 'different unit', 'unaccepted evidence', 'different guest', 'foreign replacement', 'sibling replacement']);

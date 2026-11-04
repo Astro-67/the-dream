@@ -47,7 +47,7 @@ final class VfmsTranslator implements LifecycleTranslator
         [$requestType, $path, $builder] = self::CORRECTION_CALL;
 
         return $this->outbox->record(VfmsAdapter::INTEGRATION, $stay, $builder, [
-            'mode' => 'live', 'request_type' => $requestType, 'path' => $path,
+            'mode' => 'live', 'unit_id' => VfmsCredential::for($property)->unit_id, 'request_type' => $requestType, 'path' => $path,
             'reservation_id' => $stay->id, 'correction_id' => $id,
             'body' => $this->payloads->errorSave($property, $old, $new, $reason, $business),
         ], "vfms-correction:{$id}");
@@ -82,6 +82,7 @@ final class VfmsTranslator implements LifecycleTranslator
             $reservation = Reservation::query()->findOrFail($event->getAttribute('reservation_id'));
             $this->outbox->record(VfmsAdapter::INTEGRATION, $reservation, $builder, [
                 'mode' => VfmsCredential::for($property)->mode->value,
+                'unit_id' => VfmsCredential::for($property)->unit_id,
                 'request_type' => $requestType,
                 'path' => $path,
                 'reservation_id' => $reservation->id,
