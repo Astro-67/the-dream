@@ -79,7 +79,12 @@ test('the issued document opens correction with its own number and only verified
             ->where("documentCorrections.{$old->id}.replacements.0.number", 'NEW-232')
             ->where("documentCorrections.{$old->id}.replacements.0.id", $new->id)
             ->where("documentCorrections.{$old->id}.business.name", 'Accepted business')
-            ->where("documentCorrections.{$old->id}.business.email", 'desk@example.test'))
+            ->where("documentCorrections.{$old->id}.business.email", 'desk@example.test')
+            ->where($type === 'services_receipt' ? 'serviceReceipts' : 'guestReports', function ($rows) {
+                expect(collect($rows)->pluck('number')->all())->toBe(['OLD-232', 'NEW-232']);
+
+                return true;
+            }))
         ->assertDontSee('PRIVATE-GUEST-ID')
         ->assertDontSee('P1234567');
     Http::assertNothingSent();

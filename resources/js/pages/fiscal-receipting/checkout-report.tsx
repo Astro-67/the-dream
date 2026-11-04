@@ -53,8 +53,8 @@ export default function CheckoutReport({
     serviceReceipts: {
         number: string;
         description: string | null;
-        amount: number;
-        currency: string;
+        amount: number | null;
+        currency: string | null;
         mode: 'sandbox' | 'live' | null;
         portalUrl: string | null;
         qrSvg: string | null;
@@ -345,10 +345,13 @@ export default function CheckoutReport({
                                         </StatusChip>
                                     )}
                                     <p className="tabular-nums">
-                                        {formatMoney(
-                                            receipt.amount,
-                                            receipt.currency,
-                                        )}
+                                        {receipt.amount === null ||
+                                        receipt.currency === null
+                                            ? 'Issue amount unavailable'
+                                            : formatMoney(
+                                                  receipt.amount,
+                                                  receipt.currency,
+                                              )}
                                     </p>
                                 </div>
                                 <figure className="min-w-0 break-inside-avoid space-y-2">

@@ -79,6 +79,22 @@ final class CheckoutReport
                     'mode' => $mode, 'portalUrl' => $receiptUrl, 'qrSvg' => $receiptUrl === null ? null : self::qr($receiptUrl),
                 ];
             })->all();
+        $issuedServices = IssuedDocument::query()->where('property_id', $reservation->property_id)
+            ->where('reservation_id', $reservation->id)->where('type', 'services_receipt')
+            ->orderBy('issued_at')->orderBy('id')->get();
+        $serviceReceipts = [
+            ...$issuedServices->map(function (IssuedDocument $document) use ($serviceReceipts): array {
+                $url = $document->getAttribute('viewer_url');
+
+                return [
+                    'number' => $document->number,
+                    'description' => collect($serviceReceipts)->firstWhere('number', $document->number)['description'] ?? null,
+                    'amount' => $document->getAttribute('amount'), 'currency' => $document->getAttribute('currency'),
+                    'mode' => $document->mode, 'portalUrl' => $url, 'qrSvg' => $url === null ? null : self::qr($url),
+                ];
+            })->all(),
+            ...array_values(array_filter($serviceReceipts, fn (array $receipt) => ! $issuedServices->contains('number', $receipt['number']))),
+        ];
         $checkout = $messages->firstWhere('event', 'checkout');
         if ($checkout === null || $messages->contains(fn (OutboxMessage $message) => $message->status !== 'delivered')) {
             return [
