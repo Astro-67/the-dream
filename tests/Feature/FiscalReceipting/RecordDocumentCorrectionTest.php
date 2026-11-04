@@ -88,3 +88,63 @@ test('a manager records the selected issued document pair and sends exact ERROR_
     expect(DB::table('activity_log')->where('event', 'document_correction_recorded')->count())->toBe(1);
     Http::assertSentCount(1);
 })->with(['services_receipt', 'checkout_report']);
+
+function submitCorrection($test, TenantFixture $tenant, IssuedDocument $old, IssuedDocument $new)
+{
+    return $test->actingAs($tenant->owner)->post(route('issued-documents.corrections.store', $old), [
+        '_property' => $tenant->property->id, 'replacement_id' => $new->id, 'reason' => 'Wrong particulars', 'confirmed' => true,
+    ]);
+}
+
+// Provisional acknowledgements: documented status-code interpretation, not provider-observed fixtures.
+test('ERROR_SAVE separates documented acceptance refusal and uncertainty without replay', function (mixed $body, int $http, string $outcome) {
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant);
+    Http::fake(['https://vfms-live.example/vfms/error-management/new' => Http::response($body, $http)]);
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect();
+    $message = inTenant($tenant->property, fn () => OutboxMessage::query()->where('event', 'errorSave')->sole());
+    inTenant($tenant->property, function () use ($message, $outcome) {
+        app(DeliveryEngine::class)->deliver($message->id);
+        app(DeliveryEngine::class)->deliver($message->id);
+        expect($message->fresh()->status)->toBe($outcome)->and($message->fresh()->attempt_count)->toBe(1);
+    });
+    submitCorrection($this, $tenant, $old, $new)->assertSessionHasErrors('correction');
+    expect(DB::table('document_corrections')->count())->toBe(1);
+    Http::assertSentCount(1);
+})->with([
+    '200 integer' => [['status' => 200], 200, 'delivered'],
+    '201 string' => [['status' => '201'], 200, 'delivered'],
+    'HTTP alone' => [[], 200, 'unknown'],
+    'statusCode alone' => [['statusCode' => 200], 200, 'unknown'],
+    '5000' => [['status' => 5000], 200, 'rejected'],
+    'legacy 5000' => [['statusCode' => 5000], 200, 'rejected'],
+    'duplicate success' => [['status' => 200, 'message' => 'Already exists'], 200, 'unknown'],
+    'duplicate refusal' => [['status' => 400, 'message' => 'Duplicate'], 400, 'unknown'],
+    'contradiction' => [['status' => 200, 'statusCode' => 5000], 200, 'unknown'],
+    'contradictory message' => [['status' => 200, 'message' => 'Validation failed'], 200, 'unknown'],
+    'refusal' => [['status' => '400', 'message' => 'Invalid number'], 200, 'rejected'],
+    'unknown code' => [['status' => 123], 200, 'unknown'],
+    '5xx success' => [['status' => 200], 503, 'unknown'],
+    'malformed' => ['{broken', 200, 'unknown'],
+    'ambiguous list' => [[['status' => 200]], 200, 'unknown'],
+    'malformed refusal' => ['bad gateway', 400, 'unknown'],
+]);
+
+test('queued corrections refuse mode unit demo Mainland or archive changes before HTTP', function (string $change) {
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant);
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect();
+    inTenant($tenant->property, function () use ($tenant, $change) {
+        match ($change) {
+            'mode' => VfmsCredential::for($tenant->property)->update(['mode' => VfmsMode::Sandbox]),
+            'unit' => VfmsCredential::for($tenant->property)->update(['unit_id' => 233]),
+            'demo' => DB::table('properties')->where('id', $tenant->property->id)->update(['demo' => true]),
+            'Mainland' => $tenant->property->update(['jurisdiction_profile' => 'mainland_tanzania']),
+            'archive' => $tenant->property->forceFill(['archived_at' => now()])->save(),
+        };
+        $message = OutboxMessage::query()->where('event', 'errorSave')->sole();
+        app(DeliveryEngine::class)->deliver($message->id);
+        expect($message->fresh()->status)->toBe('rejected');
+    });
+    Http::assertNothingSent();
+})->with(['mode', 'unit', 'demo', 'Mainland', 'archive']);
