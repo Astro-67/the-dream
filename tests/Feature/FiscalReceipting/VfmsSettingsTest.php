@@ -55,7 +55,7 @@ test('a saved token never comes back in a page, a log line or an audit entry', f
     });
     $this->actingAs($t->a->owner);
 
-    $this->put(route('properties.vfms.update', $t->a->property), vfmsCredentials($t->a, ['token' => $marker]))->assertSessionHasNoErrors();
+    $this->put(route('properties.vfms.update', $t->a->property), vfmsCredentials($t->a, ['token' => $marker, 'unit_id' => '231']))->assertSessionHasNoErrors();
     $this->put(route('properties.vfms.update', $t->a->property), vfmsCredentials($t->a, ['token' => $marker, 'integration_id' => '']))->assertSessionHasErrors('integration_id');
     $flashed = json_encode(session()->all());
     $this->put(route('properties.vfms.mode', $t->a->property), ['_property' => $t->a->property->id, 'mode' => 'live', 'confirmation' => 'LIVE', 'reason' => 'Pilot go-live'])->assertSessionHasNoErrors();

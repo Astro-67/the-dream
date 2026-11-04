@@ -14,7 +14,11 @@ beforeEach(function () {
 
 test('error management uses its fixed same-origin HTTPS target without redirecting credentials', function (string $operation, string $path) {
     config(['services.vfms.live_url' => 'https://vfms-live.example:8443/vfms/api/']);
-    Http::fake(['https://vfms-live.example:8443/vfms/error-management/'.$path => Http::response('', 302, ['Location' => 'https://foreign.example/'])]);
+    Http::fake(['https://vfms-live.example:8443/vfms/error-management/'.$path => function (Request $request, array $options) {
+        expect($options['allow_redirects'])->toBeFalse();
+
+        return Http::response('', 302, ['Location' => 'https://foreign.example/']);
+    }]);
     $credential = VfmsCredential::for(twoTenants()->a->property);
     $credential->forceFill(['mode' => VfmsMode::Live, 'integration_id' => 'LIVE-ID', 'token' => 'LIVE-TOKEN', 'unit_id' => 231]);
     $body = ['unitId' => 231];
@@ -53,6 +57,21 @@ test('error management refuses Sandbox mode changes invalid unit data and arbitr
     'traversal target' => ['ERRORS_MANAGEMENTS', '../api/', 'live', VfmsMode::Live, 231, 'https://vfms-live.example/api/'],
     'cleartext' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Live, 231, 'http://vfms-live.example/api/'],
     'URL credentials' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Live, 231, 'https://user:secret@vfms-live.example/api/'],
+]);
+
+test('error management cannot send without the current saved business unit', function (string $operation, string $path, ?int $unitId) {
+    config(['services.vfms.live_url' => 'https://vfms-live.example/vfms/api/']);
+    $credential = VfmsCredential::for(twoTenants()->a->property);
+    $credential->forceFill(['mode' => VfmsMode::Live, 'integration_id' => 'LIVE-ID', 'token' => 'LIVE-TOKEN', 'unit_id' => $unitId]);
+
+    $result = app(HttpVfms::class)->send(['mode' => 'live', 'request_type' => $operation, 'path' => $path, 'body' => ['unitId' => 231]], $credential);
+
+    expect($result->outcome)->toBe('rejected');
+    Http::assertNothingSent();
+})->with([
+    ['ERROR_SAVE', 'new', null],
+    ['ERROR_SAVE', 'new', 232],
+    ['ERRORS_MANAGEMENTS', 'errors', null],
 ]);
 
 // protects=missing Sandbox configuration fails closed (#169); fails_when=an incomplete test configuration sends HTTP; no_claim=provider validation.
