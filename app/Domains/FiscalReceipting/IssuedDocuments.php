@@ -15,6 +15,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use stdClass;
 
 /**
  * Issued documents (spec #228): projects each fiscal document VFMS issued from delivered outbox
@@ -81,7 +82,7 @@ final class IssuedDocuments
      * The property's issued documents, newest first, 50 a page.
      *
      * @param  array<string, mixed>  $filters  from/to (property-local Y-m-d, inclusive), type, zra_status
-     * @return LengthAwarePaginator<int, array{id: string, type: string, number: string, issuedAt: string, guest: string|null, amount: int|null, currency: string|null, zraStatus: string, viewerUrl: string|null, reservationId: string}>
+     * @return LengthAwarePaginator<int|string, array{id: string, type: string, number: string, issuedAt: string, guest: mixed, amount: int|null, currency: mixed, zraStatus: string, viewerUrl: mixed, reservationId: string}> guest, currency and viewerUrl are strings or null
      */
     public function register(Property $property, array $filters): LengthAwarePaginator
     {
@@ -114,12 +115,13 @@ final class IssuedDocuments
         $names = Reservation::guestNames(Reservation::query()->where('property_id', $property->id)
             ->whereIn('id', collect($page->items())->where('type', 'non_fiscal')->pluck('reservation_id'))->get());
 
-        return $page->through(fn (object $row) => [
-            'id' => $row->id, 'type' => $row->type, 'number' => $row->number,
-            'issuedAt' => CarbonImmutable::parse($row->issued_at, 'UTC')->toIso8601String(),
-            'guest' => $row->type === 'non_fiscal' ? $names->get($row->reservation_id) : $row->guest_name,
+        // Raw union rows are untyped; every column but amount/guest/currency/viewer is non-null in both sources.
+        return $page->through(fn (stdClass $row): array => [
+            'id' => (string) $row->id, 'type' => (string) $row->type, 'number' => (string) $row->number,
+            'issuedAt' => CarbonImmutable::parse((string) $row->issued_at, 'UTC')->toIso8601String(),
+            'guest' => $row->type === 'non_fiscal' ? $names->get((string) $row->reservation_id) : $row->guest_name,
             'amount' => $row->amount === null ? null : (int) $row->amount, 'currency' => $row->currency,
-            'zraStatus' => $row->zra_status, 'viewerUrl' => $row->viewer_url, 'reservationId' => $row->reservation_id,
+            'zraStatus' => (string) $row->zra_status, 'viewerUrl' => $row->viewer_url, 'reservationId' => (string) $row->reservation_id,
         ]);
     }
 
