@@ -17,7 +17,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
-import { StatusChip } from '@/components/ui/status-chip';
+import { StatusChip, type StatusTone } from '@/components/ui/status-chip';
+import { Spinner } from '@/components/ui/spinner';
 import { Input } from '@/components/ui/input';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
@@ -74,6 +75,14 @@ const deliveryLabels: Record<string, string> = {
     exhausted_unknown:
         'Delivery unknown - reconcile before any further submission',
 };
+const deliveryTones: Record<string, StatusTone> = {
+    pending: 'info',
+    in_flight: 'info',
+    delivered: 'success',
+    rejected: 'error',
+    blocked: 'error',
+    exhausted: 'error',
+};
 
 export function CorrectionAnnotation({ note }: { note: CorrectionNote }) {
     const { correctionRefresh, tenant } = usePage<{
@@ -96,7 +105,7 @@ export function CorrectionAnnotation({ note }: { note: CorrectionNote }) {
             </p>
             <div className="flex flex-wrap gap-2">
                 <StatusChip
-                    tone={note.delivery === 'delivered' ? 'info' : 'warning'}
+                    tone={deliveryTones[note.delivery ?? ''] ?? 'warning'}
                     className="whitespace-normal"
                 >
                     {deliveryLabels[note.delivery ?? ''] ??
@@ -135,6 +144,10 @@ export function CorrectionAnnotation({ note }: { note: CorrectionNote }) {
                                     processing || correctionRefresh?.refreshing
                                 }
                             >
+                                {(processing ||
+                                    correctionRefresh?.refreshing) && (
+                                    <Spinner />
+                                )}
                                 {processing || correctionRefresh?.refreshing
                                     ? 'Refreshing ZRA status...'
                                     : 'Refresh ZRA status'}
@@ -376,6 +389,7 @@ export function DocumentCorrectionControl({
                                                         !replacement
                                                     }
                                                 >
+                                                    {processing && <Spinner />}
                                                     {processing
                                                         ? 'Submitting...'
                                                         : 'Confirm correction'}
