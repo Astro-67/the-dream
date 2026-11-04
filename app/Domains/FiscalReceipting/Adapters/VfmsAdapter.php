@@ -8,12 +8,14 @@ use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\CheckoutFigures;
 use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
+use App\Domains\FiscalReceipting\IssuedDocuments;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FiscalReceipting\VfmsPayloads;
 use App\Domains\FiscalReceipting\VfmsTranslator;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Models\Property;
+use App\Support\Outbox\AcceptanceProjector;
 use App\Support\Outbox\DeliveryAdapter;
 use App\Support\Outbox\DeliveryPolicy;
 use App\Support\Outbox\DeliveryResult;
@@ -26,7 +28,7 @@ use RuntimeException;
  * The outbox adapter for VFMS: one message per stay at a time, in order. A message
  * goes live only when it was recorded live and the property is still live.
  */
-final class VfmsAdapter implements DeliveryAdapter, OutboxCorrectionAdapter, RestoreReconciliationAdapter
+final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxCorrectionAdapter, RestoreReconciliationAdapter
 {
     public const INTEGRATION = 'vfms';
 
@@ -193,6 +195,11 @@ final class VfmsAdapter implements DeliveryAdapter, OutboxCorrectionAdapter, Res
             'report_number' => (string) $report['reportNo'],
             'total' => $minor('totalAmount'), 'tax' => $minor('totalTax'), 'levy' => $minor('infrastructureTax'),
         ]);
+    }
+
+    public function projectAccepted(OutboxMessage $message): void
+    {
+        app(IssuedDocuments::class)->project($message);
     }
 
     public function reconcile(array $messages): array

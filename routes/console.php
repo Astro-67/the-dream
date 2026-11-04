@@ -2,6 +2,7 @@
 
 use App\Domains\FiscalReceipting\Actions\CloseWithoutFiling;
 use App\Domains\FiscalReceipting\Actions\FetchExchangeRates;
+use App\Domains\FiscalReceipting\IssuedDocuments;
 use App\Domains\FrontDesk\Actions\RunAutomaticCheckout;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\Jobs\CloseDueBusinessDate;
@@ -281,6 +282,15 @@ Artisan::command('vfms:exchange-rates', function (FetchExchangeRates $fetch): in
 
     return self::SUCCESS;
 })->purpose('Store today\'s ZRA exchange rates');
+
+Artisan::command('vfms:issued-documents', function (IssuedDocuments $documents): int {
+    $this->info('Projected '.$documents->catchUp().' VFMS filings into issued documents.');
+
+    return self::SUCCESS;
+})->purpose('Backfill issued fiscal documents from delivered VFMS filings; safe to rerun');
+
+// Heals any projection that failed after its filing was accepted.
+Schedule::command('vfms:issued-documents')->hourly()->withoutOverlapping();
 
 // Hourly so a missed or failed fetch retries the same day; each date keeps one row.
 Schedule::command('vfms:exchange-rates')->hourly()->withoutOverlapping();

@@ -320,8 +320,25 @@ final class DeliveryEngine
 
             return $result->outcome === 'accepted';
         });
+        if ($accepted) {
+            $this->project($claim->id);
+        }
         if ($accepted && $releaseSuccessor) {
             $this->releaseNext($claim->stream_key, $claim->sequence);
+        }
+    }
+
+    private function project(string $messageId): void
+    {
+        try {
+            $message = OutboxMessage::query()->whereKey($messageId)->first();
+            $adapter = $message === null ? null : $this->adapters->for($message->integration);
+            if ($adapter instanceof AcceptanceProjector) {
+                $adapter->projectAccepted($message);
+            }
+        } catch (Throwable $exception) {
+            // The filing is already accepted; a read-model failure must not replay it. The catch-up heals the projection.
+            report($exception);
         }
     }
 
