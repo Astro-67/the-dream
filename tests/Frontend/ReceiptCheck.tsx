@@ -316,6 +316,7 @@ const register: RegisterProps = {
                 localUrl:
                     '/reservations/R-1042/fiscal-report#document-services_receipt-ZRA-230',
                 viewerUrl: 'https://viewer.example/receipt-form/ZRA-230',
+                annotations: [],
             },
         ],
         current_page: 1,
@@ -394,6 +395,32 @@ const emptyRegister = renderRegister({
 assert.match(emptyRegister, /No issued documents match these filters/);
 assert.match(emptyRegister, /Show all issue dates and document types/);
 assert.doesNotMatch(emptyRegister, /<table/);
+const annotatedRegister = renderRegister({
+    ...register,
+    documents: {
+        ...register.documents,
+        data: [
+            {
+                ...register.documents.data[0],
+                annotations: [
+                    {
+                        label: 'Replaced by',
+                        number: 'REPLACEMENT-234',
+                        url: '/replacement',
+                        delivery: 'delivered',
+                        decision: 'approved',
+                        refreshUrl: null,
+                    },
+                ],
+            },
+        ],
+    },
+});
+assert.match(annotatedRegister, /Replaced by/);
+assert.match(annotatedRegister, /REPLACEMENT-234/);
+assert.match(annotatedRegister, /Approved/);
+assert.match(annotatedRegister, /ZRA-230/);
+assert.match(annotatedRegister, /USD 20\.00/);
 console.log(
     'Receipts register display, local dates, links and empty states: PASS',
 );
