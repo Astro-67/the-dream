@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\Web\FiscalReceipting\CheckoutReportController;
 use App\Http\Controllers\Web\FiscalReceipting\CloseWithoutFilingController;
+use App\Http\Controllers\Web\FiscalReceipting\RecordDocumentCorrectionController;
 use App\Http\Controllers\Web\FiscalReceipting\RecoverVfmsFilingController;
+use App\Http\Controllers\Web\FiscalReceipting\RefreshCorrectionDecisionsController;
 use App\Http\Controllers\Web\FiscalReceipting\VfmsSettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +19,8 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(function () {
+    Route::post('issued-documents/{document}/corrections', RecordDocumentCorrectionController::class)->name('issued-documents.corrections.store');
+    Route::post('document-corrections/{correction}/refresh', RefreshCorrectionDecisionsController::class)->name('document-corrections.refresh');
     Route::post('reservations/{reservation:reservation_number}/fiscal-report/reveal-identity', [CheckoutReportController::class, 'reveal'])->name('reservations.fiscal-report.reveal-identity');
     Route::post('reservations/{reservation:reservation_number}/vfms/close-without-filing', CloseWithoutFilingController::class)->name('reservations.vfms.close-without-filing');
     Route::post('reservations/{reservation:reservation_number}/vfms/{message}/refile', RecoverVfmsFilingController::class)->name('reservations.vfms.refile');

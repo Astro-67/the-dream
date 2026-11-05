@@ -22,19 +22,19 @@ class SaveVfmsCredentials
 {
     public function __construct(private CheckVfmsCredentials $check) {}
 
-    public function handle(User $actor, Property $property, string $integrationId, string $registrationId, ?string $token): VfmsCredential
+    public function handle(User $actor, Property $property, string $integrationId, string $registrationId, ?string $token, ?int $unitId = null): VfmsCredential
     {
-        return Audit::validationRefusal($actor, $property, 'VFMS credentials refused', function () use ($actor, $property, $integrationId, $registrationId, $token) {
+        return Audit::validationRefusal($actor, $property, 'VFMS credentials refused', function () use ($actor, $property, $integrationId, $registrationId, $token, $unitId) {
             if (! JurisdictionRules::usesVfms($property)) {
                 throw ValidationException::withMessages(['vfms' => __('This property does not use VFMS.')]);
             }
-            $credential = Tenancy::within(TenantContext::forProperty($property), fn () => DB::transaction(function () use ($actor, $property, $integrationId, $registrationId, $token) {
+            $credential = Tenancy::within(TenantContext::forProperty($property), fn () => DB::transaction(function () use ($actor, $property, $integrationId, $registrationId, $token, $unitId) {
                 $credential = VfmsCredential::query()->lockForUpdate()->first() ?? VfmsCredential::for($property);
                 if (blank($token) && blank($credential->token)) {
                     throw ValidationException::withMessages(['token' => __('Enter the VFMS token.')]);
                 }
 
-                $credential->fill(['integration_id' => $integrationId, 'registration_id' => $registrationId, 'zra_check' => null, 'zra_checked_at' => null]);
+                $credential->fill(['integration_id' => $integrationId, 'registration_id' => $registrationId, 'unit_id' => $unitId, 'zra_check' => null, 'zra_checked_at' => null]);
                 if (filled($token)) {
                     // New credentials get a fresh chance with VFMS.
                     $credential->fill(['token' => $token, 'credentials_refused_at' => null]);
@@ -45,7 +45,7 @@ class SaveVfmsCredentials
 
                 Audit::record($actor, 'vfms_credentials_saved', $property, 'VFMS credentials saved', [
                     'property_id' => $property->id,
-                    'attributes' => ['integration_id' => $integrationId, 'registration_id' => $registrationId, 'token_changed' => $tokenChanged],
+                    'attributes' => ['integration_id' => $integrationId, 'registration_id' => $registrationId, 'unit_id' => $unitId, 'token_changed' => $tokenChanged],
                 ]);
 
                 return $credential;

@@ -227,6 +227,10 @@ The authority's identifier for a property, separate from its TIN, VRN and full Z
 A receipt or check-out report issued through VFMS, carrying a VFMS QR code.
 _Avoid_: Invoice, bill, folio
 
+**Issued document**:
+A receipt Karafuu or VFMS has given out: a non-fiscal receipt, a VFMS services receipt, or one guest's fiscal check-out report. Fiscal ones are projected from VFMS's accepted answer with their issue-time amount, currency and viewer link; evidence that was never stored stays unavailable, never rebuilt from today's folio.
+_Avoid_: Invoice, transaction
+
 **Estimated tax**:
 The VAT and infrastructure levy Karafuu's tax rules put on a Zanzibar folio before check-out. Replaced at check-out by the tax and levy VFMS returns, with any difference posted as a VFMS adjustment line (ADR 0015).
 _Avoid_: Provisional tax, draft tax

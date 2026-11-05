@@ -23,6 +23,7 @@ const base: Props = {
     business: null,
     needsAttention: false,
     revealIdentityUrl: null,
+    reservationUrl: '/reservations/R-1042',
     serviceReceipts: [],
     stay: {
         reservation_number: 'R-1042',
@@ -102,6 +103,7 @@ const recordedProps: Props = {
     },
     guestReports: ['REPORT-1', 'REPORT-2'].map((number) => ({
         number,
+        mode: 'sandbox',
         name: `Guest ${number}`,
         identity: {
             documentName: 'PASSPORT',
@@ -117,6 +119,7 @@ const recordedProps: Props = {
             number: 'RECEIPT-172',
             description: 'Water',
             amount: 2000,
+            currency: 'USD',
             mode: 'sandbox',
             portalUrl: 'https://viewer.example/receipt-form/RECEIPT-172',
             qrSvg: '<svg data-qr="RECEIPT-172"></svg>',
@@ -173,6 +176,7 @@ const revealed = render({
     guestReports: [
         {
             number: 'REPORT-1',
+            mode: 'sandbox',
             name: 'Anna Berg',
             identity: {
                 documentName: 'PASSPORT',
@@ -198,6 +202,7 @@ const withoutDestinations: Props = {
     guestReports: [
         {
             number: 'NO-LINK-GUEST',
+            mode: 'sandbox',
             name: 'Private Guest',
             identity: null,
             departedEarly: true,
@@ -210,6 +215,7 @@ const withoutDestinations: Props = {
             number: 'NO-LINK-RECEIPT',
             description: 'Water',
             amount: 2000,
+            currency: 'USD',
             mode: 'sandbox',
             portalUrl: null,
             qrSvg: '<svg data-qr="orphan-receipt"></svg>',
@@ -250,8 +256,24 @@ assert.doesNotMatch(linkOnly, /data-qr=|VFMS QR code/);
 
 // Until VFMS accepts every filing the report shows no figures.
 const waiting = render({ ...base, status: 'waiting', report: null });
-assert.match(waiting, /Waiting for VFMS/);
+assert.match(waiting, /final check-out report is not complete/);
+assert.match(waiting, /ISSUED FISCAL DOCUMENTS/);
 assert.doesNotMatch(waiting, /SBX-1A2B|USD 239\.00/);
+
+const earlyDocuments = render({
+    ...recordedProps,
+    status: 'waiting',
+    report: null,
+    reservationUrl: null,
+});
+assert.match(earlyDocuments, /id="document-services_receipt-RECEIPT-172"/);
+assert.match(earlyDocuments, /id="document-checkout_report-REPORT-1"/);
+assert.match(earlyDocuments, /USD 20\.00/);
+assert.match(earlyDocuments, /TEST, NOT FISCAL/);
+assert.doesNotMatch(
+    earlyDocuments,
+    /FISCAL CHECK-OUT REPORT|href="\/reservations\/R-1042"/,
+);
 assert.match(
     render({ ...base, status: 'waiting', report: null, needsAttention: true }),
     /Needs attention: ZRA returned no verifiable check-out report/,
@@ -274,5 +296,75 @@ assert.match(branded, /#1f6f5c/);
 assert.match(branded, /ZRA Test Hotel/);
 assert.match(branded, /TIN TEST-TIN/);
 assert.match(branded, /TEST, NOT FISCAL/);
+
+const correctionDocument = {
+    id: 'issued-1',
+    number: 'RECEIPT-172',
+    type: 'services_receipt' as const,
+    issued_at: '2026-12-10T09:00:00Z',
+    amount: 2000,
+    currency: 'USD',
+    mode: 'live' as const,
+};
+const correctionProps = {
+    ...recordedProps,
+    serviceReceipts: recordedProps.serviceReceipts.map((receipt) => ({
+        ...receipt,
+        mode: 'live' as const,
+    })),
+    documentCorrections: {
+        'issued-1': {
+            document: correctionDocument,
+            submitUrl: '/issued-documents/issued-1/corrections',
+            replacements: [],
+            business: {},
+            refusal: null,
+            annotations: [],
+        },
+    },
+};
+assert.match(render(correctionProps), /Correct this document/);
+for (const [decision, label] of [
+    ['awaiting', 'Awaiting ZRA status'],
+    ['pending', 'Pending'],
+    ['verification', 'Under verification'],
+    ['approved', 'Approved'],
+    ['rejected', 'Correction rejected'],
+]) {
+    const corrected = render({
+        ...correctionProps,
+        documentCorrections: {
+            'issued-1': {
+                ...correctionProps.documentCorrections['issued-1'],
+                submitUrl: null,
+                annotations: [
+                    {
+                        label:
+                            decision === 'approved'
+                                ? 'Replaced by'
+                                : 'Proposed replacement',
+                        number: 'REPLACEMENT-172',
+                        url: '/replacement',
+                        delivery: 'delivered',
+                        decision,
+                        refreshUrl: '/refresh',
+                    },
+                ],
+            },
+        },
+    });
+    assert.match(corrected, new RegExp(label));
+    assert.match(corrected, /Submission delivered/);
+    assert.match(corrected, /REPLACEMENT-172/);
+    assert.match(corrected, /Refresh ZRA status/);
+    assert.match(corrected, /RECEIPT-172/);
+    assert.match(corrected, /data-qr="RECEIPT-172"/);
+    assert.match(
+        corrected,
+        /href="https:\/\/viewer\.example\/receipt-form\/RECEIPT-172"/,
+    );
+    assert.match(corrected, /USD 20\.00/);
+    assert.doesNotMatch(corrected, /Correct this document/);
+}
 
 console.log('Fiscal check-out report: PASS');
