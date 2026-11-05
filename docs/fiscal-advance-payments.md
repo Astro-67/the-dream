@@ -98,8 +98,14 @@ represented as a delivered PMS advance-booking message. Their exact references
 are copied into the advance check-in evidence, and only a confirmed rejection
 permits a corrected, audited retry.
 
-Acceptance requires a non-empty receipt number and nested booking number, and an
-advance check-in must echo the booking number it sent. Incomplete successful
+Acceptance requires a non-empty receipt number and nested booking number. An
+advance check-in must echo the booking number it sent, return its own reference,
+and pass a read-only accommodation-report lookup with the same credentials.
+That reference must contain exactly the expected active guest documents and
+the active assigned room, in the filing's currency. The report may be an object
+or a list; missing, duplicate, incomplete or unavailable results remain unknown.
+Only the verification verdict is stored alongside the original response, not
+the report's guest details. Incomplete successful
 responses and duplicate/uncertain responses remain **unknown**, never accepted
 or retried blindly. Repeated submission for the same payment queues nothing new.
 
@@ -109,9 +115,13 @@ or retried blindly. Repeated submission for the same payment queues nothing new.
   booking group. A group payment is not silently assigned to every member.
 - Both creating and linking require an assigned room, a real recorded deposit
   and the reservation's currency.
-- On ZRA's test server a guest checked in only through `accommodation/booking/`
-  could not be checked out ("Guest Document Not Found"). ZRA approved this flow
-  for Live; watch the first Live advance stay's check-out.
+- On 4 November 2026, ZRA's test server echoed an advance check-in but its
+  accommodation report had no guest or room relationships. Check-out then
+  failed with "Guest Document Not Found", despite matching document numbers.
+  New advance check-ins now remain unknown in this situation. This safeguard
+  does not create missing ZRA registrations or prove successful Live check-out.
+  There is no blind retry or ordinary-check-in fallback; incomplete registration
+  requires reconciliation. Already delivered historical filings are unchanged.
 - Once an advance is queued, reservation amendments, room reassignment,
   cancellation/no-show/void and corrections of the filed payment require
   reconciliation. The guide supplies no advance refund/cancellation workflow;
