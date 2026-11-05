@@ -16,7 +16,7 @@ On 26 October the pilot property's saved Live integration ID and token were used
 
 - The test server's base URL ends in `:6060/vfms/api/` (plain HTTP; the full address is in the test guide). **Production is `https://gateway.zanrevenue.org/vfms/api/`**, not the `/api/` the production guide prints: probed without credentials on 26 October, every `/api/…` path returns 404 and every `/vfms/api/…` path answers with ZRA's own field validation.
 - The test guide prints shared test credentials on page 33: one integration ID and token for an accommodation business unit, one for restaurant/other services. They are ZRA's public test values, not the pilot hotel's. The test unit is business unit `5940` and is shared: its accommodation report shows other vendors' guests.
-- Both servers serve the same paths. The test guide's `changeRoom/price/` and `api/reservation/booking/` are typos: both return 404, while `changeRoomPrice/` and `reservation/booking/` answer. The test guide has no error-correction endpoints.
+- Both servers serve the same paths. The test guide's `changeRoom/price/` and `api/reservation/booking/` are typos: both return 404, while `changeRoomPrice/` and `reservation/booking/` answer. The test guide has no error-correction endpoints, but the test server answers §2.12 `ERROR_SAVE` (see 5 November below).
 - The test guide adds `arrivalDate` per guest on accommodation, and `tourRegNo`, `costOptions` for `TOUROPERATOR` source. VFMS suffixes our `referenceNumber` with `-<businessUnitId>` and returns a `responseNumber`.
 - ZRA's own report viewer on the test server (port 4242): `/checkout-report/guest/<reportNumber>` and `/receipt-form/<receiptNumber>`. Production's `https://portalvfms.zanrevenue.org/checkout-report/guest/<reportNumber>` answers HTTP 200. It failed to load data on 26 October ("Sorry!", backing call HTTP 503); the Uhuru banner also said ZRA's fiscal service was unavailable.
 
@@ -135,3 +135,14 @@ On 31 October the server still could not open TCP 6060 or 4242 to ZRA's test hos
 ## Error-management routes, 4 November
 
 Empty, unauthenticated POSTs to Live on 4 November 2026 (spec #228) reached ZRA's missing-header validation at `/vfms/error-management/new` (§2.12). The guide's root path and `/vfms/api/error-management/new` returned 404. Karafuu's §2.13 read uses the sibling `/vfms/error-management/errors` by analogy; no probe of it is recorded. This shows only where the submission route is: no credentials, correction or report request was sent, so the acknowledgement and report response formats remain unobserved.
+
+## Error correction on the test server, 5 November
+
+Raw HTTP from a developer machine to ZRA's test server (accommodation unit from page 33 of the test guide, business unit 5940), with a fake guest:
+
+- Check-in `KRF082452C`, then two services receipts: `XHE2102440` (2 × WATER, 20 USD) and `XHE2102441` (1 × WATER, 10 USD). Both responses carried `businessUnitId` 5940.
+- §2.12: `POST /vfms/error-management/new` with `vfms-request-type: ERROR_SAVE` and `{b_unit_name, email, new_receipt_number: XHE2102441, old_receipt_number: XHE2102440, phone_no, reasons, unitId: 5940, zrb_number}` returned HTTP 200 `{"status":200,"statusMessage":"success","message":"Your application has been received, you will be notified once it has been processed."}`. `status` is a JSON number. Dummy business name, email, phone and Z-number were not rejected. An empty body on the same route returned HTTP 500.
+- §2.13: `POST /vfms/error-management/errors` with `{startDate, endDate, status: "0"}` (with and without `unitId`) returned HTTP 200 `{"statusCode":"5000","statusMessage":"INVALID REQUEST TYPE PROVIDED"}` for every request type tried (`ERRORS_MANAGEMENTS`, `ERROR_MANAGEMENTS`, `ERRORS_MANAGEMENT`, `ERROR_MANAGEMENT`, `ERROR_REPORT`, `ERRORS`, `ERROR_LIST`, `ERRORS_REPORT`, `ERROR_SAVE`). GET returned 405; `/errors/`, `/report` and `/list` returned 404. The decision report's response shape is still unobserved.
+- `/vfms/api/error-management/new` returned 404, as on Live. The guest was checked out afterwards (report `XHE2102442`).
+
+So the test server provides correction submission but not the status report. Karafuu's Sandbox submits `ERROR_SAVE` to the test origin under the `businessUnitId` its accepted filings returned, and refuses the status refresh before any call. No correction has been sent to Live.
