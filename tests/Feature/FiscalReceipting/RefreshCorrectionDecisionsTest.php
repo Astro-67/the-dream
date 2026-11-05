@@ -246,7 +246,7 @@ test('Sandbox and unsent corrections are refused before any read', function (str
         ->and(DB::table('activity_log')->where('event', 'refused')->count())->toBeGreaterThan(0);
     Http::assertSentCount(1);
 })->with([
-    ['Sandbox', 'ZRA does not provide error correction in Sandbox.'],
+    ['Sandbox', 'ZRA\'s test server does not provide the correction status report.'],
     ['Mainland', 'Issued-document corrections require an active real Zanzibar property.'],
     ['refused submission', 'The correction must reach ZRA before its status can be refreshed.'],
 ]);

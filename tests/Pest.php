@@ -196,15 +196,15 @@ function twoTenants(): TwoTenants
 }
 
 /** Accepted evidence fixture, not a claim of a provider replacement-issuance procedure. */
-function correctionDocuments(TenantFixture $tenant, string $type = 'services_receipt'): array
+function correctionDocuments(TenantFixture $tenant, string $type = 'services_receipt', string $mode = 'live'): array
 {
-    return inTenant($tenant->property, function () use ($tenant, $type) {
+    return inTenant($tenant->property, function () use ($tenant, $type, $mode) {
         $tenant->property->update(['email' => 'desk@example.test', 'phone' => '+255777123456', 'z_number' => 'Z0123456789-5940']);
-        VfmsCredential::for($tenant->property)->fill(['mode' => VfmsMode::Live, 'unit_id' => 232, 'integration_id' => 'CORRECTION-ID', 'registration_id' => 'REG', 'token' => 'SECRET-TOKEN'])->save();
+        VfmsCredential::for($tenant->property)->fill(['mode' => VfmsMode::from($mode), 'unit_id' => 232, 'integration_id' => 'CORRECTION-ID', 'registration_id' => 'REG', 'token' => 'SECRET-TOKEN'])->save();
         $stay = app(CreateReservation::class)->handle($tenant->owner, BookingForm::details($tenant->owner));
         foreach (['OLD-232', 'NEW-232'] as $number) {
             $message = DB::transaction(fn () => app(Outbox::class)->record('vfms', $stay, $type === 'services_receipt' ? 'services' : 'checkout', [
-                'mode' => 'live', 'reservation_id' => $stay->id, 'posting_id' => 'same-service',
+                'mode' => $mode, 'reservation_id' => $stay->id, 'posting_id' => 'same-service',
                 'request_type' => $type === 'services_receipt' ? 'ACCOMMODATION_ADD_SERVICE' : 'ACCOMMODATION_CHECK_OUT',
                 'path' => $type === 'services_receipt' ? 'service/' : 'guest/checkout/',
                 'body' => $type === 'services_receipt'
@@ -212,9 +212,11 @@ function correctionDocuments(TenantFixture $tenant, string $type = 'services_rec
                     : ['currency' => 'USD', 'documentNumberList' => [['documentNumber' => 'P1234567']]],
             ], 'fixture:'.$number));
             $report = json_decode(file_get_contents(__DIR__.'/Fixtures/vfms/checkout.json'), true)[0];
-            $response = $type === 'services_receipt' ? ['receiptNumber' => $number, 'businessName' => 'Accepted business'] : [[...$report, 'reportNumber' => $number, 'businessName' => 'Accepted business']];
+            // ZRA's test unit is 5940 (observed 5 Nov 2026); the property's own unit 232 is never the test server's.
+            $business = ['businessName' => 'Accepted business', 'businessUnitId' => 5940];
+            $response = $type === 'services_receipt' ? ['receiptNumber' => $number, ...$business] : [[...$report, 'reportNumber' => $number, ...$business]];
             $message->forceFill(['status' => 'delivered', 'delivered_at' => now(), 'provider_references' => [
-                'mode' => 'live', 'unitId' => 232,
+                'mode' => $mode, 'unitId' => 232,
                 ...($type === 'services_receipt' ? ['receiptNumber' => $number] : ['reportNumbers' => json_encode([$number])]),
             ]])->save();
             $message->attempts()->create(['attempt_number' => 1, 'outcome' => 'accepted', 'request_body' => json_encode($message->payload), 'response_body' => json_encode(['status' => 200, 'body' => $response])]);

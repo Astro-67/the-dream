@@ -44,7 +44,6 @@ test('error management refuses Sandbox mode changes invalid unit data and arbitr
     expect($result->outcome)->toBe('rejected');
     Http::assertNothingSent();
 })->with([
-    'sandbox save' => ['ERROR_SAVE', 'new', 'sandbox', VfmsMode::Sandbox, 231, 'https://vfms-live.example/api/'],
     'sandbox refresh' => ['ERRORS_MANAGEMENTS', 'errors', 'sandbox', VfmsMode::Sandbox, 231, 'https://vfms-live.example/api/'],
     'queued save changed mode' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Sandbox, 231, 'https://vfms-live.example/api/'],
     'queued refresh changed mode' => ['ERRORS_MANAGEMENTS', 'errors', 'live', VfmsMode::Sandbox, 231, 'https://vfms-live.example/api/'],

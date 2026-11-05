@@ -96,7 +96,48 @@ test('ERROR_SAVE separates documented acceptance refusal and uncertainty without
     'malformed' => ['{broken', 200, 'unknown'],
     'ambiguous list' => [[['status' => 200]], 200, 'unknown'],
     'malformed refusal' => ['bad gateway', 400, 'unknown'],
+    'observed on ZRA\'s test server 2026-11-05' => [json_decode(file_get_contents(__DIR__.'/../../Fixtures/vfms/error-save-test-server-2026-11-05.json'), true), 200, 'delivered'],
 ]);
+
+// The acknowledgement body is the one ZRA's test server returned to a real ERROR_SAVE on 5 Nov 2026.
+test('a Sandbox property records a Sandbox pair and delivers ERROR_SAVE only to the test gateway with test credentials', function () {
+    config(['services.vfms.test_url' => 'http://vfms-test.example:6060/vfms/api/', 'services.vfms.test_integration_id' => 'TEST-ID', 'services.vfms.test_token' => 'TEST-TOKEN']);
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant, 'services_receipt', 'sandbox');
+    Http::fake(['http://vfms-test.example:6060/vfms/error-management/new' => Http::response(file_get_contents(__DIR__.'/../../Fixtures/vfms/error-save-test-server-2026-11-05.json'))]);
+
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect()->assertSessionHasNoErrors();
+    $message = inTenant($tenant->property, fn () => OutboxMessage::query()->where('event', 'errorSave')->sole());
+    inTenant($tenant->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+
+    Http::assertSent(fn (Request $request) => $request->url() === 'http://vfms-test.example:6060/vfms/error-management/new'
+        && $request->header('vfms-request-type') === ['ERROR_SAVE']
+        && $request->header('vfms-intergration-id') === ['TEST-ID']
+        && $request->header('vfms-token-id') === ['TEST-TOKEN']
+        && $request->data() === [
+            'b_unit_name' => 'Accepted business', 'email' => 'desk@example.test', 'phone_no' => '+255777123456',
+            'zrb_number' => 'Z0123456789-5940', 'unitId' => 5940,
+            'old_receipt_number' => 'OLD-232', 'new_receipt_number' => 'NEW-232', 'reasons' => 'Wrong particulars',
+        ]);
+    Http::assertSentCount(1);
+    expect(inTenant($tenant->property, fn () => $message->fresh()->status))->toBe('delivered');
+    $pair = DB::table('document_corrections')->sole();
+    expect($pair->mode)->toBe('sandbox')->and((int) $pair->unit_id)->toBe(5940);
+});
+
+test('a queued correction never crosses into the other mode', function (string $recorded) {
+    config(['services.vfms.test_url' => 'http://vfms-test.example:6060/vfms/api/', 'services.vfms.test_integration_id' => 'TEST-ID', 'services.vfms.test_token' => 'TEST-TOKEN']);
+    $tenant = twoTenants()->a;
+    [, $old, $new] = correctionDocuments($tenant, 'services_receipt', $recorded);
+    submitCorrection($this, $tenant, $old, $new)->assertRedirect()->assertSessionHasNoErrors();
+    inTenant($tenant->property, function () use ($tenant, $recorded) {
+        VfmsCredential::for($tenant->property)->update(['mode' => $recorded === 'live' ? VfmsMode::Sandbox : VfmsMode::Live]);
+        $message = OutboxMessage::query()->where('event', 'errorSave')->sole();
+        app(DeliveryEngine::class)->deliver($message->id);
+        expect($message->fresh()->status)->toBe('rejected');
+    });
+    Http::assertNothingSent();
+})->with(['live', 'sandbox']);
 
 test('queued corrections refuse mode unit demo Mainland or archive changes before HTTP', function (string $change) {
     $tenant = twoTenants()->a;
@@ -223,8 +264,8 @@ test('correction submit refuses unsafe pairs without exposing sensitive evidence
     expect(DB::table('document_corrections')->count())->toBe(0)
         ->and(DB::table('outbox_messages')->where('event', 'errorSave')->count())->toBe(0)
         ->and(DB::table('activity_log')->where('event', 'refused')->count())->toBeGreaterThan(0);
-    if ($attack === 'Sandbox') {
-        $response->assertSessionHasErrors(['correction' => 'ZRA does not provide error correction in Sandbox.']);
+    if (in_array($attack, ['Sandbox', 'different mode'], true)) {
+        $response->assertSessionHasErrors(['correction' => 'Both documents must have been filed in the property\'s current VFMS mode.']);
     }
     expect(DB::table('activity_log')->where('event', 'refused')->get()->toJson())->not->toContain('PRIVATE-GUEST-ID', 'P1234567', 'SECRET-TOKEN', 'OTHER-PRIVATE-ID');
     Http::assertNothingSent();

@@ -529,9 +529,10 @@ export function VfmsFields({
                                 id="vfms_unit_id_hint"
                                 className="text-sm text-muted-foreground"
                             >
-                                Required only for issued-document corrections.
-                                Use the business-unit ID assigned by ZRA, not
-                                the Registration ID or Z-number suffix.
+                                Required only for Live issued-document
+                                corrections. Use the business-unit ID assigned
+                                by ZRA, not the Registration ID or Z-number
+                                suffix.
                             </p>
                             <InputError message={errors.unit_id} />
                         </div>

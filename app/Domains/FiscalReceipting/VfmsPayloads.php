@@ -38,16 +38,14 @@ final class VfmsPayloads
     public function correctionIdentity(Property $property, ?array $acceptedBusiness = null): array
     {
         $credential = VfmsCredential::for($property);
-        if ($credential->mode !== VfmsMode::Live) {
-            throw ValidationException::withMessages(['mode' => __('Issued-document corrections are only available in VFMS Live.')]);
-        }
 
         return Validator::make([
             'b_unit_name' => filled($acceptedBusiness['businessName'] ?? null) ? $acceptedBusiness['businessName'] : $property->name,
             'email' => $property->email,
             'phone_no' => $property->phone,
             'zrb_number' => $property->z_number,
-            'unitId' => $credential->unit_id,
+            // Sandbox files under ZRA's shared test unit, which only the accepted filing reports.
+            'unitId' => $credential->mode === VfmsMode::Live ? $credential->unit_id : ($acceptedBusiness['businessUnitId'] ?? null),
         ], [
             'b_unit_name' => ['required', 'string'],
             'email' => ['required', 'email', 'max:255'],

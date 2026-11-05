@@ -35,16 +35,19 @@ final class HttpVfms
         }
         if (in_array($payload['request_type'], ['ERROR_SAVE', 'ERRORS_MANAGEMENTS'], true)) {
             $path = $payload['request_type'] === 'ERROR_SAVE' ? 'new' : 'errors';
-            if (! $live || $payload['path'] !== $path || ($credential->unit_id ?? 0) < 1
-                || ($payload['request_type'] === 'ERROR_SAVE'
-                    && (! is_int($payload['body']['unitId'] ?? null) || $payload['body']['unitId'] !== $credential->unit_id))) {
-                return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires Live mode, a valid business-unit ID and the fixed operation target.']);
+            $unitId = $payload['body']['unitId'] ?? null;
+            // ZRA's test server takes ERROR_SAVE under its shared unit but rejects every 2.13 request type (5 Nov 2026).
+            if ((! $live && $path !== 'new') || $payload['path'] !== $path
+                || ($live && ($credential->unit_id ?? 0) < 1)
+                || ($path === 'new' && (! is_int($unitId) || $unitId < 1 || ($live && $unitId !== $credential->unit_id)))) {
+                return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires a valid business-unit ID and the fixed operation target; ZRA\'s test server has no correction status report.']);
             }
             $origin = parse_url($url);
-            if (! is_array($origin) || ($origin['scheme'] ?? null) !== 'https' || empty($origin['host']) || isset($origin['user']) || isset($origin['pass'])) {
-                return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires an HTTPS gateway origin without URL credentials.']);
+            $scheme = $origin['scheme'] ?? null;
+            if (! is_array($origin) || ! ($scheme === 'https' || (! $live && $scheme === 'http')) || empty($origin['host']) || isset($origin['user']) || isset($origin['pass'])) {
+                return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires the gateway origin without URL credentials (HTTPS in Live).']);
             }
-            $url = 'https://'.$origin['host'].(isset($origin['port']) ? ':'.$origin['port'] : '').'/vfms/error-management/';
+            $url = $scheme.'://'.$origin['host'].(isset($origin['port']) ? ':'.$origin['port'] : '').'/vfms/error-management/';
         }
         $body = $payload['body'];
         if (! $live) {
