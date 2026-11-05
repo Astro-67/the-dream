@@ -23,7 +23,18 @@ test('correction identity reuses property contacts full Z-number and accepted bu
     ]);
 })->with(['Accepted business name', null, '']);
 
-test('correction identity refuses Sandbox and missing or invalid property business data', function (string $field, mixed $value, string $error) {
+test('Sandbox correction identity uses the business unit the test server returned, not the property unit', function () {
+    $property = twoTenants()->a->property;
+    inTenant($property, function () use ($property) {
+        $property->update(['name' => 'Property name', 'email' => 'desk@example.test', 'phone' => '+255777123456', 'z_number' => 'Z0123456789-5940']);
+        VfmsCredential::for($property)->fill(['mode' => VfmsMode::Sandbox, 'unit_id' => 231])->save();
+    });
+
+    expect(app(VfmsPayloads::class)->correctionIdentity($property, ['businessName' => 'KARAFUU TEST', 'businessUnitId' => 5940]))
+        ->toMatchArray(['b_unit_name' => 'KARAFUU TEST', 'unitId' => 5940]);
+});
+
+test('correction identity refuses Sandbox without accepted unit evidence and missing or invalid property business data', function (string $field, mixed $value, string $error) {
     $property = twoTenants()->a->property;
     inTenant($property, function () use ($property, $field, $value) {
         $property->forceFill(['email' => 'desk@example.test', 'phone' => '+255777123456', 'z_number' => 'Z0123456789-5940']);
@@ -43,7 +54,7 @@ test('correction identity refuses Sandbox and missing or invalid property busine
         expect($exception->errors())->toHaveKey($error);
     }
 })->with([
-    'Sandbox' => ['mode', VfmsMode::Sandbox, 'mode'],
+    'Sandbox' => ['mode', VfmsMode::Sandbox, 'unitId'],
     'missing unit' => ['unit_id', null, 'unitId'],
     'invalid unit' => ['unit_id', 0, 'unitId'],
     'missing email' => ['email', '', 'email'],

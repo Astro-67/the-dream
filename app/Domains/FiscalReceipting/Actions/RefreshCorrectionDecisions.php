@@ -41,6 +41,15 @@ class RefreshCorrectionDecisions
 
     public function __construct(private HttpVfms $http) {}
 
+    /** ZRA's test server rejects every section 2.13 request type (observed 5 Nov 2026), so only Live reads. */
+    private static function assertReadable(Property $property): void
+    {
+        RecordDocumentCorrection::assertCorrectable($property);
+        if (VfmsCredential::for($property)->mode !== VfmsMode::Live) {
+            throw new RuntimeException('ZRA\'s test server does not provide the correction status report.');
+        }
+    }
+
     /** @return array{refreshing: bool, observedAt: string|null} */
     public static function status(Property $property): array
     {
@@ -63,7 +72,7 @@ class RefreshCorrectionDecisions
             try {
                 $read = DB::transaction(function () use ($actor, $correction): CorrectionDecisionRead {
                     $property = Property::query()->whereKey($correction->property_id)->lockForUpdate()->firstOrFail();
-                    RecordDocumentCorrection::assertCorrectable($property, VfmsCredential::for($property));
+                    self::assertReadable($property);
                     $message = OutboxMessage::query()->where('property_id', $property->id)->findOrFail($correction->outbox_message_id);
                     if (! in_array($message->status, self::SENT, true)) {
                         throw new RuntimeException('The correction must reach ZRA before its status can be refreshed.');
@@ -105,7 +114,7 @@ class RefreshCorrectionDecisions
         }
         $property = Tenancy::property() ?? throw new RuntimeException('Correction status reads require a property in context.');
         try {
-            RecordDocumentCorrection::assertCorrectable($property, VfmsCredential::for($property));
+            self::assertReadable($property);
             $result = $this->http->send(['mode' => VfmsMode::Live->value, 'request_type' => 'ERRORS_MANAGEMENTS', 'path' => 'errors', 'body' => $read->request_body], VfmsCredential::for($property));
             $rows = $result->outcome === 'accepted' ? $this->rows($result->responseBody['body'] ?? null) : null;
             DB::transaction(function () use ($read, $result, $rows): void {

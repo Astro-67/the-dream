@@ -84,7 +84,21 @@ test('a correction without an already issued replacement shows its prerequisite 
     Http::assertNothingSent();
 });
 
-test('sandbox refuses correction on the issued document without hiding its evidence', function () {
+test('a Sandbox issued document offers only Sandbox replacements under ZRA\'s test business unit', function () {
+    $tenant = twoTenants()->a;
+    [$stay, $old, $new] = correctionDocuments($tenant, 'services_receipt', 'sandbox');
+
+    $this->actingAs($tenant->owner)
+        ->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reservations.fiscal-report', $stay))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where("documentCorrections.{$old->id}.refusal", null)
+            ->where("documentCorrections.{$old->id}.replacements.0.id", $new->id)
+            ->where("documentCorrections.{$old->id}.business.unitId", 5940));
+    Http::assertNothingSent();
+});
+
+test('a document filed in the other mode is refused without hiding its evidence', function () {
     $tenant = twoTenants()->a;
     [$stay, $old] = correctionDocuments($tenant);
     inTenant($tenant->property, function () use ($tenant) {
@@ -97,7 +111,7 @@ test('sandbox refuses correction on the issued document without hiding its evide
         ->get(route('reservations.fiscal-report', $stay))->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where("documentCorrections.{$old->id}.document.number", 'OLD-232')
-            ->where("documentCorrections.{$old->id}.refusal", 'ZRA does not provide error correction in Sandbox.')
+            ->where("documentCorrections.{$old->id}.refusal", 'Both documents must have been filed in the property\'s current VFMS mode.')
             ->where("documentCorrections.{$old->id}.replacements", []));
     Http::assertNothingSent();
 });
