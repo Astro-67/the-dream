@@ -33,6 +33,19 @@ final class HttpVfms
         if ($live && parse_url($url, PHP_URL_SCHEME) !== 'https') {
             return new DeliveryResult('rejected', responseBody: ['error' => 'The Live VFMS endpoint must use HTTPS.']);
         }
+        if (in_array($payload['request_type'], ['ERROR_SAVE', 'ERRORS_MANAGEMENTS'], true)) {
+            $path = $payload['request_type'] === 'ERROR_SAVE' ? 'new' : 'errors';
+            if (! $live || $payload['path'] !== $path || ($credential->unit_id ?? 0) < 1
+                || ($payload['request_type'] === 'ERROR_SAVE'
+                    && (! is_int($payload['body']['unitId'] ?? null) || $payload['body']['unitId'] !== $credential->unit_id))) {
+                return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires Live mode, a valid business-unit ID and the fixed operation target.']);
+            }
+            $origin = parse_url($url);
+            if (! is_array($origin) || ($origin['scheme'] ?? null) !== 'https' || empty($origin['host']) || isset($origin['user']) || isset($origin['pass'])) {
+                return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires an HTTPS gateway origin without URL credentials.']);
+            }
+            $url = 'https://'.$origin['host'].(isset($origin['port']) ? ':'.$origin['port'] : '').'/vfms/error-management/';
+        }
         $body = $payload['body'];
         if (! $live) {
             if (blank($credential->property_id)) {
@@ -70,6 +83,38 @@ final class HttpVfms
         $responseBody = ['status' => $status, 'body' => $data ?? $response->body()];
         if ($live && $status === 401) {
             $this->markRefused($credential);
+        }
+
+        if ($payload['request_type'] === 'ERRORS_MANAGEMENTS') {
+            // Section 2.13 has no response schema: only a 2xx JSON list is passed on, for the caller's provisional row parser.
+            if ($status >= 200 && $status < 300 && is_array($data) && array_is_list($data)) {
+                return new DeliveryResult('accepted', responseBody: $responseBody);
+            }
+
+            return new DeliveryResult(in_array($status, [400, 401, 403, 404], true) ? 'rejected' : 'unknown', responseBody: $responseBody);
+        }
+        if ($payload['request_type'] === 'ERROR_SAVE') {
+            // Section 3's 200/201 interpretation is unverified against an authenticated acknowledgement.
+            if (is_array($data) && preg_match('/duplicate|already\s+exists/i', json_encode($data, JSON_THROW_ON_ERROR))) {
+                return new DeliveryResult('unknown', responseBody: $responseBody);
+            }
+            if ($status >= 500 || ! is_array($data) || array_is_list($data)) {
+                return new DeliveryResult('unknown', responseBody: $responseBody);
+            }
+            $applicationStatus = $data['status'] ?? null;
+            $success = in_array($applicationStatus, [200, 201, '200', '201'], true);
+            if ($status >= 200 && $status < 300 && $success && ! array_key_exists('statusCode', $data)
+                && ! isset($data['error']) && ! isset($data['errors'])
+                && ! preg_match('/fail|reject|refus|invalid|error|unsuccess/i', json_encode([$data['statusMessage'] ?? '', $data['message'] ?? ''], JSON_THROW_ON_ERROR))) {
+                return new DeliveryResult('accepted', responseBody: $responseBody);
+            }
+            if (! $success && (in_array($status, [400, 401, 403, 404], true)
+                || in_array($applicationStatus, [400, 401, 403, 404, 5000, '400', '401', '403', '404', '5000'], true)
+                || in_array($data['statusCode'] ?? null, [5000, '5000'], true))) {
+                return new DeliveryResult('rejected', responseBody: $responseBody);
+            }
+
+            return new DeliveryResult('unknown', responseBody: $responseBody);
         }
 
         $errors = is_array($data)
@@ -143,7 +188,7 @@ final class HttpVfms
     /** @param  array<string, mixed>  $body */
     private function post(string $url, string $requestType, string $path, string $integrationId, string $token, array $body): Response
     {
-        return Http::timeout(30)->withHeaders([
+        return Http::timeout(30)->withoutRedirecting()->withHeaders([
             'Content-type' => 'application/json',
             'vfms-request-type' => $requestType,
             // The guide's spelling, kept verbatim.

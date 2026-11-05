@@ -17,6 +17,6 @@ class ReceiptPolicy
 
     public function view(User $user, Receipt $receipt): bool
     {
-        return Tenancy::property() !== null && (Access::allows($user, P::ReservationsView, $receipt) || Access::allows($user, P::FinanceView, $receipt));
+        return Tenancy::property() !== null && (Access::allows($user, P::ReservationsView, $receipt) || Access::allows($user, P::FinanceView, $receipt) || Access::allows($user, P::ReportsView, $receipt));
     }
 }

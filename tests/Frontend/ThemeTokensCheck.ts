@@ -178,3 +178,12 @@ assert.match(
     'print surfaces must drop screen elevation',
 );
 console.log('Elevation tokens: PASS');
+for (const slot of ['dialog-overlay', 'dialog-content']) {
+    assert.match(
+        css,
+        new RegExp(
+            `@media print[^]*body:has\\(\\.receipt-print\\) \\[data-slot='${slot}'\\][^{]*\\{\\s*display: none !important`,
+        ),
+        'printing an issued document must omit an open correction dialog and its overlay',
+    );
+}

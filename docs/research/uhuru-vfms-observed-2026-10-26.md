@@ -131,3 +131,7 @@ Read from pms.sauinndream.com's outbox on 31 October 2026 (code `99e34c9`); no g
 ## Sandbox runs from developer machines
 
 On 31 October the server still could not open TCP 6060 or 4242 to ZRA's test host (80 and 443 open), so a Sandbox call from the server ends `unknown`; one such check-in sits in its outbox. The owner decided not to have the ports opened: changes to VFMS filing are proved against ZRA's test server from a developer machine with `VFMS_TEST_SERVER_RUN=1` (see the 27 October run above). Sandbox properties on the server cannot file.
+
+## Error-management routes, 4 November
+
+Empty, unauthenticated POSTs to Live on 4 November 2026 (spec #228) reached ZRA's missing-header validation at `/vfms/error-management/new` (§2.12). The guide's root path and `/vfms/api/error-management/new` returned 404. Karafuu's §2.13 read uses the sibling `/vfms/error-management/errors` by analogy; no probe of it is recorded. This shows only where the submission route is: no credentials, correction or report request was sent, so the acknowledgement and report response formats remain unobserved.
