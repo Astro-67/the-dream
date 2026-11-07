@@ -58,7 +58,8 @@ test('error management refuses Sandbox mode changes invalid unit data and arbitr
     'URL credentials' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Live, 231, 'https://user:secret@vfms-live.example/api/'],
 ]);
 
-test('error management cannot send without the current saved business unit', function (string $operation, string $path, ?int $unitId) {
+// An empty setting sends the unit ZRA reported (covered by the legacy Live correction test); a filled one must match.
+test('error management refuses a unit that differs from the saved business unit', function (string $operation, string $path, ?int $unitId) {
     config(['services.vfms.live_url' => 'https://vfms-live.example/vfms/api/']);
     $credential = VfmsCredential::for(twoTenants()->a->property);
     $credential->forceFill(['mode' => VfmsMode::Live, 'integration_id' => 'LIVE-ID', 'token' => 'LIVE-TOKEN', 'unit_id' => $unitId]);
@@ -68,9 +69,7 @@ test('error management cannot send without the current saved business unit', fun
     expect($result->outcome)->toBe('rejected');
     Http::assertNothingSent();
 })->with([
-    ['ERROR_SAVE', 'new', null],
     ['ERROR_SAVE', 'new', 232],
-    ['ERRORS_MANAGEMENTS', 'errors', null],
 ]);
 
 // protects=missing Sandbox configuration fails closed (#169); fails_when=an incomplete test configuration sends HTTP; no_claim=provider validation.

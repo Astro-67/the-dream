@@ -44,8 +44,8 @@ final class VfmsPayloads
             'email' => $property->email,
             'phone_no' => $property->phone,
             'zrb_number' => $property->z_number,
-            // Sandbox files under ZRA's shared test unit, which only the accepted filing reports.
-            'unitId' => $credential->mode === VfmsMode::Live ? $credential->unit_id : ($acceptedBusiness['businessUnitId'] ?? null),
+            // The unit ZRA reported for the accepted filing (Sandbox: its shared test unit); Live falls back to settings.
+            'unitId' => ($credential->mode === VfmsMode::Live ? $credential->unit_id : null) ?? ($acceptedBusiness['businessUnitId'] ?? null),
         ], [
             'b_unit_name' => ['required', 'string'],
             'email' => ['required', 'email', 'max:255'],

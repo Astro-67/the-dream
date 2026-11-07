@@ -50,7 +50,7 @@ class RecordDocumentCorrection
             self::assertCorrectable($property);
             $stay = Reservation::query()->where('property_id', $property->id)->findOrFail($document->reservation_id);
             [$transaction, $business, $unit] = $this->evidence($document, $stay, $credential);
-            $identity = app(VfmsPayloads::class)->correctionIdentity($property, $business);
+            $identity = app(VfmsPayloads::class)->correctionIdentity($property, [...$business, 'businessUnitId' => $unit]);
             $linked = DocumentCorrection::query()->where('property_id', $property->id)->get();
             $used = $linked->pluck('original_document_id')->merge($linked->pluck('replacement_document_id'));
             $replacements = [];
@@ -116,7 +116,7 @@ class RecordDocumentCorrection
                         throw new RuntimeException(self::UNIT_EVIDENCE);
                     }
                     $id = (string) Str::ulid();
-                    $message = app(VfmsTranslator::class)->recordCorrection($id, $stay, $property, $old, $new, trim($reason), $business);
+                    $message = app(VfmsTranslator::class)->recordCorrection($id, $stay, $property, $old, $new, trim($reason), [...$business, 'businessUnitId' => $oldUnit]);
                     $correction = DocumentCorrection::query()->create([
                         'id' => $id, 'original_document_id' => $old->id, 'replacement_document_id' => $new->id,
                         'original_number' => $old->number, 'replacement_number' => $new->number,
@@ -165,10 +165,8 @@ class RecordDocumentCorrection
             if (! is_int($unit)) {
                 throw new RuntimeException(self::UNIT_EVIDENCE);
             }
-            if ($credential->unit_id === null) {
-                throw new RuntimeException("Enter this property's ZRA business-unit ID in VFMS settings before correcting Live documents. ZRA filed this document under unit {$unit}.");
-            }
-            if ($unit !== $credential->unit_id) {
+            // ZRA gives hotels no business-unit number on paper; the setting only guards against a mismatch when filled.
+            if ($credential->unit_id !== null && $unit !== $credential->unit_id) {
                 throw new RuntimeException("ZRA filed this document under business unit {$unit}, not the unit {$credential->unit_id} in VFMS settings.");
             }
 
