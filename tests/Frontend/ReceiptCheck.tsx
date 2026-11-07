@@ -330,7 +330,7 @@ const register: RegisterProps = {
         links: [],
     },
 };
-const renderRegister = (props: RegisterProps) =>
+const renderRegister = (props: RegisterProps, permissions: string[] = []) =>
     renderToStaticMarkup(
         <App
             initialPage={{
@@ -341,6 +341,7 @@ const renderRegister = (props: RegisterProps) =>
                 encryptHistory: false,
                 props: {
                     ...props,
+                    auth: { permissions },
                     tenant: { property: { timezone: 'Africa/Dar_es_Salaam' } },
                 },
             }}
@@ -356,6 +357,7 @@ for (const text of [
     'ZRA status',
     'Issue-time mode',
     'Correction',
+    'Document number',
     'TEST, NOT FISCAL',
     '11 Dec 2026',
     '00:01',
@@ -371,6 +373,11 @@ assert.match(issued, /href="https:\/\/viewer\.example\/receipt-form\/ZRA-230"/);
 assert.match(issued, /<label[^>]*for="from"/);
 assert.match(issued, /<label[^>]*for="type"/);
 assert.doesNotMatch(issued, /Revenue total|Grand total/);
+assert.doesNotMatch(issued, />Correct</);
+assert.match(
+    renderRegister(register, ['outbox.recover']),
+    /href="\/reservations\/R-1042\/fiscal-report#document-services_receipt-ZRA-230"[^>]*>Correct<span class="sr-only"> ZRA-230/,
+);
 const unavailable = renderRegister({
     ...register,
     documents: {
@@ -409,7 +416,7 @@ const annotatedRegister = renderRegister({
                         url: '/replacement',
                         delivery: 'delivered',
                         decision: 'approved',
-                        refreshUrl: null,
+                        refreshUrl: '/document-corrections/1/refresh',
                     },
                 ],
             },
@@ -419,6 +426,7 @@ const annotatedRegister = renderRegister({
 assert.match(annotatedRegister, /Replaced by/);
 assert.match(annotatedRegister, /REPLACEMENT-234/);
 assert.match(annotatedRegister, /Approved/);
+assert.doesNotMatch(annotatedRegister, /Refresh ZRA status/);
 assert.match(annotatedRegister, /ZRA-230/);
 assert.match(annotatedRegister, /USD 20\.00/);
 console.log(

@@ -19,7 +19,7 @@ class ReceiptsController extends Controller
     {
         Gate::authorize('view', PropertyKpis::class);
         $property = Tenancy::property() ?? abort(404);
-        $filters = $request->only(['from', 'to', 'type', 'zra_status']);
+        $filters = $request->only(['from', 'to', 'type', 'zra_status', 'number']);
         $page = $documents->register($property, $filters);
         $annotations = DocumentCorrections::annotations($property, collect($page->items())->pluck('id')->all());
 

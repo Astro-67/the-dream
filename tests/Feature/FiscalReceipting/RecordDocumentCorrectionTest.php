@@ -396,3 +396,36 @@ test('submission refuses a closed restore gate without recording a correction', 
         ->and(DB::table('outbox_messages')->where('event', 'errorSave')->count())->toBe(0);
     Http::assertNothingSent();
 });
+
+// Production shape (7 Nov 2026): Live filings before #232 carry no unit snapshot, and check-out answers omit businessUnitId.
+test('legacy Live documents take their business unit from the stay\'s accepted ZRA check-in answer', function (?int $settingsUnit, ?string $refusal) {
+    $tenant = twoTenants()->a;
+    [$stay, $old, $new] = correctionDocuments($tenant, 'checkout_report', legacy: true);
+    inTenant($tenant->property, function () use ($tenant, $stay, $settingsUnit) {
+        $checkIn = DB::transaction(fn () => app(Outbox::class)->record('vfms', $stay, 'accommodation', [
+            'mode' => 'live', 'reservation_id' => $stay->id, 'request_type' => 'ACCOMMODATION_REQUEST', 'path' => 'accommodation/', 'body' => [],
+        ], 'legacy-check-in'));
+        $checkIn->forceFill(['status' => 'delivered', 'delivered_at' => now(), 'provider_references' => ['mode' => 'live']])->save();
+        $checkIn->attempts()->create(['attempt_number' => 1, 'outcome' => 'accepted', 'request_body' => '{}', 'response_body' => json_encode(['status' => 200, 'body' => ['businessUnitId' => 32519]])]);
+        VfmsCredential::for($tenant->property)->update(['unit_id' => $settingsUnit]);
+    });
+    Http::fake(['https://vfms-live.example/vfms/error-management/new' => Http::response(['status' => 200, 'statusMessage' => 'success'])]);
+
+    $response = submitCorrection($this, $tenant, $old, $new);
+
+    if ($refusal !== null) {
+        $response->assertSessionHasErrors(['correction' => $refusal]);
+        expect(DB::table('document_corrections')->count())->toBe(0);
+
+        return;
+    }
+    $response->assertSessionHasNoErrors();
+    $message = inTenant($tenant->property, fn () => OutboxMessage::query()->where('event', 'errorSave')->sole());
+    inTenant($tenant->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    Http::assertSent(fn (Request $request) => $request['unitId'] === 32519);
+    expect((int) DB::table('document_corrections')->sole()->unit_id)->toBe(32519);
+})->with([
+    'matching settings unit' => [32519, null],
+    'settings unit missing' => [null, "Enter this property's ZRA business-unit ID in VFMS settings before correcting Live documents. ZRA filed this document under unit 32519."],
+    'settings unit differs' => [232, 'ZRA filed this document under business unit 32519, not the unit 232 in VFMS settings.'],
+]);

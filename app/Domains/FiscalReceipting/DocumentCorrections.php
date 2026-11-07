@@ -57,7 +57,7 @@ final class DocumentCorrections
                 $stay = $reservations->get($other->getAttribute('reservation_id'));
                 $result[$id][] = [
                     'label' => $original
-                        ? ($decision === 'approved' ? __('Replaced by') : __('Proposed replacement'))
+                        ? ($decision === 'approved' ? __('Replaced by') : __('Proposed to be replaced by'))
                         : ($decision === 'approved' ? __('Replacement for') : __('Proposed replacement for')),
                     'number' => $other->number,
                     'url' => $stay !== null && Gate::allows('viewFiscalReport', $stay)

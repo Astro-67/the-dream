@@ -148,3 +148,14 @@ Raw HTTP from a developer machine to ZRA's test server (accommodation unit from 
 So the test server provides correction submission but not the status report. Karafuu's Sandbox submits `ERROR_SAVE` to the test origin under the `businessUnitId` its accepted filings returned, and refuses the status refresh before any call. No correction has been sent to Live.
 
 Later the same day, Karafuu's own routes and outbox repeated this (`VfmsTestServerCorrectionTest`, `VFMS_TEST_SERVER_RUN=1`, run `WNYPFN`): Sandbox check-in, services receipts `XHE2102448` (2 × WATER) and `XHE2102449` (1 × WATER), both with `businessUnitId` 5940; the correction pair `XHE2102448` → `XHE2102449` was recorded and its `ERROR_SAVE` (`unitId` 5940) was delivered and classified accepted on the same acknowledgement body; check-out report `XHE2102450`. Karafuu files a corrected receipt for the same service only by replay, which spec #228 forbids, so the driver stands the second receipt in as the first service's replacement. An earlier attempt of the driver left one fake guest checked in on the shared test unit: Karafuu refused its check-out locally (night audit not yet run), so nothing was sent for it.
+
+### Live correction unit on legacy filings (7 November 2026)
+
+The pilot hotel's "Correct this document" on report `TRV242` was refused with "Accepted evidence with the same recorded business unit is required for both documents." A read-only look at production showed why:
+
+- All eight Live check-out reports (`TRV211`–`TRV250`) were filed before #232 began snapshotting `unit_id` on filings, so their outbox references carry no `unitId`.
+- Live `ACCOMMODATION_CHECK_OUT` answers carry no `businessUnitId` (business name, TIN, VRN, street and Z-number only).
+- Every one of those stays' accepted Live `ACCOMMODATION_REQUEST` answers does carry `businessUnitId` `32519`, matching the `-32519` suffix on its `responseNumber`.
+- The property's VFMS settings had no business-unit ID.
+
+Karafuu now takes a legacy Live document's unit from the stay's accepted check-in answer, and names the unit and the missing or different setting when it refuses. ZRA's test server always answers under its own unit 5940, so this Live path is covered by a fixture shaped like the production evidence, not by the test server. On the test server the same build submitted `XHE2103325` → `XHE2103326` (run `6S4RMK`, unit 5940), delivered.

@@ -92,6 +92,7 @@ final class IssuedDocuments
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
             'type' => ['nullable', 'in:'.implode(',', self::TYPES)],
             'zra_status' => ['nullable', 'in:'.implode(',', self::ZRA_STATUSES)],
+            'number' => ['nullable', 'string', 'max:64'],
         ])->validate();
         $receipts = Receipt::query()->where('receipts.property_id', $property->id)
             ->join('postings', 'postings.id', '=', 'receipts.posting_id')->join('folios', 'folios.id', '=', 'postings.folio_id')
@@ -111,6 +112,7 @@ final class IssuedDocuments
             ->when($filters['to'] ?? null, fn (Builder $query, string $to) => $query->where('issued_at', '<', $local($to, 1)))
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('type', $type))
             ->when($filters['zra_status'] ?? null, fn (Builder $query, string $status) => $query->where('zra_status', $status))
+            ->when($filters['number'] ?? null, fn (Builder $query, string $number) => $query->where('number', 'like', '%'.addcslashes(trim($number), '%_\\').'%'))
             ->orderByRaw('issued_at is null')->orderByDesc('issued_at')->orderByDesc('id')
             ->paginate(50)->withQueryString();
         // Payers of non-fiscal receipts: the stay's lead guest, or its booker (as payment reports show them).

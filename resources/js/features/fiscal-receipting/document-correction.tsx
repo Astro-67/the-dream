@@ -13,7 +13,6 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
@@ -89,7 +88,13 @@ const deliveryTones: Record<string, StatusTone> = {
     exhausted: 'error',
 };
 
-export function CorrectionAnnotation({ note }: { note: CorrectionNote }) {
+export function CorrectionAnnotation({
+    note,
+    compact = false,
+}: {
+    note: CorrectionNote;
+    compact?: boolean;
+}) {
     const { correctionRefresh, tenant } = usePage<{
         correctionRefresh?: { refreshing: boolean; observedAt: string | null };
     }>().props;
@@ -131,7 +136,7 @@ export function CorrectionAnnotation({ note }: { note: CorrectionNote }) {
                     </StatusChip>
                 )}
             </div>
-            {note.refreshUrl && (
+            {note.refreshUrl && !compact && (
                 <Form
                     action={note.refreshUrl}
                     method="post"
@@ -248,7 +253,27 @@ export function DocumentCorrectionControl({
                                     {view.refusal}
                                 </p>
                             ) : view.replacements.length === 0 ? (
-                                <EmptyState message="Corrected document required: an accepted corrected document for this same service or guest must already exist before you can submit a correction. Do not repeat a charge or check-out to create one." />
+                                <div className="space-y-2 text-sm">
+                                    <p className="font-semibold">
+                                        Issue the corrected document first
+                                    </p>
+                                    <p>
+                                        ZRA links this number to a corrected
+                                        number that is already issued for the
+                                        same{' '}
+                                        {view.document.type ===
+                                        'services_receipt'
+                                            ? 'service'
+                                            : 'guest'}
+                                        . Once ZRA has accepted the corrected
+                                        document for this stay, it appears here
+                                        to select.
+                                    </p>
+                                    <p className="text-muted-foreground">
+                                        Do not repeat a charge or check-out only
+                                        to create a number.
+                                    </p>
+                                </div>
                             ) : (
                                 <Form
                                     action={view.submitUrl}
