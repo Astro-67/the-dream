@@ -39,8 +39,7 @@ final class HttpVfms
             $unitId = $payload['body']['unitId'] ?? null;
             // ZRA's test server takes ERROR_SAVE under its shared unit but rejects every 2.13 request type (5 Nov 2026).
             if ((! $live && $path !== 'new') || $payload['path'] !== $path
-                || ($live && ($credential->unit_id ?? 0) < 1)
-                || ($path === 'new' && (! is_int($unitId) || $unitId < 1 || ($live && $unitId !== $credential->unit_id)))) {
+                || ($path === 'new' && (! is_int($unitId) || $unitId < 1 || ($live && $credential->unit_id !== null && $unitId !== $credential->unit_id)))) {
                 return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires a valid business-unit ID and the fixed operation target; ZRA\'s test server has no correction status report.']);
             }
             $origin = parse_url($url);

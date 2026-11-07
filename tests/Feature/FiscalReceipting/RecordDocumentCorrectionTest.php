@@ -426,6 +426,6 @@ test('legacy Live documents take their business unit from the stay\'s accepted Z
     expect((int) DB::table('document_corrections')->sole()->unit_id)->toBe(32519);
 })->with([
     'matching settings unit' => [32519, null],
-    'settings unit missing' => [null, "Enter this property's ZRA business-unit ID in VFMS settings before correcting Live documents. ZRA filed this document under unit 32519."],
+    'settings unit empty' => [null, null],
     'settings unit differs' => [232, 'ZRA filed this document under business unit 32519, not the unit 232 in VFMS settings.'],
 ]);
