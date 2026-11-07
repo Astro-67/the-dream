@@ -159,3 +159,7 @@ The pilot hotel's "Correct this document" on report `TRV242` was refused with "A
 - The property's VFMS settings had no business-unit ID.
 
 Karafuu now takes a legacy Live document's unit from the stay's accepted check-in answer, and names the unit and the missing or different setting when it refuses. ZRA's test server always answers under its own unit 5940, so this Live path is covered by a fixture shaped like the production evidence, not by the test server. On the test server the same build submitted `XHE2103325` → `XHE2103326` (run `6S4RMK`, unit 5940), delivered.
+
+### Service-receipt correction through the real staff flow (7 November 2026)
+
+Replacements were limited to a receipt for the same posting, which only a replay produces; staff instead reverse the wrong charge and post the right one, a new posting. Karafuu now offers any later accepted services receipt of the same stay. Test server, local run (`VfmsTestServerCorrectionTest`, run `V6PDFF`): receipts `XHE2103345` (2 × WATER) and `XHE2103346` (1 × WATER), the first reversed, correction `XHE2103345` → `XHE2103346` delivered under unit 5940, check-out `XHE2103347`. A browser run did the same through the folio and register screens: `XHE2103350` (3 × SODA) reversed, `XHE2103351` (2 × SODA) posted, correction delivered.
