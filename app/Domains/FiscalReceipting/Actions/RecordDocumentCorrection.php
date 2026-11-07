@@ -152,13 +152,28 @@ class RecordDocumentCorrection
         if ($message->integration !== VfmsAdapter::INTEGRATION || $message->subject_type !== $stay->getMorphClass()
             || $message->subject_id !== $stay->id || $message->status !== 'delivered' || $attempt === null
             || ($payload['mode'] ?? null) !== $mode || ($payload['reservation_id'] ?? null) !== $stay->id
-            || ($references['mode'] ?? null) !== $mode
-            || ($mode === VfmsMode::Live->value && (! is_int($references['unitId'] ?? null) || $references['unitId'] !== $credential->unit_id))) {
+            || ($references['mode'] ?? null) !== $mode) {
             throw new RuntimeException(self::UNIT_EVIDENCE);
         }
         $response = json_decode($attempt->response_body ?? '', true)['body'] ?? null;
-        $unit = fn (array $business): int => $mode === VfmsMode::Live->value ? $references['unitId']
-            : (is_int($business['businessUnitId'] ?? null) ? $business['businessUnitId'] : throw new RuntimeException(self::UNIT_EVIDENCE));
+        $unit = function (array $business) use ($mode, $references, $stay, $credential): int {
+            if ($mode !== VfmsMode::Live->value) {
+                return is_int($business['businessUnitId'] ?? null) ? $business['businessUnitId'] : throw new RuntimeException(self::UNIT_EVIDENCE);
+            }
+            // Filings before the unit snapshot (and every check-out answer) omit it; ZRA's check-in answer still names it.
+            $unit = $references['unitId'] ?? $business['businessUnitId'] ?? $this->checkInUnit($stay);
+            if (! is_int($unit)) {
+                throw new RuntimeException(self::UNIT_EVIDENCE);
+            }
+            if ($credential->unit_id === null) {
+                throw new RuntimeException("Enter this property's ZRA business-unit ID in VFMS settings before correcting Live documents. ZRA filed this document under unit {$unit}.");
+            }
+            if ($unit !== $credential->unit_id) {
+                throw new RuntimeException("ZRA filed this document under business unit {$unit}, not the unit {$credential->unit_id} in VFMS settings.");
+            }
+
+            return $unit;
+        };
         if ($document->type === 'services_receipt' && $message->event === 'services'
             && ($references['receiptNumber'] ?? null) === $document->number
             && is_array($response) && ($response['receiptNumber'] ?? null) === $document->number
@@ -175,5 +190,18 @@ class RecordDocumentCorrection
         }
 
         throw new RuntimeException('The selected document has no accepted VFMS answer that matches it uniquely.');
+    }
+
+    /** The businessUnitId in ZRA's accepted Live check-in answer for the stay, if any. */
+    private function checkInUnit(Reservation $stay): ?int
+    {
+        $checkIn = OutboxMessage::query()->where('property_id', $stay->property_id)->where('integration', VfmsAdapter::INTEGRATION)
+            ->where('subject_type', $stay->getMorphClass())->where('subject_id', $stay->id)
+            ->whereIn('event', ['accommodation', 'advanceAccommodation'])->where('status', 'delivered')->get()
+            ->first(fn (OutboxMessage $message) => ($message->payload['mode'] ?? null) === VfmsMode::Live->value);
+        $answer = $checkIn?->attempts()->where('outcome', 'accepted')->first()?->response_body;
+        $unit = json_decode($answer ?? '', true)['body']['businessUnitId'] ?? null;
+
+        return is_int($unit) ? $unit : null;
     }
 }

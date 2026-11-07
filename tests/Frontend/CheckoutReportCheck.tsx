@@ -342,7 +342,7 @@ for (const [decision, label] of [
                         label:
                             decision === 'approved'
                                 ? 'Replaced by'
-                                : 'Proposed replacement',
+                                : 'Proposed to be replaced by',
                         number: 'REPLACEMENT-172',
                         url: '/replacement',
                         delivery: 'delivered',

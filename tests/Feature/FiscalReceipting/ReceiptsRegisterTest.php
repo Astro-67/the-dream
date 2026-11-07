@@ -171,6 +171,10 @@ test('register combines filters in property local time and keeps them on paginat
     $this->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('documents.total', 53));
     $this->get(route('receipts.index', ['type' => 'services_receipt', 'zra_status' => 'sandbox']))
         ->assertOk()->assertInertia(fn (Assert $page) => $page->where('documents.total', 1));
+    $fiscal = $this->get(route('receipts.index', ['type' => 'services_receipt']))->viewData('page')['props']['documents']['data'][0]['number'];
+    $this->get(route('receipts.index', ['number' => ' '.strtolower(substr($fiscal, 1, 6)).' ']))
+        ->assertOk()->assertInertia(fn (Assert $page) => $page->where('documents.total', 1)->where('documents.data.0.number', $fiscal));
+    $this->get(route('receipts.index', ['number' => '%']))->assertOk()->assertInertia(fn (Assert $page) => $page->where('documents.total', 0));
     $this->getJson(route('receipts.index', ['from' => 'not-a-date']))->assertUnprocessable()->assertJsonValidationErrors('from');
     $this->getJson(route('receipts.index', ['from' => '2026-12-11', 'to' => '2026-12-10']))->assertUnprocessable()->assertJsonValidationErrors('to');
     $this->getJson(route('receipts.index', ['type' => 'advance']))->assertUnprocessable()->assertJsonValidationErrors('type');

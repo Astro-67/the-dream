@@ -30,8 +30,13 @@ import {
     type CorrectionNote,
     fiscalDocumentTypes,
 } from '@/features/fiscal-receipting/document-correction';
+import { useCan } from '@/hooks/use-can';
 import { index } from '@/routes/receipts';
 import type { Paginated } from '@/types';
+
+// Keeps the document number visible while the wide table scrolls sideways.
+const pinned =
+    'sticky left-0 z-[1] bg-card shadow-[inset_-1px_0_0_var(--border)]';
 
 const types = {
     non_fiscal: 'Non-fiscal receipt',
@@ -57,6 +62,7 @@ type Document = {
     annotations: CorrectionNote[];
 };
 type Filters = {
+    number?: string;
     from?: string;
     to?: string;
     type?: string;
@@ -71,6 +77,7 @@ export default function Receipts({
     filters: Filters;
 }) {
     const timezone = usePage().props.tenant.property?.timezone ?? 'UTC';
+    const canCorrect = useCan()('outbox.recover');
     return (
         <>
             <Head title="Receipts" />
@@ -88,6 +95,23 @@ export default function Receipts({
                 >
                     {({ errors, processing }) => (
                         <>
+                            <div className="grid gap-2">
+                                <Label htmlFor="number">Document number</Label>
+                                <Input
+                                    id="number"
+                                    name="number"
+                                    type="search"
+                                    maxLength={64}
+                                    placeholder="e.g. TRV242"
+                                    defaultValue={filters.number}
+                                    aria-invalid={!!errors.number}
+                                    aria-describedby="number-error"
+                                />
+                                <InputError
+                                    id="number-error"
+                                    message={errors.number}
+                                />
+                            </div>
                             {(['from', 'to'] as const).map((name) => (
                                 <div key={name} className="grid gap-2">
                                     <Label htmlFor={name}>
@@ -184,20 +208,24 @@ export default function Receipts({
                     />
                 ) : (
                     <div>
+                        {/* Also above the table: its own scroll area hides the bottom controls on long pages. */}
+                        <Pagination page={documents} className="pt-0 pb-3" />
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Number</TableHead>
-                                    <TableHead>Type</TableHead>
+                                    <TableHead className={pinned}>
+                                        Number / type
+                                    </TableHead>
                                     <TableHead>Issued</TableHead>
                                     <TableHead>Guest / payer</TableHead>
                                     <TableHead numeric>
                                         Amount / currency
                                     </TableHead>
-                                    <TableHead>ZRA status</TableHead>
-                                    <TableHead>Issue-time mode</TableHead>
                                     <TableHead>Correction</TableHead>
                                     <TableHead>Documents</TableHead>
+                                    <TableHead>
+                                        ZRA status / Issue-time mode
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -205,14 +233,16 @@ export default function Receipts({
                                     <TableRow
                                         key={`${document.type}-${document.id}`}
                                     >
-                                        <TableCell className="whitespace-nowrap">
+                                        <TableCell
+                                            className={`${pinned} whitespace-nowrap`}
+                                        >
                                             <Identifier
                                                 value={document.number}
                                                 copyable
                                             />
-                                        </TableCell>
-                                        <TableCell className="whitespace-nowrap">
-                                            {types[document.type]}
+                                            <p className="text-xs text-muted-foreground">
+                                                {types[document.type]}
+                                            </p>
                                         </TableCell>
                                         <TableCell className="whitespace-nowrap">
                                             {document.issuedAt === null ? (
@@ -244,45 +274,34 @@ export default function Receipts({
                                                       document.currency,
                                                   )}
                                         </TableCell>
-                                        <TableCell>
-                                            <StatusChip
-                                                tone={
-                                                    document.zraStatus ===
-                                                    'live'
-                                                        ? 'success'
-                                                        : document.zraStatus ===
-                                                            'sandbox'
-                                                          ? 'warning'
-                                                          : 'unavailable'
-                                                }
-                                            >
-                                                {statuses[document.zraStatus]}
-                                            </StatusChip>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Tag>
-                                                {document.mode === 'sandbox'
-                                                    ? 'TEST, NOT FISCAL'
-                                                    : document.mode === 'live'
-                                                      ? 'Live'
-                                                      : 'Not applicable'}
-                                            </Tag>
-                                        </TableCell>
-                                        <TableCell>
-                                            {document.annotations.length ===
-                                            0 ? (
-                                                <Tag>None</Tag>
-                                            ) : (
+                                        <TableCell className="min-w-56">
+                                            {document.annotations.length > 0 ? (
                                                 <div className="space-y-3">
                                                     {document.annotations.map(
                                                         (note, index) => (
                                                             <CorrectionAnnotation
                                                                 key={index}
                                                                 note={note}
+                                                                compact
                                                             />
                                                         ),
                                                     )}
                                                 </div>
+                                            ) : canCorrect &&
+                                              document.type !== 'non_fiscal' &&
+                                              document.localUrl ? (
+                                                <Link
+                                                    href={document.localUrl}
+                                                    className="text-primary underline underline-offset-4"
+                                                >
+                                                    Correct
+                                                    <span className="sr-only">
+                                                        {' '}
+                                                        {document.number}
+                                                    </span>
+                                                </Link>
+                                            ) : (
+                                                <Tag>None</Tag>
                                             )}
                                         </TableCell>
                                         <TableCell className="whitespace-nowrap">
@@ -320,6 +339,38 @@ export default function Receipts({
                                                             unavailable
                                                         </span>
                                                     )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col items-start gap-1">
+                                                <StatusChip
+                                                    tone={
+                                                        document.zraStatus ===
+                                                        'live'
+                                                            ? 'success'
+                                                            : document.zraStatus ===
+                                                                'sandbox'
+                                                              ? 'warning'
+                                                              : 'unavailable'
+                                                    }
+                                                >
+                                                    {
+                                                        statuses[
+                                                            document.zraStatus
+                                                        ]
+                                                    }
+                                                </StatusChip>
+                                                {document.mode !== null && (
+                                                    <Tag>
+                                                        {document.mode ===
+                                                        'sandbox'
+                                                            ? 'TEST, NOT FISCAL'
+                                                            : document.mode ===
+                                                                'live'
+                                                              ? 'Live'
+                                                              : 'Not applicable'}
+                                                    </Tag>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>

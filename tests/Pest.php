@@ -196,9 +196,10 @@ function twoTenants(): TwoTenants
 }
 
 /** Accepted evidence fixture, not a claim of a provider replacement-issuance procedure. */
-function correctionDocuments(TenantFixture $tenant, string $type = 'services_receipt', string $mode = 'live'): array
+/** $legacy: Live evidence from before the unit snapshot, whose answers name no business unit (production, Nov 2026). */
+function correctionDocuments(TenantFixture $tenant, string $type = 'services_receipt', string $mode = 'live', bool $legacy = false): array
 {
-    return inTenant($tenant->property, function () use ($tenant, $type, $mode) {
+    return inTenant($tenant->property, function () use ($tenant, $type, $mode, $legacy) {
         $tenant->property->update(['email' => 'desk@example.test', 'phone' => '+255777123456', 'z_number' => 'Z0123456789-5940']);
         VfmsCredential::for($tenant->property)->fill(['mode' => VfmsMode::from($mode), 'unit_id' => 232, 'integration_id' => 'CORRECTION-ID', 'registration_id' => 'REG', 'token' => 'SECRET-TOKEN'])->save();
         $stay = app(CreateReservation::class)->handle($tenant->owner, BookingForm::details($tenant->owner));
@@ -213,10 +214,10 @@ function correctionDocuments(TenantFixture $tenant, string $type = 'services_rec
             ], 'fixture:'.$number));
             $report = json_decode(file_get_contents(__DIR__.'/Fixtures/vfms/checkout.json'), true)[0];
             // ZRA's test unit is 5940 (observed 5 Nov 2026); the property's own unit 232 is never the test server's.
-            $business = ['businessName' => 'Accepted business', 'businessUnitId' => 5940];
+            $business = ['businessName' => 'Accepted business', ...($legacy ? [] : ['businessUnitId' => 5940])];
             $response = $type === 'services_receipt' ? ['receiptNumber' => $number, ...$business] : [[...$report, 'reportNumber' => $number, ...$business]];
             $message->forceFill(['status' => 'delivered', 'delivered_at' => now(), 'provider_references' => [
-                'mode' => $mode, 'unitId' => 232,
+                'mode' => $mode, ...($legacy ? [] : ['unitId' => 232]),
                 ...($type === 'services_receipt' ? ['receiptNumber' => $number] : ['reportNumbers' => json_encode([$number])]),
             ]])->save();
             $message->attempts()->create(['attempt_number' => 1, 'outcome' => 'accepted', 'request_body' => json_encode($message->payload), 'response_body' => json_encode(['status' => 200, 'body' => $response])]);
