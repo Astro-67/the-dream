@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\Guests\Actions\CreateBooker;
 use App\Domains\Guests\Actions\CreateGuest;
@@ -14,7 +15,6 @@ use App\Domains\Rates\Actions\CreateRatePlan;
 use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
-use App\Support\Outbox\OutboxCorrectionContext;
 use App\Support\Outbox\OutboxMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -59,16 +59,10 @@ test('a Sandbox correction pair is accepted by ZRA\'s test server', function () 
     $this->actingAs($desk)->post(route('reservations.check-in', $reservation), $property)->assertSessionHasNoErrors();
     $this->post(route('folios.charges.store', $folio), [...$property, 'category' => 'bar', 'description' => 'WATER', 'quantity' => 2, 'unit_price' => 1000, 'idempotency_key' => 'water-a-'.$run])->assertSessionHasNoErrors();
     $this->post(route('folios.charges.store', $folio), [...$property, 'category' => 'bar', 'description' => 'WATER', 'quantity' => 1, 'unit_price' => 1000, 'idempotency_key' => 'water-b-'.$run])->assertSessionHasNoErrors();
-    [$old, $new] = inTenant($t->property, function () {
-        [$old, $new] = IssuedDocument::query()->where('type', 'services_receipt')->orderBy('issued_at')->orderBy('id')->get()->all();
-        // shortcut: Karafuu cannot issue a corrected receipt for the same service (spec #228 forbids replaying a filing),
-        // so the second real receipt stands in as the first service's correction; drop once ZRA defines re-issuance.
-        $message = OutboxMessage::query()->findOrFail($new->outbox_message_id);
-        app(OutboxCorrectionContext::class)->run(fn () => $message->update(['payload' => [...$message->payload, 'posting_id' => $old->posting_id]]));
-        DB::table('issued_documents')->where('id', $new->id)->update(['posting_id' => $old->posting_id]);
-
-        return [$old, $new->fresh()];
-    });
+    // The real staff flow: reverse the wrong charge; the corrected charge's receipt is the replacement.
+    $wrong = inTenant($t->property, fn () => Posting::query()->where('quantity', 2)->sole());
+    $this->actingAs($t->owner)->post(route('postings.reverse', $wrong), [...$property, 'reason' => 'Wrong quantity'])->assertSessionHasNoErrors();
+    [$old, $new] = inTenant($t->property, fn () => IssuedDocument::query()->where('type', 'services_receipt')->orderBy('issued_at')->orderBy('id')->get()->all());
     $this->actingAs($t->owner)->post(route('issued-documents.corrections.store', $old), [
         ...$property, 'replacement_id' => $new->id, 'reason' => 'Karafuu integration test: wrong quantity', 'confirmed' => true,
     ])->assertSessionHasNoErrors();

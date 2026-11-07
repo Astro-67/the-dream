@@ -204,8 +204,9 @@ function correctionDocuments(TenantFixture $tenant, string $type = 'services_rec
         VfmsCredential::for($tenant->property)->fill(['mode' => VfmsMode::from($mode), 'unit_id' => 232, 'integration_id' => 'CORRECTION-ID', 'registration_id' => 'REG', 'token' => 'SECRET-TOKEN'])->save();
         $stay = app(CreateReservation::class)->handle($tenant->owner, BookingForm::details($tenant->owner));
         foreach (['OLD-232', 'NEW-232'] as $number) {
+            // Each receipt belongs to its own charge: the corrected one is a later charge after reversing the wrong one.
             $message = DB::transaction(fn () => app(Outbox::class)->record('vfms', $stay, $type === 'services_receipt' ? 'services' : 'checkout', [
-                'mode' => $mode, 'reservation_id' => $stay->id, 'posting_id' => 'same-service',
+                'mode' => $mode, 'reservation_id' => $stay->id, 'posting_id' => 'charge-'.$number,
                 'request_type' => $type === 'services_receipt' ? 'ACCOMMODATION_ADD_SERVICE' : 'ACCOMMODATION_CHECK_OUT',
                 'path' => $type === 'services_receipt' ? 'service/' : 'guest/checkout/',
                 'body' => $type === 'services_receipt'
@@ -222,6 +223,7 @@ function correctionDocuments(TenantFixture $tenant, string $type = 'services_rec
             ]])->save();
             $message->attempts()->create(['attempt_number' => 1, 'outcome' => 'accepted', 'request_body' => json_encode($message->payload), 'response_body' => json_encode(['status' => 200, 'body' => $response])]);
             app(IssuedDocuments::class)->project($message);
+            test()->travel(1)->minutes();
         }
 
         return [$stay, IssuedDocument::query()->where('number', 'OLD-232')->sole(), IssuedDocument::query()->where('number', 'NEW-232')->sole()];

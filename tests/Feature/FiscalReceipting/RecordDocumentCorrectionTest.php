@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     Queue::fake();
@@ -232,7 +233,12 @@ test('correction submit refuses unsafe pairs without exposing sensitive evidence
             'demo' => DB::table('properties')->where('id', $tenant->property->id)->update(['demo' => true]),
             'different mode' => DB::table('issued_documents')->where('id', $new->id)->update(['mode' => 'sandbox']),
             'different type' => DB::table('issued_documents')->where('id', $new->id)->update(['type' => 'checkout_report']),
-            'different service' => DB::table('issued_documents')->where('id', $new->id)->update(['posting_id' => 'other-service']),
+            'other stay' => (function () use ($new) {
+                $other = (string) Str::ulid();
+                DB::table('reservations')->insert([...(array) DB::table('reservations')->where('id', $new->reservation_id)->first(), 'id' => $other, 'reservation_number' => 'OTHER-STAY']);
+                DB::table('issued_documents')->where('id', $new->id)->update(['reservation_id' => $other]);
+            })(),
+            'earlier replacement' => DB::table('issued_documents')->where('id', $new->id)->update(['issued_at' => now()->subDay()]),
             'missing unit' => $source->forceFill(['provider_references' => [...$source->getAttribute('provider_references'), 'unitId' => null]])->save(),
             'different unit' => $source->forceFill(['provider_references' => [...$source->getAttribute('provider_references'), 'unitId' => 999]])->save(),
             'unaccepted evidence' => $source->update(['status' => 'unknown']),
@@ -269,7 +275,7 @@ test('correction submit refuses unsafe pairs without exposing sensitive evidence
     }
     expect(DB::table('activity_log')->where('event', 'refused')->get()->toJson())->not->toContain('PRIVATE-GUEST-ID', 'P1234567', 'SECRET-TOKEN', 'OTHER-PRIVATE-ID');
     Http::assertNothingSent();
-})->with(['self', 'Sandbox', 'Mainland', 'demo', 'different mode', 'different type', 'different service', 'missing unit', 'different unit', 'unaccepted evidence', 'different guest', 'foreign replacement', 'sibling replacement']);
+})->with(['self', 'Sandbox', 'Mainland', 'demo', 'different mode', 'different type', 'other stay', 'earlier replacement', 'missing unit', 'different unit', 'unaccepted evidence', 'different guest', 'foreign replacement', 'sibling replacement']);
 
 test('correction policy grants only OutboxRecover roles and audits sensitive form refusals', function (string $role, bool $allowed) {
     $tenant = twoTenants()->a;

@@ -59,7 +59,7 @@ class RecordDocumentCorrection
                 ->whereKeyNot($document->id)->whereNotIn('id', $used)->orderByDesc('issued_at')->get() as $candidate) {
                 try {
                     [$candidateTransaction, , $candidateUnit] = $this->evidence($candidate, $stay, $credential);
-                    if ($candidateTransaction === $transaction && $candidateUnit === $unit) {
+                    if ($candidateTransaction === $transaction && $candidateUnit === $unit && $candidate->issued_at > $document->issued_at) {
                         $replacements[] = $candidate->only(['id', 'number', 'type', 'issued_at', 'amount', 'currency', 'mode']);
                     }
                 } catch (RuntimeException) {
@@ -110,7 +110,10 @@ class RecordDocumentCorrection
                     [$oldTransaction, $business, $oldUnit] = $this->evidence($old, $stay, $credential);
                     [$newTransaction, , $newUnit] = $this->evidence($new, $stay, $credential);
                     if ($oldTransaction !== $newTransaction) {
-                        throw new RuntimeException('Both issued documents must be for the same service or the same guest.');
+                        throw new RuntimeException('Both issued documents must be for the same stay (receipts) or the same guest (reports).');
+                    }
+                    if (! ($new->issued_at > $old->issued_at)) {
+                        throw new RuntimeException('The corrected document must have been issued after the original.');
                     }
                     if ($oldUnit !== $newUnit) {
                         throw new RuntimeException(self::UNIT_EVIDENCE);
@@ -176,7 +179,8 @@ class RecordDocumentCorrection
             && ($references['receiptNumber'] ?? null) === $document->number
             && is_array($response) && ($response['receiptNumber'] ?? null) === $document->number
             && filled($document->posting_id) && $document->posting_id === ($payload['posting_id'] ?? null)) {
-            return ['service:'.$document->posting_id, $response, $unit($response)];
+            // Staff reverse the wrong charge and post the right one, so the corrected receipt is a later one in the same stay.
+            return ['services:'.$stay->id, $response, $unit($response)];
         }
         if ($document->type === 'checkout_report' && in_array($message->event, ['checkout', 'guestDeparture'], true)
             && is_array($response) && app(CheckoutFigures::class)->of($response, $payload['body']) !== null) {
