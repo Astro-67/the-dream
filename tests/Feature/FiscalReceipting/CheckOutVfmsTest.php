@@ -88,6 +88,25 @@ test('a Sandbox check-out files one accepted check-out message after the check-i
         ]);
 });
 
+// protects=a checkout ZRA never received is sent again on its own (2026-11-09 Sau Inn connect timeouts); fails_when=a failed connection is held as unknown and the stay never files; no_claim=timeouts after the request was sent stay unknown.
+test('a checkout that never reached ZRA is retried and filed', function () {
+    $tenant = twoTenants()->a;
+    $reservation = inHouseForCheckOut($tenant);
+    inTenant($tenant->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-171', 'registration_id' => 'REG-171', 'token' => 'tok', 'mode' => VfmsMode::Live]));
+    $calls = 0;
+    Http::fake(['gateway.zanrevenue.org/vfms/api/guest/checkout/' => function (Request $request) use (&$calls) {
+        return ++$calls === 1 ? Http::failedConnection()($request) : Http::response(['reportNo' => 'CO-171']);
+    }]);
+
+    checkOutOnDeparture($tenant, $reservation);
+
+    $message = checkOutVfmsMessages($tenant)[1];
+    expect($message->status)->toBe('retryable');
+    $this->travel(2)->minutes();
+    inTenant($tenant->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    expect($calls)->toBe(2)->and($message->fresh()->status)->not->toBe('retryable');
+});
+
 // protects=checkout requires a complete validated report before changing money (#171); fails_when=an uncertain response adjusts the folio or is replayed; no_claim=per-guest decoding (#172).
 test('an incomplete or uncertain checkout never adjusts the folio or replays', function (Closure $answer) {
     $tenant = twoTenants()->a;

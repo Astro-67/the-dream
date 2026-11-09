@@ -11,6 +11,8 @@ use App\Support\Outbox\DrainOutboxMessage;
 use App\Support\Outbox\OutboxMessage;
 use App\Support\Tenancy\Exceptions\MissingTenantContext;
 use Carbon\CarbonImmutable;
+use GuzzleHttp\Exception\NetworkTimeoutException;
+use GuzzleHttp\Promise\Create;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -36,7 +38,7 @@ function fakeCorrectionZra(array &$reads, mixed $save = ['status' => 200]): void
 {
     Http::fake(function (Request $request) use (&$reads, $save) {
         if ($request->url() === 'https://vfms-live.example/vfms/error-management/new') {
-            return $save instanceof Closure ? $save() : Http::response($save);
+            return $save instanceof Closure ? $save($request) : Http::response($save);
         }
         if ($request->url() === 'https://vfms-live.example/vfms/error-management/errors') {
             $next = array_shift($reads);
@@ -178,7 +180,7 @@ test('identical refreshes are idempotent and stale or contradictory changes need
 
 test('the read does not wait behind an uncertain ERROR_SAVE and only exact evidence reconciles it', function (bool $present) {
     $tenant = twoTenants()->a;
-    fakeCorrectionZra($this->reads, fn () => Http::failedConnection());
+    fakeCorrectionZra($this->reads, fn (Request $request) => Create::rejectionFor(new NetworkTimeoutException('cURL error 28: Operation timed out', $request->toPsrRequest())));
     $correction = sentCorrection($this, $tenant);
     $message = fn () => inTenant($tenant->property, fn () => OutboxMessage::query()->findOrFail($correction->outbox_message_id));
     expect($message()->status)->toBe('unknown')->and(decisionOf($tenant, $correction))->toBeNull();
