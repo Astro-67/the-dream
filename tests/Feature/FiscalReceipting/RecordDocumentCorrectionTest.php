@@ -14,6 +14,7 @@ use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxMessage;
 use App\Support\Outbox\OutboxRecovery;
 use App\Support\Outbox\RestoreGate;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -314,7 +315,7 @@ test('correction requires current property intent confirmation and a reason', fu
 test('a timeout holds ERROR_SAVE and recovery cannot blindly retry or rebuild it', function () {
     $tenant = twoTenants()->a;
     [, $old, $new] = correctionDocuments($tenant);
-    Http::fake(['https://vfms-live.example/vfms/error-management/new' => Http::failedConnection()]);
+    Http::fake(['https://vfms-live.example/vfms/error-management/new' => fn () => throw new ConnectionException('Operation timed out')]);
     submitCorrection($this, $tenant, $old, $new)->assertRedirect();
     inTenant($tenant->property, function () use ($tenant) {
         $message = OutboxMessage::query()->where('event', 'errorSave')->sole();

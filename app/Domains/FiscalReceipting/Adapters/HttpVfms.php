@@ -10,6 +10,7 @@ use App\Support\Outbox\DeliveryResult;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
+use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -78,8 +79,9 @@ final class HttpVfms
         }
         try {
             $response = $this->post($url, $payload['request_type'], $payload['path'], $integrationId, $token, $body);
-        } catch (ConnectionException) {
-            return new DeliveryResult('unknown');
+        } catch (ConnectionException $failure) {
+            // No connection was made, so ZRA never got the request and re-sending cannot duplicate it.
+            return new DeliveryResult($failure->getPrevious() instanceof ConnectException ? 'retryable' : 'unknown');
         }
         $status = $response->status();
         $data = $response->json();

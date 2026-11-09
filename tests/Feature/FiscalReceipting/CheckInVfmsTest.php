@@ -246,7 +246,7 @@ test('each VFMS gateway answer maps to its delivery outcome', function (Closure 
     '404' => [fn () => Http::response([], 404), 'rejected', false],
     '500' => [fn () => Http::response([], 500), 'unknown', false],
     '503' => [fn () => Http::response([], 503), 'unknown', false],
-    'connection error' => [fn () => Http::failedConnection(), 'unknown', false],
+    'connection error' => [fn () => Http::failedConnection(), 'retryable', false],
     'timeout' => [fn () => throw new ConnectionException('cURL error 28: Operation timed out'), 'unknown', false],
     'empty success' => [fn () => Http::response([], 200), 'unknown', false],
     'malformed success' => [fn () => Http::response('{bad json', 200), 'unknown', false],
@@ -312,7 +312,6 @@ test('VFMS holds an uncertain check-in without querying an unverified report', f
     expect(Http::recorded(fn (Request $request) => str_ends_with($request->url(), '/accommodationReport/')))->toHaveCount(0);
 })->with([
     'timeout' => [fn () => throw new ConnectionException('Operation timed out')],
-    'connection error' => [fn () => Http::failedConnection()],
     '500' => [fn () => Http::response([], 500)],
     '503' => [fn () => Http::response([], 503)],
 ]);
