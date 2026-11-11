@@ -116,6 +116,10 @@ _Avoid_: Partial check-out
 A ZRA-registered company that books a reservation and pays some or all of it: the room, the infrastructure levy, other services, or a combination. A reservation either has one or is paid by the guest directly.
 _Avoid_: Booker, agent, company
 
+**Paying institution**:
+A government institution or ZRA-registered business that pays for a stay, named to VFMS at check-in by its ZRB number. A government institution withholds tax (VFMS `WITHHOLD`); a business is billed business-to-business (`BTOB`). Independent of a tour operator.
+_Avoid_: Corporate account, company, booker
+
 **Meal plan**:
 What a reservation's price includes besides the room: room only, bed and breakfast, half board, full board or all-inclusive.
 _Avoid_: Package (that is a subscription plan), board
