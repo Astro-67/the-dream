@@ -213,6 +213,34 @@ test('a stay paid by an institution is sent with its accommodation type and ZRB 
     ],
 ]);
 
+// protects=stays without a paying institution file exactly as before spec #242; fails_when=a new key, a null, or a reordered key reaches the check-in body; no_claim=MySQL JSON key order of the stored payload.
+test('a stay without a paying institution builds the check-in body byte for byte as before', function () {
+    $t = twoTenants();
+    $reservation = checkInTwoGuests($t->a);
+
+    $body = inTenant($t->a->property, fn () => app(VfmsPayloads::class)->accommodation($reservation->lifecycleEvents()->where('type', 'checked_in')->sole(), $reservation->fresh(), $t->a->property));
+
+    $roomId = inTenant($t->a->property, fn () => Room::query()->sole()->vfms_room_id);
+    expect(json_encode($body))->toBe('{"paymentPackage":"BB","checkInDate":"2026-12-10T06:00:00.000Z","guest":['
+        .'{"documentName":"PASSPORT","documentNo":"P1234567","country":"GERMANY","fullName":"Anna Berg","arrivalDate":"2026-12-10"},'
+        .'{"documentName":"PASSPORT","documentNo":"P7654321","country":"NORWAY","fullName":"Ola Berg","arrivalDate":"2026-12-10"}],'
+        .'"roomId":'.$roomId.',"roomName":"101","accommodationSource":"DIRECT","accommodationPrice":110,"currency":"USD","accommodationDiscount":0,'
+        .'"referenceNumber":"'.$reservation->reservation_number.'-2"}');
+});
+
+// protects=only properties that file with VFMS send a paying institution (spec #242, ADR 0014); fails_when=a Mainland or demo stay records a VFMS message; no_claim=TRA reporting.
+test('a Mainland or demo stay paid by an institution files nothing with VFMS', function (string $where) {
+    $t = twoTenants();
+    $property = $where === 'Mainland' ? $t->a->otherProperty : $t->a->property;
+    if ($where === 'demo') {
+        DB::table('properties')->where('id', $property->id)->update(['demo' => true]);
+    }
+
+    checkInTwoGuests($t->a, ['paying_institution_type' => 'business', 'paying_institution_name' => 'Island Supplies Ltd', 'paying_institution_zrb_number' => 'Z123'], $property->fresh());
+
+    expect(vfmsMessages($t->a, $property))->toBe([]);
+})->with(['Mainland', 'demo']);
+
 // protects=VFMS spells euro EURO (guide §2.1); fails_when=EUR is sent as EUR; no_claim=other currencies VFMS accepts.
 test('a euro stay is sent in EURO', function () {
     $t = twoTenants();
