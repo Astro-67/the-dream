@@ -7,6 +7,7 @@ use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FiscalReceipting\Actions\CorrectPayingInstitution;
 use App\Domains\FiscalReceipting\Actions\RefreshCorrectionDecisions;
 use App\Domains\FiscalReceipting\DocumentCorrections;
 use App\Domains\FiscalReceipting\VfmsFilings;
@@ -146,6 +147,7 @@ class ReservationController extends Controller
                 'rooms' => Room::query()->whereNull('deactivated_at')->orderBy('number')->get(['id', 'number', 'room_type_id', 'property_id'])->each(fn (Room $room) => app(AssignableRooms::class)->shapeOption($room)),
             ] : null,
             'canAmend' => Gate::allows('amend', $reservation),
+            'canEditPayingInstitution' => ! $property->demo && JurisdictionRules::usesVfms($property) && Gate::allows('amend', $reservation) && CorrectPayingInstitution::editable($reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),
             'can' => ['checkIn' => $reservation->isEligibleForCheckIn(BusinessDate::current()) && Gate::allows('checkIn', $reservation),
                 'cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation), 'moveRoom' => $canMove, 'changeStay' => Gate::allows('changeStay', $reservation),

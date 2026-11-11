@@ -39,6 +39,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { TerminationActions } from '@/features/reservations/termination-actions';
+import { PayingInstitutionDialog } from '@/features/reservations/paying-institution-dialog';
 import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
 import type { CheckoutBalance } from '@/features/front-desk/check-out-dialog';
 import { StayLengthActions } from '@/features/front-desk/stay-length-actions';
@@ -119,6 +120,7 @@ export default function Show({
     rooms,
     canAssignRoom,
     canAmend,
+    canEditPayingInstitution,
     amendmentOptions,
     amendments,
     can,
@@ -152,6 +154,7 @@ export default function Show({
     rooms: { id: string; number: string; isReady: boolean }[];
     canAssignRoom: boolean;
     canAmend: boolean;
+    canEditPayingInstitution: boolean;
     amendmentOptions: AmendmentOptions | null;
     amendments: Paginated<Amendment>;
     can: {
@@ -399,6 +402,7 @@ export default function Show({
                 </Card>
                 {((canAssignRoom && reservation.status === 'confirmed') ||
                     can.moveRoom ||
+                    canEditPayingInstitution ||
                     (canAmend &&
                         amendmentOptions &&
                         reservation.status === 'confirmed')) && (
@@ -547,6 +551,11 @@ export default function Show({
                                     </DialogContent>
                                 </Dialog>
                             )}
+                        {canEditPayingInstitution && (
+                            <PayingInstitutionDialog
+                                reservation={reservation}
+                            />
+                        )}
                     </div>
                 )}
                 <FolioPanel

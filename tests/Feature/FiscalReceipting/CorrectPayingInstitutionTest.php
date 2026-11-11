@@ -11,6 +11,7 @@ use App\Domains\Reservations\Actions\AssignRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\PayingInstitutionType;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\DrainOutboxMessage;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
@@ -18,6 +19,7 @@ use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 use Tests\Support\TenantFixture;
@@ -156,4 +158,18 @@ test('re-filing after a correction sends the corrected check-in with a fresh ref
         ->and($refiled->payload['body'])->not->toHaveKeys(['accommodationType', 'zrbNumber'])
         ->and($refiled->payload['body']['referenceNumber'])->toBe($message->payload['body']['referenceNumber'].'R1')
         ->and(institutionOf($t->a, $first))->toBe(['paying_institution_type' => null, 'paying_institution_name' => null, 'paying_institution_zrb_number' => null]);
+});
+
+// protects=the reservation page offers the Edit dialog only to staff who may correct it, while it is editable (spec #242 story 5); fails_when=finance staff or an accepted check-in get the dialog, or front desk does not; no_claim=dialog layout.
+test('the reservation page offers the correction while the stay is editable', function () {
+    $t = twoTenants();
+    [$first, $second] = institutionGroup($t->a);
+    Http::fake([VfmsHttp::TEST_URL.'accommodation/' => Http::response(['responseNumber' => 'AC-244'])]);
+    checkInInstitutionMember($t->a, $second, '102');
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+
+    foreach ([[OrganizationRole::FrontDesk, $first, true], [OrganizationRole::Finance, $first, false], [OrganizationRole::FrontDesk, $second, false]] as [$role, $reservation, $offered]) {
+        $this->actingAs($t->a->member($role))->get(route('reservations.show', $reservation))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('canEditPayingInstitution', $offered));
+    }
 });
