@@ -26,6 +26,10 @@ _Avoid_: Booking (in formal requirements)
 The reservations created from one booking for several rooms, such as one Booking.com reservation for two rooms. Each member keeps its own reservation number.
 _Avoid_: Group block, multi-room reservation
 
+**Group statement**:
+A printable, non-fiscal settlement statement for every reservation in one booking group (or one reservation outside a group). It names the paying institution when set, itemises each room's folios and accepted ZRA fiscal report numbers, and keeps totals separate by currency. ZRA's per-guest reports remain the fiscal proof.
+_Avoid_: Group receipt, fiscal receipt
+
 **Stay**:
 The in-house phase of a reservation, from check-in to check-out. Not a separate record from the reservation.
 _Avoid_: Visit
@@ -115,6 +119,10 @@ _Avoid_: Partial check-out
 **Tour operator**:
 A ZRA-registered company that books a reservation and pays some or all of it: the room, the infrastructure levy, other services, or a combination. A reservation either has one or is paid by the guest directly.
 _Avoid_: Booker, agent, company
+
+**Paying institution**:
+A government institution or ZRA-registered business that pays for a stay, named to VFMS at check-in by its ZRB number. A government institution withholds tax (VFMS `WITHHOLD`); a business is billed business-to-business (`BTOB`). Independent of a tour operator.
+_Avoid_: Corporate account, company, booker
 
 **Meal plan**:
 What a reservation's price includes besides the room: room only, bed and breakfast, half board, full board or all-inclusive.

@@ -10,7 +10,7 @@ import {
     CorrectionAnnotation,
     type DocumentCorrectionView,
 } from '@/features/fiscal-receipting/document-correction';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -186,7 +186,9 @@ export function FolioPanel({
     stay,
     paymentsReportUrl,
     taxSource = null,
+    groupStatementLink,
 }: {
+    groupStatementLink?: ReactNode;
     taxSource?: TaxSource;
     stay: FolioStay;
     paymentsReportUrl?: string | null;
@@ -411,6 +413,15 @@ export function FolioPanel({
                                 Folio statement
                             </Link>
                         </Button>
+                        {groupStatementLink && (
+                            <Button
+                                asChild
+                                variant="link"
+                                className="h-auto min-h-11 text-left whitespace-normal"
+                            >
+                                {groupStatementLink}
+                            </Button>
+                        )}
                         {taxSource && (
                             <Button
                                 asChild
@@ -600,6 +611,7 @@ export function FolioPanel({
                     >
                         Folio statement
                     </Link>
+                    {groupStatementLink}
                     <EmptyState message="No folios on this page. Choose another page or open a folio." />
                 </div>
             )}

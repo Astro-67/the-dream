@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Web\Reservations;
 
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\FolioStatement;
 use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FiscalReceipting\Actions\CorrectPayingInstitution;
 use App\Domains\FiscalReceipting\Actions\RefreshCorrectionDecisions;
 use App\Domains\FiscalReceipting\DocumentCorrections;
 use App\Domains\FiscalReceipting\VfmsFilings;
@@ -25,7 +27,9 @@ use App\Domains\Reservations\AssignableRooms;
 use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\BookingGroupOccupancy;
 use App\Domains\Reservations\BookingRules;
+use App\Domains\Reservations\Enums\PayingInstitutionType;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\GroupStatement;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -62,6 +66,7 @@ class ReservationController extends Controller
             'restrictionWarnings' => [...app(BookingRules::class)->warnings(Tenancy::property(), $stay['arrival'], $stay['departure']), ...($plan && $type ? $restrictions->warnings($plan, $type, $stay['arrival'], $stay['departure']) : [])],
             'nightlyRate' => $plan && $type && $occupancies !== [] ? (app(StayPricing::class)->quote($plan, $type, $stay['arrival'], $stay['departure'], $occupancies[0]['adults'], $occupancies[0]['children'])->nights[0]['total'] ?? null) : null,
             'businessDate' => BusinessDate::current(),
+            'filesWithVfms' => PayingInstitutionType::offeredAt(Tenancy::property()),
         ]);
     }
 
@@ -145,6 +150,8 @@ class ReservationController extends Controller
                 'rooms' => Room::query()->whereNull('deactivated_at')->orderBy('number')->get(['id', 'number', 'room_type_id', 'property_id'])->each(fn (Room $room) => app(AssignableRooms::class)->shapeOption($room)),
             ] : null,
             'canAmend' => Gate::allows('amend', $reservation),
+            'showsPayingInstitution' => $showsPayingInstitution = PayingInstitutionType::offeredAt($property),
+            'canEditPayingInstitution' => $showsPayingInstitution && Gate::allows('amend', $reservation) && CorrectPayingInstitution::editable($reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),
             'can' => ['checkIn' => $reservation->isEligibleForCheckIn(BusinessDate::current()) && Gate::allows('checkIn', $reservation),
                 'cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation), 'moveRoom' => $canMove, 'changeStay' => Gate::allows('changeStay', $reservation),
@@ -165,22 +172,14 @@ class ReservationController extends Controller
     public function statement(Reservation $reservation): Response
     {
         Gate::authorize('view', $reservation);
-        $property = Property::query()->findOrFail($reservation->property_id);
-        $folios = FolioSummary::folios($reservation);
 
-        return Inertia::render('reservations/statement', [
-            'reservation' => [...$reservation->stay(), ...$reservation->only(['adults', 'children'])],
-            'folios' => $folios->map(fn (array $folio, int $index) => [
-                'number' => $index + 1, 'currency' => $folio['folio']->currency->value, 'summary' => $folio['summary'],
-                'postings' => $folio['postings']->map(fn (Posting $posting) => [
-                    ...$posting->only(['id', 'type', 'category', 'description', 'quantity', 'unit_price', 'amount', 'method']),
-                    'business_date' => $posting->business_date->toDateString(),
-                    'tax_lines' => array_map(fn (array $line) => ['name' => $line['name'], 'inclusive' => $line['inclusive'], 'amount' => $line['amount'], 'unavailable' => $line['unavailable'] ?? false], $posting->tax_lines),
-                ])->values(),
-            ])->values(),
-            'totals' => FolioSummary::totals($reservation, $folios),
-            'taxSource' => FolioSummary::taxSource($reservation, $property),
-            'property' => $property->only(['name', 'address_line', 'city', 'phone', 'email']),
-        ]);
+        return Inertia::render('reservations/statement', FolioStatement::of($reservation));
+    }
+
+    public function groupStatement(Reservation $reservation): Response
+    {
+        Gate::authorize('view', $reservation);
+
+        return Inertia::render('reservations/group-statement', GroupStatement::of($reservation));
     }
 }

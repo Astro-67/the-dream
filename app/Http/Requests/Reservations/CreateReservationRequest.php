@@ -16,7 +16,7 @@ use Illuminate\Validation\Rule;
 
 class CreateReservationRequest extends FormRequest
 {
-    use AuditsRefusals, StayRules;
+    use AuditsRefusals, PayingInstitutionRules, StayRules;
 
     public function authorize(): bool
     {
@@ -73,6 +73,7 @@ class CreateReservationRequest extends FormRequest
             'tour_operator_name' => ['exclude_unless:booked_through,tour-operator', 'required', 'string', 'max:255'],
             'tour_operator_registration' => ['exclude_unless:booked_through,tour-operator', 'required', 'string', 'max:255'],
             'tour_operator_pays_for' => ['exclude_unless:booked_through,tour-operator', 'required', Rule::enum(TourOperatorPaysFor::class)],
+            ...$this->payingInstitutionRules(),
             'rooms' => ['sometimes', 'integer', 'between:1,20'],
             'distribute_guests' => ['sometimes', 'boolean'],
             'booker_id' => ['nullable', 'string', Rule::in(Booker::query()->pluck('id')->all())],

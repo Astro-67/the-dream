@@ -22,6 +22,21 @@ use BaconQrCode\Writer;
  */
 final class CheckoutReport
 {
+    /** @return list<string> */
+    public static function numbers(Reservation $reservation): array
+    {
+        return OutboxMessage::query()->where('integration', VfmsAdapter::INTEGRATION)
+            ->where('property_id', $reservation->property_id)
+            ->where('subject_type', $reservation->getMorphClass())->where('subject_id', $reservation->id)
+            ->where('status', 'delivered')->whereIn('event', ['checkout', 'guestDeparture'])->orderBy('sequence')->get()
+            ->flatMap(function (OutboxMessage $message) {
+                $references = $message->getAttribute('provider_references');
+                $numbers = isset($references['reportNumbers']) ? json_decode($references['reportNumbers'], true) : [$references['reportNo'] ?? null];
+
+                return is_array($numbers) && array_is_list($numbers) ? $numbers : [];
+            })->filter(fn ($number) => is_string($number) && trim($number) !== '')->unique()->values()->all();
+    }
+
     /** @return array<string, mixed> */
     public static function of(Reservation $reservation, bool $viewIdentity = false, bool $revealIdentity = false): array
     {

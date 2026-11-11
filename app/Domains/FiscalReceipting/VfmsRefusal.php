@@ -29,9 +29,10 @@ final class VfmsRefusal
     {
         $attempt = $message->attempts()->where('outcome', 'rejected')->orderByDesc('attempt_number')->first();
         $response = $attempt?->response_body === null ? null : json_decode($attempt->response_body, true, flags: JSON_THROW_ON_ERROR);
-        $providerMessage = $response['body']['statusMessage'] ?? null;
+        $providerMessage = $response['body']['body']['statusMessage'] ?? $response['body']['statusMessage'] ?? null;
 
-        return is_string($providerMessage) && preg_match('/^The Room ID \d{1,20} Is not Empty$/iD', $providerMessage)
+        return is_string($providerMessage) && (preg_match('/^The Room ID \d{1,20} Is not Empty$/iD', $providerMessage)
+            || in_array($providerMessage, ['PLEASE USE THE CORRECT ZRB NUMBER', 'This institution not Registered'], true))
             ? $providerMessage
             : __('ZRA refused this filing. Review the stay and its VFMS settings before re-filing.');
     }

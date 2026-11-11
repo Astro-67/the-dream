@@ -71,6 +71,12 @@ const cases = [
         '/reservations/R-207',
         'Folio statement',
     ],
+    [
+        'reservations/group-statement',
+        'R-207',
+        '/reservations/R-207',
+        'Group statement',
+    ],
     ['receipts/show', 'R-207', '/reservations/R-207', 'Receipt'],
     [
         'fiscal-receipting/checkout-report',

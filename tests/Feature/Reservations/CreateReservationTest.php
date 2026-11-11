@@ -191,3 +191,20 @@ test('the country list holds ISO countries only, named as ICU names them', funct
     expect(Countries::NAMES)->not->toHaveKey('QO')->not->toHaveKey('EU')
         ->and(collect(Countries::NAMES)->every(fn ($name, $code) => ($icu[$code] ?? null) === $name))->toBeTrue();
 });
+
+// protects=the paying institution is offered only where the property files with VFMS (spec #242); fails_when=Mainland or demo staff see it, or Zanzibar staff do not; no_claim=how the fields render.
+test('the booking form offers a paying institution only where the property files with VFMS', function (string $where, bool $offered) {
+    $t = twoTenants();
+    $property = $where === 'Mainland' ? $t->a->otherProperty : $t->a->property;
+    if ($where === 'demo') {
+        DB::table('properties')->where('id', $property->id)->update(['demo' => true]);
+    }
+
+    $this->actingAs($t->a->owner)
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $property->id])
+        ->get(route('reservations.create'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('filesWithVfms', $offered));
+})->with([
+    'Zanzibar' => ['Zanzibar', true],
+    'Mainland' => ['Mainland', false],
+    'demo' => ['demo', false],
+]);

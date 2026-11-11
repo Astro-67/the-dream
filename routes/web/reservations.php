@@ -10,6 +10,7 @@ use App\Http\Controllers\Web\FrontDesk\RoomMoveController;
 use App\Http\Controllers\Web\Reservations\AmendReservationController;
 use App\Http\Controllers\Web\Reservations\AvailabilityController;
 use App\Http\Controllers\Web\Reservations\CancelReservationController;
+use App\Http\Controllers\Web\Reservations\PayingInstitutionController;
 use App\Http\Controllers\Web\Reservations\ReservationController;
 use App\Http\Controllers\Web\Reservations\ReservationListController;
 use App\Http\Controllers\Web\Reservations\RoomAssignmentController;
@@ -22,6 +23,7 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::get('reservations/create', [ReservationController::class, 'create'])->name('reservations.create');
     Route::get('reservations/{reservation:reservation_number}/amend-preview', [AmendReservationController::class, 'preview'])->name('reservations.amend-preview');
     Route::patch('reservations/{reservation:reservation_number}/amend', AmendReservationController::class)->middleware('property.intent')->name('reservations.amend');
+    Route::patch('reservations/{reservation:reservation_number}/paying-institution', PayingInstitutionController::class)->middleware('property.intent')->name('reservations.paying-institution');
     Route::post('reservations', [ReservationController::class, 'store'])->middleware('property.intent')->name('reservations.store');
     Route::patch('reservations/{reservation:reservation_number}/room-assignment', RoomAssignmentController::class)->middleware('property.intent')->name('reservations.room-assignment');
     Route::post('reservations/{reservation:reservation_number}/void', VoidReservationController::class)->middleware('property.intent')->name('reservations.void');
@@ -34,5 +36,6 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::post('reservations/{reservation:reservation_number}/extend', ExtendStayController::class)->middleware('property.intent')->name('reservations.extend');
     Route::post('reservations/{reservation:reservation_number}/depart-early', DepartEarlyController::class)->middleware('property.intent')->name('reservations.depart-early');
     Route::get('reservations/{reservation:reservation_number}/statement', [ReservationController::class, 'statement'])->name('reservations.statement');
+    Route::get('reservations/{reservation:reservation_number}/group-statement', [ReservationController::class, 'groupStatement'])->name('reservations.group-statement');
     Route::get('reservations/{reservation:reservation_number}', [ReservationController::class, 'show'])->name('reservations.show');
 });

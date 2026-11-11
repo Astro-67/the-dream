@@ -113,6 +113,9 @@ const stayProps: ComponentProps<typeof Show> = {
         tour_operator_name: null,
         tour_operator_registration: null,
         tour_operator_pays_for: null,
+        paying_institution_type: null,
+        paying_institution_name: null,
+        paying_institution_zrb_number: null,
         channel_reference: null,
         outside_integration_reason: null,
         requires_reconciliation: false,
@@ -130,6 +133,7 @@ const stayProps: ComponentProps<typeof Show> = {
     rooms: [],
     canAssignRoom: true,
     canAmend: true,
+    showsPayingInstitution: true,
     amendmentOptions: { roomTypes: [], ratePlans: [], rooms: [] },
     amendments: emptyPage,
     can: {
@@ -174,6 +178,28 @@ const stayProps: ComponentProps<typeof Show> = {
     vfmsFilings: [],
 };
 const reservation = render(() => <Show {...stayProps} />);
+// protects=the paying institution shows only where the property files with VFMS (spec #242); fails_when=a Mainland or demo stay shows it; no_claim=HTTP authorization.
+const institution = {
+    ...stayProps.reservation,
+    paying_institution_type: 'business' as const,
+    paying_institution_name: 'Island Supplies Ltd',
+    paying_institution_zrb_number: 'Z1',
+};
+assert.match(
+    render(() => <Show {...stayProps} reservation={institution} />),
+    /Paid by registered business \(B2B\)[\s\S]*Island Supplies Ltd/,
+);
+assert.doesNotMatch(
+    render(() => (
+        <Show
+            {...stayProps}
+            reservation={institution}
+            showsPayingInstitution={false}
+        />
+    )),
+    /Island Supplies Ltd|Paying institution ZRB number/,
+);
+console.log('Paying institution shows only on VFMS properties: PASS');
 // protects=only authorized viewers see the audited re-file form (#173); fails_when=the refusal is hidden, reason is optional or read-only viewers get an action; no_claim=HTTP authorization.
 const refusal = {
     message: 'The Room ID 101 Is not Empty',
