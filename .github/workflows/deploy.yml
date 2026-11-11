@@ -1,6 +1,6 @@
 name: Deploy
 
-# Deploys main to the test server once CI passes on it.
+# Deploys main to the production server (pms.sauinndream.com) once CI passes on it.
 on:
   workflow_run:
     workflows: [CI]
@@ -19,7 +19,9 @@ jobs:
   deploy:
     if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
-    environment: test-server
+    environment:
+      name: production
+      url: https://pms.sauinndream.com
 
     steps:
       - name: Checkout code
