@@ -163,3 +163,24 @@ Karafuu now takes a legacy Live document's unit from the stay's accepted check-i
 ### Service-receipt correction through the real staff flow (7 November 2026)
 
 Replacements were limited to a receipt for the same posting, which only a replay produces; staff instead reverse the wrong charge and post the right one, a new posting. Karafuu now offers any later accepted services receipt of the same stay. Test server, local run (`VfmsTestServerCorrectionTest`, run `V6PDFF`): receipts `XHE2103345` (2 × WATER) and `XHE2103346` (1 × WATER), the first reversed, correction `XHE2103345` → `XHE2103346` delivered under unit 5940, check-out `XHE2103347`. A browser run did the same through the folio and register screens: `XHE2103350` (3 × SODA) reversed, `XHE2103351` (2 × SODA) posted, correction delivered.
+
+## Withholding and B2B check-ins on ZRA's test server, 10 November 2026
+
+ZRA (WhatsApp, 10 November) added two optional fields to the existing `ACCOMMODATION_REQUEST` (same `accommodation/` path, no new endpoint): `accommodationType` (`WITHHOLD` or `BTOB`) and `zrbNumber`. Their samples pair `WITHHOLD` with a `WA…` number (a government institution) and `BTOB` with the tour operator's own registration number (`zrbNumber` equal to `tourRegNo`). Neither field is in guide v1.6.
+
+Probed with curl from the dev machine against the shared test unit `5940`, run `67D17043`, fake passports, USD 100 BB, references `PROBE-67D17043-<letter>`. No credentials or test hosts are recorded.
+
+| Body                                                                                                                                              | ZRA answer                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| No new fields (control), `DIRECT`                                                                                                                 | accepted; report `XHE2104169`                               |
+| `BTOB` + tour operator's number, `TOUR OPERATOR` source with `tourRegNo`, `costOptions` `57`                                                      | accepted; report `XHE2104162`                               |
+| `BTOB` + the same number, `DIRECT` source (two runs)                                                                                              | accepted; reports `XHE2104164`, `XHE2104166`                |
+| `BTOB` with a made-up `Z…` number, a `WA…` number, or no `zrbNumber`                                                                              | HTTP 200, `5000` `PLEASE USE THE CORRECT ZRB NUMBER`        |
+| `WITHHOLD` with ZRA's sample `WA2400117`, a made-up `WA…`, a tour operator's `Z…`, the test unit's own Z-number, or no `zrbNumber`; either source | HTTP 200, `5000` `This institution not Registered`          |
+| `accommodationType` `NONSENSE` or lowercase `withhold`                                                                                            | HTTP 400, `Invalid JSON request or unsupported field value` |
+
+- **`BTOB` works, and ZRA checks the number.** It is accepted only with a `zrbNumber` that ZRA knows.
+- **`WITHHOLD` could not be accepted on the test server.** Every number, including none, gets the same refusal, so the check is not on the number's format. Either the test unit is not set up for withholding or no `WA…` number is registered on the test server. A refused `WITHHOLD` records nothing: check-out of its guest returned `Guest Document … Not Found`.
+- **Nothing visible changes.** The accept response, the check-out report (`accommoDetail` holds only source, `tourRegNo`, `costOptions`, `tourName`) and `accommodationReport` do not echo `accommodationType` or `zrbNumber`. The `BTOB` reports have the same room tax (13.04) and levy (5.00) as the control. What ZRA does differently with either type is unknown.
+- **`BTOB` does not merge a group's reports.** A two-room `BTOB` group (run `E363E02F`, two guests per room, `DIRECT`) was checked out room by room as Karafuu does. ZRA returned one report per guest, as for any stay: `XHE2104216`, `XHE2104219` for one room and `XHE2104221`, `XHE2104224` for the other, each USD 100, tax 13.04, levy 5.00.
+- Every accepted probe stay was checked out; nothing is left open on unit `5940`.
