@@ -5,6 +5,7 @@ use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Reservations\Enums\PayingInstitutionType;
 use App\Domains\Reservations\Models\Reservation;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
@@ -161,3 +162,20 @@ test('every room of a booking group gets the paying institution, trimmed', funct
         ->where('reservation.paying_institution_name', 'Ministry of Health')
         ->where('reservation.paying_institution_zrb_number', 'WA2400117'));
 });
+
+// protects=a paying institution is stored only where the property files with VFMS, even from a direct request (spec #242); fails_when=a Mainland or demo booking stores the fields; no_claim=the booking form's display.
+test('a booking on a Mainland or demo property stores no paying institution', function (string $where) {
+    $t = twoTenants();
+    $property = $where === 'Mainland' ? $t->a->otherProperty : $t->a->property;
+    if ($where === 'demo') {
+        DB::table('properties')->where('id', $property->id)->update(['demo' => true]);
+    }
+    $details = inTenant($property, fn () => BookingForm::details($t->a->owner));
+
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $property->id])->actingAs($t->a->owner)->post(route('reservations.store'), [
+        ...$details, '_property' => $property->id, 'paying_institution_type' => 'business', 'paying_institution_name' => 'Island Supplies Ltd', 'paying_institution_zrb_number' => 'Z1',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+
+    inTenant($property, fn () => expect(Reservation::query()->sole()->only(['paying_institution_type', 'paying_institution_name', 'paying_institution_zrb_number']))
+        ->toBe(['paying_institution_type' => null, 'paying_institution_name' => null, 'paying_institution_zrb_number' => null]));
+})->with(['Mainland', 'demo']);
