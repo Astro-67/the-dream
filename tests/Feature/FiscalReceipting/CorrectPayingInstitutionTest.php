@@ -173,3 +173,14 @@ test('the reservation page offers the correction while the stay is editable', fu
             ->assertInertia(fn (Assert $page) => $page->where('canEditPayingInstitution', $offered));
     }
 });
+
+// protects=a correction obeys the booking form's rules (spec #242); fails_when=a type saves without its number, or an unknown type is accepted; no_claim=ZRB number format.
+test('a correction needs a name and ZRB number with a type', function () {
+    $t = twoTenants();
+    [$first] = institutionGroup($t->a);
+
+    correctInstitution($this, $t->a, $first, ['paying_institution_type' => 'government'])->assertSessionHasErrors(['paying_institution_name', 'paying_institution_zrb_number']);
+    correctInstitution($this, $t->a, $first, ['paying_institution_type' => 'charity', 'paying_institution_name' => 'A', 'paying_institution_zrb_number' => 'B'])->assertSessionHasErrors('paying_institution_type');
+
+    expect(institutionOf($t->a, $first)['paying_institution_zrb_number'])->toBe('Z-WRONG');
+});
