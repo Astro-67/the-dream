@@ -18,9 +18,14 @@ final class GroupStatement
         $rooms = $members->map(fn (Reservation $member) => [...FolioStatement::of($member), 'reports' => CheckoutReport::numbers($member)]);
         $folios = Folio::query()->whereIn('reservation_id', $members->modelKeys())->with('postings')->get();
         $totals = $folios->groupBy(fn (Folio $folio) => $folio->currency->value)->sortKeys()
-            ->map(fn (Collection $same, string $currency) => [
-                'currency' => $currency, ...FolioSummary::of($same->flatMap(fn (Folio $folio) => $folio->postings)),
-            ])->values();
+            ->map(function (Collection $same, string $currency) use ($rooms) {
+                $estimates = $rooms->flatMap(fn (array $room) => $room['totals'])->where('currency', $currency)->pluck('estimate')->filter();
+
+                return [
+                    'currency' => $currency, ...FolioSummary::of($same->flatMap(fn (Folio $folio) => $folio->postings)),
+                    'estimate' => $estimates->isEmpty() ? null : ['nights' => (int) $estimates->sum('nights'), 'amount' => (int) $estimates->sum('amount')],
+                ];
+            })->values();
 
         return [
             'reservation' => $rooms->firstWhere('reservation.reservation_number', $reservation->reservation_number)['reservation'],

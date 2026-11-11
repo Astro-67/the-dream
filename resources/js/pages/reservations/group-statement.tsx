@@ -4,6 +4,7 @@ import { Identifier } from '@/components/ui/identifier';
 import {
     FolioSummaryList,
     type FolioSummary,
+    type FolioTotal,
 } from '@/features/billing/folio-summary';
 import { formatDate } from '@/features/platform/format';
 import { StatementFolios, type StatementProps } from './statement';
@@ -20,7 +21,10 @@ type GroupStatementProps = {
         guests: number;
     };
     rooms: (StatementProps & { reports: string[] })[];
-    totals: (FolioSummary & { currency: string })[];
+    totals: (FolioSummary & {
+        currency: string;
+        estimate: FolioTotal['estimate'];
+    })[];
 };
 
 export default function GroupStatement({
@@ -102,7 +106,8 @@ export default function GroupStatement({
                         className="space-y-4"
                     >
                         <h2 className="text-xl font-semibold">
-                            Room {room.reservation.room ?? 'Not assigned'} —{' '}
+                            Room {room.reservation.room ?? 'Not assigned'}{' '}
+                            &mdash;{' '}
                             <Link
                                 href={show(room.reservation.reservation_number)}
                                 className="underline underline-offset-4"
@@ -114,10 +119,12 @@ export default function GroupStatement({
                         </h2>
                         <p className="text-sm text-muted-foreground">
                             {room.reservation.room_type},{' '}
-                            {formatDate(room.reservation.arrival, 'UTC')} –{' '}
+                            {formatDate(room.reservation.arrival, 'UTC')}{' '}
+                            &ndash;{' '}
                             {formatDate(room.reservation.departure, 'UTC')}
                         </p>
                         <StatementFolios
+                            heading="h3"
                             folios={room.folios}
                             totals={room.totals}
                             taxSource={room.taxSource}
@@ -134,6 +141,7 @@ export default function GroupStatement({
                             <FolioSummaryList
                                 summary={total}
                                 currency={total.currency}
+                                estimate={total.estimate}
                             />
                         </div>
                     ))}

@@ -17,6 +17,7 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\Outbox;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
@@ -72,7 +73,7 @@ test('group statement uses reservation view permission', function (OrganizationR
 test('group statement cannot cross a property or follow stale property intent', function () {
     $t = twoTenants();
     $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
-    inTenant($t->a->property, fn () => $reservation->update(['booking_group_id' => '01GROUP24500000000000000000']));
+    inTenant($t->a->property, fn () => $reservation->update(['booking_group_id' => (string) Str::ulid()]));
     $sibling = inTenant($t->a->otherProperty, function () use ($t, $reservation) {
         $sibling = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
         $sibling->update(['booking_group_id' => $reservation->booking_group_id, 'reservation_number' => 'SIBLING-245']);
@@ -164,6 +165,8 @@ test('group statement includes every member and folio and keeps posted totals ap
                 ->where('totals.0.currency', 'TZS')->where('totals.0.charges', 100000)
                 ->where('totals.0.paid', 40000)->where('totals.0.balance', 60000)
                 ->where('totals.1.currency', 'USD')->where('totals.1.charges', 22000)
-                ->where('totals.1.paid', 11000)->where('totals.1.balance', 11000));
+                ->where('totals.1.paid', 11000)->where('totals.1.balance', 11000)
+                ->where('totals.1.estimate', ['nights' => 2, 'amount' => 21000])
+                ->where('totals.0.estimate', null));
     }
 });

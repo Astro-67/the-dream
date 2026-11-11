@@ -94,12 +94,15 @@ export function StatementFolios({
     folios,
     totals,
     taxSource,
-}: Pick<StatementProps, 'folios' | 'totals' | 'taxSource'>) {
+    heading: Heading = 'h2',
+}: Pick<StatementProps, 'folios' | 'totals' | 'taxSource'> & {
+    heading?: 'h2' | 'h3';
+}) {
     return folios.map((folio) => (
         <section key={folio.number} className="space-y-3">
-            <h3 className="text-lg font-semibold">
+            <Heading className="text-lg font-semibold">
                 Folio {folio.number} ({folio.currency})
-            </h3>
+            </Heading>
             {folio.postings.length === 0 ? (
                 <EmptyState message="Nothing posted on this folio." />
             ) : (

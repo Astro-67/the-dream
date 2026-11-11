@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { App } from '@inertiajs/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import GroupStatement from '@/pages/reservations/group-statement';
-import type { StatementProps } from '@/pages/reservations/statement';
+import {
+    StatementFolios,
+    type StatementProps,
+} from '@/pages/reservations/statement';
 import {
     GroupMemberActions,
     type GroupMember,
@@ -218,8 +221,12 @@ const groupStatement = renderToStaticMarkup(
                     },
                 ]}
                 totals={[
-                    { currency: 'USD', ...statementSummary },
-                    { currency: 'TZS', ...statementSummary },
+                    {
+                        currency: 'USD',
+                        ...statementSummary,
+                        estimate: { nights: 2, amount: 21000 },
+                    },
+                    { currency: 'TZS', ...statementSummary, estimate: null },
                 ]}
             />
         )}
@@ -242,5 +249,11 @@ assert.match(groupStatement, /Not yet filed/);
 assert.match(groupStatement, /USD 5\.00/);
 assert.match(groupStatement, /TZS 500/);
 assert.match(groupStatement, /Print group statement/);
+assert.match(groupStatement, /Not yet charged: 2 nights/);
+assert.match(groupStatement, /<h3[^>]*>Folio 1 \(USD\)<\/h3>/);
+assert.match(
+    renderToStaticMarkup(<StatementFolios {...statementRoom} />),
+    /<h2[^>]*>Folio 1 \(USD\)<\/h2>/,
+);
 console.log('Group statement print content: PASS');
 console.log('Booking group member actions: PASS');
