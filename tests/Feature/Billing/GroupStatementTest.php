@@ -1,14 +1,21 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenFolio;
+use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\PostRoomCharge;
+use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Models\Folio;
 use App\Domains\Guests\Actions\AttachReservationGuest;
 use App\Domains\Guests\Actions\ReplaceIdentityDocuments;
 use App\Domains\Guests\Models\Guest;
+use App\Domains\Inventory\Actions\CreateRoom;
 use App\Domains\Rates\Actions\SeedDefaultTaxRules;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\Models\Reservation;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 
 test('group statement prints a standalone reservation without identity documents or staff notes', function () {
     $t = twoTenants();
@@ -42,4 +49,53 @@ test('group statement prints a standalone reservation without identity documents
             ->where('rooms.0.reports', [])
             ->has('totals', 1)->where('totals.0.currency', 'USD')->where('totals.0.balance', 10500))
         ->assertDontSee('SECRET245')->assertDontSee('Private group note');
+});
+
+test('group statement includes every member and folio and keeps posted totals apart by currency', function () {
+    $t = twoTenants();
+    $t->a->property->update(['business_date' => '2026-12-10', 'jurisdiction_profile' => 'zanzibar', 'star_rating' => 4]);
+    [$first, $second] = inTenant($t->a->property, function () use ($t) {
+        app(SeedDefaultTaxRules::class)->handle($t->a->owner, $t->a->property);
+        $details = BookingForm::details($t->a->owner);
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        app(CreateReservation::class)->handle($t->a->owner, [...$details, 'rooms' => 2, 'adults' => 1, 'children' => 0]);
+        $members = Reservation::query()->orderBy('reservation_number')->get();
+        foreach ($members as $member) {
+            app(AttachReservationGuest::class)->handle($t->a->owner, $member, ['name' => 'Guest '.$member->reservation_number]);
+            app(ReplaceIdentityDocuments::class)->handle(Guest::query()->where('name', 'Guest '.$member->reservation_number)->sole(), [['type' => 'passport', 'number' => 'PRIVATE-'.$member->reservation_number, 'nationality' => 'TZ']]);
+            $member->update(['status' => ReservationStatus::CheckedIn]);
+            app(PostRoomCharge::class)->handle($t->a->owner, $member, '2026-12-10');
+        }
+        $usd = app(OpenFolio::class)->handle($t->a->owner, $members[0], 'USD');
+        app(PostExtraCharge::class)->handle($t->a->owner, $usd, ['category' => 'minibar', 'quantity' => 1, 'unit_price' => 1000]);
+        app(RecordPayment::class)->handle($t->a->owner, $usd, ['method' => 'bank_transfer', 'amount' => 1000, 'currency' => 'USD']);
+        $tzs = app(OpenFolio::class)->handle($t->a->owner, $members[1], 'TZS');
+        app(PostExtraCharge::class)->handle($t->a->owner, $tzs, ['category' => 'laundry', 'quantity' => 1, 'unit_price' => 100000]);
+        app(RecordPayment::class)->handle($t->a->owner, $tzs, ['method' => 'bank_transfer', 'amount' => 40000, 'currency' => 'TZS']);
+        app(RecordPayment::class)->handle($t->a->owner, Folio::query()->where('reservation_id', $members[1]->id)->where('currency', 'USD')->sole(), ['method' => 'bank_transfer', 'amount' => 10000, 'currency' => 'USD']);
+        $members[1]->update(['departure' => '2026-12-13']);
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '103']));
+        app(CreateReservation::class)->handle($t->a->owner, $details);
+
+        return $members->all();
+    });
+
+    foreach ([$first, $second] as $opened) {
+        $this->actingAs($t->a->owner)
+            ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+            ->get(route('reservations.group-statement', $opened))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('group.rooms', 2)->where('group.guests', 2)
+                ->where('group.arrival', '2026-12-10')->where('group.departure', '2026-12-13')
+                ->where('payingInstitution', null)
+                ->has('rooms', 2)
+                ->where('rooms.0.reservation.reservation_number', $first->reservation_number)
+                ->where('rooms.1.reservation.reservation_number', $second->reservation_number)
+                ->has('rooms.0.folios', 2)->has('rooms.1.folios', 2)
+                ->has('totals', 2)
+                ->where('totals.0.currency', 'TZS')->where('totals.0.charges', 100000)
+                ->where('totals.0.paid', 40000)->where('totals.0.balance', 60000)
+                ->where('totals.1.currency', 'USD')->where('totals.1.charges', 22000)
+                ->where('totals.1.paid', 11000)->where('totals.1.balance', 11000));
+    }
 });

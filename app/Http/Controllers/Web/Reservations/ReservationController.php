@@ -27,6 +27,7 @@ use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\BookingGroupOccupancy;
 use App\Domains\Reservations\BookingRules;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use App\Domains\Reservations\GroupStatement;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -174,20 +175,7 @@ class ReservationController extends Controller
     public function groupStatement(Reservation $reservation): Response
     {
         Gate::authorize('view', $reservation);
-        $statement = FolioStatement::of($reservation);
 
-        return Inertia::render('reservations/group-statement', [
-            'reservation' => $statement['reservation'],
-            'property' => $statement['property'],
-            'payingInstitution' => $reservation->paying_institution_type === null ? null : [
-                'name' => $reservation->paying_institution_name, 'zrbNumber' => $reservation->paying_institution_zrb_number,
-            ],
-            'group' => [
-                'arrival' => $reservation->arrival->toDateString(), 'departure' => $reservation->departure->toDateString(),
-                'rooms' => 1, 'guests' => $reservation->adults + $reservation->children,
-            ],
-            'rooms' => [[...$statement, 'reports' => []]],
-            'totals' => $statement['totals'],
-        ]);
+        return Inertia::render('reservations/group-statement', GroupStatement::of($reservation));
     }
 }
