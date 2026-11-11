@@ -134,3 +134,26 @@ test('a group correction skips rooms whose check-in ZRA accepted and names them'
         ->and(institutionOf($t->a, $second)['paying_institution_zrb_number'])->toBe('Z-WRONG')
         ->and(inTenant($t->a->property, fn () => $second->lifecycleEvents()->where('type', 'paying_institution_changed')->count()))->toBe(0);
 });
+
+// protects=the Live fallback for a refused WITHHOLD: clear the type and re-file (spec #242); fails_when=the re-file resends the old type or number, or reuses the refused reference; no_claim=that Live accepts WITHHOLD.
+test('re-filing after a correction sends the corrected check-in with a fresh reference', function () {
+    $t = twoTenants();
+    [$first] = institutionGroup($t->a);
+    inTenant($t->a->property, fn () => $first->update(['paying_institution_type' => 'government', 'paying_institution_name' => 'Ministry of Health', 'paying_institution_zrb_number' => 'WA2400117']));
+    Http::fake([VfmsHttp::TEST_URL.'accommodation/' => fn (Request $request) => Http::response(isset($request['accommodationType'])
+        ? ['statusCode' => 5000, 'statusMessage' => 'This institution not Registered']
+        : ['responseNumber' => 'AC-244'])]);
+    checkInInstitutionMember($t->a, $first, '101');
+    $message = inTenant($t->a->property, fn () => OutboxMessage::query()->where('event', 'accommodation')->sole());
+    expect($message->status)->toBe('rejected')->and($message->payload['body']['accommodationType'])->toBe('WITHHOLD');
+
+    correctInstitution($this, $t->a, $first, ['paying_institution_type' => ''])->assertSessionHasNoErrors();
+    $this->post(route('reservations.vfms.refile', [$first, $message]), ['_property' => $t->a->property->id, 'reason' => 'Institution cleared after ZRA refused WITHHOLD'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+
+    $refiled = inTenant($t->a->property, fn () => $message->fresh());
+    expect($refiled->status)->toBe('delivered')
+        ->and($refiled->payload['body'])->not->toHaveKeys(['accommodationType', 'zrbNumber'])
+        ->and($refiled->payload['body']['referenceNumber'])->toBe($message->payload['body']['referenceNumber'].'R1')
+        ->and(institutionOf($t->a, $first))->toBe(['paying_institution_type' => null, 'paying_institution_name' => null, 'paying_institution_zrb_number' => null]);
+});
