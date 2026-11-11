@@ -2,9 +2,12 @@
 
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Inventory\Actions\CreateRoom;
+use App\Domains\Reservations\Enums\PayingInstitutionType;
 use App\Domains\Reservations\Models\Reservation;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 
 test('inline lead guest reserves without a booker and records inclusions', function () {
     $t = twoTenants();
@@ -112,4 +115,49 @@ test('a booking can register its other adults now, each optional, and refuses mo
         expect($guests->pluck('name')->all())->toBe(['Lead Occupant', 'Second Adult'])
             ->and($guests[1]->documents->sole()->only(['type', 'number', 'nationality']))->toBe(['type' => 'passport', 'number' => 'P2', 'nationality' => 'DE']);
     });
+});
+
+// protects=a paying institution needs a name and ZRB number, and none is stored without a type (spec #242); fails_when=a typed institution saves without its number, or stray fields are stored; no_claim=ZRB number format, which ZRA checks.
+test('a paying institution requires its name and ZRB number, and is excluded without a type', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, fn () => BookingForm::details($t->a->owner));
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner);
+
+    $this->postJson(route('reservations.store'), [...$details, '_property' => $t->a->property->id, 'paying_institution_type' => 'government'])
+        ->assertUnprocessable()->assertJsonValidationErrors(['paying_institution_name', 'paying_institution_zrb_number']);
+    $this->postJson(route('reservations.store'), [...$details, '_property' => $t->a->property->id, 'paying_institution_type' => 'charity', 'paying_institution_name' => 'A', 'paying_institution_zrb_number' => 'B'])
+        ->assertUnprocessable()->assertJsonValidationErrors('paying_institution_type');
+    $this->postJson(route('reservations.store'), [...$details, '_property' => $t->a->property->id, 'paying_institution_type' => 'business', 'paying_institution_name' => str_repeat('a', 256), 'paying_institution_zrb_number' => 'Z1'])
+        ->assertUnprocessable()->assertJsonValidationErrors('paying_institution_name');
+    $this->post(route('reservations.store'), [...$details, '_property' => $t->a->property->id, 'paying_institution_type' => '', 'paying_institution_name' => 'Stray', 'paying_institution_zrb_number' => 'Z9'])
+        ->assertRedirect()->assertSessionHasNoErrors();
+
+    inTenant($t->a->property, fn () => expect(Reservation::query()->sole()->only(['paying_institution_type', 'paying_institution_name', 'paying_institution_zrb_number']))
+        ->toBe(['paying_institution_type' => null, 'paying_institution_name' => null, 'paying_institution_zrb_number' => null]));
+});
+
+// protects=every room of a booking group is filed for the same paying institution (spec #242 story 3); fails_when=a later room loses the institution; no_claim=correcting it after booking (#244).
+test('every room of a booking group gets the paying institution, trimmed', function () {
+    $t = twoTenants();
+    $details = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+
+        return $details;
+    });
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)->post(route('reservations.store'), [
+        ...$details, '_property' => $t->a->property->id, 'rooms' => 2, 'adults' => 2,
+        'paying_institution_type' => 'government', 'paying_institution_name' => '  Ministry of Health ', 'paying_institution_zrb_number' => ' WA2400117 ',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+
+    $members = inTenant($t->a->property, fn () => Reservation::query()->orderBy('reservation_number')->get());
+    expect($members)->toHaveCount(2);
+    foreach ($members as $member) {
+        expect($member->only(['paying_institution_type', 'paying_institution_name', 'paying_institution_zrb_number']))
+            ->toEqual(['paying_institution_type' => PayingInstitutionType::Government, 'paying_institution_name' => 'Ministry of Health', 'paying_institution_zrb_number' => 'WA2400117']);
+    }
+    $this->get(route('reservations.show', $members[1]))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('reservation.paying_institution_type', 'government')
+        ->where('reservation.paying_institution_name', 'Ministry of Health')
+        ->where('reservation.paying_institution_zrb_number', 'WA2400117'));
 });
