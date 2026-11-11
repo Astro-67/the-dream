@@ -7,6 +7,7 @@ use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
@@ -37,6 +38,28 @@ return [
         });
 
         return $response;
+    }),
+    'reservations.paying-institution' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $institution = ['paying_institution_type' => 'business', 'paying_institution_name' => 'Bravo Supplies', 'paying_institution_zrb_number' => 'Z-BRAVO'];
+        $book = fn ($property, $owner) => inTenant($property, fn () => app(CreateReservation::class)->handle($owner, [...BookingForm::details($owner), ...$institution]));
+        $foreign = $book($t->b->property, $t->b->owner);
+        $sibling = $book($t->a->otherProperty, $t->a->owner);
+        $form = ['paying_institution_type' => 'government', 'paying_institution_name' => 'Attacker', 'paying_institution_zrb_number' => 'Z-ATTACK'];
+        $frontDesk = $t->a->member(OrganizationRole::FrontDesk);
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->patch(route('reservations.paying-institution', $foreign), [...$form, '_property' => $t->a->property->id])->assertNotFound();
+        }
+        $responses[] = $this->actingAs($t->a->owner)->patch(route('reservations.paying-institution', $foreign), [...$form, '_property' => $t->b->property->id])->assertForbidden();
+        // Sibling property: looked up in the opening property, so not found; a form for a property the member cannot act in is refused.
+        $responses[] = $this->actingAs($frontDesk)->patch(route('reservations.paying-institution', $sibling), [...$form, '_property' => $t->a->property->id])->assertNotFound();
+        $responses[] = $this->actingAs($frontDesk)->patch(route('reservations.paying-institution', $sibling), [...$form, '_property' => $t->a->otherProperty->id])->assertForbidden();
+        foreach ([[$t->b->property, $foreign], [$t->a->otherProperty, $sibling]] as [$property, $reservation]) {
+            inTenant($property, fn () => expect($reservation->fresh()->paying_institution_zrb_number)->toBe('Z-BRAVO')
+                ->and($reservation->lifecycleEvents()->where('type', 'paying_institution_changed')->count())->toBe(0));
+        }
+
+        return $responses;
     }),
     'reservations.index' => RouteCoverage::attempt(function (TwoTenants $t) {
         $reservation = inTenant($t->b->property, function () use ($t) {
