@@ -5,6 +5,7 @@ namespace App\Domains\Reservations;
 use App\Domains\Billing\FolioStatement;
 use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\Reservations\Models\Reservation;
 use Illuminate\Support\Collection;
 
@@ -14,7 +15,7 @@ final class GroupStatement
     public static function of(Reservation $reservation): array
     {
         $members = app(BookingGroupMembers::class)->reservations($reservation);
-        $rooms = $members->map(fn (Reservation $member) => [...FolioStatement::of($member), 'reports' => []]);
+        $rooms = $members->map(fn (Reservation $member) => [...FolioStatement::of($member), 'reports' => CheckoutReport::numbers($member)]);
         $folios = Folio::query()->whereIn('reservation_id', $members->modelKeys())->with('postings')->get();
         $totals = $folios->groupBy(fn (Folio $folio) => $folio->currency->value)->sortKeys()
             ->map(fn (Collection $same, string $currency) => [

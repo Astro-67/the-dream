@@ -5,6 +5,7 @@ use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\PostRoomCharge;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\Guests\Actions\AttachReservationGuest;
 use App\Domains\Guests\Actions\ReplaceIdentityDocuments;
 use App\Domains\Guests\Models\Guest;
@@ -13,9 +14,13 @@ use App\Domains\Rates\Actions\SeedDefaultTaxRules;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Support\Outbox\Outbox;
+use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
+
+beforeEach(fn () => Http::preventStrayRequests());
 
 test('group statement prints a standalone reservation without identity documents or staff notes', function () {
     $t = twoTenants();
@@ -49,6 +54,37 @@ test('group statement prints a standalone reservation without identity documents
             ->where('rooms.0.reports', [])
             ->has('totals', 1)->where('totals.0.currency', 'USD')->where('totals.0.balance', 10500))
         ->assertDontSee('SECRET245')->assertDontSee('Private group note');
+});
+
+test('group statement lists only stored accepted checkout and guest departure numbers without exposing their documents', function () {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        foreach ([
+            ['guestDeparture', 'delivered', ['reportNumbers' => '["DEPARTED-245"]']],
+            ['checkout', 'delivered', ['reportNumbers' => '["DEPARTED-245","CHECKOUT-245","SECOND-245"]']],
+            ['checkout', 'delivered', ['reportNo' => 'LEGACY-245']],
+            ['checkout', 'unknown', ['reportNumbers' => '["UNKNOWN-245"]']],
+            ['checkout', 'refused', ['reportNo' => 'REFUSED-245']],
+            ['checkout', 'pending', ['reportNo' => 'PENDING-245']],
+            ['checkIn', 'delivered', ['reportNo' => 'CHECKIN-245']],
+        ] as $index => [$event, $status, $references]) {
+            $message = app(Outbox::class)->record(VfmsAdapter::INTEGRATION, $reservation, $event, [
+                'body' => ['documentNumberList' => [['documentNumber' => 'PRIVATE-FISCAL-DOCUMENT']]],
+            ], 'group-statement-'.$index);
+            $message->forceFill(['status' => $status, 'provider_references' => $references])->save();
+        }
+
+        return $reservation;
+    });
+
+    $this->actingAs($t->a->owner)
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('reservations.group-statement', $reservation))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('rooms.0.reports', ['DEPARTED-245', 'CHECKOUT-245', 'SECOND-245', 'LEGACY-245']))
+        ->assertDontSee('PRIVATE-FISCAL-DOCUMENT')->assertDontSee('UNKNOWN-245')->assertDontSee('REFUSED-245')
+        ->assertDontSee('PENDING-245')->assertDontSee('CHECKIN-245');
+    Http::assertNothingSent();
 });
 
 test('group statement includes every member and folio and keeps posted totals apart by currency', function () {
