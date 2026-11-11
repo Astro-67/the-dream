@@ -20,6 +20,8 @@ return [
         'test_integration_id' => env('VFMS_TEST_INTEGRATION_ID'),
         'test_token' => env('VFMS_TEST_TOKEN'),
         'test_viewer_url' => env('VFMS_TEST_VIEWER_URL'),
+        // A ZRB number ZRA's test server accepts for BTOB; only the opt-in test-server driver reads it.
+        'test_btob_zrb_number' => env('VFMS_TEST_BTOB_ZRB_NUMBER'),
     ],
 
     'postmark' => [

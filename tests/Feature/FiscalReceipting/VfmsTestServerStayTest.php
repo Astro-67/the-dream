@@ -102,3 +102,50 @@ test('a Sandbox stay is accepted end to end by ZRA\'s test server', function () 
         ->and($adjustment['reference'])->toBe($checkout['reportNo'])
         ->and($totals[0]['charges'])->toBe(app(VfmsPayloads::class)->minor((float) $checkout['totalAmount'], Currency::USD));
 })->skip(getenv('VFMS_TEST_SERVER_RUN') !== '1', 'Real ZRA test-server run: set VFMS_TEST_SERVER_RUN=1.');
+
+// Real calls to ZRA's shared TEST server (spec #242), never Live. Opt in as above, plus VFMS_TEST_BTOB_ZRB_NUMBER: a ZRB
+// number the test server accepts for BTOB. Writes a redacted call log to storage/app/private/vfms-test-server-btob.json.
+test('a Sandbox BTOB stay is accepted end to end by ZRA\'s test server', function () {
+    $testUrl = (string) config('services.vfms.test_url');
+    $zrbNumber = (string) config('services.vfms.test_btob_zrb_number');
+    expect($testUrl)->not->toBe('')->and(strtolower($testUrl))->not->toContain('zanrevenue.org')->and($zrbNumber)->not->toBe('');
+    Http::allowStrayRequests([rtrim($testUrl, '/').'/*']);
+
+    $t = twoTenants()->a;
+    $property = ['_property' => $t->property->id];
+    $run = Str::upper(Str::random(6));
+    $document = 'P'.$run.'1';
+    $today = $t->property->business_date->toDateString();
+    $reservation = inTenant($t->property, function () use ($t, $document, $today, $zrbNumber) {
+        $type = app(CreateRoomType::class)->handle($t->owner, InventoryForm::roomType());
+        app(CreateRoom::class)->handle($t->owner, InventoryForm::room($type->id, ['number' => '7']));
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        $plan = app(CreateRatePlan::class)->handle($t->owner, ['name' => 'Breakfast', 'code' => 'BB', 'currency' => 'USD', 'room_type_ids' => [$type->id]]);
+        app(SetRatePrices::class)->handle($t->owner, $plan, ['room_type_id' => $type->id, 'from' => $today, 'to' => $today, 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'base_price' => 10000, 'extra_adult' => 2500, 'extra_child' => 1000]);
+        $booker = app(CreateBooker::class)->handle($t->owner, ['name' => 'Test Booker']);
+        $reservation = app(CreateReservation::class)->handle($t->owner, [
+            'room_type_id' => $type->id, 'rate_plan_id' => $plan->id, 'booker_id' => $booker->id, 'room_id' => Room::query()->where('number', '7')->sole()->id,
+            'arrival' => $today, 'departure' => $t->property->business_date->addDay()->toDateString(), 'adults' => 1, 'children' => 0, 'source' => 'phone', 'meal_plan' => 'bed-and-breakfast',
+            'paying_institution_type' => 'business', 'paying_institution_name' => 'Test B2B Company', 'paying_institution_zrb_number' => $zrbNumber,
+        ]);
+        $guest = app(CreateGuest::class)->handle($t->owner, ['name' => 'Test Anna', 'documents' => [['type' => 'passport', 'number' => $document, 'nationality' => 'DE']]]);
+        ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+
+        return $reservation;
+    });
+
+    $this->actingAs($t->member(OrganizationRole::FrontDesk))->post(route('reservations.check-in', $reservation), $property)->assertSessionHasNoErrors();
+    $this->actingAs($t->member(OrganizationRole::PropertyManager))->post(route('night-audit.store'), [...$property, 'business_date' => $today])->assertSessionHasNoErrors();
+    $this->actingAs($t->owner)->post(route('reservations.check-out', $reservation), [...$property, 'override_reason' => 'Test server run settles later'])->assertSessionHasNoErrors();
+
+    $messages = inTenant($t->property, fn () => OutboxMessage::query()->where('integration', 'vfms')->with('attempts')->orderBy('sequence')->get());
+    $redact = fn (string $text) => str_replace([$document, $zrbNumber], ['[DOC-1]', '[ZRB]'], $text);
+    file_put_contents(storage_path('app/private/vfms-test-server-btob.json'), $redact(json_encode(['run' => $run, 'calls' => $messages->map(fn (OutboxMessage $message) => [
+        'event' => $message->event, 'status' => $message->status, 'references' => $message->getAttribute('provider_references'),
+        'attempts' => $message->attempts->map(fn ($attempt) => ['outcome' => $attempt->outcome, 'response' => (string) $attempt->response_body])->all(),
+    ])->all()], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)));
+
+    expect($messages->pluck('event')->all())->toBe(['accommodation', 'checkout'])
+        ->and($messages->pluck('status')->unique()->all())->toBe(['delivered'])
+        ->and($messages->first()->payload['body'])->toMatchArray(['accommodationSource' => 'DIRECT', 'accommodationType' => 'BTOB', 'zrbNumber' => $zrbNumber]);
+})->skip(getenv('VFMS_TEST_SERVER_RUN') !== '1', 'Real ZRA test-server run: set VFMS_TEST_SERVER_RUN=1.');
