@@ -205,6 +205,8 @@ test('VFMS validates operation-specific success evidence and retains the answer'
     'malformed' => ['ACCOMMODATION_REQUEST', '{not json', 'unknown', []],
     'application refusal' => ['ACCOMMODATION_REQUEST', ['statusCode' => 5000, 'statusMessage' => 'The Room ID 42 Is not Empty'], 'rejected', []],
     'string application refusal' => ['ACCOMMODATION_REQUEST', ['statusCode' => '5000', 'statusMessage' => 'Guest Not Found'], 'rejected', []],
+    // ZRA's test server wraps some refusals in a Spring envelope (WITHHOLD check-in, 11 Nov 2026).
+    'wrapped application refusal' => ['ACCOMMODATION_REQUEST', ['headers' => [], 'body' => ['statusCode' => 5000, 'statusMessage' => 'This institution not Registered'], 'statusCode' => 'OK', 'statusCodeValue' => 200], 'rejected', []],
     'failure overrides evidence' => ['ACCOMMODATION_REQUEST', ['statusCode' => 5000, 'responseNumber' => 'AC-171'], 'rejected', []],
     'same duplicate' => ['ACCOMMODATION_REQUEST', ['statusCode' => 5000, 'statusMessage' => 'Reference number REF-171-5940 already exists'], 'unknown', []],
     'different duplicate' => ['ACCOMMODATION_REQUEST', ['statusCode' => 5000, 'statusMessage' => 'Reference number OTHER-5940 already exists'], 'unknown', []],

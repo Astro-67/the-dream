@@ -122,6 +122,10 @@ final class HttpVfms
             return new DeliveryResult('unknown', responseBody: $responseBody);
         }
 
+        // ZRA's test server wraps some refusals in a Spring envelope (WITHHOLD check-in, 11 Nov 2026); judge the inner answer.
+        if (is_array($data) && isset($data['statusCodeValue']) && is_array($data['body'] ?? null)) {
+            $data = $data['body'];
+        }
         $errors = is_array($data)
             ? ($status >= 400 ? $data : array_intersect_key($data, array_flip(['statusMessage', 'error', 'errors'])))
             : ($status >= 400 ? $response->body() : '');

@@ -449,9 +449,10 @@ test('a Live check-in rejected at the old gateway URL is rebuilt while staying L
 });
 
 // protects=ZRA's paying-institution refusals reach staff verbatim (spec #242 story 5); fails_when=either text is hidden, or other provider text leaks; no_claim=Live wording.
-test('ZRA paying-institution refusals are shown verbatim and other text stays generic', function (string $statusMessage, bool $verbatim) {
+test('ZRA paying-institution refusals are shown verbatim and other text stays generic', function (string $statusMessage, bool $verbatim, bool $wrapped = false) {
     $tenant = twoTenants()->a;
-    Http::fake([VfmsHttp::TEST_URL.'*' => Http::response(['statusCode' => 5000, 'statusMessage' => $statusMessage])]);
+    $refusal = ['statusCode' => 5000, 'statusMessage' => $statusMessage];
+    Http::fake([VfmsHttp::TEST_URL.'*' => Http::response($wrapped ? ['headers' => [], 'body' => $refusal, 'statusCode' => 'OK', 'statusCodeValue' => 200] : $refusal)]);
     $reservation = vfmsRecoveryStay($tenant);
 
     $this->actingAs($tenant->owner)->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
@@ -460,5 +461,6 @@ test('ZRA paying-institution refusals are shown verbatim and other text stays ge
 })->with([
     'wrong ZRB number' => ['PLEASE USE THE CORRECT ZRB NUMBER', true],
     'institution not registered' => ['This institution not Registered', true],
+    'institution not registered, in ZRA\'s envelope' => ['This institution not Registered', true, true],
     'texts around them' => ['PLEASE USE THE CORRECT ZRB NUMBER WA2400117', false],
 ]);
