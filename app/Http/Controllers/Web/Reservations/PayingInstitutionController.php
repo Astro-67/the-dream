@@ -16,6 +16,6 @@ class PayingInstitutionController extends Controller
 
         return to_route('reservations.show', $reservation)->with('toast', $unchanged === []
             ? ['type' => 'success', 'message' => __('Paying institution updated.')]
-            : ['type' => 'warning', 'message' => __('Paying institution updated. Unchanged because ZRA has their check-in or it is pending: :numbers.', ['numbers' => implode(', ', $unchanged)])]);
+            : ['type' => 'warning', 'message' => __('Paying institution updated. These rooms can no longer be corrected and were left unchanged: :numbers.', ['numbers' => implode(', ', $unchanged)])]);
     }
 }
