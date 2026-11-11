@@ -13,6 +13,7 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Rates\Enums\ChargeKind;
 use App\Domains\Rates\TaxCalculator;
 use App\Domains\Reservations\Enums\MealPlan;
+use App\Domains\Reservations\Enums\PayingInstitutionType;
 use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
@@ -97,6 +98,7 @@ final class VfmsPayloads
         $room = Room::query()->findOrFail($reservation->room_id);
         $paysFor = $reservation->getAttribute('tour_operator_pays_for');
         $tourOperator = $reservation->getAttribute('booked_through') === 'tour-operator' && $paysFor instanceof TourOperatorPaysFor;
+        $institution = $reservation->getAttribute('paying_institution_type');
 
         return [
             'paymentPackage' => match ($reservation->meal_plan) {
@@ -116,6 +118,7 @@ final class VfmsPayloads
             'accommodationDiscount' => 0.0,
             'referenceNumber' => $this->referenceNumber($event, $reservation),
             ...($tourOperator ? ['tourRegNo' => $reservation->getAttribute('tour_operator_registration'), 'costOptions' => $this->costOptions($paysFor)] : []),
+            ...($institution instanceof PayingInstitutionType ? ['accommodationType' => $institution->vfmsValue(), 'zrbNumber' => $reservation->getAttribute('paying_institution_zrb_number')] : []),
         ];
     }
 

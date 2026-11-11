@@ -8,6 +8,7 @@ use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Reservations\Enums\MealPlan;
+use App\Domains\Reservations\Enums\PayingInstitutionType;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Policies\ReservationPolicy;
@@ -32,7 +33,7 @@ use Illuminate\Support\Collection;
  * @property string $payment_collector
  * @property int|null $channel_collected_amount minor units, when the channel collects
  */
-#[Fillable(['meal_plan', 'special_requests', 'booked_through', 'tour_operator_name', 'tour_operator_registration', 'tour_operator_pays_for', 'booking_group_id', 'reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'source_reference', 'imported', 'payment_collector', 'status', 'room_id', 'restriction_override_reason', 'channel_reference', 'outside_integration_reason', 'requires_reconciliation', 'channel_collected_amount'])]
+#[Fillable(['meal_plan', 'special_requests', 'booked_through', 'tour_operator_name', 'tour_operator_registration', 'tour_operator_pays_for', 'paying_institution_type', 'paying_institution_name', 'paying_institution_zrb_number', 'booking_group_id', 'reservation_number', 'room_type_id', 'rate_plan_id', 'booker_id', 'arrival', 'departure', 'adults', 'children', 'source', 'source_reference', 'imported', 'payment_collector', 'status', 'room_id', 'restriction_override_reason', 'channel_reference', 'outside_integration_reason', 'requires_reconciliation', 'channel_collected_amount'])]
 #[UsePolicy(ReservationPolicy::class)]
 class Reservation extends Model
 {
@@ -41,7 +42,7 @@ class Reservation extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['meal_plan' => MealPlan::class, 'tour_operator_pays_for' => TourOperatorPaysFor::class, 'imported' => 'boolean', 'requires_reconciliation' => 'boolean', 'arrival' => 'immutable_date', 'departure' => 'immutable_date', 'adults' => 'integer', 'children' => 'integer', 'channel_collected_amount' => 'integer', 'status' => ReservationStatus::class];
+        return ['meal_plan' => MealPlan::class, 'tour_operator_pays_for' => TourOperatorPaysFor::class, 'paying_institution_type' => PayingInstitutionType::class, 'imported' => 'boolean', 'requires_reconciliation' => 'boolean', 'arrival' => 'immutable_date', 'departure' => 'immutable_date', 'adults' => 'integer', 'children' => 'integer', 'channel_collected_amount' => 'integer', 'status' => ReservationStatus::class];
     }
 
     public function leadGuest(): ?Guest

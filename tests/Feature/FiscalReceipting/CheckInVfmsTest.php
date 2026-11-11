@@ -179,6 +179,40 @@ test('a tour-operator stay is sent with its registration number and cost options
     'room, levy and other services' => ['room-levy-and-other-services', '567'],
 ]);
 
+// protects=a paying institution is named to VFMS at check-in in ZRA's exact values (spec #242); fails_when=a type maps to the wrong value, the ZRB number is dropped, or another field changes; no_claim=that Live accepts WITHHOLD.
+test('a stay paid by an institution is sent with its accommodation type and ZRB number', function (string $type, string $accommodationType, array $booking, array $source) {
+    $t = twoTenants();
+    $reservation = checkInTwoGuests($t->a, [...$booking, 'paying_institution_type' => $type, 'paying_institution_name' => 'Ministry of Tourism', 'paying_institution_zrb_number' => 'WA2400117']);
+
+    $room = inTenant($t->a->property, fn () => Room::query()->sole());
+    expect(vfmsMessages($t->a)[0]->payload['body'])->toEqual([
+        'paymentPackage' => 'BB',
+        'checkInDate' => '2026-12-10T06:00:00.000Z',
+        'guest' => [
+            ['documentName' => 'PASSPORT', 'documentNo' => 'P1234567', 'country' => 'GERMANY', 'fullName' => 'Anna Berg', 'arrivalDate' => '2026-12-10'],
+            ['documentName' => 'PASSPORT', 'documentNo' => 'P7654321', 'country' => 'NORWAY', 'fullName' => 'Ola Berg', 'arrivalDate' => '2026-12-10'],
+        ],
+        'roomId' => $room->vfms_room_id,
+        'roomName' => '101',
+        ...$source,
+        'accommodationPrice' => 110,
+        'accommodationDiscount' => 0,
+        'referenceNumber' => $reservation->reservation_number.'-2',
+        'currency' => 'USD',
+        'accommodationType' => $accommodationType,
+        'zrbNumber' => 'WA2400117',
+    ]);
+})->with([
+    'government' => ['government', 'WITHHOLD'],
+    'business' => ['business', 'BTOB'],
+])->with([
+    'direct' => [[], ['accommodationSource' => 'DIRECT']],
+    'tour operator' => [
+        ['booked_through' => 'tour-operator', 'tour_operator_name' => 'Island Tours', 'tour_operator_registration' => 'ZRA-123', 'tour_operator_pays_for' => 'room-only'],
+        ['accommodationSource' => 'TOUR OPERATOR', 'tourRegNo' => 'ZRA-123', 'costOptions' => '5'],
+    ],
+]);
+
 // protects=VFMS spells euro EURO (guide §2.1); fails_when=EUR is sent as EUR; no_claim=other currencies VFMS accepts.
 test('a euro stay is sent in EURO', function () {
     $t = twoTenants();
