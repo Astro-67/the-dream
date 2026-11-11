@@ -50,7 +50,7 @@ import {
     type Amendment,
     type AmendmentOptions,
 } from '@/features/reservations/amendment-form';
-import { index, show } from '@/routes/reservations';
+import { groupStatement, index, show } from '@/routes/reservations';
 import { formatMoney } from '@/lib/utils';
 import {
     RoomMoveForm,
@@ -559,6 +559,16 @@ export default function Show({
                     </div>
                 )}
                 <FolioPanel
+                    groupStatementLink={
+                        <Link
+                            href={groupStatement(
+                                reservation.reservation_number,
+                            )}
+                            className="text-primary underline underline-offset-4"
+                        >
+                            Group statement
+                        </Link>
+                    }
                     stay={stay}
                     folios={folios}
                     totals={totals}

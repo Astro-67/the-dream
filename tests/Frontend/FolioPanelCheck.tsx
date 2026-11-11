@@ -219,6 +219,11 @@ function renderPanel(canRecordPayment = true, content?: ReactNode) {
                         canRecordPayment={canRecordPayment}
                         acceptedPaymentMethods={['card', 'other']}
                         extraCategories={['spa', 'other']}
+                        groupStatementLink={
+                            <a href="/reservations/R-1042/group-statement">
+                                Group statement
+                            </a>
+                        }
                     />
                 )
             }
@@ -281,6 +286,7 @@ assert.match(panel, /Due includes an estimate of [^<]*200[^<]* for 2 nights/);
 assert.match(panel, />Paid</);
 assert.match(panel, /Credit/);
 assert.match(panel, /reservations\/R-1042\/statement/);
+assert.match(panel, /reservations\/R-1042\/group-statement/);
 assert.match(panel, /<span class="font-mono">R-1042<\/span>/);
 assert.equal((panel.match(/aria-label="View folio /g) ?? []).length, 50);
 assert.match(panel, /folios_page=2/);
