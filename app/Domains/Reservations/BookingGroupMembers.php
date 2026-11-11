@@ -12,13 +12,13 @@ use Illuminate\Support\Facades\Gate;
 class BookingGroupMembers
 {
     /** @return Collection<int, Reservation> */
-    public function reservations(Reservation $reservation): Collection
+    public function reservations(Reservation $reservation, bool $lock = false): Collection
     {
         return Reservation::query()->where('property_id', $reservation->property_id)
             ->when($reservation->getAttribute('booking_group_id') === null,
                 fn ($query) => $query->whereKey($reservation->id),
                 fn ($query) => $query->where('booking_group_id', $reservation->getAttribute('booking_group_id')))
-            ->orderBy('reservation_number')->get();
+            ->orderBy('reservation_number')->when($lock, fn ($query) => $query->lockForUpdate())->get();
     }
 
     /** @return list<array<string, mixed>> */

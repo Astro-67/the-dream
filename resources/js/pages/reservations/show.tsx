@@ -120,6 +120,7 @@ export default function Show({
     rooms,
     canAssignRoom,
     canAmend,
+    showsPayingInstitution,
     canEditPayingInstitution,
     amendmentOptions,
     amendments,
@@ -154,6 +155,7 @@ export default function Show({
     rooms: { id: string; number: string; isReady: boolean }[];
     canAssignRoom: boolean;
     canAmend: boolean;
+    showsPayingInstitution: boolean;
     canEditPayingInstitution: boolean;
     amendmentOptions: AmendmentOptions | null;
     amendments: Paginated<Amendment>;
@@ -278,7 +280,8 @@ export default function Show({
                                     'Payment collector',
                                     reservation.payment_collector,
                                 ],
-                                ...(reservation.paying_institution_type
+                                ...(showsPayingInstitution &&
+                                reservation.paying_institution_type
                                     ? [
                                           [
                                               reservation.paying_institution_type ===

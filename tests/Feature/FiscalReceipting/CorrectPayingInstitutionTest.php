@@ -17,6 +17,7 @@ use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -184,3 +185,26 @@ test('a correction needs a name and ZRB number with a type', function () {
 
     expect(institutionOf($t->a, $first)['paying_institution_zrb_number'])->toBe('Z-WRONG');
 });
+
+// protects=only properties that file with VFMS correct a paying institution, even from a direct request (spec #242); fails_when=a Mainland or demo correction changes or clears the fields, or the page offers it; no_claim=the booking form.
+test('a Mainland or demo property refuses a correction and shows no paying institution', function (string $where) {
+    $t = twoTenants();
+    $property = $where === 'Mainland' ? $t->a->otherProperty : $t->a->property;
+    if ($where === 'demo') {
+        DB::table('properties')->where('id', $property->id)->update(['demo' => true]);
+    }
+    $reservation = inTenant($property, function () use ($t) {
+        $reservation = app(CreateReservation::class)->handle($t->a->owner, [...BookingForm::details($t->a->owner), 'adults' => 2, 'children' => 0]);
+        $reservation->update(['paying_institution_type' => 'business', 'paying_institution_name' => 'Island Supplies Ltd', 'paying_institution_zrb_number' => 'Z-WRONG']);
+
+        return $reservation;
+    });
+    $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $property->id]);
+
+    $this->patch(route('reservations.paying-institution', $reservation), ['paying_institution_type' => '', '_property' => $property->id])
+        ->assertSessionHasErrors('paying_institution_type');
+
+    expect(inTenant($property, fn () => $reservation->fresh()->paying_institution_zrb_number))->toBe('Z-WRONG');
+    $this->get(route('reservations.show', $reservation))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('canEditPayingInstitution', false)->where('showsPayingInstitution', false));
+})->with(['Mainland', 'demo']);

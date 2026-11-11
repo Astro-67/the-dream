@@ -27,6 +27,7 @@ use App\Domains\Reservations\AssignableRooms;
 use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\BookingGroupOccupancy;
 use App\Domains\Reservations\BookingRules;
+use App\Domains\Reservations\Enums\PayingInstitutionType;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\GroupStatement;
 use App\Domains\Reservations\Models\Reservation;
@@ -65,7 +66,7 @@ class ReservationController extends Controller
             'restrictionWarnings' => [...app(BookingRules::class)->warnings(Tenancy::property(), $stay['arrival'], $stay['departure']), ...($plan && $type ? $restrictions->warnings($plan, $type, $stay['arrival'], $stay['departure']) : [])],
             'nightlyRate' => $plan && $type && $occupancies !== [] ? (app(StayPricing::class)->quote($plan, $type, $stay['arrival'], $stay['departure'], $occupancies[0]['adults'], $occupancies[0]['children'])->nights[0]['total'] ?? null) : null,
             'businessDate' => BusinessDate::current(),
-            'filesWithVfms' => ! Tenancy::property()->demo && JurisdictionRules::usesVfms(Tenancy::property()),
+            'filesWithVfms' => PayingInstitutionType::offeredAt(Tenancy::property()),
         ]);
     }
 
@@ -149,7 +150,8 @@ class ReservationController extends Controller
                 'rooms' => Room::query()->whereNull('deactivated_at')->orderBy('number')->get(['id', 'number', 'room_type_id', 'property_id'])->each(fn (Room $room) => app(AssignableRooms::class)->shapeOption($room)),
             ] : null,
             'canAmend' => Gate::allows('amend', $reservation),
-            'canEditPayingInstitution' => ! $property->demo && JurisdictionRules::usesVfms($property) && Gate::allows('amend', $reservation) && CorrectPayingInstitution::editable($reservation),
+            'showsPayingInstitution' => $showsPayingInstitution = PayingInstitutionType::offeredAt($property),
+            'canEditPayingInstitution' => $showsPayingInstitution && Gate::allows('amend', $reservation) && CorrectPayingInstitution::editable($reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),
             'can' => ['checkIn' => $reservation->isEligibleForCheckIn(BusinessDate::current()) && Gate::allows('checkIn', $reservation),
                 'cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation), 'moveRoom' => $canMove, 'changeStay' => Gate::allows('changeStay', $reservation),

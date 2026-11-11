@@ -4,8 +4,11 @@ namespace App\Domains\FiscalReceipting\Actions;
 
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\Reservations\Actions\RecordLifecycleEvent;
+use App\Domains\Reservations\BookingGroupMembers;
+use App\Domains\Reservations\Enums\PayingInstitutionType;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use App\Support\Outbox\OutboxMessage;
@@ -37,9 +40,10 @@ class CorrectPayingInstitution
         $after = [...array_fill_keys(self::FIELDS, null), ...array_intersect_key($details, array_flip(self::FIELDS))];
 
         return Audit::validationRefusal($actor, $reservation, 'Paying institution correction refused', fn () => DB::transaction(function () use ($actor, $reservation, $after) {
-            $members = Reservation::query()->where('property_id', $reservation->property_id)
-                ->when($reservation->getAttribute('booking_group_id'), fn ($query, $group) => $query->where('booking_group_id', $group), fn ($query) => $query->whereKey($reservation->id))
-                ->orderBy('reservation_number')->lockForUpdate()->get();
+            if (! PayingInstitutionType::offeredAt(Property::query()->findOrFail($reservation->property_id))) {
+                throw ValidationException::withMessages(['paying_institution_type' => __('Only properties that file with VFMS record a paying institution.')]);
+            }
+            $members = app(BookingGroupMembers::class)->reservations($reservation, lock: true);
             if (! self::editable($members->firstOrFail(fn (Reservation $member) => $member->id === $reservation->id), lock: true)) {
                 throw ValidationException::withMessages(['paying_institution_type' => __('The paying institution cannot change once ZRA has accepted the check-in, or while its filing is waiting or unknown.')]);
             }
