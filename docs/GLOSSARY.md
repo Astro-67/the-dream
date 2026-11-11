@@ -26,6 +26,10 @@ _Avoid_: Booking (in formal requirements)
 The reservations created from one booking for several rooms, such as one Booking.com reservation for two rooms. Each member keeps its own reservation number.
 _Avoid_: Group block, multi-room reservation
 
+**Group statement**:
+A printable, non-fiscal settlement statement for every reservation in one booking group (or one reservation outside a group). It names the paying institution when set, itemises each room's folios and accepted ZRA fiscal report numbers, and keeps totals separate by currency. ZRA's per-guest reports remain the fiscal proof.
+_Avoid_: Group receipt, fiscal receipt
+
 **Stay**:
 The in-house phase of a reservation, from check-in to check-out. Not a separate record from the reservation.
 _Avoid_: Visit

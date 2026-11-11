@@ -115,6 +115,15 @@ return [
 
         return $responses;
     }),
+    'reservations.group-statement' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $reservation = inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->get(route('reservations.group-statement', $reservation))->assertNotFound();
+        }
+
+        return $responses;
+    }),
     'reservations.availability' => RouteCoverage::attempt(function (TwoTenants $t) {
         $type = inTenant($t->b->property, fn () => app(CreateRoomType::class)->handle($t->b->owner, InventoryForm::roomType(['name' => 'Bravo Secret Suite', 'code' => 'BRVX'])));
         $stay = ['arrival' => '2026-12-10', 'departure' => '2026-12-12', 'adults' => 2, 'children' => 0];

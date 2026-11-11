@@ -14,6 +14,7 @@ use App\Domains\Rates\Actions\SeedDefaultTaxRules;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\Outbox;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -54,6 +55,37 @@ test('group statement prints a standalone reservation without identity documents
             ->where('rooms.0.reports', [])
             ->has('totals', 1)->where('totals.0.currency', 'USD')->where('totals.0.balance', 10500))
         ->assertDontSee('SECRET245')->assertDontSee('Private group note');
+});
+
+test('group statement uses reservation view permission', function (OrganizationRole $role, bool $allowed) {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+    $actor = $role === OrganizationRole::Owner ? $t->a->owner : $t->a->member($role);
+
+    $response = $this->actingAs($actor)
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('reservations.group-statement', $reservation));
+
+    $allowed ? $response->assertOk() : $response->assertForbidden();
+})->with(array_map(fn (OrganizationRole $role) => [$role, $role !== OrganizationRole::Housekeeping], OrganizationRole::cases()));
+
+test('group statement cannot cross a property or follow stale property intent', function () {
+    $t = twoTenants();
+    $reservation = inTenant($t->a->property, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+    inTenant($t->a->property, fn () => $reservation->update(['booking_group_id' => '01GROUP24500000000000000000']));
+    $sibling = inTenant($t->a->otherProperty, function () use ($t, $reservation) {
+        $sibling = app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner));
+        $sibling->update(['booking_group_id' => $reservation->booking_group_id, 'reservation_number' => 'SIBLING-245']);
+
+        return $sibling;
+    });
+    $this->actingAs($t->a->owner)
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->get(route('reservations.group-statement', $reservation))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('rooms', 1)->where('group.rooms', 1));
+    $this->get(route('reservations.group-statement', [$sibling, '_property' => $t->a->otherProperty->id]))->assertNotFound();
+    $this->withSession(['tenancy.property_id' => $t->a->otherProperty->id])
+        ->get(route('reservations.group-statement', [$reservation, '_property' => $t->a->property->id]))->assertNotFound();
 });
 
 test('group statement lists only stored accepted checkout and guest departure numbers without exposing their documents', function () {
