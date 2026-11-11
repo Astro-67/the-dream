@@ -90,6 +90,9 @@ type Reservation = {
     tour_operator_name: string | null;
     tour_operator_registration: string | null;
     tour_operator_pays_for: string | null;
+    paying_institution_type: 'government' | 'business' | null;
+    paying_institution_name: string | null;
+    paying_institution_zrb_number: string | null;
     channel_reference: string | null;
     outside_integration_reason: string | null;
     requires_reconciliation: boolean;
@@ -272,6 +275,23 @@ export default function Show({
                                     'Payment collector',
                                     reservation.payment_collector,
                                 ],
+                                ...(reservation.paying_institution_type
+                                    ? [
+                                          [
+                                              reservation.paying_institution_type ===
+                                              'government'
+                                                  ? 'Paid by government institution (withholding)'
+                                                  : 'Paid by registered business (B2B)',
+                                              reservation.paying_institution_name ??
+                                                  '',
+                                          ],
+                                          [
+                                              'Paying institution ZRB number',
+                                              reservation.paying_institution_zrb_number ??
+                                                  '',
+                                          ],
+                                      ]
+                                    : []),
                             ].map(([label, value]) => (
                                 <div key={label} className="min-w-0">
                                     <dt className="text-sm text-muted-foreground">

@@ -36,6 +36,7 @@ export default function Create({
     nightlyRate,
     businessDate,
     guestAllocation = [],
+    filesWithVfms,
 }: {
     stay: Stay;
     roomType: Named | null;
@@ -51,6 +52,7 @@ export default function Create({
     nightlyRate: number | null;
     businessDate: string;
     guestAllocation?: { adults: number; children: number }[];
+    filesWithVfms: boolean;
 }) {
     const [source, setSource] = useState(stay.source ?? 'direct');
     const [values, setValues] = useState({
@@ -67,6 +69,7 @@ export default function Create({
         stay.room_type_id ??
         '';
     const [operator, setOperator] = useState(false);
+    const [institution, setInstitution] = useState('');
     const [documentType, setDocumentType] = useState('');
     const [collector, setCollector] = useState('property');
     const [planId, setPlanId] = useState(ratePlan?.id ?? '');
@@ -717,6 +720,57 @@ export default function Create({
                                         maxLength={5000}
                                     />
                                 </fieldset>
+                                {filesWithVfms && (
+                                    <fieldset className="space-y-4">
+                                        <legend className="font-medium">
+                                            Paid by an institution
+                                        </legend>
+                                        <Label htmlFor="paying_institution_type">
+                                            Paying institution
+                                        </Label>
+                                        <NativeSelect
+                                            id="paying_institution_type"
+                                            name="paying_institution_type"
+                                            value={institution}
+                                            onChange={(event) =>
+                                                setInstitution(
+                                                    event.target.value,
+                                                )
+                                            }
+                                        >
+                                            <option value="">None</option>
+                                            <option value="government">
+                                                Government institution
+                                                (withholding)
+                                            </option>
+                                            <option value="business">
+                                                Registered business (B2B)
+                                            </option>
+                                        </NativeSelect>
+                                        {institution && (
+                                            <>
+                                                <Label htmlFor="paying_institution_name">
+                                                    Institution name
+                                                </Label>
+                                                <Input
+                                                    id="paying_institution_name"
+                                                    name="paying_institution_name"
+                                                    required
+                                                    maxLength={255}
+                                                />
+                                                <Label htmlFor="paying_institution_zrb_number">
+                                                    ZRB number
+                                                </Label>
+                                                <Input
+                                                    id="paying_institution_zrb_number"
+                                                    name="paying_institution_zrb_number"
+                                                    required
+                                                    maxLength={255}
+                                                />
+                                            </>
+                                        )}
+                                    </fieldset>
+                                )}
                                 {source === 'outside-integration' && (
                                     <fieldset className="space-y-4">
                                         <legend className="font-medium">
