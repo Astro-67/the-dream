@@ -447,3 +447,18 @@ test('a Live check-in rejected at the old gateway URL is rebuilt while staying L
         && $request['paymentPackage'] === 'RO' && $request['checkInDate'] === '2026-12-10T06:00:00.000Z'
         && $request['guest'][0]['arrivalDate'] === '2026-12-10');
 });
+
+// protects=ZRA's paying-institution refusals reach staff verbatim (spec #242 story 5); fails_when=either text is hidden, or other provider text leaks; no_claim=Live wording.
+test('ZRA paying-institution refusals are shown verbatim and other text stays generic', function (string $statusMessage, bool $verbatim) {
+    $tenant = twoTenants()->a;
+    Http::fake([VfmsHttp::TEST_URL.'*' => Http::response(['statusCode' => 5000, 'statusMessage' => $statusMessage])]);
+    $reservation = vfmsRecoveryStay($tenant);
+
+    $this->actingAs($tenant->owner)->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
+        ->where('vfmsRefusal.message', $verbatim ? $statusMessage : 'ZRA refused this filing. Review the stay and its VFMS settings before re-filing.'));
+})->with([
+    'wrong ZRB number' => ['PLEASE USE THE CORRECT ZRB NUMBER', true],
+    'institution not registered' => ['This institution not Registered', true],
+    'texts around them' => ['PLEASE USE THE CORRECT ZRB NUMBER WA2400117', false],
+]);
