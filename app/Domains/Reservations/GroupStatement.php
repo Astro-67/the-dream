@@ -19,7 +19,7 @@ final class GroupStatement
         $folios = Folio::query()->whereIn('reservation_id', $members->modelKeys())->with('postings')->get();
         $totals = $folios->groupBy(fn (Folio $folio) => $folio->currency->value)->sortKeys()
             ->map(function (Collection $same, string $currency) use ($rooms) {
-                $estimates = $rooms->flatMap(fn (array $room) => $room['totals'])->where('currency', $currency)->pluck('estimate')->filter();
+                $estimates = $rooms->pluck('totals')->flatten(1)->where('currency', $currency)->pluck('estimate')->filter();
 
                 return [
                     'currency' => $currency, ...FolioSummary::of($same->flatMap(fn (Folio $folio) => $folio->postings)),
