@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Reservations;
 
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\FolioStatement;
 use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
@@ -166,22 +167,27 @@ class ReservationController extends Controller
     public function statement(Reservation $reservation): Response
     {
         Gate::authorize('view', $reservation);
-        $property = Property::query()->findOrFail($reservation->property_id);
-        $folios = FolioSummary::folios($reservation);
 
-        return Inertia::render('reservations/statement', [
-            'reservation' => [...$reservation->stay(), ...$reservation->only(['adults', 'children'])],
-            'folios' => $folios->map(fn (array $folio, int $index) => [
-                'number' => $index + 1, 'currency' => $folio['folio']->currency->value, 'summary' => $folio['summary'],
-                'postings' => $folio['postings']->map(fn (Posting $posting) => [
-                    ...$posting->only(['id', 'type', 'category', 'description', 'quantity', 'unit_price', 'amount', 'method']),
-                    'business_date' => $posting->business_date->toDateString(),
-                    'tax_lines' => array_map(fn (array $line) => ['name' => $line['name'], 'inclusive' => $line['inclusive'], 'amount' => $line['amount'], 'unavailable' => $line['unavailable'] ?? false], $posting->tax_lines),
-                ])->values(),
-            ])->values(),
-            'totals' => FolioSummary::totals($reservation, $folios),
-            'taxSource' => FolioSummary::taxSource($reservation, $property),
-            'property' => $property->only(['name', 'address_line', 'city', 'phone', 'email']),
+        return Inertia::render('reservations/statement', FolioStatement::of($reservation));
+    }
+
+    public function groupStatement(Reservation $reservation): Response
+    {
+        Gate::authorize('view', $reservation);
+        $statement = FolioStatement::of($reservation);
+
+        return Inertia::render('reservations/group-statement', [
+            'reservation' => $statement['reservation'],
+            'property' => $statement['property'],
+            'payingInstitution' => $reservation->paying_institution_type === null ? null : [
+                'name' => $reservation->paying_institution_name, 'zrbNumber' => $reservation->paying_institution_zrb_number,
+            ],
+            'group' => [
+                'arrival' => $reservation->arrival->toDateString(), 'departure' => $reservation->departure->toDateString(),
+                'rooms' => 1, 'guests' => $reservation->adults + $reservation->children,
+            ],
+            'rooms' => [[...$statement, 'reports' => []]],
+            'totals' => $statement['totals'],
         ]);
     }
 }
