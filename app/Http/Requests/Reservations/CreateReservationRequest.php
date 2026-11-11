@@ -6,7 +6,6 @@ use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Enums\MealPlan;
-use App\Domains\Reservations\Enums\PayingInstitutionType;
 use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Requests\AuditsRefusals;
@@ -17,7 +16,7 @@ use Illuminate\Validation\Rule;
 
 class CreateReservationRequest extends FormRequest
 {
-    use AuditsRefusals, StayRules;
+    use AuditsRefusals, PayingInstitutionRules, StayRules;
 
     public function authorize(): bool
     {
@@ -74,9 +73,7 @@ class CreateReservationRequest extends FormRequest
             'tour_operator_name' => ['exclude_unless:booked_through,tour-operator', 'required', 'string', 'max:255'],
             'tour_operator_registration' => ['exclude_unless:booked_through,tour-operator', 'required', 'string', 'max:255'],
             'tour_operator_pays_for' => ['exclude_unless:booked_through,tour-operator', 'required', Rule::enum(TourOperatorPaysFor::class)],
-            'paying_institution_type' => ['nullable', Rule::enum(PayingInstitutionType::class)],
-            'paying_institution_name' => ['exclude_without:paying_institution_type', 'required', 'string', 'max:255'],
-            'paying_institution_zrb_number' => ['exclude_without:paying_institution_type', 'required', 'string', 'max:255'],
+            ...$this->payingInstitutionRules(),
             'rooms' => ['sometimes', 'integer', 'between:1,20'],
             'distribute_guests' => ['sometimes', 'boolean'],
             'booker_id' => ['nullable', 'string', Rule::in(Booker::query()->pluck('id')->all())],
