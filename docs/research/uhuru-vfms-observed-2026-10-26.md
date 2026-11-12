@@ -237,3 +237,10 @@ Each stay was one guest, USD 100, checked in and checked out on unit `5940`; not
 - **After check-out.** `CS` with the departed guest's document was refused (`This Business Unit do not have parent Accomodation unit`). `WS` with the same document was accepted as a stand-alone receipt (`XHE2104648`).
 - **Day use (no room).** `WS` in the name "CASH CUSTOMER" with pool day pass 2 × 15 and lunch 2 × 12 was accepted as `XHE2104649`: sales 54.00, tax 7.04, no levy.
 - **Discount.** `WS` spa 100 with `discount` 10 was accepted as `XHE2104650`: sales 90.00, tax 11.74. The discount is an amount per line, taken off before tax is extracted.
+
+### General receipts through Karafuu, 12 November 2026 (ticket #250)
+
+Opt-in driver `tests/Feature/FiscalReceipting/VfmsTestServerGeneralReceiptTest.php` (`VFMS_TEST_SERVER_RUN=1`), through Karafuu's real routes and outbox, against the shared test unit `5940`. Fake guests; no credentials or test hosts recorded.
+
+- **Extra after check-out.** A one-guest USD stay: check-in accepted, `CS` water 2 × 10 accepted as `XHE2104828`, check-out accepted as report `XHE2104829`. Then a dinner 1 × 25 with discount 5 was posted on the departed stay: Karafuu sent `WS` in the guest's full name ("Test Guest 1", not the passport), accepted as `XHE2104831`, sales 20.00, tax 2.61. The stay was checked out before the `WS`; nothing is left open.
+- **`BTOB` group not run.** `VFMS_TEST_BTOB_ZRB_NUMBER` is not set in any checkout, and every number tried for `BTOB` (the guide's sample `Z025608121` and two tour-operator numbers from earlier runs) was refused with `PLEASE USE THE CORRECT ZRB NUMBER`. `WITHHOLD` with `WA2400117` is still refused (`This institution not Registered`). Refused check-ins open nothing on ZRA. The group scenario is in the driver and skips until a test-server `BTOB` number is set.

@@ -99,6 +99,7 @@ test('an extra after check-out gets a general receipt from ZRA\'s test server', 
 test('a BTOB group gets institution receipts per currency from ZRA\'s test server, then one at the last check-out', function () {
     wsTestServerGuard();
     $zrb = (string) config('services.vfms.test_btob_zrb_number');
+    expect($zrb)->not->toBe('');
     $t = twoTenants()->a;
     $property = ['_property' => $t->property->id];
     $run = 'WG'.Str::upper(Str::random(6));
@@ -126,4 +127,4 @@ test('a BTOB group gets institution receipts per currency from ZRA\'s test serve
         ->and(array_map(fn (array $call) => [$call['body']['currency'], array_column($call['body']['service'], 'itemName')], $receipts))
         ->toEqual([['USD', ['DINNER']], ['TZS', ['CONFERENCE HALL']], ['USD', ['WATER']]])
         ->and(array_values(array_unique(array_map(fn (array $call) => $call['body']['documentNumber'], $receipts))))->toBe(['Test Institution '.$run]);
-})->skip(getenv('VFMS_TEST_SERVER_RUN') !== '1' || blank(getenv('VFMS_TEST_BTOB_ZRB_NUMBER')), 'Real ZRA test-server run: set VFMS_TEST_SERVER_RUN=1 and VFMS_TEST_BTOB_ZRB_NUMBER.');
+})->skip(fn () => getenv('VFMS_TEST_SERVER_RUN') !== '1' || blank(config('services.vfms.test_btob_zrb_number')), 'Real ZRA test-server run: set VFMS_TEST_SERVER_RUN=1 and VFMS_TEST_BTOB_ZRB_NUMBER.');
