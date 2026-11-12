@@ -202,6 +202,7 @@ const groupStatement = renderToStaticMarkup(
                     name: 'Island Research',
                     zrbNumber: 'ZRB-245',
                 }}
+                generalReceipt={null}
                 group={{
                     arrival: '2026-12-10',
                     departure: '2026-12-12',
