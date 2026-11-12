@@ -45,6 +45,8 @@ test('day use with a discount and a two-day event close through ZRA test-server 
     $this->post(route('customer-accounts.close', $account), $intent)->assertSessionHasNoErrors();
     $message = inTenant($tenant->property, fn () => OutboxMessage::query()->where('integration', 'vfms')->with('attempts')->sole());
     $evidence = [
+        'id' => $message->id, 'subject_id' => $message->subject_id, 'mode' => $message->payload['mode'],
+        'request_type' => $message->payload['request_type'], 'path' => $message->payload['path'],
         'kind' => $kind, 'status' => $message->status, 'references' => $message->getAttribute('provider_references'), 'body' => $message->payload['body'],
         'attempts' => $message->attempts->map(fn ($attempt) => ['outcome' => $attempt->outcome, 'response' => $attempt->response_body])->all(),
     ];
