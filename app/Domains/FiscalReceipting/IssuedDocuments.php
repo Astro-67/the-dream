@@ -42,7 +42,9 @@ final class IssuedDocuments
         }
         $attempt = $message->attempts()->where('outcome', 'accepted')->orderByDesc('attempt_number')->first();
         $common = [
-            'outbox_message_id' => $message->id, 'outbox_attempt_id' => $attempt?->id, 'reservation_id' => $message->subject_id,
+            'outbox_message_id' => $message->id, 'outbox_attempt_id' => $attempt?->id,
+            'reservation_id' => ($message->payload['customer_account_id'] ?? null) === null ? $message->subject_id : null,
+            'customer_account_id' => $message->payload['customer_account_id'] ?? null,
             'type' => $type, 'mode' => $mode, 'issued_at' => $message->delivered_at,
         ];
         $documents = $type === 'checkout_report' ? $this->reports($message, $references, $attempt?->response_body) : $this->receipt($message, $references);

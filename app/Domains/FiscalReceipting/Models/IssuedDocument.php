@@ -16,7 +16,7 @@ use LogicException;
  * @property string $number
  * @property 'live'|'sandbox' $mode
  */
-#[Fillable(['outbox_message_id', 'outbox_attempt_id', 'reservation_id', 'posting_id', 'type', 'number', 'mode', 'issued_at', 'amount', 'currency', 'guest_name', 'viewer_url'])]
+#[Fillable(['outbox_message_id', 'outbox_attempt_id', 'reservation_id', 'customer_account_id', 'posting_id', 'type', 'number', 'mode', 'issued_at', 'amount', 'currency', 'guest_name', 'viewer_url'])]
 class IssuedDocument extends Model
 {
     use BelongsToProperty, HasUlids;

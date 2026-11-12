@@ -32,9 +32,8 @@ class RecordPayment
     public function handle(?User $actor, Folio $folio, array $details): Posting
     {
         return Audit::validationRefusal($actor, $folio, 'Payment refused', fn () => DB::transaction(function () use ($actor, $folio, $details) {
-            $reservation = $details['method'] === 'channel_collected'
-                ? Reservation::query()->whereKey($folio->reservation_id)->lockForUpdate()->firstOrFail()
-                : null;
+            $owner = $folio->lockOwner();
+            $reservation = $owner instanceof Reservation ? $owner : null;
             $folio = Folio::query()->whereKey($folio->id)->lockForUpdate()->firstOrFail();
             $key = $details['idempotency_key'] ?? (string) Str::ulid();
             $existing = Posting::query()->where('folio_id', $folio->id)->where('idempotency_key', $key)->first();
@@ -50,7 +49,9 @@ class RecordPayment
             if ($details['currency'] !== $folio->currency->value) {
                 throw ValidationException::withMessages(['currency' => __('This folio is in :currency.', ['currency' => $folio->currency->value])]);
             }
-            $reservation ??= Reservation::query()->findOrFail($folio->reservation_id);
+            if ($method === 'channel_collected' && $reservation === null) {
+                throw ValidationException::withMessages(['method' => __('Customer accounts cannot have channel-collected payments.')]);
+            }
             $amount = $method === 'channel_collected' ? $this->channelCollected($reservation, $folio) : (int) ($details['amount'] ?? 0);
             if ($amount <= 0) {
                 throw ValidationException::withMessages(['amount' => __('Enter an amount above zero.')]);
@@ -68,7 +69,7 @@ class RecordPayment
             $date = BusinessDate::of($property);
             $posting = Posting::query()->create([
                 'folio_id' => $folio->id, 'type' => 'payment',
-                'category' => $reservation->status === ReservationStatus::Confirmed ? 'deposit' : 'payment',
+                'category' => $reservation?->status === ReservationStatus::Confirmed ? 'deposit' : 'payment',
                 'method' => $method, 'cashier_shift_id' => $shift?->id, 'reference' => $details['reference'] ?? null, ...$card,
                 'quantity' => 1, 'unit_price' => $amount, 'net' => $amount, 'amount' => -$amount, 'currency' => $folio->currency,
                 'tax_lines' => [], 'tax_rule_ids' => [],
@@ -119,15 +120,17 @@ class RecordPayment
         }
         $sequence->increment('last_number');
 
-        $reservation = Reservation::query()->findOrFail(Folio::query()->findOrFail($posting->folio_id)->reservation_id);
-        $estimate = collect(FolioSummary::totals($reservation))->firstWhere('currency', $posting->currency->value)['estimate'] ?? null;
+        $folio = Folio::query()->findOrFail($posting->folio_id);
+        $reservation = $folio->reservation;
+        $estimate = $reservation === null ? null : (collect(FolioSummary::totals($reservation))->firstWhere('currency', $posting->currency->value)['estimate'] ?? null);
 
         // Taken under the folio lock, so it holds this payment and every posting committed before it.
         $summary = [
             'payment_posting_id' => $posting->id, 'currency' => $posting->currency->value, ...FolioSummary::of(Posting::query()->where('folio_id', $posting->folio_id)->get()),
             'estimate' => $estimate === null ? null : [...$estimate, 'currency' => $posting->currency->value],
             // The stay as it was then, so a later room move or date change does not rewrite this receipt.
-            'stay' => $reservation->stay(),
+            'stay' => $reservation?->stay(),
+            'customer_account' => $folio->customerAccount?->only(['id', 'number', 'customer_name', 'kind']),
         ];
 
         return Receipt::query()->create([

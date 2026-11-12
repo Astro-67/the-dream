@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::post('customer-accounts', [CustomerAccountController::class, 'store'])->middleware('property.intent')->name('customer-accounts.store');
     Route::get('customer-accounts/{customerAccount}', [CustomerAccountController::class, 'show'])->name('customer-accounts.show');
+    Route::post('customer-accounts/{customerAccount}/close', [CustomerAccountController::class, 'close'])->middleware('property.intent')->name('customer-accounts.close');
     Route::get('approvals', [ApprovalController::class, 'index'])->name('approvals.index');
     Route::post('approvals/{approval}/resolve', [ApprovalController::class, 'resolve'])->middleware('property.intent')->name('approvals.resolve');
     Route::put('approval-thresholds', [ApprovalController::class, 'threshold'])->middleware('property.intent')->name('approval-thresholds.update');

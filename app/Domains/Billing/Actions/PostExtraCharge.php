@@ -31,7 +31,8 @@ class PostExtraCharge
     public function handle(?User $actor, Folio $folio, array $details): Posting
     {
         return Audit::validationRefusal($actor, $folio, 'Extra charge refused', fn () => DB::transaction(function () use ($actor, $folio, $details) {
-            $reservation = Reservation::query()->whereKey($folio->reservation_id)->lockForUpdate()->firstOrFail();
+            $owner = $folio->lockOwner();
+            $reservation = $owner instanceof Reservation ? $owner : null;
             $folio = Folio::query()->whereKey($folio->id)->lockForUpdate()->firstOrFail();
             // Two identical extras can both be real, so without a client key each call is a new submission.
             $key = $details['idempotency_key'] ?? (string) Str::ulid();
@@ -47,7 +48,7 @@ class PostExtraCharge
                 throw ValidationException::withMessages(['discount' => __('The discount cannot be more than the line total.')]);
             }
             try {
-                $breakdown = TaxCalculator::forProperty($property, $gross, $folio->currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Extra, inclusivePrice: true);
+                $breakdown = TaxCalculator::forProperty($property, $gross, $folio->currency, $date, $reservation === null ? 0 : $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Extra, inclusivePrice: true);
             } catch (InvalidArgumentException $e) {
                 throw ValidationException::withMessages(['unit_price' => $e->getMessage()]);
             }
@@ -59,7 +60,9 @@ class PostExtraCharge
                 'idempotency_key' => $key, 'actor_id' => $actor?->id, 'business_date' => $date, 'posted_at' => now(),
             ]);
             Audit::record($actor, 'created', $posting, 'Extra charge posted', ['folio_id' => $folio->id, 'amount' => $posting->amount, 'currency' => $folio->currency->value]);
-            app(RecordLifecycleEvent::class)->handle($reservation, 'extra_posted', $actor, ['posting_id' => $posting->id, 'category' => $posting->category]);
+            if ($reservation !== null) {
+                app(RecordLifecycleEvent::class)->handle($reservation, 'extra_posted', $actor, ['posting_id' => $posting->id, 'category' => $posting->category]);
+            }
 
             return $posting;
         }));

@@ -137,6 +137,9 @@ final class VfmsAdvance
     public static function forReceipt(Receipt $receipt, bool $canFile): ?array
     {
         $payment = $receipt->posting()->firstOrFail();
+        if ($payment->category !== 'deposit') {
+            return null;
+        }
         $reservation = Reservation::query()->findOrFail(Folio::query()->findOrFail($payment->folio_id)->reservation_id);
         $property = Property::query()->findOrFail($reservation->property_id);
         if (! JurisdictionRules::usesVfms($property) || $payment->category !== 'deposit') {
