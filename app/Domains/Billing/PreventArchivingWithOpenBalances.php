@@ -13,8 +13,8 @@ final class PreventArchivingWithOpenBalances implements PreArchiveCheck
             return __('This property has folios with open balances. Settle them before archiving the property.');
         }
 
-        return OpenFolios::heldAccountExtrasExistFor($property)
-            ? __('This property has customer account extras waiting for a ZRA receipt. Close and issue them before archiving the property.')
+        return OpenFolios::heldExtrasExistFor($property)
+            ? __('This property has extras waiting for a ZRA receipt. Issue them before archiving the property.')
             : null;
     }
 }

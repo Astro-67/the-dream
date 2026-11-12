@@ -2,7 +2,6 @@
 
 namespace App\Domains\Billing;
 
-use App\Domains\Billing\Actions\CloseCustomerAccount;
 use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
@@ -43,7 +42,7 @@ final class OpenFolios
             return false;
         }
 
-        return self::withBalanceExistFor($property) || self::heldAccountExtrasExistFor($property) || Tenancy::within(TenantContext::forOrganization($property->organization_id), fn () => Folio::query()
+        return self::withBalanceExistFor($property) || self::heldExtrasExistFor($property) || Tenancy::within(TenantContext::forOrganization($property->organization_id), fn () => Folio::query()
             ->where('property_id', $property->id)
             ->where(fn ($query) => $query
                 ->whereIn('reservation_id', Reservation::query()->select('id')->where('property_id', $property->id)->where('status', ReservationStatus::CheckedIn))
@@ -51,20 +50,17 @@ final class OpenFolios
             ->exists());
     }
 
-    public static function heldAccountExtrasExistFor(Property $property): bool
+    public static function heldExtrasExistFor(Property $property): bool
     {
         if ($property->isDemo() || ! $property->isLive() || ! JurisdictionRules::usesVfms($property)) {
             return false;
         }
 
-        return $property->exists && Tenancy::within(TenantContext::forOrganization($property->organization_id), function () use ($property) {
-            foreach (CustomerAccount::query()->where('property_id', $property->id)->cursor() as $account) {
-                if (CloseCustomerAccount::held($account)->exists()) {
-                    return true;
-                }
-            }
-
-            return false;
-        });
+        return $property->exists && Tenancy::within(TenantContext::forOrganization($property->organization_id), fn () => Posting::query()
+            ->where('postings.property_id', $property->id)->heldExtras()
+            ->whereIn('folio_id', Folio::query()->select('id')->where('property_id', $property->id)
+                ->where(fn ($query) => $query->whereNotNull('customer_account_id')
+                    ->orWhereIn('reservation_id', Reservation::query()->select('id')->where('property_id', $property->id)->whereNotNull('paying_institution_type'))))
+            ->exists());
     }
 }

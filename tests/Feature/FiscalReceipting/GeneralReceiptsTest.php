@@ -2,8 +2,10 @@
 
 use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\Billing\PreventArchivingWithOpenBalances;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\Inventory\Models\Room;
@@ -75,6 +77,20 @@ test('a paying-institution stay holds its extras unreceipted', function () {
         ->and(generalReceiptMessages($t, 'generalReceipt'))->toBe([])
         ->and($posting->fresh()->vfms_receipt_number)->toBeNull()
         ->and($posting->fresh()->general_receipt_id)->toBeNull();
+});
+
+test('settled institution extras prevent archiving only their property until receipted', function () {
+    $t = twoTenants()->a;
+    $stay = generalReceiptStay($t, ['paying_institution_type' => 'government', 'paying_institution_name' => 'Ministry of Health']);
+    $folio = inTenant($t->property, fn () => Folio::query()->sole());
+    postGeneralReceiptExtra($this, $t, $folio, []);
+    inTenant($t->property, fn () => app(RecordPayment::class)->handle($t->owner, $folio, ['method' => 'bank_transfer', 'amount' => 1000, 'currency' => 'USD']));
+    $guard = new PreventArchivingWithOpenBalances;
+
+    expect($guard->blockingReason($t->property))->not->toBeNull()
+        ->and($guard->blockingReason($t->otherProperty))->toBeNull();
+    issueGeneralReceiptAs($this, $t, $stay)->assertSessionHasNoErrors();
+    expect($guard->blockingReason($t->property))->toBeNull();
 });
 
 // protects=a confirmed stay's extra is not filed (spec #249 out of scope); fails_when=a pre-arrival extra files anything; no_claim=fiscal exception listing.
