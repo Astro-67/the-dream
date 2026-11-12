@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::get('customer-accounts', [CustomerAccountController::class, 'index'])->name('customer-accounts.index');
     Route::post('customer-accounts', [CustomerAccountController::class, 'store'])->middleware('property.intent')->name('customer-accounts.store');
+    Route::get('customer-accounts/{customerAccount}/print', [CustomerAccountController::class, 'print'])->name('customer-accounts.print');
     Route::get('customer-accounts/{customerAccount}', [CustomerAccountController::class, 'show'])->name('customer-accounts.show');
     Route::post('customer-accounts/{customerAccount}/close', [CustomerAccountController::class, 'close'])->middleware('property.intent')->name('customer-accounts.close');
     Route::post('customer-accounts/{customerAccount}/vfms/{message}/retry', [CustomerAccountController::class, 'recover'])->middleware('property.intent')->name('customer-accounts.vfms.retry');

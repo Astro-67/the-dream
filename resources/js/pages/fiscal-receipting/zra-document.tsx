@@ -339,19 +339,27 @@ export default function ZraDocument({
 
 ZraDocument.layout = ({
     reservationNumber,
+    backUrl,
 }: {
     reservationNumber: string;
+    backUrl: string;
 }) => ({
-    breadcrumbs: [
-        { title: 'Reservations', href: '/reservations' },
-        {
-            title: reservationNumber,
-            href: `/reservations/${reservationNumber}`,
-        },
-        {
-            title: 'ZRA documents',
-            href: fiscalReport(reservationNumber).url,
-        },
-        { title: 'Print', href: '#' },
-    ],
+    breadcrumbs: reservationNumber.startsWith('ACC-')
+        ? [
+              { title: 'Day use & events', href: '/customer-accounts' },
+              { title: reservationNumber, href: backUrl },
+              { title: 'Print', href: '#' },
+          ]
+        : [
+              { title: 'Reservations', href: '/reservations' },
+              {
+                  title: reservationNumber,
+                  href: `/reservations/${reservationNumber}`,
+              },
+              {
+                  title: 'ZRA documents',
+                  href: fiscalReport(reservationNumber).url,
+              },
+              { title: 'Print', href: '#' },
+          ],
 });

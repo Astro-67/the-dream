@@ -1,12 +1,16 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenCustomerAccount;
+use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
+use App\Support\Outbox\DrainOutboxMessage;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\TenantFixture;
 use Tests\Support\VfmsHttp;
@@ -165,4 +169,37 @@ test('the ZRA documents page and print never carry a guest document before an au
     }
     zraDocumentsPage($this, $t, $second, OrganizationRole::Finance)->assertInertia(fn (Assert $page) => $page
         ->has('guestReports', 2)->where('guestReports.0.identity', null)->where('revealIdentityUrl', null));
+});
+
+// protects=account pages reuse the ZRA sections and print their own stored receipt, never another account's.
+test('a customer account reuses the ZRA sections and can print its own general receipt only', function () {
+    $t = twoTenants()->a;
+    $account = inTenant($t->property, fn () => app(OpenCustomerAccount::class)->handle($t->owner, ['kind' => 'day_use', 'customer_name' => 'Pool visitor', 'currency' => 'USD']));
+    $folio = inTenant($t->property, fn () => Folio::query()->where('customer_account_id', $account->id)->sole());
+    postGeneralReceiptExtra($this, $t, $folio, ['description' => 'POOL', 'unit_price' => 4500]);
+    fakeGeneralReceiptService(Http::response([...zraDocumentsWsAnswer(), 'documentNumber' => 'Pool visitor']));
+    inTenant($t->property, function () use ($t, $folio) {
+        app(RecordPayment::class)->handle($t->owner, $folio, ['method' => 'bank_transfer', 'amount' => 4500, 'currency' => 'USD']);
+    });
+    $this->actingAs($t->owner)->withSession(['tenancy.organization_id' => $t->organization->id, 'tenancy.property_id' => $t->property->id]);
+    $this->get(route('customer-accounts.show', $account))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('zraDocuments.held', 1)->where('zraDocuments.generalReceipts', []));
+    $this->post(route('customer-accounts.close', $account), ['_property' => $t->property->id])->assertSessionHasNoErrors();
+    $this->get(route('customer-accounts.show', $account))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('zraDocuments.held', [])->has('zraDocuments.generalReceipts', 1)
+        ->where('zraDocuments.generalReceipts.0.customer', 'Pool visitor')
+        ->where('zraDocuments.generalReceipts.0.status', 'issued'));
+    $this->get(route('customer-accounts.print', $account))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('fiscal-receipting/zra-document')->has('documents', 1)->where('documents.0.total', 4500));
+});
+
+// protects=historical service answers can omit fields; a missing guest name never exposes documentNumber in print.
+test('a historical guest receipt with missing fields prints no invented figures or document identity', function () {
+    $t = twoTenants()->a;
+    Queue::fake([DrainOutboxMessage::class]);
+    [$stay, $old] = correctionDocuments($t);
+    $this->actingAs($t->owner)->withSession(['tenancy.organization_id' => $t->organization->id, 'tenancy.property_id' => $t->property->id])
+        ->get(route('reservations.fiscal-report.print', [$stay, 'document' => $old->id]))->assertOk()
+        ->assertDontSee('PRIVATE-GUEST-ID')->assertInertia(fn (Assert $page) => $page
+        ->where('documents.0.total', null)->where('documents.0.customer', 'Travel Booker'));
 });

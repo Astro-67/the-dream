@@ -47,6 +47,19 @@ return [
 
         return $responses;
     }),
+    'customer-accounts.print' => RouteCoverage::attempt(function (TwoTenants $tenants) {
+        $responses = [];
+        foreach ([[$tenants->b, $tenants->b->property], [$tenants->a, $tenants->a->otherProperty]] as [$tenant, $property]) {
+            $account = inTenant($property, fn () => app(OpenCustomerAccount::class)->handle($tenant->owner, [
+                'kind' => 'day_use', 'customer_name' => 'Foreign customer', 'currency' => 'USD',
+            ]));
+            $responses[] = $this->actingAs($tenants->a->owner)->withSession([
+                'tenancy.organization_id' => $tenants->a->organization->id, 'tenancy.property_id' => $tenants->a->property->id,
+            ])->get(route('customer-accounts.print', $account))->assertNotFound();
+        }
+
+        return $responses;
+    }),
     'customer-accounts.show' => RouteCoverage::attempt(fn (TwoTenants $tenants) => $attackAccount->call($this, $tenants, 'customer-accounts.show')),
     'customer-accounts.close' => RouteCoverage::attempt(fn (TwoTenants $tenants) => $attackAccount->call($this, $tenants, 'customer-accounts.close')),
     'customer-accounts.vfms.retry' => RouteCoverage::attempt(fn (TwoTenants $tenants) => $attackAccount->call($this, $tenants, 'customer-accounts.vfms.retry')),

@@ -8,6 +8,7 @@ use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\CustomerAccounts;
 use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\FiscalReceipting\Actions\RecoverVfmsFiling;
+use App\Domains\FiscalReceipting\PrintedDocuments;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Billing\CloseCustomerAccountRequest;
@@ -18,6 +19,7 @@ use App\Support\Money\Currency;
 use App\Support\Outbox\OutboxMessage;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -47,6 +49,19 @@ class CustomerAccountController extends Controller
         Gate::authorize('view', $customerAccount);
 
         return Inertia::render('customer-accounts/show', CustomerAccounts::page($customerAccount));
+    }
+
+    public function print(Request $request, CustomerAccount $customerAccount): Response
+    {
+        Gate::authorize('view', $customerAccount);
+        $documents = PrintedDocuments::for($customerAccount, $request->string('document')->value() ?: null);
+        abort_if($request->filled('document') && $documents === [], 404);
+
+        return Inertia::render('fiscal-receipting/zra-document', [
+            'documents' => $documents, 'sandbox' => collect($documents)->contains('mode', 'sandbox'),
+            'property' => Tenancy::property()->only(['name']), 'branding' => Tenancy::property()->branding(),
+            'reservationNumber' => $customerAccount->number, 'backUrl' => route('customer-accounts.show', $customerAccount),
+        ]);
     }
 
     public function store(OpenCustomerAccountRequest $request, OpenCustomerAccount $open): RedirectResponse

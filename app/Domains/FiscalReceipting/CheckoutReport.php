@@ -3,6 +3,7 @@
 namespace App\Domains\FiscalReceipting;
 
 use App\Domains\Billing\FolioSummary;
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
@@ -86,7 +87,7 @@ final class CheckoutReport
                     'room' => $roomOf($message->subject_id),
                     'amount' => app(VfmsPayloads::class)->minor($entry['total']['totalAmount'], $currency), 'currency' => $currency->value,
                     'levy' => app(VfmsPayloads::class)->minor($entry['totalInfrastructure'], $currency),
-                    'issuedAt' => $message->delivered_at?->toIso8601String(), ...self::state($message),
+                    'issuedAt' => $message->getAttribute('delivered_at')?->toIso8601String(), ...self::state($message),
                     'printUrl' => $printUrl($document('checkout_report', $number, $mode)),
                 ];
             }
@@ -99,7 +100,7 @@ final class CheckoutReport
                 'departedEarly' => $messages->firstWhere('id', $report->getAttribute('outbox_message_id'))?->event === 'guestDeparture',
                 'portalUrl' => $guestUrl, 'qrSvg' => $guestUrl === null ? null : self::qr($guestUrl),
                 'room' => $roomOf($report->getAttribute('reservation_id')), 'amount' => $report->getAttribute('amount'), 'currency' => $report->getAttribute('currency'),
-                'levy' => null, 'issuedAt' => $report->issued_at?->toIso8601String(), 'status' => 'issued', 'reason' => null, 'retryUrl' => null, 'refileUrl' => null,
+                'levy' => null, 'issuedAt' => $report->getAttribute('issued_at')?->toIso8601String(), 'status' => 'issued', 'reason' => null, 'retryUrl' => null, 'refileUrl' => null,
                 'printUrl' => $printUrl($report),
             ];
         }
@@ -127,7 +128,7 @@ final class CheckoutReport
                     'number' => $posting->vfms_receipt_number, 'description' => $posting->description, 'amount' => $posting->amount,
                     'currency' => $posting->currency->value,
                     'mode' => $mode, 'portalUrl' => $receiptUrl, 'qrSvg' => $receiptUrl === null ? null : self::qr($receiptUrl),
-                    'stay' => $service?->subject_id, 'issuedAt' => $service?->delivered_at?->toIso8601String(),
+                    'stay' => $service?->subject_id, 'issuedAt' => $service?->getAttribute('delivered_at')?->toIso8601String(),
                 ];
             })->all();
         $issuedServices = $documents->where('type', 'services_receipt');
@@ -141,7 +142,7 @@ final class CheckoutReport
                     'description' => collect($serviceReceipts)->firstWhere('number', $document->number)['description'] ?? null,
                     'amount' => $document->getAttribute('amount'), 'currency' => $document->getAttribute('currency'),
                     'mode' => $document->mode, 'portalUrl' => $url, 'qrSvg' => $url === null ? null : self::qr($url),
-                    ...$guest($document->getAttribute('reservation_id')), 'issuedAt' => $document->issued_at?->toIso8601String(),
+                    ...$guest($document->getAttribute('reservation_id')), 'issuedAt' => $document->getAttribute('issued_at')?->toIso8601String(),
                     'status' => 'issued', 'reason' => null, 'retryUrl' => null, 'refileUrl' => null, 'printUrl' => $printUrl($document),
                 ];
             })->values()->all(),
@@ -159,9 +160,9 @@ final class CheckoutReport
             $url = $issued?->getAttribute('viewer_url');
 
             return [
-                'number' => $issued?->number ?? $message->getAttribute('provider_references')['receiptNumber'] ?? null, 'customer' => $message->payload['body']['documentNumber'], 'items' => count($message->payload['body']['service']),
+                'number' => $issued->number ?? $message->getAttribute('provider_references')['receiptNumber'] ?? null, 'customer' => $message->payload['body']['documentNumber'], 'items' => count($message->payload['body']['service']),
                 ...($issued === null ? self::filed($message) : ['amount' => $issued->getAttribute('amount'), 'currency' => $issued->getAttribute('currency')]),
-                'mode' => $issued->mode ?? $message->payload['mode'] ?? null, 'issuedAt' => $issued?->issued_at?->toIso8601String(),
+                'mode' => $issued->mode ?? $message->payload['mode'] ?? null, 'issuedAt' => $issued?->getAttribute('issued_at')?->toIso8601String(),
                 'portalUrl' => $url, 'qrSvg' => $url === null ? null : self::qr($url),
                 ...self::state($message, $members->find($message->subject_id)), 'printUrl' => $printUrl($issued),
             ];
@@ -219,9 +220,10 @@ final class CheckoutReport
      *
      * @return array{status: 'issued'|'sending'|'attention', reason: string|null, retryUrl: string|null, refileUrl: string|null}
      */
-    private static function state(OutboxMessage $message, ?Reservation $stay = null): array
+    public static function state(OutboxMessage $message, Reservation|CustomerAccount|null $stay = null): array
     {
         $recover = $stay !== null && Gate::allows('recoverVfms', $stay);
+        $routes = $stay instanceof CustomerAccount ? 'customer-accounts' : 'reservations';
 
         return [
             'status' => match ($message->status) {
@@ -235,8 +237,8 @@ final class CheckoutReport
                 'exhausted' => __('ZRA could not be reached. Retry when it is back.'),
                 default => null,
             },
-            'retryUrl' => $recover && in_array($message->status, ['retryable', 'exhausted'], true) ? route('reservations.vfms.retry', [$stay, $message]) : null,
-            'refileUrl' => $recover && $message->status === 'rejected' ? route('reservations.vfms.refile', [$stay, $message]) : null,
+            'retryUrl' => $recover && in_array($message->status, ['retryable', 'exhausted'], true) ? route($routes.'.vfms.retry', [$stay, $message]) : null,
+            'refileUrl' => $recover && $message->status === 'rejected' ? route($routes.'.vfms.refile', [$stay, $message]) : null,
         ];
     }
 
@@ -245,7 +247,7 @@ final class CheckoutReport
      *
      * @return array{amount: int, currency: string}
      */
-    private static function filed(OutboxMessage $message): array
+    public static function filed(OutboxMessage $message): array
     {
         $payloads = app(VfmsPayloads::class);
         $body = $message->payload['body'];

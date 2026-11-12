@@ -10,6 +10,7 @@ use App\Domains\FiscalReceipting\DocumentCorrections;
 use App\Domains\FiscalReceipting\PrintedDocuments;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;
@@ -67,7 +68,7 @@ class CheckoutReportController extends Controller
 
         return Inertia::render('fiscal-receipting/checkout-report', [
             ...$report,
-            'documentCorrections' => DocumentCorrections::forReservation($reservation, true),
+            'documentCorrections' => app(BookingGroupMembers::class)->reservations($reservation)->flatMap(fn (Reservation $member) => DocumentCorrections::forReservation($member, true))->all(),
             'correctionRefresh' => RefreshCorrectionDecisions::status($property),
             'revealIdentityUrl' => $request->user()?->can('revealFiscalIdentity', $reservation)
                 ? route('reservations.fiscal-report.reveal-identity', $reservation) : null,

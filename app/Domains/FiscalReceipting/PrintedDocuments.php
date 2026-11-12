@@ -2,6 +2,7 @@
 
 namespace App\Domains\FiscalReceipting;
 
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\Models\Reservation;
@@ -21,13 +22,14 @@ final class PrintedDocuments
      *
      * @return list<array<string, mixed>>
      */
-    public static function for(Reservation $reservation, ?string $documentId): array
+    public static function for(Reservation|CustomerAccount $reservation, ?string $documentId): array
     {
-        $members = app(BookingGroupMembers::class)->reservations($reservation);
-        $documents = IssuedDocument::query()->where('property_id', $reservation->property_id)->whereIn('reservation_id', $members->modelKeys())
+        $account = $reservation instanceof CustomerAccount;
+        $members = $account ? collect([$reservation]) : app(BookingGroupMembers::class)->reservations($reservation);
+        $documents = IssuedDocument::query()->where('property_id', $reservation->property_id)->whereIn($account ? 'customer_account_id' : 'reservation_id', $members->pluck('id'))
             ->when($documentId !== null, fn ($query) => $query->whereKey($documentId))->orderBy('issued_at')->orderBy('id')->get();
         $property = Property::query()->findOrFail($reservation->property_id);
-        $leads = Reservation::guestNames($members);
+        $leads = $account ? collect() : Reservation::guestNames($members);
 
         return $documents->map(fn (IssuedDocument $document) => self::document($document, $property, $leads->get((string) $document->getAttribute('reservation_id'))))
             ->values()->all();
@@ -41,10 +43,10 @@ final class PrintedDocuments
         $common = [
             'id' => $document->id, 'type' => $document->type, 'number' => $document->number, 'mode' => $document->mode,
             'currency' => $document->getAttribute('currency'), 'viewerUrl' => $url, 'qrSvg' => $url === null ? null : CheckoutReport::qr($url),
-            'issuedAt' => $document->issued_at?->toIso8601String(),
+            'issuedAt' => $document->getAttribute('issued_at')?->toIso8601String(),
             'business' => ['name' => $property->name, 'street' => trim($property->address_line.', '.$property->city, ', '), 'phone' => $property->phone,
                 'tin' => $property->tin, 'vrn' => $property->vrn, 'znumber' => $property->z_number],
-            'customer' => null, 'items' => [], 'rooms' => [], 'taxExclusive' => null, 'tax' => null, 'levy' => null, 'total' => $document->getAttribute('amount'),
+            'customer' => null, 'items' => [], 'rooms' => [], 'taxExclusive' => null, 'tax' => null, 'levy' => null, 'total' => null,
         ];
         if ($answer === null) {
             return $common;
@@ -64,14 +66,17 @@ final class PrintedDocuments
      */
     private static function receipt(array $common, array $answer, ?string $guestName): array
     {
+        if (! in_array($answer['currency'] ?? $common['currency'], ['USD', 'EURO', 'EUR', 'TZS'], true)) {
+            return $common;
+        }
         $payloads = app(VfmsPayloads::class);
-        $currency = $payloads->fromVfmsCurrency($answer['currency']);
+        $currency = $payloads->fromVfmsCurrency($answer['currency'] ?? $common['currency']);
         $minor = fn (mixed $value): ?int => is_numeric($value) ? $payloads->minor($value, $currency) : null;
 
-        return [...$common, 'currency' => $currency->value, 'customer' => $guestName ?? ($answer['documentNumber'] ?? null),
+        return [...$common, 'currency' => $currency->value, 'customer' => $common['type'] === 'general_receipt' ? ($answer['documentNumber'] ?? null) : $guestName,
             'issuedAt' => self::instant($answer['recordedAt'] ?? null) ?? $common['issuedAt'],
             'items' => array_map(fn (array $line) => [
-                'name' => $line['itemName'], 'quantity' => $line['quantity'] + 0, 'price' => $minor($line['price']), 'discount' => $minor($line['discount'] ?? 0),
+                'name' => $line['itemName'] ?? __('Item'), 'quantity' => $line['quantity'] + 0, 'price' => $minor($line['price']), 'discount' => $minor($line['discount'] ?? 0),
                 'amount' => $minor($line['price'] * $line['quantity'] - ($line['discount'] ?? 0)),
             ], array_values(array_filter($answer['service'] ?? [], is_array(...)))),
             'taxExclusive' => $minor($answer['taxExclusive'] ?? null), 'tax' => $minor($answer['tax'] ?? null), 'total' => $minor($answer['salesAmount'] ?? null) ?? $common['total']];
@@ -103,15 +108,17 @@ final class PrintedDocuments
                 'room' => $line['roomName'], 'days' => $line['days'] + 0, 'price' => $minor($line['accommodationPrice']), 'amount' => $minor($line['amount']), 'tax' => $minor($line['tax']),
             ], $entry['room']['room'] ?? []),
             'items' => array_map(fn (array $line) => [
-                'name' => $line['itemName'], 'quantity' => $line['quantity'] + 0, 'price' => $minor($line['price']), 'discount' => $minor($line['discount'] ?? 0), 'amount' => $minor($line['amount']),
+                'name' => $line['itemName'] ?? __('Item'), 'quantity' => $line['quantity'] + 0, 'price' => $minor($line['price']), 'discount' => $minor($line['discount'] ?? 0), 'amount' => $minor($line['amount']),
             ], $entry['service']['service'] ?? []),
             'tax' => $minor($entry['total']['totalTax'] ?? null), 'levy' => $minor($entry['totalInfrastructure'] ?? null), 'total' => $minor($entry['total']['totalAmount'] ?? null) ?? $common['total']];
     }
 
-    /** ZRA's accepted answer for the document, or null when it was never stored or no longer reads. */
+    /** ZRA's accepted answer for the document, or null when it was never stored or no longer reads.
+     * @return array<string|int, mixed>|null
+     */
     private static function answer(IssuedDocument $document): ?array
     {
-        $attempt = OutboxAttempt::query()->where('property_id', $document->property_id)->whereKey($document->getAttribute('outbox_attempt_id'))->first();
+        $attempt = OutboxAttempt::query()->where('property_id', $document->property_id)->where('outbox_message_id', $document->getAttribute('outbox_message_id'))->where('outcome', 'accepted')->whereKey($document->getAttribute('outbox_attempt_id'))->first();
         $body = $attempt?->response_body === null ? null : json_decode($attempt->response_body, true)['body'] ?? null;
 
         return is_array($body) ? $body : null;

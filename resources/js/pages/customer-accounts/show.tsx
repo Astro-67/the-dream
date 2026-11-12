@@ -32,10 +32,9 @@ import {
     GeneralReceiptDialog,
     type GeneralReceiptPreview,
 } from '@/features/fiscal-receipting/general-receipt-dialog';
-import {
-    VfmsFilingsPanel,
-    type VfmsFiling,
-} from '@/features/fiscal-receipting/vfms-filings-panel';
+import ZraDocuments, {
+    type ZraDocumentsProps,
+} from '@/features/fiscal-receipting/zra-documents';
 import { formatDate, formatMoney } from '@/lib/utils';
 import { index } from '@/routes/customer-accounts';
 import { show as showReceipt } from '@/routes/receipts';
@@ -90,8 +89,7 @@ export default function Show({
     acceptedPaymentMethods,
     generalReceipt,
     fiscalEnabled,
-    filings,
-    documents,
+    zraDocuments,
 }: {
     account: Account;
     folios: Folio[];
@@ -101,15 +99,7 @@ export default function Show({
     acceptedPaymentMethods: string[];
     generalReceipt: GeneralReceiptPreview;
     fiscalEnabled: boolean;
-    filings: VfmsFiling[];
-    documents: {
-        id: string;
-        number: string;
-        amount: number | null;
-        currency: string | null;
-        viewer_url: string | null;
-        mode: string;
-    }[];
+    zraDocuments: ZraDocumentsProps;
 }) {
     return (
         <>
@@ -175,82 +165,7 @@ export default function Show({
                             ZRA filing does not apply to this property.
                         </p>
                     ) : (
-                        <>
-                            {documents.some(
-                                (document) => document.mode === 'sandbox',
-                            ) && (
-                                <StatusChip tone="warning">
-                                    TEST, NOT FISCAL
-                                </StatusChip>
-                            )}
-                            <h3 className="font-medium">
-                                General receipts ({documents.length})
-                            </h3>
-                            {documents.length === 0 ? (
-                                <EmptyState message="No ZRA receipt issued yet. Settle the balance, then close and issue." />
-                            ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>ZRA number</TableHead>
-                                            <TableHead numeric>
-                                                Amount
-                                            </TableHead>
-                                            <TableHead>Viewer</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {documents.map((document) => (
-                                            <TableRow key={document.id}>
-                                                <TableCell>
-                                                    <Identifier
-                                                        value={document.number}
-                                                    />
-                                                </TableCell>
-                                                <TableCell numeric>
-                                                    {document.amount !== null &&
-                                                    document.currency
-                                                        ? formatMoney(
-                                                              document.amount,
-                                                              document.currency,
-                                                          )
-                                                        : 'Unavailable'}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {document.viewer_url ? (
-                                                        <a
-                                                            href={
-                                                                document.viewer_url
-                                                            }
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="underline underline-offset-4"
-                                                        >
-                                                            Open ZRA receipt
-                                                        </a>
-                                                    ) : (
-                                                        'Unavailable'
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            )}
-                            <h3 className="font-medium">
-                                Not yet receipted ({generalReceipt.items.length}
-                                )
-                            </h3>
-                            {generalReceipt.totals.map((total) => (
-                                <p
-                                    key={total.currency}
-                                    className="tabular-nums"
-                                >
-                                    {formatMoney(total.amount, total.currency)}
-                                </p>
-                            ))}
-                            <VfmsFilingsPanel filings={filings} />
-                        </>
+                        <ZraDocuments {...zraDocuments} embedded />
                     )}
                 </section>
             </div>

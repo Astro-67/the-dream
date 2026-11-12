@@ -12,7 +12,7 @@ use LogicException;
  * A fiscal document VFMS issued, as projected by IssuedDocuments from delivered outbox evidence.
  *
  * @property string $id
- * @property 'services_receipt'|'checkout_report' $type
+ * @property 'services_receipt'|'general_receipt'|'checkout_report' $type
  * @property string $number
  * @property 'live'|'sandbox' $mode
  */
