@@ -131,7 +131,7 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
             throw new RuntimeException('The filing no longer matches this stay and VFMS mode.');
         }
         $ids = $message->payload['posting_ids'] ?? [];
-        if ($message->status === 'rejected') {
+        if ($message->status === 'rejected' && ($reservation instanceof CustomerAccount || $reservation->getAttribute('paying_institution_type') !== null)) {
             $held = $reservation instanceof CustomerAccount
                 ? CloseCustomerAccount::held($reservation)
                 : IssueGeneralReceipt::held(app(BookingGroupMembers::class)->reservations($reservation, lock: true));

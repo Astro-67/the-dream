@@ -66,6 +66,21 @@ test('a checked-out guest\'s extra gets a general receipt in the guest\'s full n
         ->and(generalReceiptMessages($t, 'services'))->toBe([]);
 });
 
+test('a refused departed guest receipt can still be refiled without an institution', function () {
+    $t = twoTenants()->a;
+    $stay = generalReceiptStay($t);
+    inTenant($t->property, fn () => $stay->update(['status' => ReservationStatus::CheckedOut]));
+    $folio = inTenant($t->property, fn () => Folio::query()->sole());
+    fakeGeneralReceiptService(Http::sequence()->push(['statusCode' => 5000, 'statusMessage' => 'Invalid item'])->push(['receiptNumber' => 'WS-GUEST-REFILED']));
+    $posting = postGeneralReceiptExtra($this, $t, $folio, ['description' => 'LATE BAR']);
+    [$message] = generalReceiptMessages($t, 'generalReceipt');
+    expect($message->status)->toBe('rejected');
+
+    $this->post(route('reservations.vfms.refile', [$stay, $message]), ['_property' => $t->property->id, 'reason' => 'Corrected item'])->assertSessionHasNoErrors();
+    expect($message->fresh()->status)->toBe('delivered')
+        ->and(inTenant($t->property, fn () => $posting->fresh()->vfms_receipt_number))->toBe('WS-GUEST-REFILED');
+});
+
 // protects=a paying-institution stay's extras wait for one institution receipt (spec #249); fails_when=an institution extra files CS or WS at posting; no_claim=institution receipt issue.
 test('a paying-institution stay holds its extras unreceipted', function () {
     $t = twoTenants()->a;

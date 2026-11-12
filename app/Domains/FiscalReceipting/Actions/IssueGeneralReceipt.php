@@ -79,7 +79,7 @@ class IssueGeneralReceipt
             $subjectIds = $subject instanceof Reservation ? app(BookingGroupMembers::class)->reservations($subject)->modelKeys() : [$subject->id];
             $messages = [];
             foreach ($held->lockForUpdate()->get()->groupBy(fn (Posting $posting) => $posting->currency->value) as $postings) {
-                $rejected = OutboxMessage::query()->where('property_id', $property->id)->where('integration', VfmsAdapter::INTEGRATION)
+                $rejected = $subject instanceof Reservation && $subject->getAttribute('paying_institution_type') === null ? null : OutboxMessage::query()->where('property_id', $property->id)->where('integration', VfmsAdapter::INTEGRATION)
                     ->where('subject_type', $subject->getMorphClass())->whereIn('subject_id', $subjectIds)
                     ->where('event', 'generalReceipt')->where('status', 'rejected')
                     ->lockForUpdate()->get()
