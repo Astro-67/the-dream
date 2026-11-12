@@ -23,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property Currency $currency
  * @property-read Reservation $reservation
  */
-#[Fillable(['reservation_id', 'currency'])]
+#[Fillable(['reservation_id', 'customer_account_id', 'currency'])]
 #[UsePolicy(FolioPolicy::class)]
 class Folio extends Model
 {
@@ -53,5 +53,11 @@ class Folio extends Model
     public function reservation(): BelongsTo
     {
         return $this->belongsTo(Reservation::class);
+    }
+
+    /** @return BelongsTo<CustomerAccount, $this> */
+    public function customerAccount(): BelongsTo
+    {
+        return $this->belongsTo(CustomerAccount::class);
     }
 }
