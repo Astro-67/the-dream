@@ -5,14 +5,18 @@ use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\CustomerAccount;
+use App\Domains\Billing\Models\CustomerAccountSequence;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\Receipt;
 use App\Domains\Billing\PreventArchivingWithOpenBalances;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Support\Outbox\OutboxMessage;
+use App\Support\Tenancy\PropertyPurge;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -151,4 +155,96 @@ test('day-use creation can include the first item and the account screens expose
     $this->get(route('customer-accounts.index', ['kind' => 'day_use', 'status' => 'open']))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('customer-accounts/index')->has('accounts.data', 1)->where('accounts.data.0.customer_name', 'Cash customer'));
     $this->get(route('customer-accounts.index', ['kind' => 'event']))->assertOk()->assertInertia(fn (Assert $page) => $page->has('accounts.data', 0));
+});
+
+test('account payments appear in the receipt register and corrections never move charges to a different account', function () {
+    $tenant = twoTenants()->a;
+    $this->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id]);
+    $intent = ['_property' => $tenant->property->id];
+    $this->actingAs($tenant->owner);
+    foreach (['Pool visitor', 'Conference'] as $name) {
+        $this->post(route('customer-accounts.store'), [...$intent, 'kind' => 'day_use', 'customer_name' => $name, 'currency' => 'USD'])->assertSessionHasNoErrors();
+    }
+    [$first, $second] = inTenant($tenant->property, fn () => CustomerAccount::query()->orderBy('number')->get()->all());
+    [$source, $target] = inTenant($tenant->property, fn () => [$first->folios()->sole(), $second->folios()->sole()]);
+    $this->post(route('folios.charges.store', $source), [...$intent, 'category' => 'other', 'description' => 'POOL', 'quantity' => 1, 'unit_price' => 1000, 'idempotency_key' => 'pool'])->assertSessionHasNoErrors();
+    $charge = inTenant($tenant->property, fn () => Posting::query()->sole());
+    $this->postJson(route('postings.transfer', $charge), [...$intent, 'folio_id' => $target->id, 'reason' => 'Different customer'])->assertUnprocessable();
+    $this->post(route('folios.payments.store', $source), [...$intent, 'method' => 'bank_transfer', 'amount' => 1000, 'idempotency_key' => 'paid'])->assertSessionHasNoErrors();
+    $this->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('documents.data.0.guest', 'Pool visitor'));
+    $payment = inTenant($tenant->property, fn () => Posting::query()->where('type', 'payment')->sole());
+    $this->post(route('postings.reverse', $payment), [...$intent, 'reason' => 'Wrong payment'])->assertRedirect(route('customer-accounts.show', $first))->assertSessionHasNoErrors();
+});
+
+test('a refused account receipt can be refiled without issuing a second sale', function () {
+    $tenant = twoTenants()->a;
+    $intent = ['_property' => $tenant->property->id];
+    $this->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id]);
+    Http::swap(new Factory);
+    Http::fake([VfmsHttp::TEST_URL.'service/' => Http::sequence()
+        ->push(['statusCode' => 5000, 'message' => 'Invalid item'])
+        ->push(['receiptNumber' => 'RETRY-ACCOUNT-251'])]);
+    VfmsHttp::fake();
+    $this->actingAs($tenant->owner)->post(route('customer-accounts.store'), [...$intent, 'kind' => 'event', 'customer_name' => 'Conference', 'currency' => 'USD',
+        'items' => [['category' => 'other', 'description' => 'HALL', 'quantity' => 1, 'unit_price' => 5000, 'idempotency_key' => 'hall']],
+    ])->assertSessionHasNoErrors();
+    [$account, $folio] = inTenant($tenant->property, fn () => [CustomerAccount::query()->sole(), Folio::query()->sole()]);
+    $this->post(route('folios.payments.store', $folio), [...$intent, 'method' => 'bank_transfer', 'amount' => 5000, 'idempotency_key' => 'paid'])->assertSessionHasNoErrors();
+    $this->post(route('customer-accounts.close', $account), $intent)->assertSessionHasNoErrors();
+    $message = inTenant($tenant->property, fn () => OutboxMessage::query()->sole());
+    expect($message->status)->toBe('rejected');
+    $this->post(route('customer-accounts.vfms.refile', [$account, $message]), [...$intent, 'reason' => 'Corrected item'])->assertSessionHasNoErrors();
+    expect(inTenant($tenant->property, fn () => $message->fresh()->status))->toBe('delivered');
+    expect(inTenant($tenant->property, fn () => OutboxMessage::query()->count()))->toBe(1);
+});
+
+test('reversing a closed account extra leaves its issued receipt and reports the fiscal exception', function () {
+    $tenant = twoTenants()->a;
+    $intent = ['_property' => $tenant->property->id];
+    $this->actingAs($tenant->owner)->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id]);
+    $this->post(route('customer-accounts.store'), [...$intent, 'kind' => 'event', 'customer_name' => 'Conference', 'currency' => 'USD',
+        'items' => [['category' => 'other', 'description' => 'HALL', 'quantity' => 1, 'unit_price' => 5000, 'idempotency_key' => 'hall']],
+    ])->assertSessionHasNoErrors();
+    [$account, $folio] = inTenant($tenant->property, fn () => [CustomerAccount::query()->sole(), Folio::query()->sole()]);
+    $this->post(route('folios.payments.store', $folio), [...$intent, 'method' => 'bank_transfer', 'amount' => 5000, 'idempotency_key' => 'paid'])->assertSessionHasNoErrors();
+    $this->post(route('customer-accounts.close', $account), $intent)->assertSessionHasNoErrors();
+    $charge = inTenant($tenant->property, fn () => Posting::query()->where('type', 'charge')->sole());
+    $this->post(route('postings.reverse', $charge), [...$intent, 'reason' => 'Wrong item'])->assertSessionHasNoErrors();
+    $this->get(route('reports.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('fiscalExceptions.0.reservationNumber', 'ACC-000001')
+        ->where('fiscalExceptions.0.kind', 'Receipted extra reversed'));
+});
+
+test('demo and Mainland customer accounts close without contacting ZRA', function (string $mode) {
+    $tenant = twoTenants()->a;
+    $property = $mode === 'mainland' ? $tenant->otherProperty : $tenant->property;
+    if ($mode === 'demo') {
+        DB::table('properties')->where('id', $property->id)->update(['demo' => true]);
+    }
+    $currency = $mode === 'mainland' ? 'TZS' : 'USD';
+    $intent = ['_property' => $property->id];
+    $this->actingAs($tenant->owner)->post(route('customer-accounts.store'), [...$intent, 'kind' => 'day_use', 'customer_name' => 'Visitor', 'currency' => $currency,
+        'items' => [['category' => 'other', 'description' => 'POOL', 'quantity' => 1, 'unit_price' => 1000, 'idempotency_key' => 'pool']],
+    ])->assertSessionHasNoErrors();
+    [$account, $folio] = inTenant($property, fn () => [CustomerAccount::query()->sole(), Folio::query()->sole()]);
+    $this->post(route('folios.payments.store', $folio), [...$intent, 'method' => 'bank_transfer', 'amount' => 1000, 'idempotency_key' => 'paid'])->assertSessionHasNoErrors();
+    $this->post(route('customer-accounts.close', $account), $intent)->assertSessionHasNoErrors();
+    expect(inTenant($property, fn () => $account->fresh()->status))->toBe('closed');
+    Http::assertNothingSent();
+})->with(['demo', 'mainland']);
+
+test('demo purge covers customer accounts and their sequences folios and payments', function () {
+    $tenant = twoTenants()->a;
+    inTenant($tenant->property, function () use ($tenant) {
+        DB::table('properties')->where('id', $tenant->property->id)->update(['demo' => true]);
+        $tenant->property->refresh();
+        $account = app(OpenCustomerAccount::class)->handle($tenant->owner, ['kind' => 'day_use', 'customer_name' => 'Demo visitor', 'currency' => 'USD']);
+        $folio = $account->folios()->sole();
+        app(PostExtraCharge::class)->handle($tenant->owner, $folio, ['quantity' => 1, 'unit_price' => 1000]);
+        app(RecordPayment::class)->handle($tenant->owner, $folio, ['method' => 'bank_transfer', 'amount' => 1000, 'currency' => 'USD']);
+        DB::transaction(fn () => PropertyPurge::purge($tenant->property));
+        expect(CustomerAccount::query()->count())->toBe(0)->and(Folio::query()->count())->toBe(0)->and(Receipt::query()->count())->toBe(0)
+            ->and(CustomerAccountSequence::query()->count())->toBe(0);
+    });
 });

@@ -6,12 +6,15 @@ use App\Domains\Billing\Actions\CloseCustomerAccount;
 use App\Domains\Billing\Actions\OpenCustomerAccount;
 use App\Domains\Billing\CustomerAccounts;
 use App\Domains\Billing\Models\CustomerAccount;
+use App\Domains\FiscalReceipting\Actions\RecoverVfmsFiling;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Billing\CloseCustomerAccountRequest;
 use App\Http\Requests\Billing\CustomerAccountsRequest;
 use App\Http\Requests\Billing\OpenCustomerAccountRequest;
+use App\Http\Requests\FiscalReceipting\RecoverVfmsFilingRequest;
 use App\Support\Money\Currency;
+use App\Support\Outbox\OutboxMessage;
 use App\Support\Tenancy\Tenancy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
@@ -20,6 +23,13 @@ use Inertia\Response;
 
 class CustomerAccountController extends Controller
 {
+    public function recover(RecoverVfmsFilingRequest $request, CustomerAccount $customerAccount, OutboxMessage $message, RecoverVfmsFiling $recover): RedirectResponse
+    {
+        $recover->handle($request->user(), $customerAccount, $message, $request->string('reason')->value(), refile: $request->routeIs('customer-accounts.vfms.refile'));
+
+        return to_route('customer-accounts.show', $customerAccount)->with('toast', ['type' => 'success', 'message' => __('ZRA filing queued for delivery.')]);
+    }
+
     public function index(CustomerAccountsRequest $request): Response
     {
         return Inertia::render('customer-accounts/index', [

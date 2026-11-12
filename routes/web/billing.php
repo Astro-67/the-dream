@@ -11,7 +11,6 @@ use App\Http\Controllers\Web\Billing\OpenBalanceController;
 use App\Http\Controllers\Web\Billing\PaymentController;
 use App\Http\Controllers\Web\Billing\ReceiptController;
 use App\Http\Controllers\Web\FiscalReceipting\FileAdvancePaymentController;
-use App\Http\Controllers\Web\FiscalReceipting\RecoverVfmsFilingController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
@@ -19,8 +18,8 @@ Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::post('customer-accounts', [CustomerAccountController::class, 'store'])->middleware('property.intent')->name('customer-accounts.store');
     Route::get('customer-accounts/{customerAccount}', [CustomerAccountController::class, 'show'])->name('customer-accounts.show');
     Route::post('customer-accounts/{customerAccount}/close', [CustomerAccountController::class, 'close'])->middleware('property.intent')->name('customer-accounts.close');
-    Route::post('customer-accounts/{customerAccount}/vfms/{message}/retry', [RecoverVfmsFilingController::class, 'account'])->middleware('property.intent')->name('customer-accounts.vfms.retry');
-    Route::post('customer-accounts/{customerAccount}/vfms/{message}/refile', [RecoverVfmsFilingController::class, 'account'])->middleware('property.intent')->name('customer-accounts.vfms.refile');
+    Route::post('customer-accounts/{customerAccount}/vfms/{message}/retry', [CustomerAccountController::class, 'recover'])->middleware('property.intent')->name('customer-accounts.vfms.retry');
+    Route::post('customer-accounts/{customerAccount}/vfms/{message}/refile', [CustomerAccountController::class, 'recover'])->middleware('property.intent')->name('customer-accounts.vfms.refile');
     Route::get('approvals', [ApprovalController::class, 'index'])->name('approvals.index');
     Route::post('approvals/{approval}/resolve', [ApprovalController::class, 'resolve'])->middleware('property.intent')->name('approvals.resolve');
     Route::put('approval-thresholds', [ApprovalController::class, 'threshold'])->middleware('property.intent')->name('approval-thresholds.update');

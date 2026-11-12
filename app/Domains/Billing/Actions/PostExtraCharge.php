@@ -2,6 +2,7 @@
 
 namespace App\Domains\Billing\Actions;
 
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\BusinessDate;
@@ -32,6 +33,9 @@ class PostExtraCharge
     {
         return Audit::validationRefusal($actor, $folio, 'Extra charge refused', fn () => DB::transaction(function () use ($actor, $folio, $details) {
             $owner = $folio->lockOwner();
+            if ($owner instanceof CustomerAccount) {
+                $owner->ensureOpen();
+            }
             $reservation = $owner instanceof Reservation ? $owner : null;
             $folio = Folio::query()->whereKey($folio->id)->lockForUpdate()->firstOrFail();
             // Two identical extras can both be real, so without a client key each call is a new submission.

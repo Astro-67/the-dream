@@ -4,6 +4,7 @@ namespace App\Domains\Billing\Actions;
 
 use App\Domains\Billing\FolioSummary;
 use App\Domains\Billing\Models\CashierShift;
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\Receipt;
@@ -33,6 +34,9 @@ class RecordPayment
     {
         return Audit::validationRefusal($actor, $folio, 'Payment refused', fn () => DB::transaction(function () use ($actor, $folio, $details) {
             $owner = $folio->lockOwner();
+            if ($owner instanceof CustomerAccount) {
+                $owner->ensureOpen();
+            }
             $reservation = $owner instanceof Reservation ? $owner : null;
             $folio = Folio::query()->whereKey($folio->id)->lockForUpdate()->firstOrFail();
             $key = $details['idempotency_key'] ?? (string) Str::ulid();

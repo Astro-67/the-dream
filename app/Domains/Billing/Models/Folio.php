@@ -68,10 +68,8 @@ class Folio extends Model
         if ($this->customer_account_id === null) {
             return Reservation::query()->whereKey($this->reservation_id)->lockForUpdate()->firstOrFail();
         }
-        $account = CustomerAccount::query()->whereKey($this->customer_account_id)->lockForUpdate()->firstOrFail();
-        $account->ensureOpen();
 
-        return $account;
+        return CustomerAccount::query()->whereKey($this->customer_account_id)->lockForUpdate()->firstOrFail();
     }
 
     public function url(): string
