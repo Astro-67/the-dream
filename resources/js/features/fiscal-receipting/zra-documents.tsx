@@ -100,11 +100,11 @@ export type ZraDocumentsOverview = {
     needsAttention: boolean;
     url: string;
     statementUrl: string;
-    generalReceipts: Pick<
+    generalReceipts: (Pick<
         GeneralReceipt,
-        'number' | 'customer' | 'amount' | 'currency' | 'status'
-    >[];
-    guestReports: Pick<GuestReport, 'number' | 'room'>[];
+        'customer' | 'amount' | 'currency' | 'status'
+    > & { number: string })[];
+    guestReports: { number: string; room: string | null }[];
 };
 
 export function ZraDocumentsSummary({

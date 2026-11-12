@@ -1,17 +1,23 @@
 <?php
 
 use App\Domains\Billing\Actions\OpenCustomerAccount;
+use App\Domains\Billing\Actions\OpenFolio;
+use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
+use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\DrainOutboxMessage;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
 use Tests\Support\VfmsHttp;
 
@@ -38,6 +44,8 @@ test('the group statement shows accepted ZRA documents and held totals without c
     postGeneralReceiptExtra($this, $t, $folio, ['unit_price' => 900]);
     fakeGeneralReceiptService(Http::response(['statusCode' => 5000, 'message' => 'Refused']));
     issueGeneralReceiptAs($this, $t, $first)->assertSessionHasNoErrors();
+    $tzs = inTenant($t->property, fn () => app(OpenFolio::class)->handle($t->owner, $second, 'TZS'));
+    postGeneralReceiptExtra($this, $t, $tzs, ['unit_price' => 75000]);
 
     $this->withSession(['tenancy.organization_id' => $t->organization->id, 'tenancy.property_id' => $t->property->id])
         ->get(route('reservations.group-statement', $second))->assertOk()->assertInertia(fn (Assert $page) => $page
@@ -46,7 +54,7 @@ test('the group statement shows accepted ZRA documents and held totals without c
         ->where('zraDocuments.generalReceipts.0.status', 'issued')
         ->where('zraDocuments.generalReceipts.0.amount', 3600)
         ->where('zraDocuments.guestReports', [])
-        ->where('zraDocuments.held', [['currency' => 'USD', 'amount' => 900]])
+        ->where('zraDocuments.held', [['currency' => 'TZS', 'amount' => 75000], ['currency' => 'USD', 'amount' => 900]])
         ->where('zraDocuments.url', route('reservations.fiscal-report', $second)));
 });
 
@@ -68,6 +76,69 @@ test('a reservation ZRA card counts the whole group and flags refused filings', 
         ->where('zraDocuments.url', route('reservations.fiscal-report', $second))
         ->where('zraDocuments.statementUrl', route('reservations.group-statement', $second))
         ->has('vfmsFilings', 1));
+});
+
+test('ZRA summaries exclude same-name institutions in other properties even with a shared group identifier', function () {
+    $tenants = twoTenants();
+    $tenant = $tenants->a;
+    [$first, $second] = generalReceiptGroup($tenant);
+    $folio = inTenant($tenant->property, fn () => Folio::query()->where('reservation_id', $first->id)->sole());
+    postGeneralReceiptExtra($this, $tenant, $folio, ['unit_price' => 900]);
+    foreach ([[$tenant, $tenant->otherProperty], [$tenants->b, $tenants->b->property]] as [$foreign, $property]) {
+        fakeGeneralReceiptService(Http::response(['receiptNumber' => 'FOREIGN-'.$property->id]));
+        inTenant($property, function () use ($foreign, $property, $first) {
+            $property->update(['jurisdiction_profile' => 'zanzibar']);
+            $stay = app(CreateReservation::class)->handle($foreign->owner, [
+                ...BookingForm::details($foreign->owner),
+                'paying_institution_type' => 'government', 'paying_institution_name' => 'Ministry of Health',
+                'paying_institution_zrb_number' => 'WA2400117',
+            ]);
+            $stay->update(['booking_group_id' => $first->booking_group_id]);
+            app(PostExtraCharge::class)->handle($foreign->owner, Folio::query()->where('reservation_id', $stay->id)->sole(), [
+                'category' => 'restaurant', 'description' => 'FOREIGN DINNER', 'quantity' => 1, 'unit_price' => 77700,
+            ]);
+            app(IssueGeneralReceipt::class)->forReservation($foreign->owner, $stay);
+        });
+        expect(inTenant($property, fn () => IssuedDocument::query()->where('number', 'FOREIGN-'.$property->id)->exists()))->toBeTrue();
+    }
+    $this->actingAs($tenant->owner)->withSession([
+        'tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id,
+    ]);
+    foreach (['reservations.show', 'reservations.group-statement'] as $route) {
+        $this->get(route($route, $second))->assertOk()->assertDontSee('FOREIGN')->assertInertia(fn (Assert $page) => $page
+            ->where('zraDocuments.counts', ['generalReceipts' => 0, 'serviceReceipts' => 0, 'guestReports' => 0, 'held' => 1])
+            ->where('zraDocuments.held', [['currency' => 'USD', 'amount' => 900]])
+            ->where('zraDocuments.generalReceipts', []));
+    }
+    $this->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('documents.total', 0)->where('tabCounts', ['zra_receipts' => 0, 'checkout_reports' => 0, 'non_fiscal' => 0]));
+});
+
+test('reservation and statement hide ZRA sections for Mainland and demo properties', function (string $kind) {
+    $tenant = twoTenants()->a;
+    $stay = generalReceiptStay($tenant, checkIn: false);
+    inTenant($tenant->property, fn () => DB::table('properties')->where('id', $tenant->property->id)
+        ->update($kind === 'demo' ? ['demo' => true] : ['jurisdiction_profile' => 'mainland_tanzania']));
+    $this->actingAs($tenant->owner)->withSession([
+        'tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id,
+    ]);
+    foreach (['reservations.show', 'reservations.group-statement'] as $route) {
+        $this->get(route($route, $stay))->assertOk()->assertInertia(fn (Assert $page) => $page->where('zraDocuments', null));
+    }
+})->with(['mainland', 'demo']);
+
+test('the group statement lists each accepted check-out report against its room', function () {
+    $tenant = twoTenants()->a;
+    [$first, $second] = generalReceiptGroup($tenant);
+    foreach (['2026-12-10', '2026-12-11'] as $date) {
+        inTenant($tenant->property, fn () => app(CloseBusinessDate::class)->handle($tenant->owner, $tenant->property->fresh(), $date));
+    }
+    $this->actingAs($tenant->owner)->withSession([
+        'tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id,
+    ])->post(route('reservations.check-out', $first), ['_property' => $tenant->property->id, 'override_reason' => 'Ministry pays later'])->assertSessionHasNoErrors();
+    $this->get(route('reservations.group-statement', $second))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('zraDocuments.guestReports', [['number' => 'TEST-CHECKOUT-169', 'room' => '101']])
+        ->where('zraDocuments.counts.guestReports', 1));
 });
 
 // protects=one page shows a group's general receipts and what is still held, from any room (spec #249 UI §1); fails_when=a section or count is missing or the other room shows nothing; no_claim=print layout.

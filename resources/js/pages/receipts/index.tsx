@@ -47,6 +47,17 @@ const statuses = {
     sandbox: 'Issued Sandbox',
     not_applicable: 'Not applicable',
 };
+const tabs = {
+    zra_receipts: {
+        label: 'ZRA receipts',
+        types: ['services_receipt', 'general_receipt'],
+    },
+    checkout_reports: {
+        label: 'Check-out reports',
+        types: ['checkout_report'],
+    },
+    non_fiscal: { label: 'Non-fiscal receipts', types: ['non_fiscal'] },
+};
 type Document = {
     id: string;
     number: string;
@@ -60,8 +71,10 @@ type Document = {
     viewerUrl: string | null;
     localUrl: string | null;
     annotations: CorrectionNote[];
+    source: { label: string; number: string; url: string | null } | null;
 };
 type Filters = {
+    tab: keyof typeof tabs;
     number?: string;
     from?: string;
     to?: string;
@@ -72,12 +85,19 @@ type Filters = {
 export default function Receipts({
     documents,
     filters,
+    tabCounts,
 }: {
     documents: Paginated<Document>;
     filters: Filters;
+    tabCounts: Record<keyof typeof tabs, number>;
 }) {
     const timezone = usePage().props.tenant.property?.timezone ?? 'UTC';
     const canCorrect = useCan()('outbox.recover');
+    const documentTypes = Object.fromEntries(
+        Object.entries(types).filter(([type]) =>
+            tabs[filters.tab].types.includes(type),
+        ),
+    );
     return (
         <>
             <Head title="Receipts" />
@@ -86,6 +106,31 @@ export default function Receipts({
                     title="Receipts"
                     description="Issued documents for the selected property."
                 />
+                <nav
+                    aria-label="Receipt types"
+                    className="flex flex-wrap gap-2"
+                >
+                    {Object.entries(tabs).map(([tab, { label }]) => (
+                        <Button
+                            key={tab}
+                            asChild
+                            variant={
+                                filters.tab === tab ? 'secondary' : 'ghost'
+                            }
+                        >
+                            <Link
+                                href={index({
+                                    query: { ...filters, tab, type: 'all' },
+                                })}
+                                aria-current={
+                                    filters.tab === tab ? 'page' : undefined
+                                }
+                            >
+                                {label} ({tabCounts[tab as keyof typeof tabs]})
+                            </Link>
+                        </Button>
+                    ))}
+                </nav>
                 <Form
                     key={JSON.stringify(filters)}
                     action={index.url()}
@@ -95,6 +140,11 @@ export default function Receipts({
                 >
                     {({ errors, processing }) => (
                         <>
+                            <input
+                                type="hidden"
+                                name="tab"
+                                value={filters.tab}
+                            />
                             <div className="grid gap-2">
                                 <Label htmlFor="number">Document number</Label>
                                 <Input
@@ -135,7 +185,7 @@ export default function Receipts({
                             ))}
                             {(
                                 [
-                                    ['type', 'Document type', types],
+                                    ['type', 'Document type', documentTypes],
                                     ['zra_status', 'ZRA status', statuses],
                                 ] as const
                             ).map(([name, label, choices]) => (
@@ -185,7 +235,13 @@ export default function Receipts({
                                 Apply filters
                             </Button>
                             <Button asChild variant="ghost">
-                                <Link href={index()}>Clear filters</Link>
+                                <Link
+                                    href={index({
+                                        query: { tab: filters.tab },
+                                    })}
+                                >
+                                    Clear filters
+                                </Link>
                             </Button>
                         </>
                     )}
@@ -199,7 +255,7 @@ export default function Receipts({
                         message="No issued documents match these filters."
                         action={
                             <Link
-                                href={index()}
+                                href={index({ query: { tab: filters.tab } })}
                                 className="text-primary underline underline-offset-4"
                             >
                                 Show all issue dates and document types
@@ -217,7 +273,8 @@ export default function Receipts({
                                         Number / type
                                     </TableHead>
                                     <TableHead>Issued</TableHead>
-                                    <TableHead>Guest / payer</TableHead>
+                                    <TableHead>Customer</TableHead>
+                                    <TableHead>Source</TableHead>
                                     <TableHead numeric>
                                         Amount / currency
                                     </TableHead>
@@ -264,6 +321,41 @@ export default function Receipts({
                                         </TableCell>
                                         <TableCell>
                                             {document.guest ?? 'Unavailable'}
+                                        </TableCell>
+                                        <TableCell>
+                                            {document.source === null ? (
+                                                'Unavailable'
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {document.source.label}
+                                                    </p>
+                                                    {document.source.url ? (
+                                                        <Link
+                                                            href={
+                                                                document.source
+                                                                    .url
+                                                            }
+                                                            className="text-primary underline underline-offset-4"
+                                                        >
+                                                            <Identifier
+                                                                value={
+                                                                    document
+                                                                        .source
+                                                                        .number
+                                                                }
+                                                            />
+                                                        </Link>
+                                                    ) : (
+                                                        <Identifier
+                                                            value={
+                                                                document.source
+                                                                    .number
+                                                            }
+                                                        />
+                                                    )}
+                                                </div>
+                                            )}
                                         </TableCell>
                                         <TableCell numeric>
                                             {document.amount === null ||

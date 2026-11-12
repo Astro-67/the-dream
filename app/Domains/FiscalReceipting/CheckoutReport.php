@@ -43,15 +43,15 @@ final class CheckoutReport
         return [
             'counts' => collect(['generalReceipts', 'serviceReceipts', 'guestReports', 'held'])
                 ->mapWithKeys(fn (string $section) => [$section => count($documents[$section])])->all(),
-            'held' => collect($documents['summary'])->where('held', '>', 0)
-                ->map(fn (array $total) => ['currency' => $total['currency'], 'amount' => $total['held']])->values()->all(),
+            'held' => array_values(array_map(fn (array $total) => ['currency' => $total['currency'], 'amount' => $total['held']],
+                array_filter($documents['summary'], fn (array $total) => $total['held'] > 0))),
             'needsAttention' => $documents['needsAttention'],
             'url' => route('reservations.fiscal-report', $reservation),
             'statementUrl' => route('reservations.group-statement', $reservation),
-            'generalReceipts' => collect($documents['generalReceipts'])->where('status', 'issued')
-                ->map(fn (array $row) => array_intersect_key($row, array_flip(['number', 'customer', 'amount', 'currency', 'status'])))->values()->all(),
-            'guestReports' => collect($documents['guestReports'])->where('status', 'issued')
-                ->map(fn (array $row) => array_intersect_key($row, array_flip(['number', 'room'])))->values()->all(),
+            'generalReceipts' => array_values(array_map(fn (array $row) => array_intersect_key($row, array_flip(['number', 'customer', 'amount', 'currency', 'status'])),
+                array_filter($documents['generalReceipts'], fn (array $row) => $row['status'] === 'issued' && $row['number'] !== null))),
+            'guestReports' => array_values(array_map(fn (array $row) => array_intersect_key($row, array_flip(['number', 'room'])),
+                array_filter($documents['guestReports'], fn (array $row) => $row['status'] === 'issued' && $row['number'] !== null))),
         ];
     }
 

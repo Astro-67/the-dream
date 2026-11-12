@@ -53,7 +53,7 @@ test('document register folio and reprints annotate every correction state witho
             ->where("documentCorrections.{$old->id}.annotations.0.label", $decision === 'approved' ? 'Replaced by' : 'Proposed to be replaced by')
             ->where("documentCorrections.{$new->id}.annotations.0.label", $decision === 'approved' ? 'Replacement for' : 'Proposed replacement for')
             ->where("documentCorrections.{$old->id}.submitUrl", null));
-    $this->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+    $this->get(route('receipts.index', ['tab' => $type === 'checkout_report' ? 'checkout_reports' : 'zra_receipts']))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('correctionRefresh.refreshing', false)
         ->where('documents.data', function ($rows) use ($old, $expected) {
             expect(collect($rows)->firstWhere('id', $old->id)['annotations'][0]['decision'])->toBe($expected);

@@ -46,16 +46,20 @@ return [
         $before = $receipt->getAttributes();
         $responses = [];
         foreach ($t->a->members() as $role => $member) {
-            $response = $this->actingAs($member)->withSession([
-                'tenancy.organization_id' => $t->b->organization->id,
-                'tenancy.property_id' => $t->b->property->id,
-            ])->get(route('receipts.index'));
-            if (in_array($role, [OrganizationRole::FrontDesk->value, OrganizationRole::Housekeeping->value], true)) {
-                $response->assertForbidden();
-            } else {
-                $response->assertOk()->assertInertia(fn (Assert $page) => $page->where('documents.total', 0));
+            foreach (['zra_receipts', 'checkout_reports', 'non_fiscal'] as $tab) {
+                $response = $this->actingAs($member)->withSession([
+                    'tenancy.organization_id' => $t->b->organization->id,
+                    'tenancy.property_id' => $t->b->property->id,
+                ])->get(route('receipts.index', ['tab' => $tab, 'number' => $receipt->number]));
+                if (in_array($role, [OrganizationRole::FrontDesk->value, OrganizationRole::Housekeeping->value], true)) {
+                    $response->assertForbidden();
+                } else {
+                    $response->assertOk()->assertInertia(fn (Assert $page) => $page
+                        ->where('documents.total', 0)
+                        ->where('tabCounts', ['zra_receipts' => 0, 'checkout_reports' => 0, 'non_fiscal' => 0]));
+                }
+                $responses[] = $response;
             }
-            $responses[] = $response;
             $responses[] = $this->get(route('receipts.show', $receipt))->assertNotFound();
             $responses[] = $this->get(route('reservations.fiscal-report', $reservation))->assertNotFound();
         }

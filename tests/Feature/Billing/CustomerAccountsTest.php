@@ -180,7 +180,7 @@ test('account payments appear in the receipt register and corrections never move
     $charge = inTenant($tenant->property, fn () => Posting::query()->sole());
     $this->postJson(route('postings.transfer', $charge), [...$intent, 'folio_id' => $target->id, 'reason' => 'Different customer'])->assertUnprocessable();
     $this->post(route('folios.payments.store', $source), [...$intent, 'method' => 'bank_transfer', 'amount' => 1000, 'idempotency_key' => 'paid'])->assertSessionHasNoErrors();
-    $this->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+    $this->get(route('receipts.index', ['tab' => 'non_fiscal']))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('documents.data.0.guest', 'Pool visitor'));
     $payment = inTenant($tenant->property, fn () => Posting::query()->where('type', 'payment')->sole());
     $this->post(route('postings.reverse', $payment), [...$intent, 'reason' => 'Wrong payment'])->assertRedirect(route('customer-accounts.show', $first))->assertSessionHasNoErrors();

@@ -320,7 +320,8 @@ assert.match(
 
 type RegisterProps = ComponentProps<typeof Receipts>;
 const register: RegisterProps = {
-    filters: {},
+    filters: { tab: 'zra_receipts' },
+    tabCounts: { zra_receipts: 1, checkout_reports: 2, non_fiscal: 3 },
     documents: {
         data: [
             {
@@ -337,6 +338,11 @@ const register: RegisterProps = {
                     '/reservations/R-1042/fiscal-report#document-services_receipt-ZRA-230',
                 viewerUrl: 'https://viewer.example/receipt-form/ZRA-230',
                 annotations: [],
+                source: {
+                    label: 'Stay',
+                    number: 'R-1042',
+                    url: '/reservations/R-1042',
+                },
             },
         ],
         current_page: 1,
@@ -369,6 +375,28 @@ const renderRegister = (props: RegisterProps, permissions: string[] = []) =>
         />,
     );
 const issued = renderRegister(register);
+assert.match(issued, /aria-label="Receipt types"/);
+assert.match(issued, /ZRA receipts \(1\)/);
+assert.match(issued, /Check-out reports \(2\)/);
+assert.match(issued, /Non-fiscal receipts \(3\)/);
+assert.match(issued, /name="tab"[^>]*value="zra_receipts"/);
+assert.match(issued, />Customer<\/th>/);
+assert.match(issued, />Source<\/th>/);
+assert.match(issued, /href="\/reservations\/R-1042"/);
+const unlinkedSource = renderRegister({
+    ...register,
+    documents: {
+        ...register.documents,
+        data: [
+            {
+                ...register.documents.data[0],
+                source: { label: 'Stay', number: 'R-1042', url: null },
+            },
+        ],
+    },
+});
+assert.doesNotMatch(unlinkedSource, /href="\/reservations\/R-1042"/);
+assert.match(unlinkedSource, /R-1042/);
 for (const text of [
     'Receipts',
     'Issued from',
