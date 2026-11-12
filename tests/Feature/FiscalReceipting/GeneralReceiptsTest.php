@@ -146,6 +146,24 @@ test('a second issue covers only the extras posted since', function () {
         ->and($messages[1]->payload['posting_ids'])->toBe([$bar->id]);
 });
 
+test('moving a receipted institution extra between folios never files it as another sale', function () {
+    $t = twoTenants()->a;
+    [$stay] = generalReceiptGroup($t);
+    [$source, $target, $third] = inTenant($t->property, fn () => [
+        Folio::query()->where('reservation_id', $stay->id)->sole(),
+        app(OpenFolio::class)->handle($t->owner, $stay, 'USD'),
+        app(OpenFolio::class)->handle($t->owner, $stay, 'USD'),
+    ]);
+    $posting = postGeneralReceiptExtra($this, $t, $source, ['description' => 'DINNER']);
+    issueGeneralReceiptAs($this, $t, $stay)->assertSessionHasNoErrors();
+    foreach ([$target, $third] as $folio) {
+        $this->post(route('postings.transfer', $posting), ['_property' => $t->property->id, 'folio_id' => $folio->id, 'reason' => 'Move to payer folio'])->assertSessionHasNoErrors();
+        $posting = inTenant($t->property, fn () => Posting::query()->where('folio_id', $folio->id)->where('type', 'transfer_in')->sole());
+        issueGeneralReceiptAs($this, $t, $stay)->assertSessionHasErrors(['general_receipt' => 'Nothing is waiting for a ZRA receipt.']);
+    }
+    expect(generalReceiptMessages($t, 'generalReceipt'))->toHaveCount(1);
+});
+
 // protects=ZRA refusal returns extras to "not yet receipted" and unknown keeps them claimed (spec #249); fails_when=a refused claim stays or an unknown claim is released; no_claim=unknown reconciliation.
 test('a refused receipt releases its extras and an unknown one keeps them', function (int $status, array $body, string $outcome, bool $released) {
     $t = twoTenants()->a;

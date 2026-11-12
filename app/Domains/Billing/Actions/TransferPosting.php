@@ -45,6 +45,9 @@ class TransferPosting
                 'folio_id' => $target->id, 'type' => 'transfer_in', 'reason' => $reason,
                 'idempotency_key' => 'transfer:'.$out->id, 'actor_id' => $actor?->id,
             ]));
+            if ($original->vfms_receipt_number !== null) {
+                $in->recordFiscalReceipt($original->vfms_receipt_number);
+            }
             Audit::record($actor, 'created', $in, 'Posting transferred', ['from_folio_id' => $source->id, 'to_folio_id' => $target->id, 'posting_id' => $original->id, 'amount' => $original->amount, 'currency' => $original->currency->value, 'reason' => $reason]);
 
             return $in;

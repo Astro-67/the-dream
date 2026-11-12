@@ -9,7 +9,6 @@ use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -39,9 +38,6 @@ class CloseCustomerAccount
     {
         return Posting::query()->where('postings.property_id', $account->property_id)
             ->whereIn('folio_id', Folio::query()->select('id')->where('property_id', $account->property_id)->where('customer_account_id', $account->id))
-            ->whereIn('type', ['charge', 'transfer_in'])->whereIn('category', PostExtraCharge::CATEGORIES)
-            ->whereNull('vfms_receipt_number')->whereNull('general_receipt_id')
-            ->whereNotExists(fn (QueryBuilder $query) => $query->from('postings as cancelling')->whereColumn('cancelling.related_posting_id', 'postings.id'))
-            ->orderBy('posted_at')->orderBy('id');
+            ->heldExtras();
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Domains\FiscalReceipting\Actions;
 
-use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
@@ -22,7 +21,6 @@ use App\Support\Outbox\OutboxMessage;
 use App\Support\Outbox\OutboxRecovery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -126,10 +124,7 @@ class IssueGeneralReceipt
 
         return Posting::query()->where('postings.property_id', $propertyId)
             ->whereIn('folio_id', Folio::query()->select('id')->where('property_id', $propertyId)->whereIn('reservation_id', $institutionRooms))
-            ->whereIn('type', ['charge', 'transfer_in'])->whereIn('category', PostExtraCharge::CATEGORIES)
-            ->whereNull('vfms_receipt_number')->whereNull('general_receipt_id')
-            ->whereNotExists(fn (QueryBuilder $query) => $query->from('postings as cancelling')->whereColumn('cancelling.related_posting_id', 'postings.id'))
-            ->orderBy('posted_at')->orderBy('id');
+            ->heldExtras();
     }
 
     /**
