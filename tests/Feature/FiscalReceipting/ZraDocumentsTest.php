@@ -1,8 +1,12 @@
 <?php
 
 use App\Domains\Billing\Models\Folio;
+use App\Domains\FiscalReceipting\Models\IssuedDocument;
+use App\Domains\FrontDesk\Actions\CloseBusinessDate;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\TenantFixture;
 use Tests\Support\VfmsHttp;
@@ -51,4 +55,65 @@ test('a group\'s ZRA documents list its general receipt and the extras still hel
         ->where('serviceReceipts', [])
         ->where('guestReports', [])
         ->has('summary', 1)->where('summary.0.currency', 'USD')->where('summary.0.held', 900));
+});
+
+/** ZRA's service/ answer to a WS, in the shape the test server returned on 12 Nov 2026 (receipt XHE2104835). */
+function zraDocumentsWsAnswer(): array
+{
+    return ['documentNumber' => 'Ministry of Health', 'service' => [['itemName' => 'DINNER', 'discount' => 6.0, 'price' => 18.0, 'quantity' => 2.0], ['itemName' => 'WATER', 'discount' => 0.0, 'price' => 5.0, 'quantity' => 3.0]],
+        'businessUnitId' => 5940, 'recordedAt' => '2026-12-10T12:40:19.586+03:00', 'tax' => 5.869565217391304, 'taxExclusive' => 39.130434782608695, 'salesAmount' => 45.0,
+        'receiptNumber' => 'XHE2104835', 'type' => 'WS', 'currency' => 'USD'];
+}
+
+// protects=a printed ZRA document shows ZRA's own figures, never Karafuu's (spec #249 UI §2); fails_when=figures come from the folio, the customer or business is missing, or a guest document is printed; no_claim=physical paper layout (browser check).
+test('a printed general receipt and check-out report show ZRA\'s stored figures, and Print all prints every document', function () {
+    $t = twoTenants()->a;
+    [$first, $second] = generalReceiptGroup($t);
+    $folio = inTenant($t->property, fn () => Folio::query()->where('reservation_id', $first->id)->sole());
+    // Karafuu's own line differs from ZRA's answer on purpose: the print must show ZRA's.
+    postGeneralReceiptExtra($this, $t, $folio, ['description' => 'DINNER', 'quantity' => 2, 'unit_price' => 1800, 'discount' => 600]);
+    fakeGeneralReceiptService(Http::response(zraDocumentsWsAnswer()));
+    foreach (['2026-12-10', '2026-12-11'] as $date) {
+        inTenant($t->property, fn () => app(CloseBusinessDate::class)->handle($t->owner, $t->property->fresh(), $date));
+    }
+    foreach ([$first, $second] as $room) {
+        $this->post(route('reservations.check-out', $room), ['_property' => $t->property->id, 'override_reason' => 'Ministry pays later'])->assertSessionHasNoErrors();
+    }
+    $receipt = inTenant($t->property, fn () => IssuedDocument::query()->where('type', 'general_receipt')->sole());
+    $report = inTenant($t->property, fn () => IssuedDocument::query()->where('type', 'checkout_report')->where('number', 'TEST-CHECKOUT-169')->sole());
+    $print = fn (array $query, ?Reservation $stay = null) => $this->actingAs($t->member(OrganizationRole::FrontDesk))
+        ->withSession(['tenancy.organization_id' => $t->organization->id, 'tenancy.property_id' => $t->property->id])
+        ->get(route('reservations.fiscal-report.print', [$stay ?? $second, ...$query]));
+
+    $print(['document' => $receipt->id])->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('fiscal-receipting/zra-document')
+        ->where('sandbox', true)
+        ->has('documents', 1)
+        ->where('documents.0.type', 'general_receipt')
+        ->where('documents.0.number', 'XHE2104835')
+        ->where('documents.0.customer', 'Ministry of Health')
+        ->where('documents.0.currency', 'USD')
+        ->where('documents.0.issuedAt', '2026-12-10T09:40:19+00:00')
+        ->where('documents.0.items', [
+            ['name' => 'DINNER', 'quantity' => 2, 'price' => 1800, 'discount' => 600, 'amount' => 3000],
+            ['name' => 'WATER', 'quantity' => 3, 'price' => 500, 'discount' => 0, 'amount' => 1500],
+        ])
+        ->where('documents.0.taxExclusive', 3913)->where('documents.0.tax', 587)->where('documents.0.total', 4500)
+        ->where('documents.0.qrSvg', fn (string $svg) => str_starts_with($svg, '<svg')));
+    $print(['document' => $report->id])->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('documents.0.type', 'checkout_report')
+        ->where('documents.0.customer', 'Anna Berg')
+        ->where('documents.0.business.name', $t->property->name)
+        ->where('documents.0.rooms', [['room' => '101', 'days' => 2, 'price' => 11000, 'amount' => 22000, 'tax' => 0]])
+        ->where('documents.0.items', [])
+        ->where('documents.0.total', 22000)->where('documents.0.tax', 0)->where('documents.0.levy', 0))
+        ->assertDontSee('P1234567');
+    $print([])->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('documents', fn ($documents) => collect($documents)->pluck('number')->sort()->values()->all() === ['TEST-CHECKOUT-169', 'TEST-CHECKOUT-169-2', 'XHE2104835']))
+        ->assertDontSee('P1234567')->assertDontSee('P7654321');
+
+    // A document of a stay outside this booking group is not this page's.
+    $print(['document' => $receipt->id], $first)->assertOk();
+    inTenant($t->property, fn () => $first->forceFill(['booking_group_id' => null])->save());
+    $print(['document' => $receipt->id], $first)->assertNotFound();
 });

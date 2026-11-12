@@ -5,19 +5,12 @@ use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
-use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
-use App\Domains\Guests\Actions\CreateGuest;
-use App\Domains\Guests\Models\ReservationGuest;
-use App\Domains\Housekeeping\Enums\HousekeepingStatus;
-use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
-use App\Domains\Reservations\Models\Reservation;
 use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
-use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -29,31 +22,6 @@ beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
     VfmsHttp::fake();
 });
-
-/** One room, Anna Berg (P1234567) as lead guest; checked in unless $checkIn is false. */
-function generalReceiptStay(TenantFixture $tenant, array $details = [], bool $checkIn = true): Reservation
-{
-    return inTenant($tenant->property, function () use ($tenant, $details, $checkIn) {
-        $form = BookingForm::details($tenant->owner);
-        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [
-            ...$form, 'adults' => 1, 'children' => 0, 'nightly_rate' => 11000,
-            'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast', ...$details,
-        ]);
-        $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => 'Anna Berg', 'documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE']]]);
-        ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
-
-        return $checkIn ? app(CheckIn::class)->handle($tenant->owner, $reservation) : $reservation;
-    });
-}
-
-/** Replaces the fake's service/ answer; Laravel uses the first matching stub, so a later Http::fake cannot override it. */
-function fakeGeneralReceiptService(mixed $response): void
-{
-    Http::swap(new Factory);
-    Http::fake([VfmsHttp::TEST_URL.'service/' => $response]);
-    VfmsHttp::fake();
-}
 
 /** @return list<OutboxMessage> */
 function generalReceiptMessages(TenantFixture $tenant, string $event): array

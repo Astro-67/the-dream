@@ -6,6 +6,7 @@ use App\Domains\FiscalReceipting\Actions\RefreshCorrectionDecisions;
 use App\Domains\FiscalReceipting\Actions\RevealFiscalIdentity;
 use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\FiscalReceipting\DocumentCorrections;
+use App\Domains\FiscalReceipting\PrintedDocuments;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Reservations\Models\Reservation;
@@ -29,9 +30,22 @@ class CheckoutReportController extends Controller
         return $this->report($request, $reservation, CheckoutReport::of($reservation, Access::allows($request->user(), OrganizationPermission::GuestIdentityView, $reservation)));
     }
 
+    /** One issued document in ZRA's receipt layout, or every document of the booking group (`Print all`). */
     public function print(Request $request, Reservation $reservation): Response
     {
-        abort(404);
+        Gate::authorize('viewFiscalReport', $reservation);
+        $documents = PrintedDocuments::for($reservation, $request->string('document')->value() ?: null);
+        abort_if($request->filled('document') && $documents === [], 404);
+        $property = Property::query()->findOrFail($reservation->property_id);
+
+        return Inertia::render('fiscal-receipting/zra-document', [
+            'documents' => $documents,
+            'sandbox' => collect($documents)->contains('mode', 'sandbox'),
+            'property' => $property->only(['name', 'address_line', 'city', 'phone', 'email']),
+            'branding' => $property->branding(),
+            'reservationNumber' => $reservation->reservation_number,
+            'backUrl' => route('reservations.fiscal-report', $reservation),
+        ]);
     }
 
     public function reveal(RevealFiscalIdentityRequest $request, Reservation $reservation, RevealFiscalIdentity $reveal): Response

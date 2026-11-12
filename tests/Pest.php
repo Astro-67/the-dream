@@ -30,13 +30,16 @@ use App\Support\Outbox\Outbox;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 use Tests\Support\TenantFixture;
 use Tests\Support\TwoTenants;
+use Tests\Support\VfmsHttp;
 use Tests\TestCase;
 
 /*
@@ -289,4 +292,29 @@ function generalReceiptGroup(TenantFixture $tenant): array
 function issueGeneralReceiptAs($test, TenantFixture $tenant, Reservation $reservation)
 {
     return $test->actingAs($tenant->owner)->post(route('reservations.general-receipt.store', $reservation), ['_property' => $tenant->property->id]);
+}
+
+/** One room, Anna Berg (P1234567) as lead guest; checked in unless $checkIn is false. */
+function generalReceiptStay(TenantFixture $tenant, array $details = [], bool $checkIn = true): Reservation
+{
+    return inTenant($tenant->property, function () use ($tenant, $details, $checkIn) {
+        $form = BookingForm::details($tenant->owner);
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [
+            ...$form, 'adults' => 1, 'children' => 0, 'nightly_rate' => 11000,
+            'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast', ...$details,
+        ]);
+        $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => 'Anna Berg', 'documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE']]]);
+        ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+
+        return $checkIn ? app(CheckIn::class)->handle($tenant->owner, $reservation) : $reservation;
+    });
+}
+
+/** Replaces the fake's service/ answer; Laravel uses the first matching stub, so a later Http::fake cannot override it. */
+function fakeGeneralReceiptService(mixed $response): void
+{
+    Http::swap(new Factory);
+    Http::fake([VfmsHttp::TEST_URL.'service/' => $response]);
+    VfmsHttp::fake();
 }
