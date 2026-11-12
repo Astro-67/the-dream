@@ -3,6 +3,7 @@
 use App\Http\Controllers\Web\Billing\AdjustmentController;
 use App\Http\Controllers\Web\Billing\ApprovalController;
 use App\Http\Controllers\Web\Billing\CashierShiftController;
+use App\Http\Controllers\Web\Billing\CustomerAccountController;
 use App\Http\Controllers\Web\Billing\ExtraChargeController;
 use App\Http\Controllers\Web\Billing\FeeProposalController;
 use App\Http\Controllers\Web\Billing\FolioCorrectionController;
@@ -13,6 +14,12 @@ use App\Http\Controllers\Web\FiscalReceipting\FileAdvancePaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
+    Route::get('customer-accounts', [CustomerAccountController::class, 'index'])->name('customer-accounts.index');
+    Route::post('customer-accounts', [CustomerAccountController::class, 'store'])->middleware('property.intent')->name('customer-accounts.store');
+    Route::get('customer-accounts/{customerAccount}', [CustomerAccountController::class, 'show'])->name('customer-accounts.show');
+    Route::post('customer-accounts/{customerAccount}/close', [CustomerAccountController::class, 'close'])->middleware('property.intent')->name('customer-accounts.close');
+    Route::post('customer-accounts/{customerAccount}/vfms/{message}/retry', [CustomerAccountController::class, 'recover'])->middleware('property.intent')->name('customer-accounts.vfms.retry');
+    Route::post('customer-accounts/{customerAccount}/vfms/{message}/refile', [CustomerAccountController::class, 'recover'])->middleware('property.intent')->name('customer-accounts.vfms.refile');
     Route::get('approvals', [ApprovalController::class, 'index'])->name('approvals.index');
     Route::post('approvals/{approval}/resolve', [ApprovalController::class, 'resolve'])->middleware('property.intent')->name('approvals.resolve');
     Route::put('approval-thresholds', [ApprovalController::class, 'threshold'])->middleware('property.intent')->name('approval-thresholds.update');

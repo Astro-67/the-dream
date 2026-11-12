@@ -9,7 +9,6 @@ use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\PostingApproval;
 use App\Domains\FiscalReceipting\VfmsAdvance;
 use App\Domains\FrontDesk\BusinessDate;
-use App\Domains\Reservations\Models\Reservation;
 use App\Models\User;
 use App\Support\Audit\Audit;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +28,9 @@ class ReversePosting
             if ($reason === '') {
                 throw ValidationException::withMessages(['reason' => __('A reversal needs a reason.')]);
             }
-            $folio = Folio::query()->whereKey($original->folio_id)->lockForUpdate()->firstOrFail();
+            $folio = Folio::query()->findOrFail($original->folio_id);
+            $folio->lockOwner();
+            $folio = Folio::query()->whereKey($folio->id)->lockForUpdate()->firstOrFail();
             $original = Posting::query()->findOrFail($original->id);
             self::ensureCancellable($original);
             if ($original->cashier_shift_id !== null) {
@@ -52,8 +53,8 @@ class ReversePosting
     public static function ensureCancellable(Posting $posting, string $field = 'posting', ?string $exceptApproval = null): void
     {
         if ($posting->type === 'payment') {
-            $reservation = Reservation::query()->findOrFail(Folio::query()->findOrFail($posting->folio_id)->reservation_id);
-            if (VfmsAdvance::paymentId($reservation) === $posting->id) {
+            $reservation = Folio::query()->findOrFail($posting->folio_id)->reservation;
+            if ($reservation !== null && VfmsAdvance::paymentId($reservation) === $posting->id) {
                 VfmsAdvance::ensureMutable($reservation, $field);
             }
         }

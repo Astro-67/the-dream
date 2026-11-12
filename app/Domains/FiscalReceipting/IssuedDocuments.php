@@ -2,6 +2,7 @@
 
 namespace App\Domains\FiscalReceipting;
 
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Receipt;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
@@ -42,7 +43,9 @@ final class IssuedDocuments
         }
         $attempt = $message->attempts()->where('outcome', 'accepted')->orderByDesc('attempt_number')->first();
         $common = [
-            'outbox_message_id' => $message->id, 'outbox_attempt_id' => $attempt?->id, 'reservation_id' => $message->subject_id,
+            'outbox_message_id' => $message->id, 'outbox_attempt_id' => $attempt?->id,
+            'reservation_id' => ($message->payload['customer_account_id'] ?? null) === null ? $message->subject_id : null,
+            'customer_account_id' => $message->payload['customer_account_id'] ?? null,
             'type' => $type, 'mode' => $mode, 'issued_at' => $message->delivered_at,
         ];
         $documents = $type === 'checkout_report' ? $this->reports($message, $references, $attempt?->response_body) : $this->receipt($message, $references);
@@ -97,11 +100,11 @@ final class IssuedDocuments
         $receipts = Receipt::query()->where('receipts.property_id', $property->id)
             ->join('postings', 'postings.id', '=', 'receipts.posting_id')->join('folios', 'folios.id', '=', 'postings.folio_id')
             ->where('postings.property_id', $property->id)->where('folios.property_id', $property->id)
-            ->select('receipts.id', 'receipts.number', 'receipts.issued_at', 'folios.reservation_id', 'postings.currency')
+            ->select('receipts.id', 'receipts.number', 'receipts.issued_at', 'folios.reservation_id', 'postings.currency', 'folios.customer_account_id')
             ->selectRaw("'non_fiscal' as type, -postings.amount as amount, 'not_applicable' as zra_status, null as guest_name, null as viewer_url")
             ->toBase();
         $fiscal = IssuedDocument::query()->where('property_id', $property->id)
-            ->select('id', 'number', 'issued_at', 'reservation_id', 'currency', 'type', 'amount')
+            ->select('id', 'number', 'issued_at', 'reservation_id', 'currency', 'customer_account_id', 'type', 'amount')
             ->selectRaw('mode as zra_status')->addSelect('guest_name', 'viewer_url')
             ->toBase();
         // Next local midnight, converted afterwards: a DST day is 23 or 25 hours long.
@@ -118,18 +121,20 @@ final class IssuedDocuments
         // Payers of non-fiscal receipts: the stay's lead guest, or its booker (as payment reports show them).
         $stays = Reservation::query()->where('property_id', $property->id)
             ->whereIn('id', collect($page->items())->pluck('reservation_id'))->get()->keyBy('id');
-        $names = Reservation::guestNames($stays->only(collect($page->items())->where('type', 'non_fiscal')->pluck('reservation_id')->all()));
+        $names = Reservation::guestNames($stays->only(collect($page->items())->where('type', 'non_fiscal')->pluck('reservation_id')->filter()->all()));
+        $accounts = CustomerAccount::query()->where('property_id', $property->id)->whereIn('id', collect($page->items())->pluck('customer_account_id'))->get()->keyBy('id');
 
         // Raw union rows are untyped; every column but issued_at/amount/guest/currency/viewer is non-null in both sources.
         return $page->through(fn (stdClass $row): array => [
             'id' => (string) $row->id, 'type' => (string) $row->type, 'number' => (string) $row->number,
             'issuedAt' => $row->issued_at === null ? null : CarbonImmutable::parse((string) $row->issued_at, 'UTC')->toIso8601String(),
-            'guest' => $row->type === 'non_fiscal' ? $names->get((string) $row->reservation_id) : $row->guest_name,
+            'guest' => $row->type === 'non_fiscal' ? ($accounts->get($row->customer_account_id)->customer_name ?? $names->get((string) $row->reservation_id)) : $row->guest_name,
             'amount' => $row->amount === null ? null : (int) $row->amount, 'currency' => $row->currency,
             'zraStatus' => (string) $row->zra_status, 'mode' => $row->type === 'non_fiscal' ? null : (string) $row->zra_status,
             'viewerUrl' => $row->viewer_url, 'reservationId' => (string) $row->reservation_id,
             'localUrl' => $row->type === 'non_fiscal' ? route('receipts.show', (string) $row->id)
-                : ($stays->has($row->reservation_id) ? self::reportUrl($stays[$row->reservation_id], (string) $row->type, (string) $row->number) : null),
+                : ($accounts->has($row->customer_account_id) ? route('customer-accounts.show', $accounts[$row->customer_account_id])
+                    : ($stays->has($row->reservation_id) ? self::reportUrl($stays[$row->reservation_id], (string) $row->type, (string) $row->number) : null)),
         ]);
     }
 

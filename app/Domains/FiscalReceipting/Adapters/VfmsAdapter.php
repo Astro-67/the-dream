@@ -3,6 +3,7 @@
 namespace App\Domains\FiscalReceipting\Adapters;
 
 use App\Domains\Billing\Actions\PostVfmsAdjustment;
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\CheckoutFigures;
@@ -67,11 +68,15 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
         if ($message->event === 'errorSave') {
             throw new RuntimeException('Issued-document corrections require reconciliation, not filing recovery.');
         }
-        $reservation = Reservation::query()->where('property_id', $message->property_id)->findOrFail($message->subject_id);
         $property = Property::query()->findOrFail($message->property_id);
         if ($message->event === 'generalReceipt') {
-            return $this->rebuildGeneralReceipt($message, $reservation, $property);
+            $subject = $message->subject_type === (new CustomerAccount)->getMorphClass()
+                ? CustomerAccount::query()->where('property_id', $message->property_id)->findOrFail($message->subject_id)
+                : Reservation::query()->where('property_id', $message->property_id)->findOrFail($message->subject_id);
+
+            return $this->rebuildGeneralReceipt($message, $subject, $property);
         }
+        $reservation = Reservation::query()->where('property_id', $message->property_id)->findOrFail($message->subject_id);
         if ($message->integration !== self::INTEGRATION || $message->subject_type !== $reservation->getMorphClass()
             || ($message->payload['reservation_id'] ?? null) !== $reservation->id
             || ($message->payload['mode'] ?? null) !== VfmsCredential::for($property)->mode->value) {
@@ -115,9 +120,11 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
      *
      * @return array<string, mixed>
      */
-    private function rebuildGeneralReceipt(OutboxMessage $message, Reservation $reservation, Property $property): array
+    private function rebuildGeneralReceipt(OutboxMessage $message, Reservation|CustomerAccount $reservation, Property $property): array
     {
-        if (($message->payload['reservation_id'] ?? null) !== $reservation->id || ($message->payload['mode'] ?? null) !== VfmsCredential::for($property)->mode->value) {
+        $ownerKey = $reservation instanceof CustomerAccount ? 'customer_account_id' : 'reservation_id';
+        if ($message->subject_type !== $reservation->getMorphClass() || ($message->payload[$ownerKey] ?? null) !== $reservation->id
+            || ($message->payload['mode'] ?? null) !== VfmsCredential::for($property)->mode->value) {
             throw new RuntimeException('The filing no longer matches this stay and VFMS mode.');
         }
         $ids = $message->payload['posting_ids'] ?? [];

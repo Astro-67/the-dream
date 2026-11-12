@@ -86,8 +86,20 @@ The property's daily run, at a time it sets, that checks out departing guests an
 _Avoid_: Night audit (which never checks guests out)
 
 **Folio**:
-The guest account for one reservation in one currency, open from booking until its balance is settled, which may be after departure. Charges move between folios only by a linked transfer.
+The charges and payments for one reservation or customer account in one currency, open until its balance is settled, which may be after departure. A folio has exactly one owner. Charges move between folios only by a linked transfer.
 _Avoid_: Bill, invoice, guest ledger, guest account
+
+**Customer account**:
+A property's numbered sale without a room or reservation, for day use or an event. It holds items and payments in currency-specific folios. Once settled, closing it issues a general receipt in the customer's or paying institution's name.
+_Avoid_: Walk-in reservation, invoice
+
+**Day use**:
+A customer account for one visitor's pool, restaurant, spa or day-package sale without an overnight stay.
+_Avoid_: Day-use reservation
+
+**Event**:
+A customer account for a conference or other sale without rooms, with optional dates and items added over one or more business dates.
+_Avoid_: Venue booking, group reservation
 
 **Deposit**:
 A payment posted to a folio before the guest arrives.

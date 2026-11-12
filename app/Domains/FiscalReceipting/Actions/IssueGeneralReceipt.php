@@ -3,6 +3,7 @@
 namespace App\Domains\FiscalReceipting\Actions;
 
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
@@ -68,7 +69,7 @@ class IssueGeneralReceipt
      * @param  Builder<Posting>  $held
      * @return list<OutboxMessage>
      */
-    public function issue(?User $actor, Reservation $subject, string $customer, Builder $held): array
+    public function issue(?User $actor, Reservation|CustomerAccount $subject, string $customer, Builder $held): array
     {
         return DB::transaction(function () use ($actor, $subject, $customer, $held) {
             $property = Property::query()->real()->find($subject->property_id);
@@ -86,7 +87,9 @@ class IssueGeneralReceipt
                 $message = $this->outbox->record(VfmsAdapter::INTEGRATION, $subject, 'generalReceipt', [
                     'mode' => $credential->mode->value, 'unit_id' => $credential->unit_id,
                     'request_type' => 'ACCOMMODATION_ADD_SERVICE', 'path' => 'service/',
-                    'reservation_id' => $subject->id, 'receipt_id' => $id, 'posting_ids' => $postings->modelKeys(),
+                    'reservation_id' => $subject instanceof Reservation ? $subject->id : null,
+                    'customer_account_id' => $subject instanceof CustomerAccount ? $subject->id : null,
+                    'receipt_id' => $id, 'posting_ids' => $postings->modelKeys(),
                     'body' => $this->payloads->generalReceipt($customer, $postings, 'WS-'.$id),
                 ], "vfms-ws:{$id}");
                 Posting::query()->whereKey($postings->modelKeys())->toBase()->update(['general_receipt_id' => $message->id]);

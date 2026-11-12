@@ -2,6 +2,7 @@
 
 namespace App\Domains\FiscalReceipting;
 
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -39,12 +40,14 @@ final class VfmsFilings
     private const STATUSES = ['filed' => 'Filed', 'refused' => 'Refused', 'unknown' => 'Unknown', 'waiting' => 'Waiting', 'sandbox' => 'Sandbox — not fiscal', 'closed' => 'Closed without filing'];
 
     /** @return list<array{id: string, call: string, status: string, attempts: int, number: string|null, message: string|null, refileUrl: string|null, retryUrl: string|null}> */
-    public static function of(Reservation $reservation, bool $canRecover): array
+    public static function of(Reservation|CustomerAccount $reservation, bool $canRecover): array
     {
+        $routes = $reservation instanceof CustomerAccount ? 'customer-accounts' : 'reservations';
+
         return OutboxMessage::query()->where('property_id', $reservation->property_id)
             ->where('integration', VfmsAdapter::INTEGRATION)->where('subject_type', $reservation->getMorphClass())
             ->where('subject_id', $reservation->id)->where('event', '!=', 'errorSave')->orderBy('sequence')->get()
-            ->map(function (OutboxMessage $message) use ($reservation, $canRecover) {
+            ->map(function (OutboxMessage $message) use ($reservation, $canRecover, $routes) {
                 $references = $message->getAttribute('provider_references') ?? [];
                 $number = $references['reportNo'] ?? $references['receiptNumber'] ?? $references['responseNumber'] ?? null;
 
@@ -56,8 +59,8 @@ final class VfmsFilings
                     'number' => $number === null ? null : (string) $number,
                     'message' => $message->status === 'rejected' ? VfmsRefusal::summary($message) : null,
                     // Unknown outcomes never get an action: VFMS cannot prove whether ZRA kept them (unknownRetrySafe is false).
-                    'refileUrl' => $canRecover && $message->status === 'rejected' ? route('reservations.vfms.refile', [$reservation, $message]) : null,
-                    'retryUrl' => $canRecover && in_array($message->status, ['retryable', 'exhausted'], true) ? route('reservations.vfms.retry', [$reservation, $message]) : null,
+                    'refileUrl' => $canRecover && $message->status === 'rejected' ? route($routes.'.vfms.refile', [$reservation, $message]) : null,
+                    'retryUrl' => $canRecover && in_array($message->status, ['retryable', 'exhausted'], true) ? route($routes.'.vfms.retry', [$reservation, $message]) : null,
                 ];
             })->all();
     }

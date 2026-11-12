@@ -90,6 +90,7 @@ test('a confirmed stay\'s extra is not filed', function () {
 // protects=one institution receipt per currency for the whole group, in the institution's name (spec #249); fails_when=the body differs, a room is missed or a document number is sent; no_claim=Live acceptance.
 test('issuing an institution receipt sends one WS per currency for the whole group', function () {
     $t = twoTenants()->a;
+    config(['services.vfms.test_viewer_url' => 'https://vfms-viewer.example']);
     [$first, $second] = generalReceiptGroup($t);
     [$usd, $tzs] = inTenant($t->property, fn () => [Folio::query()->where('reservation_id', $first->id)->sole(), app(OpenFolio::class)->handle($t->owner, $second, 'TZS')]);
     $usdFolio2 = inTenant($t->property, fn () => Folio::query()->where('reservation_id', $second->id)->where('currency', 'USD')->sole());

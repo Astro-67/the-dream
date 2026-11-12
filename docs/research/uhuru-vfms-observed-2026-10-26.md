@@ -245,3 +245,25 @@ Opt-in driver `tests/Feature/FiscalReceipting/VfmsTestServerGeneralReceiptTest.p
 - **Extra after check-out.** A one-guest USD stay: check-in accepted, `CS` water 2 × 10 accepted as `XHE2104828`, check-out accepted as report `XHE2104829`. Then a dinner 1 × 25 with discount 5 was posted on the departed stay: Karafuu sent `WS` in the guest's full name ("Test Guest 1", not the passport), accepted as `XHE2104831`, sales 20.00, tax 2.61. The stay was checked out before the `WS`; nothing is left open.
 - **`BTOB` group not run.** `VFMS_TEST_BTOB_ZRB_NUMBER` is not set in any checkout, and every number tried for `BTOB` (the guide's sample `Z025608121` and two tour-operator numbers from earlier runs) was refused with `PLEASE USE THE CORRECT ZRB NUMBER`. `WITHHOLD` with `WA2400117` is still refused (`This institution not Registered`). Refused check-ins open nothing on ZRA. The group scenario is in the driver and skips until a test-server `BTOB` number is set.
 - **Institution bodies, probed directly.** In place of the group run, `scripts/vfms-probe.sh` sent the two bodies Karafuu builds for an institution's extras (no stay; `documentNumber` "Test Institution …"). USD dinner 2 × 18 less 6 plus water 3 × 5: `XHE2104832`, sales 45.00, tax 5.87. TZS conference hall 150,000: `XHE2104833`, tax 19,565.22. These are probes, not runs through Karafuu's routes.
+
+### Customer accounts through Karafuu, 12 November 2026 (ticket #251)
+
+Opt-in driver `tests/Feature/FiscalReceipting/VfmsTestServerCustomerAccountTest.php`, run with
+`VFMS_TEST_SERVER_RUN=1 php artisan test --filter=VfmsTestServerCustomerAccountTest`.
+Both scenarios used the real account, extra, payment and close routes, and the existing
+general-receipt outbox path. The driver requires ZRA's test-server host and Sandbox
+credentials; it allows no other outbound HTTP. No Live filing or real customer data.
+
+- **Day use, discounted:** customer "Test Day Use ACCU4EIMQ", no room or reservation.
+  Pool and lunch, 2 x USD 25 less a USD 5 line discount; bank-transfer payment USD 45.
+  Nothing filed before close. Closing accepted one `WS`, receipt **`XHE2104839`**,
+  sales USD 45.00, tax USD 5.869565217391304; account closed with zero balance.
+- **Event over two business dates:** customer "Test Event ACCJKGIAE", no room or
+  reservation. Conference hall, 2 x USD 25 less USD 5 on the first business date;
+  the real night-audit route advanced the business date, then catering 3 x USD 10
+  was posted on the next date. Bank-transfer payment USD 75. Closing accepted one
+  `WS` containing both dates' items, receipt **`XHE2104840`**, sales USD 75.00,
+  tax USD 9.782608695652174; account closed with zero balance.
+- Both filings were accepted on their first attempt. This proves items accumulated
+  over Karafuu business dates, not two elapsed days on ZRA's clock. There are no
+  accommodation stays to leave open.

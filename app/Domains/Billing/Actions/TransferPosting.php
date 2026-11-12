@@ -24,12 +24,13 @@ class TransferPosting
             if ($reason === '') {
                 throw ValidationException::withMessages(['reason' => __('A transfer needs a reason.')]);
             }
+            Folio::query()->findOrFail($original->folio_id)->lockOwner();
             // Lock both folios in a fixed order, so opposite transfers cannot deadlock.
             $folios = Folio::query()->whereKey([$original->folio_id, $target->id])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             $source = $folios->get($original->folio_id);
             $target = $folios->get($target->id);
-            if ($source === null || $target === null || $source->is($target) || $source->reservation_id !== $target->reservation_id) {
-                throw ValidationException::withMessages(['folio_id' => __('Choose another folio on this reservation.')]);
+            if ($source === null || $target === null || $source->is($target) || $source->reservation_id !== $target->reservation_id || $source->customer_account_id !== $target->customer_account_id) {
+                throw ValidationException::withMessages(['folio_id' => __('Choose another folio belonging to the same reservation or customer account.')]);
             }
             if ($source->currency !== $target->currency) {
                 throw ValidationException::withMessages(['folio_id' => __('A charge can only move to a folio in the same currency.')]);
