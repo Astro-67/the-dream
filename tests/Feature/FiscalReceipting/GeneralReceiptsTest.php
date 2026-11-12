@@ -371,7 +371,7 @@ test('an institution room\'s check-out adjustment keeps its extras on the folio'
 
     $report = collect(generalReceiptMessages($t, 'checkout'))->firstWhere('subject_id', $first->id)->getAttribute('provider_references');
     inTenant($t->property, function () use ($folio, $dinner, $report) {
-        $charges = Posting::query()->where('folio_id', $folio->id)->where('type', 'charge')->sum('amount');
+        $charges = (int) Posting::query()->where('folio_id', $folio->id)->where('type', 'charge')->sum('amount');
         expect($charges)->toBe((int) round($report['totalAmount'] * 100) + $dinner->amount);
     });
 });

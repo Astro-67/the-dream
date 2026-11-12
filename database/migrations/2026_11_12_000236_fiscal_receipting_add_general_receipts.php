@@ -29,7 +29,8 @@ return new class extends Migration
             $table->string('reservation_id', 64)->nullable(false)->change();
         });
         Schema::table('postings', function (Blueprint $table) {
-            $table->dropForeign(['organization_id', 'property_id', 'general_receipt_id']);
+            // SQLite drops foreign keys by their columns (it rebuilds the table); MySQL by the name given in up().
+            $table->dropForeign(Schema::getConnection()->getDriverName() === 'sqlite' ? ['organization_id', 'property_id', 'general_receipt_id'] : 'posting_general_receipt_tenant_fk');
             $table->dropColumn(['discount', 'general_receipt_id']);
         });
     }
