@@ -11,6 +11,7 @@ use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Actions\CorrectPayingInstitution;
 use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Domains\FiscalReceipting\Actions\RefreshCorrectionDecisions;
+use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\FiscalReceipting\DocumentCorrections;
 use App\Domains\FiscalReceipting\VfmsFilings;
 use App\Domains\FiscalReceipting\VfmsRefusal;
@@ -90,6 +91,7 @@ class ReservationController extends Controller
         $payments = FolioSummary::payments($folios->getCollection());
 
         return Inertia::render('reservations/show', [
+            'zraDocuments' => CheckoutReport::overview($reservation),
             'vfmsRefusal' => VfmsRefusal::of($reservation, $canRecoverVfms = Gate::allows('recoverVfms', $reservation)),
             'vfmsFilings' => $vfmsFilings = VfmsFilings::of($reservation, $canRecoverVfms),
             'vfmsCloseWithoutFilingUrl' => VfmsFilings::closeWithoutFilingUrl($reservation, $canRecoverVfms, $vfmsFilings),

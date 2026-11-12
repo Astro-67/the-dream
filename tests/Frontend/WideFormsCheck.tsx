@@ -176,8 +176,37 @@ const stayProps: ComponentProps<typeof Show> = {
     paymentsReportUrl: null,
     vfmsRefusal: null,
     vfmsFilings: [],
+    zraDocuments: null,
+    generalReceipt: null,
 };
 const reservation = render(() => <Show {...stayProps} />);
+const zraCard = render(() => (
+    <Show
+        {...stayProps}
+        zraDocuments={{
+            counts: {
+                generalReceipts: 2,
+                serviceReceipts: 3,
+                guestReports: 4,
+                held: 1,
+            },
+            held: [{ currency: 'USD', amount: 900 }],
+            needsAttention: true,
+            url: '/reservations/R-1042/fiscal-report',
+            statementUrl: '/reservations/R-1042/group-statement',
+            generalReceipts: [],
+            guestReports: [],
+        }}
+    />
+));
+assert.match(zraCard, /Check-out reports \(4\)/);
+assert.match(zraCard, /Guest receipts \(3\)/);
+assert.match(zraCard, /General receipts \(2\)/);
+assert.match(zraCard, /Needs attention/);
+assert.match(zraCard, /Not yet receipted: USD 9.00/);
+assert.match(zraCard, /href="\/reservations\/R-1042\/fiscal-report"/);
+assert.match(zraCard, /href="\/reservations\/R-1042\/group-statement"/);
+assert.doesNotMatch(reservation, /Open ZRA documents/);
 // protects=the paying institution shows only where the property files with VFMS (spec #242); fails_when=a Mainland or demo stay shows it; no_claim=HTTP authorization.
 const institution = {
     ...stayProps.reservation,

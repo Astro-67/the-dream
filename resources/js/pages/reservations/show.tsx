@@ -31,6 +31,10 @@ import {
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
+    ZraDocumentsSummary,
+    type ZraDocumentsOverview,
+} from '@/features/fiscal-receipting/zra-documents';
+import {
     Table,
     TableBody,
     TableCell,
@@ -142,6 +146,7 @@ export default function Show({
     acceptedPaymentMethods,
     extraCategories,
     generalReceipt,
+    zraDocuments,
     paymentsReportUrl,
     vfmsRefusal,
     vfmsFilings,
@@ -186,6 +191,7 @@ export default function Show({
     acceptedPaymentMethods: string[];
     extraCategories: string[];
     generalReceipt: GeneralReceiptPreview | null;
+    zraDocuments: ZraDocumentsOverview | null;
     paymentsReportUrl: string | null;
     vfmsRefusal: VfmsRefusal | null;
     vfmsFilings: VfmsFiling[];
@@ -569,14 +575,16 @@ export default function Show({
                 )}
                 <FolioPanel
                     groupStatementLink={
-                        <Link
-                            href={groupStatement(
-                                reservation.reservation_number,
-                            )}
-                            className="text-primary underline underline-offset-4"
-                        >
-                            Group statement
-                        </Link>
+                        !zraDocuments && (
+                            <Link
+                                href={groupStatement(
+                                    reservation.reservation_number,
+                                )}
+                                className="text-primary underline underline-offset-4"
+                            >
+                                Group statement
+                            </Link>
+                        )
                     }
                     stay={stay}
                     folios={folios}
@@ -593,15 +601,6 @@ export default function Show({
                             : null
                     }
                 />
-                {generalReceipt && (
-                    <section className="flex flex-wrap items-center gap-3">
-                        <p>
-                            Extras for {generalReceipt.customer} are not yet
-                            receipted.
-                        </p>
-                        <GeneralReceiptDialog preview={generalReceipt} />
-                    </section>
-                )}
                 {feeProposals.length > 0 && (
                     <Collapsible
                         defaultOpen={feeProposals.some(
@@ -623,6 +622,24 @@ export default function Show({
                             <FeeProposals fees={feeProposals} />
                         </CollapsibleContent>
                     </Collapsible>
+                )}
+                {zraDocuments && (
+                    <Card>
+                        <CardContent className="space-y-3">
+                            <ZraDocumentsSummary documents={zraDocuments} />
+                            <div className="flex flex-wrap items-center gap-3">
+                                <Link
+                                    href={zraDocuments.statementUrl}
+                                    className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+                                >
+                                    Group statement
+                                </Link>
+                                <GeneralReceiptDialog
+                                    preview={generalReceipt}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
                 <VfmsFilingsPanel
                     filings={vfmsFilings}

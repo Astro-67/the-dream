@@ -58,7 +58,7 @@ import {
     type FolioTotal,
     type TaxSource,
 } from './folio-summary';
-import { fiscalReport, statement } from '@/routes/reservations';
+import { statement } from '@/routes/reservations';
 import { PaymentsReceived, type ReceivedPayment } from './payments-received';
 
 export type Posting = {
@@ -420,19 +420,6 @@ export function FolioPanel({
                                 className="h-auto min-h-11 text-left whitespace-normal"
                             >
                                 {groupStatementLink}
-                            </Button>
-                        )}
-                        {taxSource && (
-                            <Button
-                                asChild
-                                variant="link"
-                                className="h-auto min-h-11 text-left whitespace-normal"
-                            >
-                                <Link
-                                    href={fiscalReport(stay.reservation_number)}
-                                >
-                                    ZRA documents
-                                </Link>
                             </Button>
                         )}
                         {paymentsReportUrl && (

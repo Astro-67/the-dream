@@ -50,6 +50,26 @@ test('the group statement shows accepted ZRA documents and held totals without c
         ->where('zraDocuments.url', route('reservations.fiscal-report', $second)));
 });
 
+test('a reservation ZRA card counts the whole group and flags refused filings', function () {
+    $t = twoTenants()->a;
+    [$first, $second] = generalReceiptGroup($t);
+    $folio = inTenant($t->property, fn () => Folio::query()->where('reservation_id', $first->id)->sole());
+    postGeneralReceiptExtra($this, $t, $folio, ['unit_price' => 3600]);
+    issueGeneralReceiptAs($this, $t, $first)->assertSessionHasNoErrors();
+    postGeneralReceiptExtra($this, $t, $folio, ['unit_price' => 900]);
+    fakeGeneralReceiptService(Http::response(['statusCode' => 5000, 'message' => 'Refused']));
+    issueGeneralReceiptAs($this, $t, $first)->assertSessionHasNoErrors();
+
+    $this->withSession(['tenancy.organization_id' => $t->organization->id, 'tenancy.property_id' => $t->property->id])
+        ->get(route('reservations.show', $second))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('zraDocuments.counts', ['generalReceipts' => 2, 'serviceReceipts' => 0, 'guestReports' => 0, 'held' => 1])
+        ->where('zraDocuments.held', [['currency' => 'USD', 'amount' => 900]])
+        ->where('zraDocuments.needsAttention', true)
+        ->where('zraDocuments.url', route('reservations.fiscal-report', $second))
+        ->where('zraDocuments.statementUrl', route('reservations.group-statement', $second))
+        ->has('vfmsFilings', 1));
+});
+
 // protects=one page shows a group's general receipts and what is still held, from any room (spec #249 UI §1); fails_when=a section or count is missing or the other room shows nothing; no_claim=print layout.
 test('a group\'s ZRA documents list its general receipt and the extras still held, from any room', function () {
     $t = twoTenants()->a;
