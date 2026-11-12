@@ -147,8 +147,8 @@ export function FolioSummaryList({
                 <p className="text-sm text-muted-foreground">
                     Not yet charged: {estimate.nights}{' '}
                     {estimate.nights === 1 ? 'night' : 'nights'}, estimated{' '}
-                    {formatMoney(estimate.amount, currency)} before added taxes.
-                    Not included in the totals above.
+                    {formatMoney(estimate.amount, currency)} including estimated
+                    taxes. Not included in the totals above.
                 </p>
             )}
         </div>

@@ -29,7 +29,7 @@ function documentGuardArrivals(Property $property, User $owner): array
         $secondRoom = app(CreateRoom::class)->handle($owner, InventoryForm::room($firstRoom->getAttribute('room_type_id'), ['number' => '202']));
         $stays = [];
         foreach ([$firstRoom, $secondRoom] as $room) {
-            $stay = app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => $room->id]);
+            $stay = app(CreateReservation::class)->handle($owner, [...$details, 'adults' => 1, 'children' => 0, 'room_id' => $room->id]);
             $guest = app(CreateGuest::class)->handle($owner, ['name' => 'Guest '.$room->getAttribute('number'), 'documents' => [
                 ['type' => 'passport', 'number' => $room->is($firstRoom) ? 'P1234567' : " p 123\t4567\n", 'nationality' => 'DE'],
             ]]);

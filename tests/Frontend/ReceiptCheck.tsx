@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import { App } from '@inertiajs/react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import type { ComponentProps } from 'react';
 import { PaymentsTable } from '@/features/reports/collections-table';
 import Show from '@/pages/receipts/show';
+import Receipts from '@/pages/receipts/index';
+import type { AdvancePayment } from '@/features/billing/advance-receipt';
 
 const base = {
     receipt: {
@@ -60,7 +63,11 @@ const base = {
     },
 };
 const render = (
-    props: Omit<typeof base, 'summary'> & {
+    props: Omit<typeof base, 'summary' | 'stay' | 'reservation'> & {
+        stay: typeof base.stay | null;
+        reservation: typeof base.reservation | null;
+        customerAccount?: ComponentProps<typeof Show>['customerAccount'];
+        advancePayment?: AdvancePayment;
         summary:
             | (typeof base.summary & {
                   estimate?: {
@@ -87,6 +94,23 @@ const render = (
     );
 
 const html = render(base);
+const accountReceipt = render({
+    ...base,
+    stay: null,
+    reservation: null,
+    customerAccount: {
+        id: 'account-1',
+        number: 'ACC-000001',
+        customer_name: 'Pool visitor',
+        kind: 'day_use',
+    },
+    booker: { name: 'Pool visitor' },
+});
+assert.match(accountReceipt, /Pool visitor/);
+assert.match(accountReceipt, /ACC-000001/);
+assert.match(accountReceipt, /customer-accounts\/account-1/);
+assert.doesNotMatch(accountReceipt, /reservations\/R-1042/);
+assert.doesNotMatch(accountReceipt, /Not assigned/);
 assert.match(html, /NON-FISCAL RECEIPT/);
 assert.match(html, /Folio summary at payment time/);
 assert.match(html, /USD 30\.00/);
@@ -106,7 +130,7 @@ const estimated = render({
 assert.match(estimated, /Room charges \(estimated, 3 nights\)/);
 assert.match(estimated, /USD 300\.00/);
 assert.match(estimated, /USD 30\.00/);
-assert.match(estimated, /Not yet charged, before added taxes/);
+assert.match(estimated, /Estimate recorded at payment time/);
 assert.match(
     render({
         ...base,
@@ -210,3 +234,221 @@ assert.match(table, /USD -20\.00/);
 assert.match(table, /Unassigned/);
 assert.equal((table.match(/>Other</g) ?? []).length, 3);
 console.log('Receipt summary and individual payments: PASS');
+
+const advance = render({
+    ...base,
+    advancePayment: {
+        status: 'delivered',
+        mode: 'sandbox',
+        bookingNumber: 'ADV-BOOKING-1',
+        receiptNumber: 'ADV-RECEIPT-1',
+        receiptUrl: 'https://vfms.example/receipt-form/ADV-RECEIPT-1',
+        qrSvg: '<svg data-test="advance-qr"></svg>',
+    },
+});
+assert.match(advance, /NON-FISCAL RECEIPT/);
+assert.match(advance, /Sandbox - not fiscal/);
+assert.match(advance, /ADV-BOOKING-1/);
+assert.match(advance, /data-test="advance-qr"/);
+assert.match(advance, /View ZRA advance receipt/);
+assert.doesNotMatch(advance, /File advance receipt with ZRA/);
+const advanceForm = render({
+    ...base,
+    advancePayment: {
+        status: 'not_filed',
+        payer: { name: 'Island Tours', regNumber: 'TIN-1' },
+        fileUrl: '/receipts/rc-1/vfms-advance',
+    },
+});
+assert.match(advanceForm, /name="_property"/);
+assert.match(advanceForm, /name="is_zra_registered"/);
+assert.match(advanceForm, /name="name"[^>]*value="Island Tours"/);
+assert.match(advanceForm, /automatic advance refunds and cancellation/);
+assert.match(advanceForm, /File advance receipt with ZRA/);
+assert.match(
+    render({ ...base, advancePayment: { status: 'unknown' } }),
+    /Unknown - do not file again/,
+);
+console.log('Advance receipt, Sandbox warning, QR and explicit filing: PASS');
+
+const linkedAdvance = render({
+    ...base,
+    advancePayment: {
+        status: 'linked',
+        source: 'external',
+        mode: 'live',
+        linkUrl: '/receipts/rc-1/vfms-advance',
+        bookingNumber: 'EXTERNAL-BOOKING',
+        receiptNumber: 'EXTERNAL-RECEIPT',
+        receiptUrl: 'https://vfms.example/receipt-form/EXTERNAL-RECEIPT',
+        reason: 'References supplied externally; verified by ZRA at check-in.',
+    },
+});
+assert.match(linkedAdvance, /Existing ZRA advance linked/);
+assert.match(linkedAdvance, /Verify existing ZRA receipt/);
+assert.match(linkedAdvance, /name="link_existing"[^>]*value="1"/);
+assert.match(linkedAdvance, /name="booking_number"/);
+assert.match(linkedAdvance, /name="receipt_number"/);
+assert.match(linkedAdvance, /name="reason"/);
+assert.doesNotMatch(linkedAdvance, /Accepted by ZRA/);
+assert.doesNotMatch(linkedAdvance, /name="is_zra_registered"/);
+assert.doesNotMatch(linkedAdvance, /File advance receipt with ZRA/);
+assert.match(
+    render({
+        ...base,
+        advancePayment: {
+            status: 'not_filed',
+            linkUrl: '/receipts/rc-1/vfms-advance',
+        },
+    }),
+    /Link existing ZRA advance \(any guest or payer\)/,
+);
+console.log(
+    'Existing advance linkage works for any payer without claiming new fiscal acceptance: PASS',
+);
+assert.match(
+    render({
+        ...base,
+        advancePayment: {
+            status: 'linked',
+            source: 'external',
+            checkInStatus: 'unknown',
+        },
+    }),
+    /Advance check-in unknown - do not refile/,
+);
+
+type RegisterProps = ComponentProps<typeof Receipts>;
+const register: RegisterProps = {
+    filters: {},
+    documents: {
+        data: [
+            {
+                id: 'issued-230',
+                number: 'ZRA-230',
+                type: 'services_receipt',
+                issuedAt: '2026-12-10T21:01:00Z',
+                guest: 'Anna Berg',
+                amount: 2000,
+                currency: 'USD',
+                zraStatus: 'sandbox',
+                mode: 'sandbox',
+                localUrl:
+                    '/reservations/R-1042/fiscal-report#document-services_receipt-ZRA-230',
+                viewerUrl: 'https://viewer.example/receipt-form/ZRA-230',
+                annotations: [],
+            },
+        ],
+        current_page: 1,
+        last_page: 1,
+        per_page: 50,
+        from: 1,
+        to: 1,
+        total: 1,
+        prev_page_url: null,
+        next_page_url: null,
+        links: [],
+    },
+};
+const renderRegister = (props: RegisterProps, permissions: string[] = []) =>
+    renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'receipts/index',
+                url: '/receipts',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: {
+                    ...props,
+                    auth: { permissions },
+                    tenant: { property: { timezone: 'Africa/Dar_es_Salaam' } },
+                },
+            }}
+            initialComponent={() => <Receipts {...props} />}
+        />,
+    );
+const issued = renderRegister(register);
+for (const text of [
+    'Receipts',
+    'Issued from',
+    'Issued through',
+    'Document type',
+    'ZRA status',
+    'Issue-time mode',
+    'Correction',
+    'Document number',
+    'TEST, NOT FISCAL',
+    '11 Dec 2026',
+    '00:01',
+    'USD 20.00',
+]) {
+    assert.ok(issued.includes(text), `Register displays ${text}`);
+}
+assert.match(
+    issued,
+    /href="\/reservations\/R-1042\/fiscal-report#document-services_receipt-ZRA-230"/,
+);
+assert.match(issued, /href="https:\/\/viewer\.example\/receipt-form\/ZRA-230"/);
+assert.match(issued, /<label[^>]*for="from"/);
+assert.match(issued, /<label[^>]*for="type"/);
+assert.doesNotMatch(issued, /Revenue total|Grand total/);
+assert.doesNotMatch(issued, />Correct</);
+assert.match(
+    renderRegister(register, ['outbox.recover']),
+    /href="\/reservations\/R-1042\/fiscal-report#document-services_receipt-ZRA-230"[^>]*>Correct<span class="sr-only"> ZRA-230/,
+);
+const unavailable = renderRegister({
+    ...register,
+    documents: {
+        ...register.documents,
+        data: [
+            {
+                ...register.documents.data[0],
+                amount: null,
+                currency: null,
+                guest: null,
+                viewerUrl: null,
+            },
+        ],
+    },
+});
+assert.match(unavailable, /Unavailable/);
+assert.match(unavailable, /ZRA viewer unavailable/);
+const emptyRegister = renderRegister({
+    ...register,
+    documents: { ...register.documents, data: [], total: 0 },
+});
+assert.match(emptyRegister, /No issued documents match these filters/);
+assert.match(emptyRegister, /Show all issue dates and document types/);
+assert.doesNotMatch(emptyRegister, /<table/);
+const annotatedRegister = renderRegister({
+    ...register,
+    documents: {
+        ...register.documents,
+        data: [
+            {
+                ...register.documents.data[0],
+                annotations: [
+                    {
+                        label: 'Replaced by',
+                        number: 'REPLACEMENT-234',
+                        url: '/replacement',
+                        delivery: 'delivered',
+                        decision: 'approved',
+                        refreshUrl: '/document-corrections/1/refresh',
+                    },
+                ],
+            },
+        ],
+    },
+});
+assert.match(annotatedRegister, /Replaced by/);
+assert.match(annotatedRegister, /REPLACEMENT-234/);
+assert.match(annotatedRegister, /Approved/);
+assert.doesNotMatch(annotatedRegister, /Refresh ZRA status/);
+assert.match(annotatedRegister, /ZRA-230/);
+assert.match(annotatedRegister, /USD 20\.00/);
+console.log(
+    'Receipts register display, local dates, links and empty states: PASS',
+);

@@ -18,7 +18,18 @@ const cases = [
         'Merge duplicate guests',
     ],
     ['properties/create', 'Properties', '/properties', 'Add property'],
-    ['properties/edit', 'Properties', '/properties', 'Edit property'],
+    [
+        'properties/show',
+        'Properties',
+        '/properties',
+        'Stone Town Waterfront Hotel',
+    ],
+    [
+        'properties/edit',
+        'Stone Town Waterfront Hotel',
+        '/properties/property-207',
+        'Edit property',
+    ],
     ['members/edit', 'Staff', '/members', 'Edit access'],
     ['invitations/create', 'Staff', '/members', 'Add staff'],
     [
@@ -60,12 +71,18 @@ const cases = [
         '/reservations/R-207',
         'Folio statement',
     ],
+    [
+        'reservations/group-statement',
+        'R-207',
+        '/reservations/R-207',
+        'Group statement',
+    ],
     ['receipts/show', 'R-207', '/reservations/R-207', 'Receipt'],
     [
         'fiscal-receipting/checkout-report',
         'R-207',
         '/reservations/R-207',
-        'Fiscal check-out report',
+        'ZRA documents',
     ],
     ['night-audit/show', 'Night audit', '/night-audit', 'Close details'],
     ['maintenance/show', 'Maintenance', '/maintenance', 'Ticket'],
@@ -103,12 +120,22 @@ const shared = {
         properties: [],
     },
     plan: { id: 'plan-207' },
+    property: { id: 'property-207', name: 'Stone Town Waterfront Hotel' },
     record: { id: 'contact-207', name: 'Amina Said' },
     guest: { id: 'contact-207', name: 'Amina Said' },
     candidates: { data: [] },
     reservation: { reservation_number: 'R-207' },
     stay: { reservation_number: 'R-207' },
     reservationNumber: 'R-207',
+    reservationUrl: '/reservations/R-207',
+    expectedGuests: 2,
+    guests: { data: [], total: 0, links: [] },
+    inHouse: false,
+    canAttach: false,
+    canViewIdentity: false,
+    leadGuestId: null,
+    departedGuestIds: [],
+    canRecordDeparture: false,
 };
 
 async function navigation(
@@ -147,6 +174,14 @@ const emptyMerge = await navigation(
 assert.match(emptyMerge, /No other guests at this property\./);
 assert.equal((emptyMerge.match(/Back to /g) ?? []).length, 1);
 assert.match(emptyMerge, /Back to Amina Said<\/a>/);
+
+const registration = await navigation(
+    'reservations/guests',
+    '/reservations/R-207/guests',
+    true,
+);
+assert.match(registration, /0 guests added · 2[^<]*adults booked/);
+assert.match(registration, /children do not need to be added/);
 
 for (const [path, parent, href, current] of cases) {
     const markup = await navigation(path);

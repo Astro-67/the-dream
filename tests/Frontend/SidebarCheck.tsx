@@ -110,8 +110,14 @@ assert.match(finance, />Money</);
 assert.match(finance, />Cashier shifts</);
 assert.match(finance, />Open balances</);
 assert.doesNotMatch(finance, />Payments</);
+assert.doesNotMatch(finance, />Receipts</);
 assert.doesNotMatch(finance, />Reports</);
 assert.doesNotMatch(finance, />Setup</);
+const reports = sidebar([], ['reports.view']);
+assert.match(reports, /href="\/payments"/);
+assert.match(reports, /href="\/receipts"/);
+assert.match(reports, />Receipts</);
+assert.doesNotMatch(sidebar(['platform_administrator']), /href="\/receipts"/);
 
 const reservations = sidebar([], ['reservations.view']);
 assert.match(reservations, />Reservations</);

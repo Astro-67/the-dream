@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers\Web\FiscalReceipting;
 
+use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
+use App\Domains\FiscalReceipting\Actions\RefreshCorrectionDecisions;
 use App\Domains\FiscalReceipting\Actions\RevealFiscalIdentity;
 use App\Domains\FiscalReceipting\CheckoutReport;
+use App\Domains\FiscalReceipting\DocumentCorrections;
+use App\Domains\FiscalReceipting\PrintedDocuments;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationPermission;
 use App\Domains\Tenancy\Models\Property;
@@ -22,9 +27,27 @@ class CheckoutReportController extends Controller
 {
     public function __invoke(Request $request, Reservation $reservation): Response
     {
-        Gate::authorize('view', $reservation);
+        Gate::authorize('viewFiscalReport', $reservation);
 
         return $this->report($request, $reservation, CheckoutReport::of($reservation, Access::allows($request->user(), OrganizationPermission::GuestIdentityView, $reservation)));
+    }
+
+    /** One issued document in ZRA's receipt layout, or every document of the booking group (`Print all`). */
+    public function print(Request $request, Reservation $reservation): Response
+    {
+        Gate::authorize('viewFiscalReport', $reservation);
+        $documents = PrintedDocuments::for($reservation, $request->string('document')->value() ?: null);
+        abort_if($request->filled('document') && $documents === [], 404);
+        $property = Property::query()->findOrFail($reservation->property_id);
+
+        return Inertia::render('fiscal-receipting/zra-document', [
+            'documents' => $documents,
+            'sandbox' => collect($documents)->contains('mode', 'sandbox'),
+            'property' => $property->only(['name', 'address_line', 'city', 'phone', 'email']),
+            'branding' => $property->branding(),
+            'reservationNumber' => $reservation->reservation_number,
+            'backUrl' => route('reservations.fiscal-report', $reservation),
+        ]);
     }
 
     public function reveal(RevealFiscalIdentityRequest $request, Reservation $reservation, RevealFiscalIdentity $reveal): Response
@@ -41,14 +64,22 @@ class CheckoutReportController extends Controller
         // Guests still in-house, lead first, as the check-out filed them (#164).
         $ids = ReservationGuest::query()->where('reservation_id', $reservation->id)->whereNull('departed_at')->orderBy('id')->pluck('guest_id');
         $names = Guest::query()->whereIn('id', $ids)->pluck('name', 'id');
+        $property = Property::query()->findOrFail($reservation->property_id);
 
         return Inertia::render('fiscal-receipting/checkout-report', [
             ...$report,
+            'documentCorrections' => app(BookingGroupMembers::class)->reservations($reservation)->flatMap(fn (Reservation $member) => DocumentCorrections::forReservation($member, true))->all(),
+            'correctionRefresh' => RefreshCorrectionDecisions::status($property),
             'revealIdentityUrl' => $request->user()?->can('revealFiscalIdentity', $reservation)
                 ? route('reservations.fiscal-report.reveal-identity', $reservation) : null,
             'stay' => $reservation->stay(),
             'guests' => $ids->map(fn (string $id) => $names[$id])->values()->all(),
-            'property' => Property::query()->findOrFail($reservation->property_id)->only(['name', 'address_line', 'city', 'phone', 'email']),
+            'property' => $property->only(['name', 'address_line', 'city', 'phone', 'email']),
+            // Current branding, so a reprint after a rebrand shows the new logo; fiscal evidence is untouched.
+            'branding' => $property->branding(),
+            'reservationUrl' => $request->user()?->can('view', $reservation) ? route('reservations.show', $reservation) : null,
+            'printAllUrl' => route('reservations.fiscal-report.print', $reservation),
+            'generalReceipt' => $request->user()?->can('issueGeneralReceipt', $reservation) ? IssueGeneralReceipt::preview($reservation) : null,
         ]);
     }
 }

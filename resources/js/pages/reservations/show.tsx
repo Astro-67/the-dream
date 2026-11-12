@@ -39,9 +39,14 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { TerminationActions } from '@/features/reservations/termination-actions';
+import { PayingInstitutionDialog } from '@/features/reservations/paying-institution-dialog';
 import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
 import type { CheckoutBalance } from '@/features/front-desk/check-out-dialog';
 import { StayLengthActions } from '@/features/front-desk/stay-length-actions';
+import {
+    GeneralReceiptDialog,
+    type GeneralReceiptPreview,
+} from '@/features/fiscal-receipting/general-receipt-dialog';
 import { formatDate } from '@/features/platform/format';
 import {
     AmendmentForm,
@@ -49,7 +54,7 @@ import {
     type Amendment,
     type AmendmentOptions,
 } from '@/features/reservations/amendment-form';
-import { index, show } from '@/routes/reservations';
+import { groupStatement, index, show } from '@/routes/reservations';
 import { formatMoney } from '@/lib/utils';
 import {
     RoomMoveForm,
@@ -90,6 +95,9 @@ type Reservation = {
     tour_operator_name: string | null;
     tour_operator_registration: string | null;
     tour_operator_pays_for: string | null;
+    paying_institution_type: 'government' | 'business' | null;
+    paying_institution_name: string | null;
+    paying_institution_zrb_number: string | null;
     channel_reference: string | null;
     outside_integration_reason: string | null;
     requires_reconciliation: boolean;
@@ -110,9 +118,14 @@ export default function Show({
     ratePlan,
     booker,
     leadGuest,
+    missingGuests,
+    canAttachGuest,
+    canViewIdentity,
     rooms,
     canAssignRoom,
     canAmend,
+    showsPayingInstitution,
+    canEditPayingInstitution,
     amendmentOptions,
     amendments,
     can,
@@ -128,6 +141,7 @@ export default function Show({
     canRecordPayment,
     acceptedPaymentMethods,
     extraCategories,
+    generalReceipt,
     paymentsReportUrl,
     vfmsRefusal,
     vfmsFilings,
@@ -140,9 +154,14 @@ export default function Show({
     ratePlan: Named;
     booker: Named | null;
     leadGuest: Named | null;
+    missingGuests: number;
+    canAttachGuest: boolean;
+    canViewIdentity: boolean;
     rooms: { id: string; number: string; isReady: boolean }[];
     canAssignRoom: boolean;
     canAmend: boolean;
+    showsPayingInstitution: boolean;
+    canEditPayingInstitution: boolean;
     amendmentOptions: AmendmentOptions | null;
     amendments: Paginated<Amendment>;
     can: {
@@ -166,6 +185,7 @@ export default function Show({
     canRecordPayment: boolean;
     acceptedPaymentMethods: string[];
     extraCategories: string[];
+    generalReceipt: GeneralReceiptPreview | null;
     paymentsReportUrl: string | null;
     vfmsRefusal: VfmsRefusal | null;
     vfmsFilings: VfmsFiling[];
@@ -203,7 +223,11 @@ export default function Show({
                         </StatusChip>
                     )}
                     {can.checkIn && (
-                        <CheckInForm number={reservation.reservation_number} />
+                        <CheckInForm
+                            number={reservation.reservation_number}
+                            missingGuests={missingGuests}
+                            canAddGuests={canAttachGuest && canViewIdentity}
+                        />
                     )}
                     {reservation.status === 'confirmed' && (
                         <TerminationActions
@@ -262,6 +286,24 @@ export default function Show({
                                     'Payment collector',
                                     reservation.payment_collector,
                                 ],
+                                ...(showsPayingInstitution &&
+                                reservation.paying_institution_type
+                                    ? [
+                                          [
+                                              reservation.paying_institution_type ===
+                                              'government'
+                                                  ? 'Paid by government institution (withholding)'
+                                                  : 'Paid by registered business (B2B)',
+                                              reservation.paying_institution_name ??
+                                                  '',
+                                          ],
+                                          [
+                                              'Paying institution ZRB number',
+                                              reservation.paying_institution_zrb_number ??
+                                                  '',
+                                          ],
+                                      ]
+                                    : []),
                             ].map(([label, value]) => (
                                 <div key={label} className="min-w-0">
                                     <dt className="text-sm text-muted-foreground">
@@ -369,6 +411,7 @@ export default function Show({
                 </Card>
                 {((canAssignRoom && reservation.status === 'confirmed') ||
                     can.moveRoom ||
+                    canEditPayingInstitution ||
                     (canAmend &&
                         amendmentOptions &&
                         reservation.status === 'confirmed')) && (
@@ -517,9 +560,24 @@ export default function Show({
                                     </DialogContent>
                                 </Dialog>
                             )}
+                        {canEditPayingInstitution && (
+                            <PayingInstitutionDialog
+                                reservation={reservation}
+                            />
+                        )}
                     </div>
                 )}
                 <FolioPanel
+                    groupStatementLink={
+                        <Link
+                            href={groupStatement(
+                                reservation.reservation_number,
+                            )}
+                            className="text-primary underline underline-offset-4"
+                        >
+                            Group statement
+                        </Link>
+                    }
                     stay={stay}
                     folios={folios}
                     totals={totals}
@@ -535,6 +593,15 @@ export default function Show({
                             : null
                     }
                 />
+                {generalReceipt && (
+                    <section className="flex flex-wrap items-center gap-3">
+                        <p>
+                            Extras for {generalReceipt.customer} are not yet
+                            receipted.
+                        </p>
+                        <GeneralReceiptDialog preview={generalReceipt} />
+                    </section>
+                )}
                 {feeProposals.length > 0 && (
                     <Collapsible
                         defaultOpen={feeProposals.some(

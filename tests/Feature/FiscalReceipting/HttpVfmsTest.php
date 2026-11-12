@@ -12,6 +12,66 @@ beforeEach(function () {
     VfmsHttp::fake();
 });
 
+test('error management uses its fixed same-origin HTTPS target without redirecting credentials', function (string $operation, string $path) {
+    config(['services.vfms.live_url' => 'https://vfms-live.example:8443/vfms/api/']);
+    Http::fake(['https://vfms-live.example:8443/vfms/error-management/'.$path => function (Request $request, array $options) {
+        expect($options['allow_redirects'])->toBeFalse();
+
+        return Http::response('', 302, ['Location' => 'https://foreign.example/']);
+    }]);
+    $credential = VfmsCredential::for(twoTenants()->a->property);
+    $credential->forceFill(['mode' => VfmsMode::Live, 'integration_id' => 'LIVE-ID', 'token' => 'LIVE-TOKEN', 'unit_id' => 231]);
+    $body = ['unitId' => 231];
+
+    $result = app(HttpVfms::class)->send(['mode' => 'live', 'request_type' => $operation, 'path' => $path, 'body' => $body], $credential);
+
+    expect($result->outcome)->toBe('unknown');
+    Http::assertSent(fn (Request $request) => $request->url() === 'https://vfms-live.example:8443/vfms/error-management/'.$path
+        && $request->header('vfms-request-type') === [$operation]
+        && $request->header('vfms-intergration-id') === ['LIVE-ID']
+        && $request->header('vfms-token-id') === ['LIVE-TOKEN']
+        && $request->data() === $body);
+    Http::assertSentCount(1);
+})->with([['ERROR_SAVE', 'new'], ['ERRORS_MANAGEMENTS', 'errors']]);
+
+test('error management refuses Sandbox mode changes invalid unit data and arbitrary targets without HTTP', function (string $operation, string $path, string $recorded, VfmsMode $current, mixed $unitId, string $url) {
+    config(['services.vfms.live_url' => $url]);
+    $credential = VfmsCredential::for(twoTenants()->a->property);
+    $credential->forceFill(['mode' => $current, 'integration_id' => 'LIVE-ID', 'token' => 'LIVE-TOKEN', 'unit_id' => 231]);
+
+    $result = app(HttpVfms::class)->send(['mode' => $recorded, 'request_type' => $operation, 'path' => $path, 'body' => ['unitId' => $unitId]], $credential);
+
+    expect($result->outcome)->toBe('rejected');
+    Http::assertNothingSent();
+})->with([
+    'sandbox refresh' => ['ERRORS_MANAGEMENTS', 'errors', 'sandbox', VfmsMode::Sandbox, 231, 'https://vfms-live.example/api/'],
+    'queued save changed mode' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Sandbox, 231, 'https://vfms-live.example/api/'],
+    'queued refresh changed mode' => ['ERRORS_MANAGEMENTS', 'errors', 'live', VfmsMode::Sandbox, 231, 'https://vfms-live.example/api/'],
+    'missing unit' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Live, null, 'https://vfms-live.example/api/'],
+    'zero unit' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Live, 0, 'https://vfms-live.example/api/'],
+    'negative unit' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Live, -1, 'https://vfms-live.example/api/'],
+    'string unit' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Live, '231', 'https://vfms-live.example/api/'],
+    'overflow unit' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Live, 9223372036854775808.0, 'https://vfms-live.example/api/'],
+    'arbitrary target' => ['ERROR_SAVE', 'https://foreign.example/', 'live', VfmsMode::Live, 231, 'https://vfms-live.example/api/'],
+    'traversal target' => ['ERRORS_MANAGEMENTS', '../api/', 'live', VfmsMode::Live, 231, 'https://vfms-live.example/api/'],
+    'cleartext' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Live, 231, 'http://vfms-live.example/api/'],
+    'URL credentials' => ['ERROR_SAVE', 'new', 'live', VfmsMode::Live, 231, 'https://user:secret@vfms-live.example/api/'],
+]);
+
+// An empty setting sends the unit ZRA reported (covered by the legacy Live correction test); a filled one must match.
+test('error management refuses a unit that differs from the saved business unit', function (string $operation, string $path, ?int $unitId) {
+    config(['services.vfms.live_url' => 'https://vfms-live.example/vfms/api/']);
+    $credential = VfmsCredential::for(twoTenants()->a->property);
+    $credential->forceFill(['mode' => VfmsMode::Live, 'integration_id' => 'LIVE-ID', 'token' => 'LIVE-TOKEN', 'unit_id' => $unitId]);
+
+    $result = app(HttpVfms::class)->send(['mode' => 'live', 'request_type' => $operation, 'path' => $path, 'body' => ['unitId' => 231]], $credential);
+
+    expect($result->outcome)->toBe('rejected');
+    Http::assertNothingSent();
+})->with([
+    ['ERROR_SAVE', 'new', 232],
+]);
+
 // protects=missing Sandbox configuration fails closed (#169); fails_when=an incomplete test configuration sends HTTP; no_claim=provider validation.
 test('Sandbox refuses incomplete test configuration without HTTP', function (string $key) {
     config(['services.vfms.'.$key => '']);
@@ -145,6 +205,8 @@ test('VFMS validates operation-specific success evidence and retains the answer'
     'malformed' => ['ACCOMMODATION_REQUEST', '{not json', 'unknown', []],
     'application refusal' => ['ACCOMMODATION_REQUEST', ['statusCode' => 5000, 'statusMessage' => 'The Room ID 42 Is not Empty'], 'rejected', []],
     'string application refusal' => ['ACCOMMODATION_REQUEST', ['statusCode' => '5000', 'statusMessage' => 'Guest Not Found'], 'rejected', []],
+    // ZRA's test server wraps some refusals in a Spring envelope (WITHHOLD check-in, 11 Nov 2026).
+    'wrapped application refusal' => ['ACCOMMODATION_REQUEST', ['headers' => [], 'body' => ['statusCode' => 5000, 'statusMessage' => 'This institution not Registered'], 'statusCode' => 'OK', 'statusCodeValue' => 200], 'rejected', []],
     'failure overrides evidence' => ['ACCOMMODATION_REQUEST', ['statusCode' => 5000, 'responseNumber' => 'AC-171'], 'rejected', []],
     'same duplicate' => ['ACCOMMODATION_REQUEST', ['statusCode' => 5000, 'statusMessage' => 'Reference number REF-171-5940 already exists'], 'unknown', []],
     'different duplicate' => ['ACCOMMODATION_REQUEST', ['statusCode' => 5000, 'statusMessage' => 'Reference number OTHER-5940 already exists'], 'unknown', []],

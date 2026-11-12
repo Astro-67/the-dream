@@ -53,7 +53,7 @@ test('the reservation and its statement reconcile the posted example and keep th
         app(ChangeTaxRule::class)->handle($t->a->owner, $vat, [...$vat->terms(), 'rate' => 1800, 'effective_from' => '2026-12-11']);
     });
     $expected = ['currency' => 'USD', 'room' => 8696, 'extras' => 870, 'vat' => 1434, 'levy' => 500, 'other_taxes' => 0, 'unclassified_taxes' => 0,
-        'charges' => 11500, 'paid' => 10000, 'refunded' => 0, 'written_off' => 0, 'net_payments' => 10000, 'balance' => 1500, 'levy_unavailable' => false, 'estimate' => ['nights' => 1, 'amount' => 10000], 'due' => 11500, 'status' => 'partially_paid'];
+        'charges' => 11500, 'paid' => 10000, 'refunded' => 0, 'written_off' => 0, 'net_payments' => 10000, 'balance' => 1500, 'levy_unavailable' => false, 'estimate' => ['nights' => 1, 'amount' => 10500], 'due' => 12000, 'status' => 'partially_paid'];
 
     $this->actingAs($t->a->member(OrganizationRole::FrontDesk))->get(route('reservations.show', $reservation))->assertInertia(fn (Assert $page) => $page
         ->where('totals', [$expected])->where('assignedRoom', null));
@@ -75,7 +75,7 @@ test('each currency is summarised apart, and a zero balance with unposted nights
 
     $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->get(route('reservations.statement', $reservation))->assertInertia(fn (Assert $page) => $page
         ->has('folios', 2)->where('totals.0.currency', 'TZS')->where('totals.0.charges', 115000)->where('totals.0.estimate', null)
-        ->where('totals.1.currency', 'USD')->where('totals.1.balance', 0)->where('totals.1.estimate', ['nights' => 2, 'amount' => 20000]));
+        ->where('totals.1.currency', 'USD')->where('totals.1.balance', 0)->where('totals.1.estimate', ['nights' => 2, 'amount' => 21000]));
 });
 
 // protects=early departure drops unused nights from the estimate only; fails_when=posted nights change or released nights stay estimated.

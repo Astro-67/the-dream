@@ -3,6 +3,7 @@ import { Form, Head, router } from '@inertiajs/react';
 import { CountrySelect } from '@/components/shared/country-select';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
+import { AdultGuestFields } from '@/features/guests/adult-guest-fields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +36,7 @@ export default function Create({
     nightlyRate,
     businessDate,
     guestAllocation = [],
+    filesWithVfms,
 }: {
     stay: Stay;
     roomType: Named | null;
@@ -50,6 +52,7 @@ export default function Create({
     nightlyRate: number | null;
     businessDate: string;
     guestAllocation?: { adults: number; children: number }[];
+    filesWithVfms: boolean;
 }) {
     const [source, setSource] = useState(stay.source ?? 'direct');
     const [values, setValues] = useState({
@@ -66,6 +69,7 @@ export default function Create({
         stay.room_type_id ??
         '';
     const [operator, setOperator] = useState(false);
+    const [institution, setInstitution] = useState('');
     const [documentType, setDocumentType] = useState('');
     const [collector, setCollector] = useState('property');
     const [planId, setPlanId] = useState(ratePlan?.id ?? '');
@@ -172,8 +176,11 @@ export default function Create({
                             <div className="grid max-w-[720px] gap-6 @3xl:max-w-none @3xl:grid-cols-[minmax(0,720px)_288px] @6xl:grid-cols-[minmax(0,720px)_minmax(0,720px)_320px]">
                                 <fieldset className="space-y-4">
                                     <legend className="font-medium">
-                                        Lead guest
+                                        Guests
                                     </legend>
+                                    <h3 className="text-sm font-medium">
+                                        Lead guest (required)
+                                    </h3>
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         {(
                                             [
@@ -271,6 +278,61 @@ export default function Create({
                                                 maxLength={255}
                                             />
                                         </div>
+                                    )}
+                                    {Array.from(
+                                        {
+                                            length: Math.min(
+                                                19,
+                                                Math.max(
+                                                    0,
+                                                    Number(values.adults) - 1,
+                                                ),
+                                            ),
+                                        },
+                                        (_, index) => (
+                                            <fieldset
+                                                key={index}
+                                                className="space-y-4 rounded-xl border p-4"
+                                            >
+                                                <legend className="px-1 text-sm font-medium">
+                                                    Adult {index + 2} (optional
+                                                    now)
+                                                </legend>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Leave blank to add at
+                                                    check-in. Every adult must
+                                                    be registered before
+                                                    check-in; children do not
+                                                    need ID.
+                                                </p>
+                                                <AdultGuestFields
+                                                    id={`guest-${index}`}
+                                                    names={{
+                                                        name: `guests[${index}][name]`,
+                                                        nationality: `guests[${index}][nationality]`,
+                                                        document_type: `guests[${index}][document_type]`,
+                                                        document_number: `guests[${index}][document_number]`,
+                                                    }}
+                                                    errors={{
+                                                        name: errors[
+                                                            `guests.${index}.name`
+                                                        ],
+                                                        nationality:
+                                                            errors[
+                                                                `guests.${index}.nationality`
+                                                            ],
+                                                        document_type:
+                                                            errors[
+                                                                `guests.${index}.document_type`
+                                                            ],
+                                                        document_number:
+                                                            errors[
+                                                                `guests.${index}.document_number`
+                                                            ],
+                                                    }}
+                                                />
+                                            </fieldset>
+                                        ),
                                     )}
                                 </fieldset>
                                 <fieldset className="space-y-4 @6xl:col-start-2 @6xl:row-[1/span_2]">
@@ -658,6 +720,57 @@ export default function Create({
                                         maxLength={5000}
                                     />
                                 </fieldset>
+                                {filesWithVfms && (
+                                    <fieldset className="space-y-4">
+                                        <legend className="font-medium">
+                                            Paid by an institution
+                                        </legend>
+                                        <Label htmlFor="paying_institution_type">
+                                            Paying institution
+                                        </Label>
+                                        <NativeSelect
+                                            id="paying_institution_type"
+                                            name="paying_institution_type"
+                                            value={institution}
+                                            onChange={(event) =>
+                                                setInstitution(
+                                                    event.target.value,
+                                                )
+                                            }
+                                        >
+                                            <option value="">None</option>
+                                            <option value="government">
+                                                Government institution
+                                                (withholding)
+                                            </option>
+                                            <option value="business">
+                                                Registered business (B2B)
+                                            </option>
+                                        </NativeSelect>
+                                        {institution && (
+                                            <>
+                                                <Label htmlFor="paying_institution_name">
+                                                    Institution name
+                                                </Label>
+                                                <Input
+                                                    id="paying_institution_name"
+                                                    name="paying_institution_name"
+                                                    required
+                                                    maxLength={255}
+                                                />
+                                                <Label htmlFor="paying_institution_zrb_number">
+                                                    ZRB number
+                                                </Label>
+                                                <Input
+                                                    id="paying_institution_zrb_number"
+                                                    name="paying_institution_zrb_number"
+                                                    required
+                                                    maxLength={255}
+                                                />
+                                            </>
+                                        )}
+                                    </fieldset>
+                                )}
                                 {source === 'outside-integration' && (
                                     <fieldset className="space-y-4">
                                         <legend className="font-medium">

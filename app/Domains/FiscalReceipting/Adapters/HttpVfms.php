@@ -9,6 +9,8 @@ use App\Domains\FiscalReceipting\VfmsPayloads;
 use App\Support\Outbox\DeliveryResult;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
+use Carbon\CarbonImmutable;
+use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -33,6 +35,21 @@ final class HttpVfms
         if ($live && parse_url($url, PHP_URL_SCHEME) !== 'https') {
             return new DeliveryResult('rejected', responseBody: ['error' => 'The Live VFMS endpoint must use HTTPS.']);
         }
+        if (in_array($payload['request_type'], ['ERROR_SAVE', 'ERRORS_MANAGEMENTS'], true)) {
+            $path = $payload['request_type'] === 'ERROR_SAVE' ? 'new' : 'errors';
+            $unitId = $payload['body']['unitId'] ?? null;
+            // ZRA's test server takes ERROR_SAVE under its shared unit but rejects every 2.13 request type (5 Nov 2026).
+            if ((! $live && $path !== 'new') || $payload['path'] !== $path
+                || ($path === 'new' && (! is_int($unitId) || $unitId < 1 || ($live && $credential->unit_id !== null && $unitId !== $credential->unit_id)))) {
+                return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires a valid business-unit ID and the fixed operation target; ZRA\'s test server has no correction status report.']);
+            }
+            $origin = parse_url($url);
+            $scheme = $origin['scheme'] ?? null;
+            if (! is_array($origin) || ! ($scheme === 'https' || (! $live && $scheme === 'http')) || empty($origin['host']) || isset($origin['user']) || isset($origin['pass'])) {
+                return new DeliveryResult('rejected', responseBody: ['error' => 'Error management requires the gateway origin without URL credentials (HTTPS in Live).']);
+            }
+            $url = $scheme.'://'.$origin['host'].(isset($origin['port']) ? ':'.$origin['port'] : '').'/vfms/error-management/';
+        }
         $body = $payload['body'];
         if (! $live) {
             if (blank($credential->property_id)) {
@@ -42,7 +59,7 @@ final class HttpVfms
             $prefix = (string) (crc32($credential->property_id) % 90000 + 10000);
             $roomIds = isset($body['roomId']) ? [$body['roomId']] : [];
             foreach ($body['rooms'] ?? [] as $room) {
-                $roomIds[] = $room['hotelRoomRoom'];
+                $roomIds[] = $room[$payload['request_type'] === 'RESERVATION_BOOKING' ? 'roomId' : 'hotelRoomRoom'];
             }
             foreach ($roomIds as $roomId) {
                 if (! is_int($roomId) || $roomId < 1 || $roomId > 9999) {
@@ -53,7 +70,8 @@ final class HttpVfms
                 $body['roomId'] = (int) ($prefix.str_pad((string) $body['roomId'], 4, '0', STR_PAD_LEFT));
             }
             foreach ($body['rooms'] ?? [] as $index => $room) {
-                $body['rooms'][$index]['hotelRoomRoom'] = (int) ($prefix.str_pad((string) $room['hotelRoomRoom'], 4, '0', STR_PAD_LEFT));
+                $field = $payload['request_type'] === 'RESERVATION_BOOKING' ? 'roomId' : 'hotelRoomRoom';
+                $body['rooms'][$index][$field] = (int) ($prefix.str_pad((string) $room[$field], 4, '0', STR_PAD_LEFT));
             }
             if (isset($body['referenceNumber'])) {
                 $body['referenceNumber'] = 'T'.$prefix.'-'.$body['referenceNumber'];
@@ -61,8 +79,9 @@ final class HttpVfms
         }
         try {
             $response = $this->post($url, $payload['request_type'], $payload['path'], $integrationId, $token, $body);
-        } catch (ConnectionException) {
-            return new DeliveryResult('unknown');
+        } catch (ConnectionException $failure) {
+            // No connection was made, so ZRA never got the request and re-sending cannot duplicate it.
+            return new DeliveryResult($failure->getPrevious() instanceof ConnectException ? 'retryable' : 'unknown');
         }
         $status = $response->status();
         $data = $response->json();
@@ -71,6 +90,42 @@ final class HttpVfms
             $this->markRefused($credential);
         }
 
+        if ($payload['request_type'] === 'ERRORS_MANAGEMENTS') {
+            // Section 2.13 has no response schema: only a 2xx JSON list is passed on, for the caller's provisional row parser.
+            if ($status >= 200 && $status < 300 && is_array($data) && array_is_list($data)) {
+                return new DeliveryResult('accepted', responseBody: $responseBody);
+            }
+
+            return new DeliveryResult(in_array($status, [400, 401, 403, 404], true) ? 'rejected' : 'unknown', responseBody: $responseBody);
+        }
+        if ($payload['request_type'] === 'ERROR_SAVE') {
+            // Section 3's 200/201 interpretation is unverified against an authenticated acknowledgement.
+            if (is_array($data) && preg_match('/duplicate|already\s+exists/i', json_encode($data, JSON_THROW_ON_ERROR))) {
+                return new DeliveryResult('unknown', responseBody: $responseBody);
+            }
+            if ($status >= 500 || ! is_array($data) || array_is_list($data)) {
+                return new DeliveryResult('unknown', responseBody: $responseBody);
+            }
+            $applicationStatus = $data['status'] ?? null;
+            $success = in_array($applicationStatus, [200, 201, '200', '201'], true);
+            if ($status >= 200 && $status < 300 && $success && ! array_key_exists('statusCode', $data)
+                && ! isset($data['error']) && ! isset($data['errors'])
+                && ! preg_match('/fail|reject|refus|invalid|error|unsuccess/i', json_encode([$data['statusMessage'] ?? '', $data['message'] ?? ''], JSON_THROW_ON_ERROR))) {
+                return new DeliveryResult('accepted', responseBody: $responseBody);
+            }
+            if (! $success && (in_array($status, [400, 401, 403, 404], true)
+                || in_array($applicationStatus, [400, 401, 403, 404, 5000, '400', '401', '403', '404', '5000'], true)
+                || in_array($data['statusCode'] ?? null, [5000, '5000'], true))) {
+                return new DeliveryResult('rejected', responseBody: $responseBody);
+            }
+
+            return new DeliveryResult('unknown', responseBody: $responseBody);
+        }
+
+        // ZRA's test server wraps some refusals in a Spring envelope (WITHHOLD check-in, 11 Nov 2026); judge the inner answer.
+        if (is_array($data) && isset($data['statusCodeValue']) && is_array($data['body'] ?? null)) {
+            $data = $data['body'];
+        }
         $errors = is_array($data)
             ? ($status >= 400 ? $data : array_intersect_key($data, array_flip(['statusMessage', 'error', 'errors'])))
             : ($status >= 400 ? $response->body() : '');
@@ -85,8 +140,70 @@ final class HttpVfms
             && ($payload['request_type'] !== 'CHANGEROOM_PRICE' || is_array(json_decode($response->body())))
             ? $this->acceptedReferences($payload['request_type'], $body, $data)
             : null;
+        if ($references !== null && $payload['request_type'] === 'ACCOMMODATION_BOOKING_REQUEST') {
+            $responseBody['registrationVerified'] = $this->advanceRegistered($url, $integrationId, $token, $body, $references);
+            if (! $responseBody['registrationVerified']) {
+                $references = null;
+            }
+        }
 
         return new DeliveryResult($references === null ? 'unknown' : 'accepted', $references ?? [], $responseBody);
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     * @param  array<string, scalar|null>  $references
+     */
+    private function advanceRegistered(string $url, string $integrationId, string $token, array $body, array $references): bool
+    {
+        $reference = $references['referenceNumber'] ?? null;
+        if (! is_string($reference) || ! is_string($body['referenceNumber'] ?? null)
+            || ! preg_match('/^'.preg_quote($body['referenceNumber'], '/').'(?:-(\d+))?$/D', $reference, $match)
+            || ! is_string($body['checkInDate'] ?? null) || ! is_string($body['checkOutDate'] ?? null)
+            || ! is_array($body['guest'] ?? null) || $body['guest'] === [] || ! isset($body['roomId'])) {
+            return false;
+        }
+        try {
+            $response = $this->post($url, 'ACCOMMODATION_REPORT', 'accommodationReport/', $integrationId, $token, [
+                'refno' => $reference,
+                'startDate' => CarbonImmutable::parse($body['checkInDate'])->subDay()->toDateString(),
+                'endDate' => max(CarbonImmutable::parse($body['checkOutDate'])->addDay()->toDateString(), CarbonImmutable::now()->addDay()->toDateString()),
+            ]);
+        } catch (ConnectionException) {
+            return false;
+        }
+        $data = $response->json();
+        if (! $response->successful() || ! is_array($data) || array_key_exists('statusCode', $data)) {
+            return false;
+        }
+        $records = array_is_list($data) ? $data : [$data];
+        $records = array_values(array_filter($records, fn ($record) => is_array($record) && ($record['referenceNumber'] ?? null) === $reference));
+        if (count($records) !== 1) {
+            return false;
+        }
+        $record = $records[0];
+        if (array_key_exists('statusCode', $record) || ($record['isClosed'] ?? null) !== false || ($record['isCanceled'] ?? null) !== false
+            || ($record['currency'] ?? null) !== ($body['salesCurrency'] ?? null)
+            || ! is_array($record['guest'] ?? null) || ! array_is_list($record['guest'])
+            || ! is_array($record['room'] ?? null) || ! array_is_list($record['room']) || count($record['room']) !== 1) {
+            return false;
+        }
+        $documents = [];
+        foreach ($record['guest'] as $guest) {
+            if (! is_array($guest) || ! $this->number($guest['documentNo'] ?? null) || ($guest['isChackedOut'] ?? null) !== false) {
+                return false;
+            }
+            $documents[] = $guest['documentNo'];
+        }
+        $expected = array_column($body['guest'], 'documentNo');
+        sort($documents);
+        sort($expected);
+        $room = $record['room'][0];
+
+        return count($expected) === count($body['guest']) && $documents === $expected
+            && is_array($room) && ($room['isOut'] ?? null) === false
+            && (is_int($room['room'] ?? null) || is_string($room['room'] ?? null))
+            && in_array((string) $room['room'], [(string) $body['roomId'], $body['roomId'].($match[1] ?? '')], true);
     }
 
     /**
@@ -142,7 +259,7 @@ final class HttpVfms
     /** @param  array<string, mixed>  $body */
     private function post(string $url, string $requestType, string $path, string $integrationId, string $token, array $body): Response
     {
-        return Http::timeout(30)->withHeaders([
+        return Http::timeout(30)->withoutRedirecting()->withHeaders([
             'Content-type' => 'application/json',
             'vfms-request-type' => $requestType,
             // The guide's spelling, kept verbatim.
@@ -165,6 +282,18 @@ final class HttpVfms
     {
         if (array_key_exists('statusCode', $response)) {
             return null;
+        }
+        // ZRA nests the booking: {"receiptNumber": …, "referenceNumber": …, "booking": {"bookingNumber": …}} (test server, 3 Nov 2026).
+        $booking = is_array($response['booking'] ?? null) ? ($response['booking']['bookingNumber'] ?? null) : null;
+        $reference = $this->number($response['referenceNumber'] ?? null) ? ['referenceNumber' => $response['referenceNumber']] : [];
+        if ($operation === 'RESERVATION_BOOKING') {
+            return $this->number($booking) && $this->number($response['receiptNumber'] ?? null)
+                ? ['bookingNumber' => $booking, 'receiptNumber' => $response['receiptNumber'], ...$reference]
+                : null;
+        }
+        // The advance check-in returns no responseNumber; it echoes the booking it linked.
+        if ($operation === 'ACCOMMODATION_BOOKING_REQUEST') {
+            return $this->number($booking) && $booking === ($request['bookingNumber'] ?? null) ? ['bookingNumber' => $booking, ...$reference] : null;
         }
         if (in_array($operation, ['ACCOMMODATION_REQUEST', 'ACCOMMODATION_CHANGE_ROOM', 'ACCOMMODATION_ADD_GUEST', 'GUEST_PROFILE'], true)) {
             return $this->number($response['responseNumber'] ?? null) ? ['responseNumber' => $response['responseNumber']] : null;

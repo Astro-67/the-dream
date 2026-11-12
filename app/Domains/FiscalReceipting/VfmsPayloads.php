@@ -4,19 +4,25 @@ namespace App\Domains\FiscalReceipting;
 
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FiscalReceipting\Enums\VfmsMode;
+use App\Domains\FiscalReceipting\Models\IssuedDocument;
+use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Rates\Enums\ChargeKind;
 use App\Domains\Rates\TaxCalculator;
 use App\Domains\Reservations\Enums\MealPlan;
+use App\Domains\Reservations\Enums\PayingInstitutionType;
 use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Countries;
 use App\Support\Money\Currency;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
@@ -26,6 +32,41 @@ use InvalidArgumentException;
  */
 final class VfmsPayloads
 {
+    /**
+     * @param  array<string, mixed>|null  $acceptedBusiness
+     * @return array<string, mixed>
+     */
+    public function correctionIdentity(Property $property, ?array $acceptedBusiness = null): array
+    {
+        $credential = VfmsCredential::for($property);
+
+        return Validator::make([
+            'b_unit_name' => filled($acceptedBusiness['businessName'] ?? null) ? $acceptedBusiness['businessName'] : $property->name,
+            'email' => $property->email,
+            'phone_no' => $property->phone,
+            'zrb_number' => $property->z_number,
+            // The unit ZRA reported for the accepted filing (Sandbox: its shared test unit); Live falls back to settings.
+            'unitId' => ($credential->mode === VfmsMode::Live ? $credential->unit_id : null) ?? ($acceptedBusiness['businessUnitId'] ?? null),
+        ], [
+            'b_unit_name' => ['required', 'string'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone_no' => ['required', 'string', 'max:32'],
+            'zrb_number' => ['required', 'string', 'max:64'],
+            'unitId' => ['required', 'integer', 'min:1', 'max:9223372036854775807'],
+        ])->validate();
+    }
+
+    /**
+     * @param  array<string, mixed>  $business
+     * @return array<string, mixed>
+     */
+    public function errorSave(Property $property, IssuedDocument $old, IssuedDocument $new, string $reason, array $business): array
+    {
+        return [...$this->correctionIdentity($property, $business),
+            'old_receipt_number' => $old->number, 'new_receipt_number' => $new->number, 'reasons' => $reason,
+        ];
+    }
+
     /** @return array<string, mixed> */
     public function services(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
     {
@@ -38,12 +79,35 @@ final class VfmsPayloads
                 'itemName' => $posting->description ?? $posting->category,
                 'price' => $this->amount($posting->unit_price, $posting->currency),
                 'quantity' => $posting->quantity,
-                'discount' => 0.0,
+                'discount' => $this->amount($posting->discount, $posting->currency),
             ]],
             'referenceNumber' => $this->referenceNumber($event, $reservation),
             'type' => 'CS',
             'currency' => $this->currency($posting->currency),
         ];
+    }
+
+    /**
+     * A general receipt (`WS`): ZRA names the customer from `documentNumber`, so it carries the payer's
+     * name, never a guest's document (ZRA would attach the sale to that guest's stay). One currency.
+     *
+     * @param  iterable<Posting>  $postings
+     * @return array<string, mixed>
+     */
+    public function generalReceipt(string $customer, iterable $postings, string $referenceNumber): array
+    {
+        $service = [];
+        foreach ($postings as $posting) {
+            $currency = $posting->currency;
+            $service[] = [
+                'itemName' => $posting->description ?? $posting->category,
+                'price' => $this->amount($posting->unit_price, $posting->currency),
+                'quantity' => $posting->quantity,
+                'discount' => $this->amount($posting->discount, $posting->currency),
+            ];
+        }
+
+        return ['documentNumber' => $customer, 'service' => $service, 'referenceNumber' => $referenceNumber, 'type' => 'WS', 'currency' => $this->currency($currency ?? throw new InvalidArgumentException('A general receipt needs at least one item.'))];
     }
 
     /**
@@ -57,6 +121,7 @@ final class VfmsPayloads
         $room = Room::query()->findOrFail($reservation->room_id);
         $paysFor = $reservation->getAttribute('tour_operator_pays_for');
         $tourOperator = $reservation->getAttribute('booked_through') === 'tour-operator' && $paysFor instanceof TourOperatorPaysFor;
+        $institution = $reservation->getAttribute('paying_institution_type');
 
         return [
             'paymentPackage' => match ($reservation->meal_plan) {
@@ -76,7 +141,69 @@ final class VfmsPayloads
             'accommodationDiscount' => 0.0,
             'referenceNumber' => $this->referenceNumber($event, $reservation),
             ...($tourOperator ? ['tourRegNo' => $reservation->getAttribute('tour_operator_registration'), 'costOptions' => $this->costOptions($paysFor)] : []),
+            ...($institution instanceof PayingInstitutionType ? ['accommodationType' => $institution->vfmsValue(), 'zrbNumber' => $reservation->getAttribute('paying_institution_zrb_number')] : []),
         ];
+    }
+
+    /** @return array<string, mixed> */
+    public function advanceBooking(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $payment = Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $reservation->id))
+            ->findOrFail($event->snapshot['posting_id']);
+        $room = Room::query()->findOrFail($reservation->room_id);
+        $price = $this->roomPrice($reservation, $property, $reservation->arrival->toDateString());
+        $paysFor = $reservation->getAttribute('tour_operator_pays_for');
+        $options = $paysFor instanceof TourOperatorPaysFor ? $this->costOptions($paysFor) : '';
+        $details = $event->snapshot['advance_payment'];
+        // ZRA counts whole 24-hour days between the dates, so both use local midnight (test server, 3 Nov 2026).
+        $day = fn (CarbonImmutable $date) => CarbonImmutable::parse($date->toDateString(), $property->timezone)->utc()->format('Y-m-d\TH:i:s.v\Z');
+
+        return [
+            'bookingCompany' => $details['name'],
+            'email' => $details['email'] ?? '', 'phoneNumber' => $details['phone'] ?? '',
+            'amountToBePaid' => $this->amount(-$payment->amount, $payment->currency),
+            'noOfGuest' => $reservation->adults,
+            'currency' => $this->currency($payment->currency),
+            'startDate' => $day($reservation->arrival),
+            'endDate' => $day($reservation->departure),
+            'rooms' => [['roomId' => $room->vfms_room_id, 'roomPrice' => $price['accommodationPrice'], 'noOfGuestPerRoom' => $reservation->adults]],
+            'customerType' => 2, 'salesCustomer' => $details['name'],
+            'regNumber' => $details['reg_number'] ?? '',
+            'referenceNumber' => $this->referenceNumber($event, $reservation),
+            'isIncludeInfrastructure' => str_contains($options, '6'),
+            'isIncludeAccommodation' => true,
+            'isIncludeOtherService' => str_contains($options, '7'),
+            'isZraRegistered' => $details['is_zra_registered'],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function advanceAccommodation(ReservationLifecycleEvent $event, Reservation $reservation, Property $property): array
+    {
+        $normal = $this->accommodation($event, $reservation, $property);
+        $advance = ($event->snapshot['advance_booking']['source'] ?? null) === 'external'
+            ? VfmsAdvance::checkInDetails($reservation, $property)['advance_booking']
+            : $event->snapshot['advance_booking'];
+
+        return [
+            'referenceNumber' => $normal['referenceNumber'],
+            'roomId' => $normal['roomId'], 'roomName' => $normal['roomName'],
+            'accomodationPrice' => $normal['accommodationPrice'], 'accomodationDiscount' => 0.0,
+            'salesCurrency' => $normal['currency'],
+            'checkInDate' => $normal['checkInDate'],
+            'checkOutDate' => $this->stayDate($reservation, $property, false),
+            'bookingNumber' => $advance['bookingNumber'],
+            'receiptno' => $advance['receiptNumber'],
+            'guest' => $this->guests($reservation),
+        ];
+    }
+
+    private function stayDate(Reservation $reservation, Property $property, bool $arrival): string
+    {
+        $date = $arrival ? $reservation->arrival : $reservation->departure;
+        $time = $property->settings()['front_desk_settings'][$arrival ? 'default_check_in_time' : 'default_check_out_time'];
+
+        return CarbonImmutable::parse($date->toDateString().' '.$time, $property->timezone)->utc()->format('Y-m-d\TH:i:s.v\Z');
     }
 
     /** @return array<string, mixed> */

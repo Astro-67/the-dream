@@ -33,10 +33,12 @@ import {
 import { useCan } from '@/hooks/use-can';
 import { dashboard, rateCalendar } from '@/routes';
 import { index as cashierShifts } from '@/routes/cashier-shifts';
+import { index as customerAccounts } from '@/routes/customer-accounts';
 import { index as approvals } from '@/routes/approvals';
 import { index as guests } from '@/routes/guests';
 import { index as members } from '@/routes/members';
 import { index as payments } from '@/routes/payments';
+import { index as receipts } from '@/routes/receipts';
 import { index as nightAudit } from '@/routes/night-audit';
 import { index as openBalances } from '@/routes/open-balances';
 import { edit as platformBillingDetails } from '@/routes/platform/billing-details';
@@ -128,12 +130,26 @@ export function AppSidebar() {
             : []),
     ];
     const moneyItems: NavItem[] = [
+        ...(can('charges.post', 'finance.view')
+            ? [
+                  {
+                      title: 'Day use & events',
+                      href: customerAccounts(),
+                      icon: ReceiptText,
+                  },
+              ]
+            : []),
         ...(can('reports.view')
             ? [
                   {
                       title: 'Payments',
                       href: payments(),
                       icon: Banknote,
+                  },
+                  {
+                      title: 'Receipts',
+                      href: receipts(),
+                      icon: ReceiptText,
                   },
               ]
             : []),

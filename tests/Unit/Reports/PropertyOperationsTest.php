@@ -130,7 +130,7 @@ test('normal and early check-out retain recorded arrival and in-house nights at 
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
         $stays = [];
         foreach (Room::query()->orderBy('number')->get() as $index => $room) {
-            $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => $room->id]);
+            $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'adults' => 1, 'children' => 0, 'room_id' => $room->id]);
             $guest = app(CreateGuest::class)->handle($owner, ['name' => 'Guest '.$index, 'documents' => [['type' => 'passport', 'number' => 'P123456'.$index, 'nationality' => 'DE']]]);
             ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
             $stays[] = app(CheckIn::class)->handle($owner, $reservation);
@@ -157,7 +157,7 @@ test('delayed check-out uses its recorded business date rather than scheduled de
 
     inTenant($property, function () use ($owner, $property) {
         $details = BookingForm::details($owner);
-        $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+        $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'adults' => 1, 'children' => 0, 'room_id' => Room::query()->sole()->id]);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
         $guest = app(CreateGuest::class)->handle($owner, ['name' => 'Delayed check-out guest', 'documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE']]]);
         ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);

@@ -28,7 +28,7 @@ test('check-out rechecks a payment committed after its transaction snapshot bega
     $property->update(['business_date' => '2026-12-10']);
     [$reservation, $folio] = inTenant($property, function () use ($t) {
         $reservation = app(CreateReservation::class)->handle($t->a->owner, [
-            ...BookingForm::details($t->a->owner), 'room_id' => Room::query()->sole()->id,
+            ...BookingForm::details($t->a->owner), 'adults' => 1, 'children' => 0, 'room_id' => Room::query()->sole()->id,
             'payment_collector' => 'channel', 'channel_collected_amount' => 1500,
         ]);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);

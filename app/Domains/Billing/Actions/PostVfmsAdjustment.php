@@ -32,7 +32,10 @@ class PostVfmsAdjustment
             if ($existing !== null) {
                 return $existing;
             }
-            $posted = FolioSummary::of(Posting::query()->whereIn('folio_id', $folios->modelKeys())->get());
+            // Extras on a general receipt (or held for one) are not on ZRA's check-out report, so the report leaves them alone.
+            $posted = FolioSummary::of(Posting::query()->whereIn('folio_id', $folios->modelKeys())
+                ->unless($reservation->getAttribute('paying_institution_type') === null, fn ($query) => $query->whereNotIn('category', PostExtraCharge::CATEGORIES))
+                ->whereNull('general_receipt_id')->get());
             $lines = [
                 ['name' => 'VAT', 'category' => 'vat', 'kind' => 'vfms', 'inclusive' => false, 'rate' => null, 'per_person_night' => null, 'amount' => $vfms['tax'] - $posted['vat']],
                 ['name' => 'Infrastructure levy', 'category' => 'hotel_levy', 'kind' => 'vfms', 'inclusive' => false, 'rate' => null, 'per_person_night' => null, 'amount' => $vfms['levy'] - $posted['levy']],

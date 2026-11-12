@@ -5,11 +5,14 @@ namespace App\Domains\Billing;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\Rates\Enums\ChargeKind;
+use App\Domains\Rates\TaxCalculator;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationPriceLine;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
+use App\Support\Money\Currency;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -87,7 +90,7 @@ final class FolioSummary
 
     /**
      * Per currency: the posted summary across the reservation's folios, plus the scheduled
-     * nights not yet charged as a separate estimate at their booked price, before added taxes.
+     * nights not yet charged as a separate estimate including the taxes night audit would charge.
      * due = balance + estimate; status is paid once nothing is due (a credit included).
      *
      * @param  Collection<int, array{folio: Folio, postings: EloquentCollection<int, Posting>, summary: Summary}>|null  $folios  already loaded by folios(), so totals match their itemisation
@@ -97,7 +100,12 @@ final class FolioSummary
     {
         $byCurrency = ($folios ?? self::folios($reservation))->groupBy(fn (array $folio) => $folio['folio']->currency->value)
             ->map(fn (Collection $folios) => self::of($folios->flatMap(fn (array $folio) => $folio['postings'])));
-        $estimates = self::unposted(collect([$reservation]))->get($reservation->id, collect());
+        $property = Property::query()->findOrFail($reservation->property_id);
+        $estimates = self::unposted(collect([$reservation]))->get($reservation->id, collect())
+            ->map(fn (Collection $nights) => ['nights' => $nights->count(), 'amount' => (int) $nights->sum(fn (ReservationPriceLine $line) => TaxCalculator::forProperty(
+                $property, $line->getAttribute('amount'), Currency::from($line->getAttribute('currency')), $line->getAttribute('date')->toDateString(),
+                $reservation->adults + $reservation->children, ChargeKind::Room,
+            )->gross())]);
 
         return $byCurrency->keys()->merge($estimates->keys())->unique()->sort()->values()
             ->map(function (string $currency) use ($byCurrency, $estimates) {
@@ -218,16 +226,15 @@ final class FolioSummary
      * Only stays still to come or in house have nights left to charge.
      *
      * @param  Collection<int, Reservation>  $reservations
-     * @return Collection<int|string, Collection<int|string, array{nights: int<0, max>, amount: int}>> by reservation id, then currency
+     * @return Collection<int|string, Collection<int|string, Collection<int, ReservationPriceLine>>> by reservation id, then currency
      */
     private static function unposted(Collection $reservations): Collection
     {
         $open = $reservations->filter(fn (Reservation $reservation) => in_array($reservation->status, [ReservationStatus::Confirmed, ReservationStatus::CheckedIn], true))->keyBy('id');
         $posted = Posting::query()->whereIn('reservation_id', $open->keys())->where('category', 'room')->where('type', 'charge')->whereNotNull('price_line_id')->select('price_line_id');
 
-        return ReservationPriceLine::query()->whereIn('reservation_id', $open->keys())->whereNotIn('id', $posted)->get(['reservation_id', 'date', 'amount', 'currency'])
+        return ReservationPriceLine::query()->whereIn('reservation_id', $open->keys())->whereNotIn('id', $posted)->get(['reservation_id', 'date', 'amount', 'currency'])->toBase()
             ->filter(fn (ReservationPriceLine $line) => $line->getAttribute('date')->toDateString() < $open->get($line->getAttribute('reservation_id'))->departure->toDateString())
-            ->groupBy('reservation_id')->map(fn (Collection $lines) => $lines->groupBy('currency')
-            ->map(fn (Collection $nights) => ['nights' => $nights->count(), 'amount' => (int) $nights->sum('amount')]));
+            ->groupBy('reservation_id')->map(fn (Collection $lines) => $lines->groupBy('currency'));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Domains\Reservations\Actions;
 
+use App\Domains\FiscalReceipting\VfmsAdvance;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -31,6 +32,7 @@ class AssignRoom
             if ($old === $roomId) {
                 return $reservation;
             }
+            VfmsAdvance::ensureMutable($reservation, 'room_id');
             RoomAssignmentNight::query()->where('reservation_id', $reservation->id)->delete();
             if ($roomId !== null) {
                 try {

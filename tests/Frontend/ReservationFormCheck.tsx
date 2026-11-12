@@ -28,7 +28,11 @@ function fieldsIn(node: ReactNode): FieldProps[] {
     ];
 }
 
-function formAfter(edits: [string, string][], source = 'direct') {
+function formAfter(
+    edits: [string, string][],
+    source = 'direct',
+    filesWithVfms = true,
+) {
     function Interaction() {
         const [step, setStep] = useState(0);
         const fields = fieldsIn(
@@ -56,6 +60,7 @@ function formAfter(edits: [string, string][], source = 'direct') {
                 restrictionWarnings: [],
                 nightlyRate: 10000,
                 businessDate: '2026-12-01',
+                filesWithVfms,
             }),
         );
         if (step < edits.length) {
@@ -129,3 +134,20 @@ assert.match(
     /<input[^>]*type="email" readOnly="" name="lead_guest\[email\]"/,
 );
 console.log('Lead guest fields take text, email and phone: PASS');
+// Two adults booked: one optional section for the second adult, none for children.
+assert.match(guestForm, /id="guest-0"/);
+assert.doesNotMatch(guestForm, /id="guest-1"/);
+console.log('Each extra adult gets an optional guest section: PASS');
+assert.match(guestForm, /name="paying_institution_type"[^>]*value=""/);
+assert.doesNotMatch(guestForm, /name="paying_institution_name"/);
+const institutionForm = formAfter([['paying_institution_type', 'government']]);
+assert.match(institutionForm, /required=""[^>]*name="paying_institution_name"/);
+assert.match(
+    institutionForm,
+    /required=""[^>]*name="paying_institution_zrb_number"/,
+);
+assert.doesNotMatch(
+    formAfter([], 'direct', false),
+    /name="paying_institution_type"/,
+);
+console.log('Paying institution appears only where VFMS filing applies: PASS');

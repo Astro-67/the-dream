@@ -36,7 +36,7 @@ test('a full Sandbox stay files six accepted VFMS messages in order and a stampe
         $details = BookingForm::details($t->owner);
         app(CreateRoom::class)->handle($t->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($t->owner, [...$details, 'room_id' => Room::query()->where('number', '101')->sole()->id]);
+        $reservation = app(CreateReservation::class)->handle($t->owner, [...$details, 'adults' => 2, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->where('number', '101')->sole()->id]);
         foreach ([['Anna Berg', 'P1234567'], ['Ola Berg', 'P7654321']] as [$name, $number]) {
             $guest = app(CreateGuest::class)->handle($t->owner, ['name' => $name, 'documents' => [['type' => 'passport', 'number' => $number, 'nationality' => 'DE']]]);
             ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);

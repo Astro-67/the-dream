@@ -41,6 +41,7 @@ class CreateReservation
                 Booker::query()->findOrFail($details['booker_id']);
             }
             $guest = $details['lead_guest'] ?? null;
+            $distributeGuests = ! empty($details['distribute_guests']);
             unset($details['lead_guest']);
             $settings = $property->settings()['front_desk_settings'];
             if (($details['source'] ?? '') === 'walk-in') {
@@ -56,6 +57,17 @@ class CreateReservation
             }
             if ($guest !== null && ! empty($guest['document_type']) && JurisdictionRules::requiresPassport($property, $guest['nationality'] ?? null) && $guest['document_type'] !== 'passport') {
                 throw ValidationException::withMessages(['lead_guest.document_type' => __('Foreign guests require a passport.')]);
+            }
+            $others = array_filter($details['guests'] ?? [], fn (array $other) => filled($other['name'] ?? null));
+            unset($details['guests']);
+            $otherAdultPlaces = (int) $details['adults'] - ($guest !== null || ! $distributeGuests ? 1 : 0);
+            if (count($others) > $otherAdultPlaces) {
+                throw ValidationException::withMessages(['guests' => __('Add at most one guest per booked adult.')]);
+            }
+            foreach ($others as $index => $other) {
+                if (! empty($other['document_type']) && $other['document_type'] !== 'passport' && JurisdictionRules::requiresPassport($property, $other['nationality'] ?? null)) {
+                    throw ValidationException::withMessages(["guests.{$index}.document_type" => __('Foreign guests require a passport.')]);
+                }
             }
             $nightlyRate = $details['nightly_rate'] ?? null;
             unset($details['nightly_rate']);
@@ -99,12 +111,25 @@ class CreateReservation
                 foreach ($quote->nights as $night) {
                     $reservation->priceLines()->create(['date' => $night['date'], 'amount' => $nightlyRate ?? $night['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
                 }
-                if ($guest !== null && $actor !== null) {
+                if ($guest !== null && $actor !== null && (! $distributeGuests || $room === 0)) {
                     app(AttachReservationGuest::class)->handle($actor, $reservation, [
                         'name' => trim($guest['first_name'].' '.($guest['last_name'] ?? '')),
                         'email' => $guest['email'] ?? null, 'phone' => $guest['phone'] ?? null, 'nationality' => $guest['nationality'] ?? null,
                         'documents' => empty($guest['document_type']) ? [] : [['type' => $guest['document_type'], 'number' => $guest['document_number'], 'nationality' => $guest['nationality'] ?? null]],
                     ]);
+                }
+                $roomGuests = $room === 0 ? $others : [];
+                if ($distributeGuests) {
+                    $places = $occupancies[$room]['adults'] - ($room === 0 && $guest !== null ? 1 : 0);
+                    $roomGuests = array_splice($others, 0, $places);
+                }
+                if ($actor !== null) {
+                    foreach ($roomGuests as $other) {
+                        app(AttachReservationGuest::class)->handle($actor, $reservation, [
+                            'name' => $other['name'], 'nationality' => $other['nationality'] ?? null,
+                            'documents' => empty($other['document_type']) ? [] : [['type' => $other['document_type'], 'number' => $other['document_number'], 'nationality' => $other['nationality'] ?? null]],
+                        ]);
+                    }
                 }
                 if ($room === 0 && ! empty($details['room_id'])) {
                     $reservation = app(AssignRoom::class)->handle($actor, $reservation, $details['room_id'], recordEvent: false);

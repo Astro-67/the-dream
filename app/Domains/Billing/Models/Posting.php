@@ -33,6 +33,7 @@ use LogicException;
  * @property string|null $reason why a reversal or transfer was posted
  * @property int $quantity
  * @property int $unit_price
+ * @property int $discount off the line (quantity × unit price), before tax
  * @property int $net
  * @property int $amount gross: net plus exclusive tax lines
  * @property Currency $currency
@@ -45,6 +46,7 @@ use LogicException;
  * @property string|null $method a payment's method
  * @property string|null $reference
  * @property string|null $vfms_receipt_number
+ * @property string|null $general_receipt_id the general receipt's outbox message that claims this held extra
  * @property string|null $card_last_four
  * @property string|null $card_brand
  * @property string|null $cashier_shift_id the shift whose cash drawer a cash posting went through
@@ -53,7 +55,7 @@ use LogicException;
  * @property-read Posting|null $cancelledBy
  * @property-read Reservation|null $reservation
  */
-#[Fillable(['folio_id', 'reservation_id', 'price_line_id', 'related_posting_id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at', 'method', 'reference', 'card_last_four', 'card_brand', 'cashier_shift_id'])]
+#[Fillable(['folio_id', 'reservation_id', 'price_line_id', 'related_posting_id', 'type', 'category', 'description', 'reason', 'quantity', 'unit_price', 'discount', 'net', 'amount', 'currency', 'tax_lines', 'tax_rule_ids', 'idempotency_key', 'actor_id', 'business_date', 'posted_at', 'method', 'reference', 'card_last_four', 'card_brand', 'cashier_shift_id'])]
 #[UseEloquentBuilder(PostingBuilder::class)]
 class Posting extends Model
 {
@@ -65,7 +67,7 @@ class Posting extends Model
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer', 'unit_price' => 'integer', 'net' => 'integer', 'amount' => 'integer',
+            'quantity' => 'integer', 'unit_price' => 'integer', 'discount' => 'integer', 'net' => 'integer', 'amount' => 'integer',
             'currency' => Currency::class, 'tax_lines' => 'array', 'tax_rule_ids' => 'array',
             'business_date' => 'immutable_date', 'posted_at' => 'immutable_datetime',
         ];

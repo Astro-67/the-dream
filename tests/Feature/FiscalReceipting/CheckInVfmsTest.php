@@ -44,7 +44,7 @@ function checkInTwoGuests(TenantFixture $tenant, array $booking = [], ?Property 
     return inTenant($property ?? $tenant->property, function () use ($tenant, $booking, $currency) {
         $details = BookingForm::details($tenant->owner);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast', ...$booking]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'adults' => 2, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast', ...$booking]);
         $reservation->priceLines()->update(['currency' => $currency]);
         foreach ([['Anna Berg', 'P1234567', 'DE'], ['Ola Berg', 'P7654321', 'NO']] as [$name, $number, $country]) {
             $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => $name, 'documents' => [['type' => 'passport', 'number' => $number, 'nationality' => $country]]]);
@@ -92,7 +92,7 @@ test('a Sandbox check-in of two guests files one accepted accommodation message'
             'roomId' => $room->vfms_room_id,
             'roomName' => '101',
             'accommodationSource' => 'DIRECT',
-            // 2 adults and 1 child in a room for 2: 100.00 plus one extra child. JSON keeps no float type, so 110.0 reads back as 110.
+            // Two registered guests at the fixture room price of USD 110. JSON keeps no float type, so 110.0 reads back as 110.
             'accommodationPrice' => 110,
             'accommodationDiscount' => 0,
             'referenceNumber' => $reservation->reservation_number.'-2',
@@ -179,6 +179,68 @@ test('a tour-operator stay is sent with its registration number and cost options
     'room, levy and other services' => ['room-levy-and-other-services', '567'],
 ]);
 
+// protects=a paying institution is named to VFMS at check-in in ZRA's exact values (spec #242); fails_when=a type maps to the wrong value, the ZRB number is dropped, or another field changes; no_claim=that Live accepts WITHHOLD.
+test('a stay paid by an institution is sent with its accommodation type and ZRB number', function (string $type, string $accommodationType, array $booking, array $source) {
+    $t = twoTenants();
+    $reservation = checkInTwoGuests($t->a, [...$booking, 'paying_institution_type' => $type, 'paying_institution_name' => 'Ministry of Tourism', 'paying_institution_zrb_number' => 'WA2400117']);
+
+    $room = inTenant($t->a->property, fn () => Room::query()->sole());
+    expect(vfmsMessages($t->a)[0]->payload['body'])->toEqual([
+        'paymentPackage' => 'BB',
+        'checkInDate' => '2026-12-10T06:00:00.000Z',
+        'guest' => [
+            ['documentName' => 'PASSPORT', 'documentNo' => 'P1234567', 'country' => 'GERMANY', 'fullName' => 'Anna Berg', 'arrivalDate' => '2026-12-10'],
+            ['documentName' => 'PASSPORT', 'documentNo' => 'P7654321', 'country' => 'NORWAY', 'fullName' => 'Ola Berg', 'arrivalDate' => '2026-12-10'],
+        ],
+        'roomId' => $room->vfms_room_id,
+        'roomName' => '101',
+        ...$source,
+        'accommodationPrice' => 110,
+        'accommodationDiscount' => 0,
+        'referenceNumber' => $reservation->reservation_number.'-2',
+        'currency' => 'USD',
+        'accommodationType' => $accommodationType,
+        'zrbNumber' => 'WA2400117',
+    ]);
+})->with([
+    'government' => ['government', 'WITHHOLD'],
+    'business' => ['business', 'BTOB'],
+])->with([
+    'direct' => [[], ['accommodationSource' => 'DIRECT']],
+    'tour operator' => [
+        ['booked_through' => 'tour-operator', 'tour_operator_name' => 'Island Tours', 'tour_operator_registration' => 'ZRA-123', 'tour_operator_pays_for' => 'room-only'],
+        ['accommodationSource' => 'TOUR OPERATOR', 'tourRegNo' => 'ZRA-123', 'costOptions' => '5'],
+    ],
+]);
+
+// protects=stays without a paying institution file exactly as before spec #242; fails_when=a new key, a null, or a reordered key reaches the check-in body; no_claim=MySQL JSON key order of the stored payload.
+test('a stay without a paying institution builds the check-in body byte for byte as before', function () {
+    $t = twoTenants();
+    $reservation = checkInTwoGuests($t->a);
+
+    $body = inTenant($t->a->property, fn () => app(VfmsPayloads::class)->accommodation($reservation->lifecycleEvents()->where('type', 'checked_in')->sole(), $reservation->fresh(), $t->a->property));
+
+    $roomId = inTenant($t->a->property, fn () => Room::query()->sole()->vfms_room_id);
+    expect(json_encode($body))->toBe('{"paymentPackage":"BB","checkInDate":"2026-12-10T06:00:00.000Z","guest":['
+        .'{"documentName":"PASSPORT","documentNo":"P1234567","country":"GERMANY","fullName":"Anna Berg","arrivalDate":"2026-12-10"},'
+        .'{"documentName":"PASSPORT","documentNo":"P7654321","country":"NORWAY","fullName":"Ola Berg","arrivalDate":"2026-12-10"}],'
+        .'"roomId":'.$roomId.',"roomName":"101","accommodationSource":"DIRECT","accommodationPrice":110,"currency":"USD","accommodationDiscount":0,'
+        .'"referenceNumber":"'.$reservation->reservation_number.'-2"}');
+});
+
+// protects=only properties that file with VFMS send a paying institution (spec #242, ADR 0014); fails_when=a Mainland or demo stay records a VFMS message; no_claim=TRA reporting.
+test('a Mainland or demo stay paid by an institution files nothing with VFMS', function (string $where) {
+    $t = twoTenants();
+    $property = $where === 'Mainland' ? $t->a->otherProperty : $t->a->property;
+    if ($where === 'demo') {
+        DB::table('properties')->where('id', $property->id)->update(['demo' => true]);
+    }
+
+    checkInTwoGuests($t->a, ['paying_institution_type' => 'business', 'paying_institution_name' => 'Island Supplies Ltd', 'paying_institution_zrb_number' => 'Z123'], $property->fresh());
+
+    expect(vfmsMessages($t->a, $property))->toBe([]);
+})->with(['Mainland', 'demo']);
+
 // protects=VFMS spells euro EURO (guide §2.1); fails_when=EUR is sent as EUR; no_claim=other currencies VFMS accepts.
 test('a euro stay is sent in EURO', function () {
     $t = twoTenants();
@@ -246,7 +308,7 @@ test('each VFMS gateway answer maps to its delivery outcome', function (Closure 
     '404' => [fn () => Http::response([], 404), 'rejected', false],
     '500' => [fn () => Http::response([], 500), 'unknown', false],
     '503' => [fn () => Http::response([], 503), 'unknown', false],
-    'connection error' => [fn () => Http::failedConnection(), 'unknown', false],
+    'connection error' => [fn () => Http::failedConnection(), 'retryable', false],
     'timeout' => [fn () => throw new ConnectionException('cURL error 28: Operation timed out'), 'unknown', false],
     'empty success' => [fn () => Http::response([], 200), 'unknown', false],
     'malformed success' => [fn () => Http::response('{bad json', 200), 'unknown', false],
@@ -312,7 +374,6 @@ test('VFMS holds an uncertain check-in without querying an unverified report', f
     expect(Http::recorded(fn (Request $request) => str_ends_with($request->url(), '/accommodationReport/')))->toHaveCount(0);
 })->with([
     'timeout' => [fn () => throw new ConnectionException('Operation timed out')],
-    'connection error' => [fn () => Http::failedConnection()],
     '500' => [fn () => Http::response([], 500)],
     '503' => [fn () => Http::response([], 503)],
 ]);

@@ -10,8 +10,13 @@ use App\Support\Tenancy\Tenancy;
 
 class ReceiptPolicy
 {
+    public function fileAdvance(User $user, Receipt $receipt): bool
+    {
+        return Access::inProperty($user, P::ChargesPost, $receipt);
+    }
+
     public function view(User $user, Receipt $receipt): bool
     {
-        return Tenancy::property() !== null && (Access::allows($user, P::ReservationsView, $receipt) || Access::allows($user, P::FinanceView, $receipt));
+        return Tenancy::property() !== null && (Access::allows($user, P::ReservationsView, $receipt) || Access::allows($user, P::FinanceView, $receipt) || Access::allows($user, P::ReportsView, $receipt));
     }
 }

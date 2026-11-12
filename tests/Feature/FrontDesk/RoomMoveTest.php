@@ -32,7 +32,7 @@ function inHouse(TenantFixture $tenant): Reservation
         $room = Room::query()->sole();
         app(CreateRoom::class)->handle($tenant->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'room_id' => $room->id]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'adults' => 1, 'children' => 0, 'room_id' => $room->id]);
         $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => 'Staying Guest', 'documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE']]]);
         ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
 
@@ -136,8 +136,7 @@ test('re-pricing replaces only the remaining nights from the rate plan', functio
     });
     $this->actingAs($t->a->owner)->post(route('reservations.room-move', $reservation), ['_property' => $t->a->property->id, 'room_id' => roomNumbered($t->a, '102')->id, 'pricing' => 'reprice'])
         ->assertSessionHasNoErrors();
-    // 2 adults and 1 child in a room for 2: the base price plus one extra child.
-    inTenant($t->a->property, fn () => expect($reservation->priceLines()->orderBy('date')->pluck('amount')->all())->toBe([11000, 16000])
+    inTenant($t->a->property, fn () => expect($reservation->priceLines()->orderBy('date')->pluck('amount')->all())->toBe([10000, 15000])
         ->and($reservation->lifecycleEvents()->where('type', 'room_moved')->sole()->snapshot['pricing'])->toBe('reprice'));
 });
 
@@ -152,7 +151,7 @@ test('a move to another room type takes and releases inventory and keeps the pri
         ->and(soldOf($t->a, $suite->room_type_id))->toBe(['2026-12-10' => 1, '2026-12-11' => 1])
         ->and(roomStatusOf($t->a, $old))->toBe(HousekeepingStatus::Dirty)->and(roomStatusOf($t->a, $suite))->toBe(HousekeepingStatus::Occupied);
     inTenant($t->a->property, fn () => expect($reservation->fresh()->only(['room_id', 'room_type_id']))->toBe(['room_id' => $suite->id, 'room_type_id' => $suite->room_type_id])
-        ->and($reservation->priceLines()->orderBy('date')->pluck('amount')->all())->toBe([11000, 11000]));
+        ->and($reservation->priceLines()->orderBy('date')->pluck('amount')->all())->toBe([10000, 10000]));
 });
 
 test('a cross-type move can re-price on the new room type', function () {
@@ -161,7 +160,7 @@ test('a cross-type move can re-price on the new room type', function () {
     $suite = suite($t->a, $reservation);
     $this->actingAs($t->a->owner)->post(route('reservations.room-move', $reservation), ['_property' => $t->a->property->id, 'room_id' => $suite->id, 'pricing' => 'reprice'])
         ->assertSessionHasNoErrors();
-    inTenant($t->a->property, fn () => expect($reservation->priceLines()->orderBy('date')->pluck('amount')->all())->toBe([21000, 21000]));
+    inTenant($t->a->property, fn () => expect($reservation->priceLines()->orderBy('date')->pluck('amount')->all())->toBe([20000, 20000]));
 });
 
 test('a cross-type move is refused when the new room type has no inventory left', function () {

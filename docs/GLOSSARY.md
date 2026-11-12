@@ -12,6 +12,10 @@ _Avoid_: Account, customer, client
 One hotel operated by an organization, with its own rooms, settings and jurisdiction.
 _Avoid_: Hotel (in formal requirements), site, unit
 
+**Property branding**:
+A property's optional logo and one accent colour, shown on its fiscal check-out report. Belongs to the property, not the organization; only an Owner or that property's Property manager edits it. Reprints use the current branding; it never changes fiscal evidence or the VFMS business identity.
+_Avoid_: Theme, template, organization logo
+
 ## Reservations and front desk
 
 **Reservation**:
@@ -21,6 +25,10 @@ _Avoid_: Booking (in formal requirements)
 **Booking group**:
 The reservations created from one booking for several rooms, such as one Booking.com reservation for two rooms. Each member keeps its own reservation number.
 _Avoid_: Group block, multi-room reservation
+
+**Group statement**:
+A printable, non-fiscal settlement statement for every reservation in one booking group (or one reservation outside a group). It names the paying institution when set, itemises each room's folios and accepted ZRA fiscal report numbers, and keeps totals separate by currency. ZRA's per-guest reports remain the fiscal proof.
+_Avoid_: Group receipt, fiscal receipt
 
 **Stay**:
 The in-house phase of a reservation, from check-in to check-out. Not a separate record from the reservation.
@@ -78,8 +86,20 @@ The property's daily run, at a time it sets, that checks out departing guests an
 _Avoid_: Night audit (which never checks guests out)
 
 **Folio**:
-The guest account for one reservation in one currency, open from booking until its balance is settled, which may be after departure. Charges move between folios only by a linked transfer.
+The charges and payments for one reservation or customer account in one currency, open until its balance is settled, which may be after departure. A folio has exactly one owner. Charges move between folios only by a linked transfer.
 _Avoid_: Bill, invoice, guest ledger, guest account
+
+**Customer account**:
+A property's numbered sale without a room or reservation, for day use or an event. It holds items and payments in currency-specific folios. Once settled, closing it issues a general receipt in the customer's or paying institution's name.
+_Avoid_: Walk-in reservation, invoice
+
+**Day use**:
+A customer account for one visitor's pool, restaurant, spa or day-package sale without an overnight stay.
+_Avoid_: Day-use reservation
+
+**Event**:
+A customer account for a conference or other sale without rooms, with optional dates and items added over one or more business dates.
+_Avoid_: Venue booking, group reservation
 
 **Deposit**:
 A payment posted to a folio before the guest arrives.
@@ -97,7 +117,7 @@ A balance left on a folio when a manager, or automatic check-out set to include 
 _Avoid_: Bad debt (until written off), city ledger
 
 **Guest**:
-A person staying at the property, held per property. Repeat guests are linked by staff choice, never matched automatically.
+A person staying at the property, held per property. Repeat guests are linked by staff choice, never matched automatically. A booking requires only the lead guest; other adults can be added on the booking form or in the check-in dialog. Check-in requires every booked adult registered with complete identity details. Children are counted on the booking but never registered: they have no government ID and VFMS has no child field.
 _Avoid_: Customer, client
 
 **Lead guest**:
@@ -111,6 +131,10 @@ _Avoid_: Partial check-out
 **Tour operator**:
 A ZRA-registered company that books a reservation and pays some or all of it: the room, the infrastructure levy, other services, or a combination. A reservation either has one or is paid by the guest directly.
 _Avoid_: Booker, agent, company
+
+**Paying institution**:
+A government institution or ZRA-registered business that pays for a stay, named to VFMS at check-in by its ZRB number. A government institution withholds tax (VFMS `WITHHOLD`); a business is billed business-to-business (`BTOB`). Independent of a tour operator.
+_Avoid_: Corporate account, company, booker
 
 **Meal plan**:
 What a reservation's price includes besides the room: room only, bed and breakfast, half board, full board or all-inclusive.
@@ -220,8 +244,20 @@ _Avoid_: ZTN, ZTN number location (the owner's labels for the full Z-number)
 The authority's identifier for a property, separate from its TIN, VRN and full Z-number.
 
 **Fiscal receipt**:
-A receipt or check-out report issued through VFMS, carrying a VFMS QR code.
+A receipt or check-out report issued through VFMS, carrying a VFMS QR code: a guest receipt, a general receipt, or a fiscal check-out report.
 _Avoid_: Invoice, bill, folio
+
+**Guest receipt**:
+A ZRA receipt (`CS`) for one extra of a checked-in guest paying for themselves, linked to their stay; ZRA repeats it on their check-out report.
+_Avoid_: Services receipt
+
+**General receipt**:
+A ZRA receipt (`WS`) in a named customer's name, not linked to a stay: one per currency for a paying institution's held extras, issued by staff or when the group's last room checks out, and one for each extra posted after a guest has checked out, in the guest's name. Its customer is a name, never a guest's document number. ZRA cannot cancel it; reversing a receipted extra is a fiscal exception.
+_Avoid_: Institution invoice, cash sale receipt
+
+**Issued document**:
+A receipt Karafuu or VFMS has given out: a non-fiscal receipt, a guest receipt, a general receipt, or one guest's fiscal check-out report. Fiscal ones are projected from VFMS's accepted answer with their issue-time amount, currency and viewer link; evidence that was never stored stays unavailable, never rebuilt from today's folio.
+_Avoid_: Invoice, transaction
 
 **Estimated tax**:
 The VAT and infrastructure levy Karafuu's tax rules put on a Zanzibar folio before check-out. Replaced at check-out by the tax and levy VFMS returns, with any difference posted as a VFMS adjustment line (ADR 0015).
@@ -236,7 +272,7 @@ Per property, **Sandbox** (the default: filings go to ZRA's shared test business
 _Avoid_: Test mode, demo mode
 
 **Fiscal exception**:
-A charge with no VFMS path, such as a cancellation or no-show fee, or a departed stay closed without filing. Listed with its reason for the property's accountant; an unfiled stay must be declared in the property's VAT return.
+A charge with no VFMS path, such as a cancellation or no-show fee, a departed stay closed without filing, or a receipted extra reversed in Karafuu (ZRA's receipt stands). Listed with its reason for the property's accountant; an unfiled stay must be declared in the property's VAT return.
 _Avoid_: Unreceipted charge, tax gap
 
 **Close without filing**:

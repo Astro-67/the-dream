@@ -2,6 +2,7 @@
 
 namespace App\Domains\FiscalReceipting;
 
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -19,8 +20,9 @@ use Illuminate\Support\Facades\DB;
 final class VfmsFilings
 {
     private const CALLS = [
+        'advanceBooking' => 'Advance payment', 'advanceAccommodation' => 'Check-in with advance receipt',
         'accommodation' => 'Check-in', 'changeRoom' => 'Room move', 'changeRoomPrice' => 'Room price changed',
-        'addGuest' => 'Guest added', 'changeProfile' => 'Profile corrected', 'services' => 'Extras',
+        'addGuest' => 'Guest added', 'changeProfile' => 'Profile corrected', 'services' => 'Extras', 'generalReceipt' => 'General receipt',
         'guestDeparture' => 'Guest left', 'checkout' => 'Check-out',
     ];
 
@@ -38,12 +40,14 @@ final class VfmsFilings
     private const STATUSES = ['filed' => 'Filed', 'refused' => 'Refused', 'unknown' => 'Unknown', 'waiting' => 'Waiting', 'sandbox' => 'Sandbox — not fiscal', 'closed' => 'Closed without filing'];
 
     /** @return list<array{id: string, call: string, status: string, attempts: int, number: string|null, message: string|null, refileUrl: string|null, retryUrl: string|null}> */
-    public static function of(Reservation $reservation, bool $canRecover): array
+    public static function of(Reservation|CustomerAccount $reservation, bool $canRecover): array
     {
+        $routes = $reservation instanceof CustomerAccount ? 'customer-accounts' : 'reservations';
+
         return OutboxMessage::query()->where('property_id', $reservation->property_id)
             ->where('integration', VfmsAdapter::INTEGRATION)->where('subject_type', $reservation->getMorphClass())
-            ->where('subject_id', $reservation->id)->orderBy('sequence')->get()
-            ->map(function (OutboxMessage $message) use ($reservation, $canRecover) {
+            ->where('subject_id', $reservation->id)->where('event', '!=', 'errorSave')->orderBy('sequence')->get()
+            ->map(function (OutboxMessage $message) use ($reservation, $canRecover, $routes) {
                 $references = $message->getAttribute('provider_references') ?? [];
                 $number = $references['reportNo'] ?? $references['receiptNumber'] ?? $references['responseNumber'] ?? null;
 
@@ -55,8 +59,8 @@ final class VfmsFilings
                     'number' => $number === null ? null : (string) $number,
                     'message' => $message->status === 'rejected' ? VfmsRefusal::summary($message) : null,
                     // Unknown outcomes never get an action: VFMS cannot prove whether ZRA kept them (unknownRetrySafe is false).
-                    'refileUrl' => $canRecover && $message->status === 'rejected' ? route('reservations.vfms.refile', [$reservation, $message]) : null,
-                    'retryUrl' => $canRecover && in_array($message->status, ['retryable', 'exhausted'], true) ? route('reservations.vfms.retry', [$reservation, $message]) : null,
+                    'refileUrl' => $canRecover && $message->status === 'rejected' ? route($routes.'.vfms.refile', [$reservation, $message]) : null,
+                    'retryUrl' => $canRecover && in_array($message->status, ['retryable', 'exhausted'], true) ? route($routes.'.vfms.retry', [$reservation, $message]) : null,
                 ];
             })->all();
     }
@@ -138,10 +142,13 @@ final class VfmsFilings
         $references = $message->getAttribute('provider_references') ?? [];
         $body = $message->payload['body'] ?? [];
         $payloads = app(VfmsPayloads::class);
-        $currency = isset($body['currency']) ? $payloads->fromVfmsCurrency($body['currency']) : null;
+        $currencyCode = $body['currency'] ?? $body['salesCurrency'] ?? null;
+        $currency = $currencyCode === null ? null : $payloads->fromVfmsCurrency($currencyCode);
         $major = match ($message->event) {
+            'advanceBooking' => $body['amountToBePaid'] ?? null,
+            'advanceAccommodation' => $body['accomodationPrice'] ?? null,
             'accommodation', 'changeRoom' => $body['accommodationPrice'] ?? null,
-            'services' => array_sum(array_map(fn (array $item) => $item['price'] * $item['quantity'] - $item['discount'], $body['service'] ?? [])),
+            'services', 'generalReceipt' => array_sum(array_map(fn (array $item) => $item['price'] * $item['quantity'] - $item['discount'], $body['service'] ?? [])),
             'checkout', 'guestDeparture' => $references['totalAmount'] ?? null,
             // shortcut: a room price call carries no currency, so no amount; add the folio currency if staff need it.
             default => null,

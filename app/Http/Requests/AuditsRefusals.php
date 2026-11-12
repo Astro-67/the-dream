@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Domains\Billing\Models\ApprovalThreshold;
 use App\Domains\Billing\Models\CashierShift;
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\PostingApproval;
 use App\Domains\FrontDesk\Models\BusinessDateClose;
 use App\Domains\Guests\Models\Booker;
@@ -36,7 +37,7 @@ trait AuditsRefusals
 
     private function auditRefusal(string $stage): void
     {
-        $subject = $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment') ?? $this->route('ticket') ?? $this->route('folio') ?? $this->route('posting') ?? $this->route('feeProposal') ?? $this->route('cashierShift') ?? $this->route('approval') ?? $this->route('noShowProposal') ?? $this->route('importJob') ?? $this->route('property') ?? $this->route('plan') ?? $this->route('invoice');
+        $subject = $this->route('customerAccount') ?? $this->route('document') ?? $this->route('correction') ?? $this->route('reservation') ?? $this->route('guest') ?? $this->route('booker') ?? $this->route('room') ?? $this->route('assignment') ?? $this->route('ticket') ?? $this->route('folio') ?? $this->route('posting') ?? $this->route('feeProposal') ?? $this->route('cashierShift') ?? $this->route('approval') ?? $this->route('noShowProposal') ?? $this->route('importJob') ?? $this->route('property') ?? $this->route('plan') ?? $this->route('invoice');
         if (! $subject instanceof Model) {
             $subject = match (true) {
                 $this->routeIs('guests.*') => new Guest,
@@ -44,6 +45,7 @@ trait AuditsRefusals
                 $this->routeIs('housekeeping.*') => new Assignment,
                 $this->routeIs('maintenance.*') => new Ticket,
                 $this->routeIs('cashier-shifts.*') => new CashierShift,
+                $this->routeIs('customer-accounts.*') => new CustomerAccount,
                 $this->routeIs('approvals.*') => new PostingApproval,
                 $this->routeIs('approval-thresholds.*') => new ApprovalThreshold,
                 $this->routeIs('night-audit.*') => new BusinessDateClose,

@@ -16,7 +16,7 @@ use Illuminate\Validation\Rule;
 
 class CreateReservationRequest extends FormRequest
 {
-    use AuditsRefusals, StayRules;
+    use AuditsRefusals, PayingInstitutionRules, StayRules;
 
     public function authorize(): bool
     {
@@ -59,6 +59,13 @@ class CreateReservationRequest extends FormRequest
             'lead_guest.nationality' => ['nullable', Rule::in(array_keys(Countries::NAMES))],
             'lead_guest.document_type' => ['nullable', 'required_with:lead_guest.document_number', Rule::in(['passport', 'nida', 'zanid'])],
             'lead_guest.document_number' => ['nullable', 'required_with:lead_guest.document_type', 'string', 'max:255'],
+            // Other adults staying in the room; children are never registered (VFMS has no child field).
+            'guests' => ['sometimes', 'array', 'max:19'],
+            'guests.*' => ['array:name,nationality,document_type,document_number'],
+            'guests.*.name' => ['nullable', 'required_with:guests.*.document_type', 'string', 'max:255'],
+            'guests.*.nationality' => ['nullable', Rule::in(array_keys(Countries::NAMES))],
+            'guests.*.document_type' => ['nullable', 'required_with:guests.*.document_number', Rule::in(['passport', 'nida', 'zanid'])],
+            'guests.*.document_number' => ['nullable', 'required_with:guests.*.document_type', 'string', 'max:255'],
             'meal_plan' => ['sometimes', Rule::enum(MealPlan::class)],
             'special_requests' => ['nullable', 'string', 'max:5000'],
             'nightly_rate' => ['nullable', 'integer', 'between:0,1000000000000'],
@@ -66,6 +73,7 @@ class CreateReservationRequest extends FormRequest
             'tour_operator_name' => ['exclude_unless:booked_through,tour-operator', 'required', 'string', 'max:255'],
             'tour_operator_registration' => ['exclude_unless:booked_through,tour-operator', 'required', 'string', 'max:255'],
             'tour_operator_pays_for' => ['exclude_unless:booked_through,tour-operator', 'required', Rule::enum(TourOperatorPaysFor::class)],
+            ...$this->payingInstitutionRules(),
             'rooms' => ['sometimes', 'integer', 'between:1,20'],
             'distribute_guests' => ['sometimes', 'boolean'],
             'booker_id' => ['nullable', 'string', Rule::in(Booker::query()->pluck('id')->all())],

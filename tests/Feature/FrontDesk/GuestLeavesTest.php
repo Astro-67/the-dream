@@ -34,7 +34,7 @@ function guestLeavesStay(TenantFixture $tenant, bool $checkIn = true): Reservati
     return inTenant($tenant->property, function () use ($tenant, $checkIn) {
         $details = BookingForm::details($tenant->owner);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'adults' => 2, 'children' => 0, 'room_id' => Room::query()->sole()->id]);
         foreach ([['Anna Berg', 'P1234567'], ['Ola Berg', 'P7654321']] as [$name, $number]) {
             $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => $name, 'documents' => [['type' => 'passport', 'number' => $number, 'nationality' => 'DE']]]);
             ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
@@ -147,7 +147,7 @@ test('a guest who left can be added to another in-house stay at the property', f
     $other = inTenant($t->a->property, function () use ($t, $reservation) {
         $room = app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($reservation->room_type_id, ['number' => '202']));
         RoomStatus::query()->where('room_id', $room->id)->update(['status' => HousekeepingStatus::Clean]);
-        $stay = app(CreateReservation::class)->handle($t->a->owner, [...$reservation->only(['room_type_id', 'rate_plan_id', 'booker_id', 'adults', 'children', 'source']), 'arrival' => '2026-12-10', 'departure' => '2026-12-12', 'room_id' => $room->id]);
+        $stay = app(CreateReservation::class)->handle($t->a->owner, [...$reservation->only(['room_type_id', 'rate_plan_id', 'booker_id', 'adults', 'children', 'source']), 'arrival' => '2026-12-10', 'departure' => '2026-12-12', 'adults' => 1, 'children' => 0, 'room_id' => $room->id]);
         $guest = app(CreateGuest::class)->handle($t->a->owner, ['name' => 'Kim Lee', 'documents' => [['type' => 'passport', 'number' => 'K1112223', 'nationality' => 'DE']]]);
         ReservationGuest::query()->create(['reservation_id' => $stay->id, 'guest_id' => $guest->id]);
 

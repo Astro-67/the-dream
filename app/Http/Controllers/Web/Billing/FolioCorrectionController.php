@@ -27,14 +27,14 @@ class FolioCorrectionController extends Controller
     {
         $result = $reverse->handle($request->user(), $posting, $request->string('reason')->toString());
 
-        return $this->back($request->folio()->reservation_id, $result instanceof PostingApproval ? __('Reversal awaiting approval.') : __('Posting reversed.'));
+        return redirect($request->folio()->url())->with('toast', ['type' => 'success', 'message' => $result instanceof PostingApproval ? __('Reversal awaiting approval.') : __('Posting reversed.')]);
     }
 
     public function transfer(TransferPostingRequest $request, Posting $posting, TransferPosting $transfer): RedirectResponse
     {
         $transfer->handle($request->user(), $posting, $request->target(), $request->string('reason')->toString());
 
-        return $this->back($request->folio()->reservation_id, __('Charge moved.'));
+        return redirect($request->folio()->url())->with('toast', ['type' => 'success', 'message' => __('Charge moved.')]);
     }
 
     private function back(string $reservationId, string $message): RedirectResponse

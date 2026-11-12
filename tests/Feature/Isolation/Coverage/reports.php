@@ -3,6 +3,7 @@
 use App\Domains\Billing\Actions\OpenCashierShift;
 use App\Domains\Billing\Actions\RecordPayment;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\Receipt;
 use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
@@ -27,7 +28,7 @@ $bravoFiling = function (TwoTenants $t): void {
     inTenant($t->b->property, function () use ($t) {
         $details = BookingForm::details($t->b->owner);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($t->b->owner, [...$details, 'room_id' => Room::query()->sole()->id]);
+        $reservation = app(CreateReservation::class)->handle($t->b->owner, [...$details, 'adults' => 1, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->sole()->id]);
         $guest = app(CreateGuest::class)->handle($t->b->owner, ['name' => 'Bravo Filed Guest', 'documents' => [['type' => 'passport', 'number' => 'BRAVO-DOC-174', 'nationality' => 'DE']]]);
         ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
         app(CheckIn::class)->handle($t->b->owner, $reservation);
@@ -35,6 +36,33 @@ $bravoFiling = function (TwoTenants $t): void {
 };
 
 return [
+    'receipts.index' => RouteCoverage::attempt(function (TwoTenants $t) {
+        [$reservation, $receipt] = inTenant($t->b->property, function () use ($t) {
+            $reservation = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            app(RecordPayment::class)->handle($t->b->owner, Folio::query()->sole(), ['method' => 'card', 'amount' => 700, 'currency' => 'USD']);
+
+            return [$reservation, Receipt::query()->sole()];
+        });
+        $before = $receipt->getAttributes();
+        $responses = [];
+        foreach ($t->a->members() as $role => $member) {
+            $response = $this->actingAs($member)->withSession([
+                'tenancy.organization_id' => $t->b->organization->id,
+                'tenancy.property_id' => $t->b->property->id,
+            ])->get(route('receipts.index'));
+            if (in_array($role, [OrganizationRole::FrontDesk->value, OrganizationRole::Housekeeping->value], true)) {
+                $response->assertForbidden();
+            } else {
+                $response->assertOk()->assertInertia(fn (Assert $page) => $page->where('documents.total', 0));
+            }
+            $responses[] = $response;
+            $responses[] = $this->get(route('receipts.show', $receipt))->assertNotFound();
+            $responses[] = $this->get(route('reservations.fiscal-report', $reservation))->assertNotFound();
+        }
+        expect(inTenant($t->b->property, fn () => $receipt->fresh()->getAttributes()))->toEqual($before);
+
+        return $responses;
+    }),
     'payments.index' => RouteCoverage::attempt(function (TwoTenants $t) {
         $reservation = inTenant($t->b->property, function () use ($t) {
             $reservation = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));

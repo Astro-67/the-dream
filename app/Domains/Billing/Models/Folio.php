@@ -19,11 +19,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @property string $id
  * @property string $property_id
- * @property string $reservation_id
+ * @property string|null $reservation_id
+ * @property string|null $customer_account_id
  * @property Currency $currency
- * @property-read Reservation $reservation
+ * @property-read Reservation|null $reservation
+ * @property-read CustomerAccount|null $customerAccount
  */
-#[Fillable(['reservation_id', 'currency'])]
+#[Fillable(['reservation_id', 'customer_account_id', 'currency'])]
 #[UsePolicy(FolioPolicy::class)]
 class Folio extends Model
 {
@@ -53,5 +55,27 @@ class Folio extends Model
     public function reservation(): BelongsTo
     {
         return $this->belongsTo(Reservation::class);
+    }
+
+    /** @return BelongsTo<CustomerAccount, $this> */
+    public function customerAccount(): BelongsTo
+    {
+        return $this->belongsTo(CustomerAccount::class);
+    }
+
+    public function lockOwner(): Reservation|CustomerAccount
+    {
+        if ($this->customer_account_id === null) {
+            return Reservation::query()->whereKey($this->reservation_id)->lockForUpdate()->firstOrFail();
+        }
+
+        return CustomerAccount::query()->whereKey($this->customer_account_id)->lockForUpdate()->firstOrFail();
+    }
+
+    public function url(): string
+    {
+        return $this->customer_account_id === null
+            ? route('reservations.show', $this->reservation()->firstOrFail())
+            : route('customer-accounts.show', $this->customer_account_id);
     }
 }

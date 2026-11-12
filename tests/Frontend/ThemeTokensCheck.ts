@@ -87,6 +87,11 @@ for (const [theme, selector] of [
     ['dark', '\\.dark'],
 ] as const) {
     const t = block(selector);
+    assert.deepEqual(
+        resolve({ ...block(':root'), ...t }, 'qr-surface'),
+        [255, 255, 255],
+        `${theme}: QR clear space must stay white`,
+    );
     const c = (name: string) => resolve(t, name);
     const prepaint = blade.match(
         new RegExp(
@@ -173,3 +178,12 @@ assert.match(
     'print surfaces must drop screen elevation',
 );
 console.log('Elevation tokens: PASS');
+for (const slot of ['dialog-overlay', 'dialog-content']) {
+    assert.match(
+        css,
+        new RegExp(
+            `@media print[^]*body:has\\(\\.receipt-print\\) \\[data-slot='${slot}'\\][^{]*\\{\\s*display: none !important`,
+        ),
+        'printing an issued document must omit an open correction dialog and its overlay',
+    );
+}

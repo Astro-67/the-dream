@@ -25,8 +25,10 @@ use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
@@ -43,7 +45,7 @@ function inHouseForCheckOut(TenantFixture $tenant): Reservation
     return inTenant($tenant->property, function () use ($tenant) {
         $details = BookingForm::details($tenant->owner);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast']);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...$details, 'adults' => 2, 'children' => 0, 'nightly_rate' => 11000, 'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast']);
         foreach ([['Anna Berg', 'P1234567'], ['Ola Berg', 'P7654321']] as [$name, $number]) {
             $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => $name, 'documents' => [['type' => 'passport', 'number' => $number, 'nationality' => 'DE']]]);
             ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
@@ -86,6 +88,25 @@ test('a Sandbox check-out files one accepted check-out message after the check-i
         ]);
 });
 
+// protects=a checkout ZRA never received is sent again on its own (2026-11-09 Sau Inn connect timeouts); fails_when=a failed connection is held as unknown and the stay never files; no_claim=timeouts after the request was sent stay unknown.
+test('a checkout that never reached ZRA is retried and filed', function () {
+    $tenant = twoTenants()->a;
+    $reservation = inHouseForCheckOut($tenant);
+    inTenant($tenant->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-171', 'registration_id' => 'REG-171', 'token' => 'tok', 'mode' => VfmsMode::Live]));
+    $calls = 0;
+    Http::fake(['gateway.zanrevenue.org/vfms/api/guest/checkout/' => function (Request $request) use (&$calls) {
+        return ++$calls === 1 ? Http::failedConnection()($request) : Http::response(['reportNo' => 'CO-171']);
+    }]);
+
+    checkOutOnDeparture($tenant, $reservation);
+
+    $message = checkOutVfmsMessages($tenant)[1];
+    expect($message->status)->toBe('retryable');
+    $this->travel(2)->minutes();
+    inTenant($tenant->property, fn () => app(DeliveryEngine::class)->deliver($message->id));
+    expect($calls)->toBe(2)->and($message->fresh()->status)->not->toBe('retryable');
+});
+
 // protects=checkout requires a complete validated report before changing money (#171); fails_when=an uncertain response adjusts the folio or is replayed; no_claim=per-guest decoding (#172).
 test('an incomplete or uncertain checkout never adjusts the folio or replays', function (Closure $answer) {
     $tenant = twoTenants()->a;
@@ -110,7 +131,9 @@ test('an incomplete or uncertain checkout never adjusts the folio or replays', f
     });
     expect($calls)->toBe(1);
     fiscalReport($tenant, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
-        ->where('needsAttention', true)->where('report', null)->where('guestReports', []));
+        ->where('needsAttention', true)->where('report', null)
+        // Shown as needing attention, with no report number invented (spec #249).
+        ->has('guestReports', 1)->where('guestReports.0.number', null)->where('guestReports.0.status', 'attention')->where('guestReports.0.amount', null));
     Http::assertNotSent(fn (Request $request) => str_ends_with($request->url(), '/accommodationReport/'));
 })->with([
     'scalar without guest evidence' => [fn () => Http::response(['reportNo' => 'CO-171', 'totalAmount' => 100, 'totalTax' => 999, 'infrastructureTax' => 5])],
@@ -213,8 +236,8 @@ test('a Live fiscal report shows the portal QR for its report number', function 
     ]);
 });
 
-// protects=reports accepted before links were stored reprint with the link they were first printed with; fails_when=an old printed QR changes on reprint.
-test('a report accepted before links were stored keeps its original guest-viewer link', function () {
+// protects=missing historical viewer destinations stay unavailable (#228); fails_when=a reprint invents a destination.
+test('a report accepted before links were stored has no invented viewer link', function () {
     $t = twoTenants();
     inTenant($t->a->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'live_since' => now()]));
     Http::fake(['gateway.zanrevenue.org/vfms/api/guest/checkout/' => Http::response(array_map(function (array $report, int $index) {
@@ -230,8 +253,10 @@ test('a report accepted before links were stored keeps its original guest-viewer
     $checkout->forceFill(['provider_references' => $references])->save();
 
     fiscalReport($t->a, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
-        ->where('portalUrl', 'https://portalvfms.zanrevenue.org/checkout-report/guest/CO-778')
-        ->where('guestReports.1.portalUrl', 'https://portalvfms.zanrevenue.org/checkout-report/guest/CO-779'));
+        ->where('portalUrl', null)
+        ->where('qrSvg', null)
+        ->where('guestReports.1.portalUrl', null)
+        ->where('guestReports.1.qrSvg', null));
 });
 
 // protects=FSC-07: VFMS being down never blocks check-out, and the report waits for every message (#160); fails_when=check-out fails or the report shows figures before VFMS accepts; no_claim=when the retry succeeds.
@@ -267,10 +292,14 @@ test('fiscal report identity reveal is explicit and audited without changing lat
     fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page->missing('guestReports.0.identity.documentNo'));
 
     $this->actingAs($tenant->member(OrganizationRole::FrontDesk))->post($url, ['_property' => $tenant->property->id])
-        ->assertOk()->assertInertia(fn (Assert $page) => $page->where('guestReports.0.identity.documentNo', 'P1234567'));
+        ->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('identityRevealed', true)
+        ->where('guestReports.0.identity.documentNo', 'P1234567'));
     $audit = DB::table('activity_log')->where('subject_id', $reservation->id)->where('event', 'fiscal_identity_revealed')->sole();
     expect($audit->properties)->not->toContain('P1234567', 'P7654321');
-    fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page->missing('guestReports.0.identity.documentNo'));
+    fiscalReport($tenant, $reservation)->assertInertia(fn (Assert $page) => $page
+        ->where('identityRevealed', false)
+        ->missing('guestReports.0.identity.documentNo'));
     $this->actingAs($tenant->member(OrganizationRole::Finance))->post($url, ['_property' => $tenant->property->id])->assertForbidden();
     expect(DB::table('activity_log')->where('subject_id', $reservation->id)->where('event', 'refused')->exists())->toBeTrue();
 });
@@ -295,6 +324,30 @@ test('service receipt verification retains its accepted filing mode across a mod
         ->where('status', 'live')
         ->where('serviceReceipts.0.portalUrl', 'https://vfms-viewer.example/receipt-form/TEST-RECEIPT-169')
         ->where('serviceReceipts.0.mode', 'sandbox'));
+});
+
+test('Sandbox reports without a configured viewer retain references without verification destinations', function () {
+    $tenant = twoTenants()->a;
+    config(['services.vfms.test_viewer_url' => null]);
+    $reservation = inHouseForCheckOut($tenant);
+    inTenant($tenant->property, fn () => app(PostExtraCharge::class)->handle(
+        $tenant->owner, Folio::query()->where('reservation_id', $reservation->id)->sole(),
+        ['category' => 'bar', 'description' => 'Water', 'quantity' => 2, 'unit_price' => 1000],
+    ));
+    checkOutOnDeparture($tenant, $reservation);
+
+    fiscalReport($tenant, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('status', 'sandbox')
+        ->where('portalUrl', null)->where('qrSvg', null)
+        ->where('report.room', 22000)->where('report.extras', 0)->where('report.total', 22000)
+        ->has('guestReports', 2)
+        ->where('guestReports.0.portalUrl', null)->where('guestReports.0.qrSvg', null)
+        ->where('guestReports.1.portalUrl', null)->where('guestReports.1.qrSvg', null)
+        ->has('serviceReceipts', 1)
+        ->where('serviceReceipts.0.number', 'TEST-RECEIPT-169')
+        ->where('serviceReceipts.0.amount', 2000)
+        ->where('serviceReceipts.0.mode', 'sandbox')
+        ->where('serviceReceipts.0.portalUrl', null)->where('serviceReceipts.0.qrSvg', null));
 });
 
 // protects=recorded guest reports settle shared room VAT once and keep identity encrypted (#172); fails_when=a report is lost, VAT doubles, or Finance sees documents; no_claim=live acceptance or print pagination.
@@ -364,7 +417,33 @@ test('recorded checkout stores every report and projects authorized identity onl
         ->where('guestReports.1.qrSvg', fn (string $svg) => str_starts_with($svg, '<svg')));
     fiscalReport($tenant, $reservation, OrganizationRole::Finance)->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('guestReports.0.identity', null)->where('guestReports.1.identity', null));
+    config(['services.vfms.test_viewer_url' => 'https://changed-viewer.example']);
+    fiscalReport($tenant, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('guestReports.0.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[0])
+        ->where('guestReports.1.portalUrl', $viewer.'/checkout-report/guest/'.$numbers[1])
+        ->where('serviceReceipts.0.portalUrl', $viewer.'/receipt-form/RECEIPT-172'));
 })->with([
     [VfmsMode::Sandbox, false], [VfmsMode::Live, false],
     [VfmsMode::Sandbox, true], [VfmsMode::Live, true],
 ]);
+
+// protects=#220 reprints show the property's current branding without touching fiscal evidence; fails_when=branding is missing or a rebrand changes figures, numbers or stored QR links.
+test('a fiscal report reprint shows the current property branding and unchanged fiscal evidence', function () {
+    Storage::fake('local');
+    $t = twoTenants();
+    inTenant($t->a->property, fn () => VfmsCredential::query()->create(['integration_id' => 'INT-1', 'registration_id' => 'REG-1', 'token' => 'tok', 'mode' => VfmsMode::Live, 'live_since' => now()]));
+    $reservation = checkOutOnDeparture($t->a, inHouseForCheckOut($t->a));
+    $fiscal = fn () => array_intersect_key(fiscalReport($t->a, $reservation)->assertOk()->viewData('page')['props'], array_flip(['status', 'report', 'portalUrl', 'qrSvg', 'guestReports', 'business', 'serviceReceipts']));
+    $references = fn () => collect(checkOutVfmsMessages($t->a))->map(fn (OutboxMessage $message) => [$message->payload, $message->getAttribute('provider_references')])->all();
+    [$before, $stored] = [$fiscal(), $references()];
+    fiscalReport($t->a, $reservation)->assertInertia(fn (Assert $page) => $page->where('branding', ['logo_url' => null, 'accent_colour' => null]));
+
+    // The finance member can read the report but never edit branding.
+    $this->actingAs($t->a->owner)->post(route('properties.branding.update', $t->a->property), [
+        '_property' => $t->a->property->id, 'logo' => UploadedFile::fake()->image('inn.png', 300, 90), 'accent_colour' => '#1f6f5c',
+    ])->assertSessionHasNoErrors();
+
+    fiscalReport($t->a, $reservation, OrganizationRole::Finance)->assertInertia(fn (Assert $page) => $page
+        ->where('branding.accent_colour', '#1f6f5c')->where('branding.logo_url', fn (string $url) => str_starts_with($url, 'data:image/png;base64,')));
+    expect($fiscal())->toBe($before)->and($references())->toEqual($stored);
+});

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs on the test server. .github/workflows/deploy.yml uploads the built
+# Runs on the production server. .github/workflows/deploy.yml uploads the built
 # assets to public/build.new, copies this script to the server, and runs it.
 set -euo pipefail
 

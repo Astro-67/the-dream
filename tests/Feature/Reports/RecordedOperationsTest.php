@@ -30,7 +30,7 @@ function recordedOperationsStay(User $owner, Property $property): Reservation
         $details = BookingForm::details($owner);
         $room = Room::query()->where('room_type_id', $details['room_type_id'])->sole();
         RoomStatus::query()->where('room_id', $room->id)->update(['status' => HousekeepingStatus::Clean]);
-        $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'room_id' => $room->id]);
+        $reservation = app(CreateReservation::class)->handle($owner, [...$details, 'adults' => 1, 'children' => 0, 'room_id' => $room->id]);
         $guest = app(CreateGuest::class)->handle($owner, ['name' => 'Recorded stay guest', 'documents' => [
             ['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE'],
         ]]);

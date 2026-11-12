@@ -27,7 +27,7 @@ function departingGuestForCheckOut(TenantFixture $tenant): Reservation
 {
     $tenant->property->update(['business_date' => '2026-12-10']);
     $reservation = inTenant($tenant->property, function () use ($tenant) {
-        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...BookingForm::details($tenant->owner), 'room_id' => Room::query()->sole()->id]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [...BookingForm::details($tenant->owner), 'adults' => 1, 'children' => 0, 'room_id' => Room::query()->sole()->id]);
         RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
         $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => 'Leaving Guest', 'documents' => [['type' => 'passport', 'number' => 'P7654321', 'nationality' => 'DE']]]);
         ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);

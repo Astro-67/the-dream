@@ -6,7 +6,9 @@ use App\Domains\Billing\Models\CashierShift;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Billing\Models\PostingApproval;
+use App\Domains\FiscalReceipting\VfmsAdvance;
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -19,6 +21,7 @@ class RecordAdjustment
     public function handle(?User $actor, Folio $folio, string $type, array $details): Posting|PostingApproval
     {
         return Audit::validationRefusal($actor, $folio, 'Adjustment refused', fn () => DB::transaction(function () use ($actor, $folio, $type, $details) {
+            $folio->lockOwner();
             $folio = Folio::query()->whereKey($folio->id)->lockForUpdate()->firstOrFail();
             $existing = Posting::query()->where('folio_id', $folio->id)->where('idempotency_key', $details['idempotency_key'])->first();
             if ($existing !== null) {
@@ -41,6 +44,9 @@ class RecordAdjustment
                 throw ValidationException::withMessages(['method' => __('Choose a refund method.')]);
             }
             $paymentId = $type === 'refund' ? ($details['payment_posting_id'] ?? null) : null;
+            if ($type === 'refund' && $paymentId === null && $folio->reservation_id !== null) {
+                VfmsAdvance::ensureMutable(Reservation::query()->findOrFail($folio->reservation_id), 'payment_posting_id');
+            }
             if ($paymentId !== null) {
                 $payment = Posting::query()->where('folio_id', $folio->id)->where('type', 'payment')->find($paymentId)
                     ?? throw ValidationException::withMessages(['payment_posting_id' => __('Choose a payment on this folio.')]);

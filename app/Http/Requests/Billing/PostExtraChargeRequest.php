@@ -24,19 +24,20 @@ class PostExtraChargeRequest extends FormRequest
             'description' => ['required', 'string', 'max:255'],
             'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
             'unit_price' => ['required', 'integer', 'min:0', 'max:1000000000'],
+            'discount' => ['nullable', 'integer', 'min:0', 'max:1000000000'],
             'idempotency_key' => ['required', 'string', 'max:100'],
         ];
     }
 
-    /** @return array{category: string, description: string, quantity: int, unit_price: int, idempotency_key: string} */
+    /** @return array{category: string, description: string, quantity: int, unit_price: int, discount: int, idempotency_key: string} */
     public function charge(): array
     {
-        /** @var array{category: string, description: string, quantity: int|string, unit_price: int|string, idempotency_key: string} $valid */
+        /** @var array{category: string, description: string, quantity: int|string, unit_price: int|string, discount?: int|string|null, idempotency_key: string} $valid */
         $valid = $this->validated();
 
         return [
             'category' => $valid['category'], 'description' => $valid['description'],
-            'quantity' => (int) $valid['quantity'], 'unit_price' => (int) $valid['unit_price'], 'idempotency_key' => $valid['idempotency_key'],
+            'quantity' => (int) $valid['quantity'], 'unit_price' => (int) $valid['unit_price'], 'discount' => (int) ($valid['discount'] ?? 0), 'idempotency_key' => $valid['idempotency_key'],
         ];
     }
 }

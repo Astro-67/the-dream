@@ -6,7 +6,11 @@ import {
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Form, Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import {
+    CorrectionAnnotation,
+    type DocumentCorrectionView,
+} from '@/features/fiscal-receipting/document-correction';
+import { useState, type ReactNode } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -143,7 +147,7 @@ function FolioDue({ total }: { total: FolioTotal }) {
                     Due includes an estimate of {money(total.estimate.amount)}{' '}
                     for {total.estimate.nights}{' '}
                     {total.estimate.nights === 1 ? 'night' : 'nights'} not yet
-                    charged, before added taxes.
+                    charged, including estimated taxes.
                 </p>
             )}
         </div>
@@ -182,7 +186,9 @@ export function FolioPanel({
     stay,
     paymentsReportUrl,
     taxSource = null,
+    groupStatementLink,
 }: {
+    groupStatementLink?: ReactNode;
     taxSource?: TaxSource;
     stay: FolioStay;
     paymentsReportUrl?: string | null;
@@ -194,7 +200,9 @@ export function FolioPanel({
     acceptedPaymentMethods: string[];
     extraCategories: string[];
 }) {
-    const { tenant } = usePage().props;
+    const { tenant, documentCorrections = {} } = usePage<{
+        documentCorrections?: Record<string, DocumentCorrectionView>;
+    }>().props;
     const timezone = tenant.property?.timezone ?? 'UTC';
     const folios = folioPage.data;
     const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null);
@@ -208,6 +216,19 @@ export function FolioPanel({
     return (
         <section className="space-y-4">
             <h2 className="text-lg font-semibold">Folio</h2>
+            {Object.values(documentCorrections)
+                .filter((view) => view.annotations.length > 0)
+                .map((view) => (
+                    <div key={view.document.id} className="space-y-2">
+                        <p className="text-sm">
+                            Fiscal document{' '}
+                            <Identifier value={view.document.number} />
+                        </p>
+                        {view.annotations.map((note, index) => (
+                            <CorrectionAnnotation key={index} note={note} />
+                        ))}
+                    </div>
+                ))}
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
                 <span>{stay.guest}</span>
                 <span aria-hidden="true">·</span>
@@ -338,7 +359,7 @@ export function FolioPanel({
                                         <DialogDescription>
                                             {due?.label}: {due?.amount}
                                             {total.estimate &&
-                                                ' (includes estimated nights before added taxes)'}
+                                                ' (includes upcoming nights and estimated taxes)'}
                                         </DialogDescription>
                                     </DialogHeader>
                                     <PaymentForm
@@ -392,6 +413,15 @@ export function FolioPanel({
                                 Folio statement
                             </Link>
                         </Button>
+                        {groupStatementLink && (
+                            <Button
+                                asChild
+                                variant="link"
+                                className="h-auto min-h-11 text-left whitespace-normal"
+                            >
+                                {groupStatementLink}
+                            </Button>
+                        )}
                         {taxSource && (
                             <Button
                                 asChild
@@ -401,7 +431,7 @@ export function FolioPanel({
                                 <Link
                                     href={fiscalReport(stay.reservation_number)}
                                 >
-                                    Fiscal check-out report
+                                    ZRA documents
                                 </Link>
                             </Button>
                         )}
@@ -581,6 +611,7 @@ export function FolioPanel({
                     >
                         Folio statement
                     </Link>
+                    {groupStatementLink}
                     <EmptyState message="No folios on this page. Choose another page or open a folio." />
                 </div>
             )}
@@ -594,7 +625,7 @@ export function ExtraChargeForm({
     categories: allowed,
     onSuccess,
 }: {
-    folio: Folio;
+    folio: { id: string; currency: string };
     categories: string[];
     onSuccess?: () => void;
 }) {
@@ -676,6 +707,26 @@ export function ExtraChargeForm({
                             aria-invalid={Boolean(errors.unit_price)}
                         />
                         <InputError message={errors.unit_price} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor={id('discount')}>
+                            Discount in {folio.currency} (optional)
+                        </Label>
+                        <MoneyInput
+                            id={id('discount')}
+                            name="discount"
+                            currency={folio.currency}
+                            min={0}
+                            aria-invalid={Boolean(errors.discount)}
+                            aria-describedby={id('discount-help')}
+                        />
+                        <p
+                            id={id('discount-help')}
+                            className="text-sm text-muted-foreground"
+                        >
+                            Taken off the line total before VAT.
+                        </p>
+                        <InputError message={errors.discount} />
                     </div>
                     <InputError
                         message={errors.idempotency_key}

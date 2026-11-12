@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\FiscalReceipting;
 
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Requests\AuditsRefusals;
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,9 +13,9 @@ class RecoverVfmsFilingRequest extends FormRequest
 
     public function authorize(): bool
     {
-        $reservation = $this->route('reservation');
+        $reservation = $this->route('customerAccount') ?? $this->route('reservation');
 
-        return $reservation instanceof Reservation && ($this->user()?->can('recoverVfms', $reservation) ?? false);
+        return ($reservation instanceof Reservation || $reservation instanceof CustomerAccount) && ($this->user()?->can('recoverVfms', $reservation) ?? false);
     }
 
     /** @return array<string, mixed> */

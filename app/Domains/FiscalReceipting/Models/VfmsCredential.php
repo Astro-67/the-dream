@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $property_id
  * @property string|null $integration_id
  * @property string|null $registration_id
+ * @property int|null $unit_id
  * @property string|null $token
  * @property VfmsMode $mode
  * @property CarbonImmutable|null $live_since
@@ -29,7 +30,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property CarbonImmutable|null $zra_checked_at
  * @property string|null $updated_by
  */
-#[Fillable(['integration_id', 'registration_id', 'token', 'mode', 'live_since', 'credentials_refused_at', 'zra_check', 'zra_checked_at'])]
+#[Fillable(['integration_id', 'registration_id', 'unit_id', 'token', 'mode', 'live_since', 'credentials_refused_at', 'zra_check', 'zra_checked_at'])]
 #[Hidden(['token'])]
 class VfmsCredential extends Model
 {
@@ -41,6 +42,7 @@ class VfmsCredential extends Model
     protected function casts(): array
     {
         return [
+            'unit_id' => 'integer',
             'token' => 'encrypted',
             'mode' => VfmsMode::class,
             'live_since' => 'immutable_datetime',

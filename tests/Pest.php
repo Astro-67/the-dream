@@ -1,10 +1,24 @@
 <?php
 
+use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
+use App\Domains\FiscalReceipting\IssuedDocuments;
+use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
+use App\Domains\FrontDesk\Actions\CheckIn;
+use App\Domains\Guests\Actions\CreateGuest;
+use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Inventory\Actions\CreateRoom;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Platform\Actions\AssignPlatformRole;
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Rates\Models\TaxRule;
+use App\Domains\Reservations\Actions\AssignRoom;
+use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Tenancy\Actions\CreateOrganization;
 use App\Domains\Tenancy\Data\OrganizationSetup;
@@ -12,11 +26,21 @@ use App\Domains\Tenancy\Enums\PropertyStatus;
 use App\Domains\Tenancy\Models\Organization;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
+use App\Support\Outbox\Outbox;
+use App\Support\Outbox\OutboxMessage;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
+use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
+use Tests\Support\TenantFixture;
 use Tests\Support\TwoTenants;
+use Tests\Support\VfmsHttp;
 use Tests\TestCase;
 
 /*
@@ -186,4 +210,118 @@ function withBillingDetails(array $overrides = []): BillingDetails
 function twoTenants(): TwoTenants
 {
     return TwoTenants::build();
+}
+
+/** Accepted evidence fixture, not a claim of a provider replacement-issuance procedure. */
+/** $legacy: Live evidence from before the unit snapshot, whose answers name no business unit (production, Nov 2026). */
+function correctionDocuments(TenantFixture $tenant, string $type = 'services_receipt', string $mode = 'live', bool $legacy = false): array
+{
+    return inTenant($tenant->property, function () use ($tenant, $type, $mode, $legacy) {
+        $tenant->property->update(['email' => 'desk@example.test', 'phone' => '+255777123456', 'z_number' => 'Z0123456789-5940']);
+        VfmsCredential::for($tenant->property)->fill(['mode' => VfmsMode::from($mode), 'unit_id' => 232, 'integration_id' => 'CORRECTION-ID', 'registration_id' => 'REG', 'token' => 'SECRET-TOKEN'])->save();
+        $stay = app(CreateReservation::class)->handle($tenant->owner, BookingForm::details($tenant->owner));
+        foreach (['OLD-232', 'NEW-232'] as $number) {
+            // Each receipt belongs to its own charge: the corrected one is a later charge after reversing the wrong one.
+            $message = DB::transaction(fn () => app(Outbox::class)->record('vfms', $stay, $type === 'services_receipt' ? 'services' : 'checkout', [
+                'mode' => $mode, 'reservation_id' => $stay->id, 'posting_id' => 'charge-'.$number,
+                'request_type' => $type === 'services_receipt' ? 'ACCOMMODATION_ADD_SERVICE' : 'ACCOMMODATION_CHECK_OUT',
+                'path' => $type === 'services_receipt' ? 'service/' : 'guest/checkout/',
+                'body' => $type === 'services_receipt'
+                    ? ['currency' => 'USD', 'documentNumber' => 'PRIVATE-GUEST-ID', 'service' => [['price' => 10, 'quantity' => 1, 'discount' => 0]]]
+                    : ['currency' => 'USD', 'documentNumberList' => [['documentNumber' => 'P1234567']]],
+            ], 'fixture:'.$number));
+            $report = json_decode(file_get_contents(__DIR__.'/Fixtures/vfms/checkout.json'), true)[0];
+            // ZRA's test unit is 5940 (observed 5 Nov 2026); the property's own unit 232 is never the test server's.
+            $business = ['businessName' => 'Accepted business', ...($legacy ? [] : ['businessUnitId' => 5940])];
+            $response = $type === 'services_receipt' ? ['receiptNumber' => $number, ...$business] : [[...$report, 'reportNumber' => $number, ...$business]];
+            $message->forceFill(['status' => 'delivered', 'delivered_at' => now(), 'provider_references' => [
+                'mode' => $mode, ...($legacy ? [] : ['unitId' => 232]),
+                ...($type === 'services_receipt' ? ['receiptNumber' => $number] : ['reportNumbers' => json_encode([$number])]),
+            ]])->save();
+            $message->attempts()->create(['attempt_number' => 1, 'outcome' => 'accepted', 'request_body' => json_encode($message->payload), 'response_body' => json_encode(['status' => 200, 'body' => $response])]);
+            app(IssuedDocuments::class)->project($message);
+            test()->travel(1)->minutes();
+        }
+
+        return [$stay, IssuedDocument::query()->where('number', 'OLD-232')->sole(), IssuedDocument::query()->where('number', 'NEW-232')->sole()];
+    });
+}
+
+/** Submits the fixture pair as its owner through the real route. */
+function submitCorrection($test, TenantFixture $tenant, IssuedDocument $old, IssuedDocument $new)
+{
+    return $test->actingAs($tenant->owner)->post(route('issued-documents.corrections.store', $old), [
+        '_property' => $tenant->property->id, 'replacement_id' => $new->id, 'reason' => 'Wrong particulars', 'confirmed' => true,
+    ]);
+}
+
+/** Posts an extra through the real charge route as the owner. */
+function postGeneralReceiptExtra($test, TenantFixture $tenant, Folio $folio, array $charge): Posting
+{
+    $test->actingAs($tenant->owner)->post(route('folios.charges.store', $folio), [
+        '_property' => $tenant->property->id, 'category' => 'restaurant', 'description' => 'LUNCH', 'quantity' => 1, 'unit_price' => 1000,
+        'idempotency_key' => (string) Str::ulid(), ...$charge,
+    ])->assertSessionHasNoErrors();
+
+    return inTenant($tenant->property, fn () => Posting::query()->where('folio_id', $folio->id)->where('type', 'charge')->where('category', '!=', 'room')->latest('posted_at')->orderByDesc('id')->firstOrFail());
+}
+
+/** A two-room government group, both rooms checked in, Anna Berg in the first room. */
+function generalReceiptGroup(TenantFixture $tenant): array
+{
+    return inTenant($tenant->property, function () use ($tenant) {
+        $form = BookingForm::details($tenant->owner);
+        app(CreateRoom::class)->handle($tenant->owner, InventoryForm::room($form['room_type_id'], ['number' => '102']));
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        app(CreateReservation::class)->handle($tenant->owner, [
+            ...$form, 'rooms' => 2, 'adults' => 2, 'children' => 0, 'distribute_guests' => true, 'nightly_rate' => 11000, 'meal_plan' => 'bed-and-breakfast',
+            'paying_institution_type' => 'government', 'paying_institution_name' => 'Ministry of Health', 'paying_institution_zrb_number' => 'WA2400117',
+        ]);
+        $rooms = Room::query()->orderBy('number')->get();
+
+        return Reservation::query()->orderBy('reservation_number')->get()->map(function (Reservation $member, int $index) use ($tenant, $rooms) {
+            $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => ['Anna Berg', 'Ola Berg'][$index], 'documents' => [['type' => 'passport', 'number' => ['P1234567', 'P7654321'][$index], 'nationality' => 'DE']]]);
+            ReservationGuest::query()->create(['reservation_id' => $member->id, 'guest_id' => $guest->id]);
+            app(AssignRoom::class)->handle($tenant->owner, $member, $rooms[$index]->id);
+
+            return app(CheckIn::class)->handle($tenant->owner, $member->fresh());
+        })->all();
+    });
+}
+
+/** Issues the stay's held extras through the real route as the owner. */
+function issueGeneralReceiptAs($test, TenantFixture $tenant, Reservation $reservation)
+{
+    return $test->actingAs($tenant->owner)->post(route('reservations.general-receipt.store', $reservation), ['_property' => $tenant->property->id]);
+}
+
+/** One room, Anna Berg (P1234567) as lead guest; checked in unless $checkIn is false. */
+function generalReceiptStay(TenantFixture $tenant, array $details = [], bool $checkIn = true): Reservation
+{
+    return inTenant($tenant->property, function () use ($tenant, $details, $checkIn) {
+        $form = BookingForm::details($tenant->owner);
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        $reservation = app(CreateReservation::class)->handle($tenant->owner, [
+            ...$form, 'adults' => 1, 'children' => 0, 'nightly_rate' => 11000,
+            'room_id' => Room::query()->sole()->id, 'meal_plan' => 'bed-and-breakfast', ...$details,
+        ]);
+        $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => 'Anna Berg', 'documents' => [['type' => 'passport', 'number' => 'P1234567', 'nationality' => 'DE']]]);
+        ReservationGuest::query()->create(['reservation_id' => $reservation->id, 'guest_id' => $guest->id]);
+
+        return $checkIn ? app(CheckIn::class)->handle($tenant->owner, $reservation) : $reservation;
+    });
+}
+
+/** Replaces the fake's service/ answer; Laravel uses the first matching stub, so a later Http::fake cannot override it. */
+function fakeGeneralReceiptService(mixed $response): void
+{
+    Http::swap(new Factory);
+    Http::fake([VfmsHttp::TEST_URL.'service/' => $response]);
+    VfmsHttp::fake();
+}
+
+/** @return list<OutboxMessage> */
+function generalReceiptMessages(TenantFixture $tenant, string $event): array
+{
+    return inTenant($tenant->property, fn () => OutboxMessage::query()->where('integration', 'vfms')->where('event', $event)->orderBy('created_at')->orderBy('sequence')->get()->all());
 }

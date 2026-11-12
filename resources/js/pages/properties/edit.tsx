@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 import {
+    BrandingFields,
     PropertySettingsFields,
     TaxInclusionFields,
     VfmsFields,
@@ -26,7 +27,7 @@ import type {
     PropertyValues,
 } from '@/features/tenancy/property-fields';
 import { PropertyFields } from '@/features/tenancy/property-fields';
-import { index, update } from '@/routes/properties';
+import { index, show, update } from '@/routes/properties';
 
 type Props = PropertyFormOptions & {
     property: PropertyValues &
@@ -41,6 +42,8 @@ type Props = PropertyFormOptions & {
     canManageTaxes: boolean;
     canManageCashierShifts: boolean;
     vfms: VfmsSettings | null;
+    branding: { logo_url: string | null; accent_colour: string | null };
+    canManageBranding: boolean;
 };
 
 const registrationFieldLabels: Record<string, string> = {
@@ -58,6 +61,8 @@ export default function EditProperty({
     canManageTaxes,
     canManageCashierShifts,
     vfms,
+    branding,
+    canManageBranding,
     ...options
 }: Props) {
     const configuresRegistration = property.registration_fields !== undefined;
@@ -396,7 +401,7 @@ export default function EditProperty({
                             )}
                             <div className="flex flex-wrap items-center justify-end gap-3">
                                 <Button variant="ghost" asChild>
-                                    <Link href={index()}>Cancel</Link>
+                                    <Link href={show(property.id)}>Cancel</Link>
                                 </Button>
                                 <Button
                                     type="submit"
@@ -409,6 +414,13 @@ export default function EditProperty({
                         </>
                     )}
                 </Form>
+                {canManageBranding && activeTab === 'hotel' && (
+                    <BrandingFields
+                        propertyId={property.id}
+                        propertyName={property.name}
+                        branding={branding}
+                    />
+                )}
                 {vfms && activeTab === 'tax_settings' && (
                     <VfmsFields
                         propertyId={property.id}
@@ -421,9 +433,10 @@ export default function EditProperty({
     );
 }
 
-EditProperty.layout = {
+EditProperty.layout = ({ property }: Props) => ({
     breadcrumbs: [
         { title: 'Properties', href: index() },
-        { title: 'Edit property', href: index() },
+        { title: property.name, href: show(property.id) },
+        { title: 'Edit property', href: '#' },
     ],
-};
+});

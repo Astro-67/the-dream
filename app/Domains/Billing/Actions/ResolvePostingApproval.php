@@ -19,6 +19,7 @@ class ResolvePostingApproval
     public function handle(User $actor, PostingApproval $approval, string $decision, ?string $reason = null): PostingApproval
     {
         return Audit::validationRefusal($actor, $approval, 'Approval refused', fn () => DB::transaction(function () use ($actor, $approval, $decision, $reason) {
+            Folio::query()->findOrFail($approval->folio_id)->lockOwner();
             $folio = Folio::query()->whereKey($approval->folio_id)->lockForUpdate()->firstOrFail();
             $approval = PostingApproval::query()->whereKey($approval->id)->lockForUpdate()->firstOrFail();
             if ($approval->requested_by === $actor->id) {

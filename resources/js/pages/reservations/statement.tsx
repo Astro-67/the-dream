@@ -61,13 +61,7 @@ function itemLabel(posting: StatementPosting): string {
     return `${correction ? `${correction}: ` : ''}${item}${method}`;
 }
 
-export default function Statement({
-    reservation,
-    folios,
-    totals,
-    taxSource,
-    property,
-}: {
+export type StatementProps = {
     taxSource: TaxSource;
     reservation: {
         reservation_number: string;
@@ -94,7 +88,91 @@ export default function Statement({
         phone: string;
         email: string;
     };
+};
+
+export function StatementFolios({
+    folios,
+    totals,
+    taxSource,
+    heading: Heading = 'h2',
+}: Pick<StatementProps, 'folios' | 'totals' | 'taxSource'> & {
+    heading?: 'h2' | 'h3';
 }) {
+    return folios.map((folio) => (
+        <section key={folio.number} className="space-y-3">
+            <Heading className="text-lg font-semibold">
+                Folio {folio.number} ({folio.currency})
+            </Heading>
+            {folio.postings.length === 0 ? (
+                <EmptyState message="Nothing posted on this folio." />
+            ) : (
+                <Table aria-label={`Folio ${folio.number} postings`}>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Item</TableHead>
+                            <TableHead numeric>Quantity</TableHead>
+                            <TableHead numeric>Tax</TableHead>
+                            <TableHead numeric>Amount</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {folio.postings.map((posting) => (
+                            <TableRow key={posting.id}>
+                                <TableCell>
+                                    {formatDate(posting.business_date, 'UTC')}
+                                </TableCell>
+                                <TableCell>{itemLabel(posting)}</TableCell>
+                                <TableCell numeric>
+                                    {posting.quantity}
+                                </TableCell>
+                                <TableCell numeric>
+                                    {posting.tax_lines.map((line) => (
+                                        <div key={line.name}>
+                                            {line.name}
+                                            {line.inclusive
+                                                ? ', of which'
+                                                : ''}{' '}
+                                            {line.unavailable
+                                                ? 'not available in this currency'
+                                                : formatMoney(
+                                                      line.amount,
+                                                      folio.currency,
+                                                  )}
+                                        </div>
+                                    ))}
+                                </TableCell>
+                                <TableCell numeric>
+                                    {formatMoney(
+                                        posting.amount,
+                                        folio.currency,
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
+            <FolioSummaryList
+                summary={folio.summary}
+                currency={folio.currency}
+                estimate={
+                    totals.find((total) => total.currency === folio.currency)
+                        ?.estimate
+                }
+                taxSource={taxSource}
+            />
+        </section>
+    ));
+}
+
+export default function Statement({
+    reservation,
+    folios,
+    totals,
+    taxSource,
+    property,
+}: StatementProps) {
     const [paper, setPaper] = useState('a4');
 
     return (
@@ -157,84 +235,11 @@ export default function Statement({
                         </div>
                     ))}
                 </dl>
-                {folios.map((folio) => (
-                    <section key={folio.number} className="space-y-3">
-                        <h2 className="text-lg font-semibold">
-                            Folio {folio.number} ({folio.currency})
-                        </h2>
-                        {/* A printed statement lists every posting, so it is not paginated like the folio panel. */}
-                        {folio.postings.length === 0 ? (
-                            <EmptyState message="Nothing posted on this folio." />
-                        ) : (
-                            <Table
-                                aria-label={`Folio ${folio.number} postings`}
-                            >
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Item</TableHead>
-                                        <TableHead numeric>Quantity</TableHead>
-                                        <TableHead numeric>Tax</TableHead>
-                                        <TableHead numeric>Amount</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {folio.postings.map((posting) => (
-                                        <TableRow key={posting.id}>
-                                            <TableCell>
-                                                {formatDate(
-                                                    posting.business_date,
-                                                    'UTC',
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                {itemLabel(posting)}
-                                            </TableCell>
-                                            <TableCell numeric>
-                                                {posting.quantity}
-                                            </TableCell>
-                                            <TableCell numeric>
-                                                {posting.tax_lines.map(
-                                                    (line) => (
-                                                        <div key={line.name}>
-                                                            {line.name}
-                                                            {line.inclusive
-                                                                ? ', of which'
-                                                                : ''}{' '}
-                                                            {line.unavailable
-                                                                ? 'not available in this currency'
-                                                                : formatMoney(
-                                                                      line.amount,
-                                                                      folio.currency,
-                                                                  )}
-                                                        </div>
-                                                    ),
-                                                )}
-                                            </TableCell>
-                                            <TableCell numeric>
-                                                {formatMoney(
-                                                    posting.amount,
-                                                    folio.currency,
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        )}
-                        <FolioSummaryList
-                            summary={folio.summary}
-                            currency={folio.currency}
-                            estimate={
-                                totals.find(
-                                    (total) =>
-                                        total.currency === folio.currency,
-                                )?.estimate
-                            }
-                            taxSource={taxSource}
-                        />
-                    </section>
-                ))}
+                <StatementFolios
+                    folios={folios}
+                    totals={totals}
+                    taxSource={taxSource}
+                />
                 {totals.length > 0 && (
                     <section className="space-y-4">
                         <h2 className="text-lg font-semibold">

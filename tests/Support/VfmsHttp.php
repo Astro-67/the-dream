@@ -29,9 +29,33 @@ final class VfmsHttp
             )),
             self::TEST_URL.'currencyExchangeRate/' => Http::response(['rateUSD' => 2600, 'rateEURO' => 2800, 'rateUSDEURO' => 0.93]),
             self::TEST_URL.'accommodation/' => Http::response(['responseNumber' => 'TEST-ACCOMMODATION-171']),
+            // Shapes as ZRA's test server answered on 3 Nov 2026.
+            self::TEST_URL.'reservation/booking/' => Http::response(['receiptNumber' => 'TEST-ADVANCE-1', 'referenceNumber' => 'TEST-REFERENCE-1', 'booking' => ['bookingId' => 1, 'bookingNumber' => 'TEST-BOOKING-1', 'amountLeft' => 50.0]]),
+            self::TEST_URL.'accommodation/booking/' => fn (Request $request) => Http::response(['referenceNumber' => $request['referenceNumber'], 'booking' => ['bookingId' => 1, 'bookingNumber' => $request['bookingNumber'], 'amountLeft' => 50.0]]),
             self::TEST_URL.'change/room/' => Http::response(['responseNumber' => 'TEST-ROOM-171']),
             self::TEST_URL.'guest/accommodation/' => Http::response(['responseNumber' => 'TEST-GUEST-171']),
             self::TEST_URL.'guest/changeProfile/' => Http::response(['responseNumber' => 'TEST-PROFILE-171']),
+        ]);
+        self::fakeAdvanceReport();
+    }
+
+    public static function fakeAdvanceReport(): void
+    {
+        Http::fake([
+            self::TEST_URL.'accommodationReport/' => function (Request $request) {
+                $checkIn = Http::recorded(fn (Request $sent) => $sent->url() === self::TEST_URL.'accommodation/booking/')->last();
+                if ($checkIn === null) {
+                    return Http::response([]);
+                }
+                $body = $checkIn[0]->data();
+
+                return Http::response([
+                    'referenceNumber' => $request['refno'], 'currency' => $body['salesCurrency'],
+                    'isClosed' => false, 'isCanceled' => false,
+                    'guest' => array_map(fn (array $guest) => [...$guest, 'isChackedOut' => false], $body['guest']),
+                    'room' => [['room' => $body['roomId'], 'isOut' => false]],
+                ]);
+            },
         ]);
     }
 }

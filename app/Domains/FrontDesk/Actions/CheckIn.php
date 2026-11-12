@@ -2,6 +2,7 @@
 
 namespace App\Domains\FrontDesk\Actions;
 
+use App\Domains\FiscalReceipting\VfmsAdvance;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\FrontDesk\InHouseDocuments;
 use App\Domains\FrontDesk\Registration;
@@ -52,12 +53,17 @@ class CheckIn
                 throw ValidationException::withMessages(['room' => __('Room :number is not ready.', ['number' => $room->getAttribute('number')])]);
             }
             $guests = Guest::query()->whereIn('id', ReservationGuest::query()->select('guest_id')->where('reservation_id', $locked->id))->get();
+            // Every adult is registered for VFMS; children have no government ID and are counted on the booking only.
+            if ($guests->count() < $locked->adults || $guests->count() > $locked->adults + $locked->children) {
+                throw ValidationException::withMessages(['guests' => __('Register every adult before check-in (adults booked: :adults; guests added: :registered). Children do not need to be added.', ['adults' => $locked->adults, 'registered' => $guests->count()])]);
+            }
             Registration::ensure($property, $guests);
             InHouseDocuments::ensureAvailable($property, $guests, $locked);
+            $advance = VfmsAdvance::checkInDetails($locked, $property);
 
             $locked->update(['status' => ReservationStatus::CheckedIn]);
             app(SetRoomOccupied::class)->handle($actor, $room, 'Check-in '.$locked->reservation_number);
-            app(RecordLifecycleEvent::class)->handle($locked, 'checked_in', $actor);
+            app(RecordLifecycleEvent::class)->handle($locked, 'checked_in', $actor, $advance);
             Audit::record($actor, 'checked_in', $locked, 'Reservation checked in');
 
             return $locked;

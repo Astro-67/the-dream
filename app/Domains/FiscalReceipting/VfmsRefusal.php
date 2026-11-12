@@ -13,7 +13,7 @@ final class VfmsRefusal
     {
         $message = OutboxMessage::query()->where('property_id', $reservation->property_id)
             ->where('integration', VfmsAdapter::INTEGRATION)->where('subject_type', $reservation->getMorphClass())
-            ->where('subject_id', $reservation->id)->where('status', 'rejected')->orderBy('sequence')->first();
+            ->where('subject_id', $reservation->id)->where('event', '!=', 'errorSave')->where('status', 'rejected')->orderBy('sequence')->first();
         if ($message === null) {
             return null;
         }
@@ -29,9 +29,10 @@ final class VfmsRefusal
     {
         $attempt = $message->attempts()->where('outcome', 'rejected')->orderByDesc('attempt_number')->first();
         $response = $attempt?->response_body === null ? null : json_decode($attempt->response_body, true, flags: JSON_THROW_ON_ERROR);
-        $providerMessage = $response['body']['statusMessage'] ?? null;
+        $providerMessage = $response['body']['body']['statusMessage'] ?? $response['body']['statusMessage'] ?? null;
 
-        return is_string($providerMessage) && preg_match('/^The Room ID \d{1,20} Is not Empty$/iD', $providerMessage)
+        return is_string($providerMessage) && (preg_match('/^The Room ID \d{1,20} Is not Empty$/iD', $providerMessage)
+            || in_array($providerMessage, ['PLEASE USE THE CORRECT ZRB NUMBER', 'This institution not Registered'], true))
             ? $providerMessage
             : __('ZRA refused this filing. Review the stay and its VFMS settings before re-filing.');
     }

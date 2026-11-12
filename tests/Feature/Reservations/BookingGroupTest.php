@@ -2,6 +2,7 @@
 
 use App\Domains\Billing\Actions\OpenFolio;
 use App\Domains\Billing\Models\Folio;
+use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
@@ -26,6 +27,7 @@ use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
 use Tests\Support\InventoryForm;
 use Tests\Support\TenantFixture;
+use Tests\Support\VfmsHttp;
 
 function bookingGroupMembers(TenantFixture $tenant): array
 {
@@ -125,6 +127,7 @@ test('group members offer their permitted arrival actions and checking in one le
     $t = twoTenants();
     [$member, $sibling] = bookingGroupMembers($t->a);
     inTenant($t->a->property, function () use ($t, $sibling) {
+        $sibling->update(['adults' => 1, 'children' => 0]);
         $room = Room::query()->orderBy('number')->first();
         app(AssignRoom::class)->handle($t->a->owner, $sibling, $room->id);
         RoomStatus::query()->where('room_id', $room->id)->update(['status' => HousekeepingStatus::Clean]);
@@ -201,6 +204,45 @@ test('front desk distributes total guests across rooms and can assign rooms late
         }
     });
 });
+
+test('total guest registration fills each room once and permits both Zanzibar check-ins', function (bool $withLead) {
+    VfmsHttp::fake();
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
+    $t = twoTenants();
+    $t->a->property->update(['business_date' => '2026-12-10']);
+    $details = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+
+        return $details;
+    });
+    $others = [['name' => '']];
+    for ($adult = $withLead ? 2 : 1; $adult <= 4; $adult++) {
+        $others[] = ['name' => 'Adult '.$adult, 'nationality' => 'TZ', 'document_type' => 'passport', 'document_number' => 'GROUP-'.$adult];
+    }
+    $lead = $withLead ? ['lead_guest' => [
+        'first_name' => 'Adult', 'last_name' => '1', 'nationality' => 'TZ',
+        'document_type' => 'passport', 'document_number' => 'GROUP-1',
+    ]] : [];
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+        ->actingAs($t->a->owner)->post(route('reservations.store'), [
+            ...$details, ...$lead, 'rooms' => 2, 'adults' => 4, 'children' => 0,
+            'guests' => $others, 'distribute_guests' => true, '_property' => $t->a->property->id,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+    inTenant($t->a->property, function () use ($t) {
+        $members = Reservation::query()->orderBy('reservation_number')->get();
+        $rooms = Room::query()->orderBy('number')->get();
+        expect($members)->toHaveCount(2);
+        foreach ($members as $index => $member) {
+            expect(ReservationGuest::query()->where('reservation_id', $member->id)->count())->toBe(2);
+            app(AssignRoom::class)->handle($t->a->owner, $member, $rooms[$index]->id);
+            expect(app(CheckIn::class)->handle($t->a->owner, $member)->status->value)->toBe('checked_in');
+        }
+        expect(ReservationGuest::query()->count())->toBe(4)
+            ->and(ReservationGuest::query()->distinct()->count('guest_id'))->toBe(4);
+    });
+})->with([true, false]);
 
 test('total guest preview agrees with confirmation and preserves room count', function () {
     $t = twoTenants();
