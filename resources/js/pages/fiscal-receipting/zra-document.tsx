@@ -28,9 +28,9 @@ export type PrintedDocument = {
     qrSvg: string | null;
     issuedAt: string | null;
     business: {
-        name: string;
-        street: string;
-        phone: string;
+        name: string | null;
+        street: string | null;
+        phone: string | null;
         tin: string | null;
         vrn: string | null;
         znumber: string | null;
@@ -93,9 +93,9 @@ function Sheet({
                     />
                 )}
                 <h1 className="text-xl font-semibold text-balance">
-                    {document.business.name}
+                    {document.business.name ?? unavailable}
                 </h1>
-                <p>{document.business.street}</p>
+                <p>{document.business.street ?? unavailable}</p>
                 <p className="text-sm text-muted-foreground">
                     {[
                         document.business.znumber &&
@@ -105,7 +105,7 @@ function Sheet({
                         document.business.phone,
                     ]
                         .filter(Boolean)
-                        .join(' · ')}
+                        .join(' · ') || unavailable}
                 </p>
                 {document.mode === 'sandbox' && (
                     <p>

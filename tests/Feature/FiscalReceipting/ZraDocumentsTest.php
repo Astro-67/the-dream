@@ -181,6 +181,27 @@ function zraDocumentsWsAnswer(): array
         'receiptNumber' => 'XHE2104835', 'type' => 'WS', 'currency' => 'USD'];
 }
 
+test('receipt reprints use only stored business details even after property settings change', function (bool $general, bool $stored) {
+    $t = twoTenants()->a;
+    $business = $stored ? ['businessName' => 'Issued business', 'street' => 'Issued street', 'phoneNumber' => '+255777123456', 'tinNumber' => 'TIN-ISSUED', 'vrnNumber' => 'VRN-ISSUED', 'znumber' => 'Z-ISSUED'] : [];
+    fakeGeneralReceiptService(Http::response([...zraDocumentsWsAnswer(), ...$business]));
+    $stay = generalReceiptStay($t, $general ? ['paying_institution_type' => 'government', 'paying_institution_name' => 'Ministry of Health'] : []);
+    $folio = inTenant($t->property, fn () => Folio::query()->sole());
+    postGeneralReceiptExtra($this, $t, $folio, []);
+    if ($general) {
+        issueGeneralReceiptAs($this, $t, $stay)->assertSessionHasNoErrors();
+    }
+    inTenant($t->property, fn () => $t->property->update(['name' => 'Current business', 'address_line' => 'Current street', 'phone' => 'Current phone', 'tin' => 'Current TIN', 'vrn' => 'Current VRN', 'z_number' => 'Current Z-number']));
+
+    $this->actingAs($t->owner)->withSession(['tenancy.organization_id' => $t->organization->id, 'tenancy.property_id' => $t->property->id])
+        ->get(route('reservations.fiscal-report.print', $stay))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('documents', 1)->where('documents.0.business', [
+            'name' => $stored ? 'Issued business' : null, 'street' => $stored ? 'Issued street' : null,
+            'phone' => $stored ? '+255777123456' : null, 'tin' => $stored ? 'TIN-ISSUED' : null,
+            'vrn' => $stored ? 'VRN-ISSUED' : null, 'znumber' => $stored ? 'Z-ISSUED' : null,
+        ]));
+})->with([false, true])->with([false, true]);
+
 // protects=a printed ZRA document shows ZRA's own figures, never Karafuu's (spec #249 UI §2); fails_when=figures come from the folio, the customer or business is missing, or a guest document is printed; no_claim=physical paper layout (browser check).
 test('a printed general receipt and check-out report show ZRA\'s stored figures, and Print all prints every document', function () {
     $t = twoTenants()->a;
@@ -219,7 +240,7 @@ test('a printed general receipt and check-out report show ZRA\'s stored figures,
     $print(['document' => $report->id])->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('documents.0.type', 'checkout_report')
         ->where('documents.0.customer', 'Anna Berg')
-        ->where('documents.0.business.name', $t->property->name)
+        ->where('documents.0.business.name', null)
         ->where('documents.0.rooms', [['room' => '101', 'days' => 2, 'price' => 11000, 'amount' => 22000, 'tax' => 0]])
         ->where('documents.0.items', [])
         ->where('documents.0.total', 22000)->where('documents.0.tax', 0)->where('documents.0.levy', 0))
