@@ -708,6 +708,26 @@ export function ExtraChargeForm({
                         />
                         <InputError message={errors.unit_price} />
                     </div>
+                    <div className="space-y-2">
+                        <Label htmlFor={id('discount')}>
+                            Discount in {folio.currency} (optional)
+                        </Label>
+                        <MoneyInput
+                            id={id('discount')}
+                            name="discount"
+                            currency={folio.currency}
+                            min={0}
+                            aria-invalid={Boolean(errors.discount)}
+                            aria-describedby={id('discount-help')}
+                        />
+                        <p
+                            id={id('discount-help')}
+                            className="text-sm text-muted-foreground"
+                        >
+                            Taken off the line total before VAT.
+                        </p>
+                        <InputError message={errors.discount} />
+                    </div>
                     <InputError
                         message={errors.idempotency_key}
                         className="sm:col-span-2"

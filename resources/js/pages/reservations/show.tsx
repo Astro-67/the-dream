@@ -43,6 +43,10 @@ import { PayingInstitutionDialog } from '@/features/reservations/paying-institut
 import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
 import type { CheckoutBalance } from '@/features/front-desk/check-out-dialog';
 import { StayLengthActions } from '@/features/front-desk/stay-length-actions';
+import {
+    GeneralReceiptDialog,
+    type GeneralReceiptPreview,
+} from '@/features/fiscal-receipting/general-receipt-dialog';
 import { formatDate } from '@/features/platform/format';
 import {
     AmendmentForm,
@@ -137,6 +141,7 @@ export default function Show({
     canRecordPayment,
     acceptedPaymentMethods,
     extraCategories,
+    generalReceipt,
     paymentsReportUrl,
     vfmsRefusal,
     vfmsFilings,
@@ -180,6 +185,7 @@ export default function Show({
     canRecordPayment: boolean;
     acceptedPaymentMethods: string[];
     extraCategories: string[];
+    generalReceipt: GeneralReceiptPreview | null;
     paymentsReportUrl: string | null;
     vfmsRefusal: VfmsRefusal | null;
     vfmsFilings: VfmsFiling[];
@@ -587,6 +593,15 @@ export default function Show({
                             : null
                     }
                 />
+                {generalReceipt && (
+                    <section className="flex flex-wrap items-center gap-3">
+                        <p>
+                            Extras for {generalReceipt.customer} are not yet
+                            receipted.
+                        </p>
+                        <GeneralReceiptDialog preview={generalReceipt} />
+                    </section>
+                )}
                 {feeProposals.length > 0 && (
                     <Collapsible
                         defaultOpen={feeProposals.some(

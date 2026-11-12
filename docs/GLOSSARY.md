@@ -232,11 +232,19 @@ _Avoid_: ZTN, ZTN number location (the owner's labels for the full Z-number)
 The authority's identifier for a property, separate from its TIN, VRN and full Z-number.
 
 **Fiscal receipt**:
-A receipt or check-out report issued through VFMS, carrying a VFMS QR code.
+A receipt or check-out report issued through VFMS, carrying a VFMS QR code: a guest receipt, a general receipt, or a fiscal check-out report.
 _Avoid_: Invoice, bill, folio
 
+**Guest receipt**:
+A ZRA receipt (`CS`) for one extra of a checked-in guest paying for themselves, linked to their stay; ZRA repeats it on their check-out report.
+_Avoid_: Services receipt
+
+**General receipt**:
+A ZRA receipt (`WS`) in a named customer's name, not linked to a stay: one per currency for a paying institution's held extras, issued by staff or when the group's last room checks out, and one for each extra posted after a guest has checked out, in the guest's name. Its customer is a name, never a guest's document number. ZRA cannot cancel it; reversing a receipted extra is a fiscal exception.
+_Avoid_: Institution invoice, cash sale receipt
+
 **Issued document**:
-A receipt Karafuu or VFMS has given out: a non-fiscal receipt, a VFMS services receipt, or one guest's fiscal check-out report. Fiscal ones are projected from VFMS's accepted answer with their issue-time amount, currency and viewer link; evidence that was never stored stays unavailable, never rebuilt from today's folio.
+A receipt Karafuu or VFMS has given out: a non-fiscal receipt, a guest receipt, a general receipt, or one guest's fiscal check-out report. Fiscal ones are projected from VFMS's accepted answer with their issue-time amount, currency and viewer link; evidence that was never stored stays unavailable, never rebuilt from today's folio.
 _Avoid_: Invoice, transaction
 
 **Estimated tax**:
@@ -252,7 +260,7 @@ Per property, **Sandbox** (the default: filings go to ZRA's shared test business
 _Avoid_: Test mode, demo mode
 
 **Fiscal exception**:
-A charge with no VFMS path, such as a cancellation or no-show fee, or a departed stay closed without filing. Listed with its reason for the property's accountant; an unfiled stay must be declared in the property's VAT return.
+A charge with no VFMS path, such as a cancellation or no-show fee, a departed stay closed without filing, or a receipted extra reversed in Karafuu (ZRA's receipt stands). Listed with its reason for the property's accountant; an unfiled stay must be declared in the property's VAT return.
 _Avoid_: Unreceipted charge, tax gap
 
 **Close without filing**:

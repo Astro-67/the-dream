@@ -21,7 +21,7 @@ final class VfmsFilings
     private const CALLS = [
         'advanceBooking' => 'Advance payment', 'advanceAccommodation' => 'Check-in with advance receipt',
         'accommodation' => 'Check-in', 'changeRoom' => 'Room move', 'changeRoomPrice' => 'Room price changed',
-        'addGuest' => 'Guest added', 'changeProfile' => 'Profile corrected', 'services' => 'Extras',
+        'addGuest' => 'Guest added', 'changeProfile' => 'Profile corrected', 'services' => 'Extras', 'generalReceipt' => 'General receipt',
         'guestDeparture' => 'Guest left', 'checkout' => 'Check-out',
     ];
 
@@ -145,7 +145,7 @@ final class VfmsFilings
             'advanceBooking' => $body['amountToBePaid'] ?? null,
             'advanceAccommodation' => $body['accomodationPrice'] ?? null,
             'accommodation', 'changeRoom' => $body['accommodationPrice'] ?? null,
-            'services' => array_sum(array_map(fn (array $item) => $item['price'] * $item['quantity'] - $item['discount'], $body['service'] ?? [])),
+            'services', 'generalReceipt' => array_sum(array_map(fn (array $item) => $item['price'] * $item['quantity'] - $item['discount'], $body['service'] ?? [])),
             'checkout', 'guestDeparture' => $references['totalAmount'] ?? null,
             // shortcut: a room price call carries no currency, so no amount; add the folio currency if staff need it.
             default => null,

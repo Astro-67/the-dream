@@ -6,6 +6,10 @@ import {
     type FolioSummary,
     type FolioTotal,
 } from '@/features/billing/folio-summary';
+import {
+    GeneralReceiptDialog,
+    type GeneralReceiptPreview,
+} from '@/features/fiscal-receipting/general-receipt-dialog';
 import { formatDate } from '@/features/platform/format';
 import { StatementFolios, type StatementProps } from './statement';
 import { index, show } from '@/routes/reservations';
@@ -25,6 +29,7 @@ type GroupStatementProps = {
         currency: string;
         estimate: FolioTotal['estimate'];
     })[];
+    generalReceipt: GeneralReceiptPreview | null;
 };
 
 export default function GroupStatement({
@@ -33,6 +38,7 @@ export default function GroupStatement({
     group,
     rooms,
     totals,
+    generalReceipt,
 }: GroupStatementProps) {
     return (
         <>
@@ -166,10 +172,11 @@ export default function GroupStatement({
                         </div>
                     ))}
                 </section>
-                <div className="print:hidden">
+                <div className="flex flex-wrap gap-3 print:hidden">
                     <Button variant="outline" onClick={() => window.print()}>
                         Print group statement
                     </Button>
+                    <GeneralReceiptDialog preview={generalReceipt} />
                 </div>
             </div>
         </>

@@ -23,8 +23,9 @@ import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
 
 export const fiscalDocumentTypes = {
-    services_receipt: 'ZRA services receipt',
-    checkout_report: 'Guest check-out report',
+    services_receipt: 'Guest receipt',
+    general_receipt: 'General receipt',
+    checkout_report: 'Check-out report',
 };
 
 type FiscalDocument = {
