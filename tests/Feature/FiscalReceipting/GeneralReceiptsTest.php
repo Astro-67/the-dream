@@ -355,3 +355,23 @@ test('reversing a receipted extra lists a fiscal exception with its receipt numb
         ->where('fiscalExceptions.0.kind', 'Receipted extra reversed')
         ->where('fiscalExceptions.0.reason', 'ZRA receipt TEST-RECEIPT-169: Wrong room'));
 });
+
+// protects=the check-out adjustment leaves an institution's extras on the folio, as ZRA's report leaves them out (spec #249, ADR 0015); fails_when=the adjustment cancels held or general-receipted extras; no_claim=Live report figures.
+test('an institution room\'s check-out adjustment keeps its extras on the folio', function () {
+    $t = twoTenants()->a;
+    [$first, $second] = generalReceiptGroup($t);
+    $folio = inTenant($t->property, fn () => Folio::query()->where('reservation_id', $first->id)->sole());
+    $dinner = postGeneralReceiptExtra($this, $t, $folio, ['description' => 'DINNER', 'quantity' => 2, 'unit_price' => 2500]);
+    foreach (['2026-12-10', '2026-12-11'] as $date) {
+        inTenant($t->property, fn () => app(CloseBusinessDate::class)->handle($t->owner, $t->property->fresh(), $date));
+    }
+    foreach ([$first, $second] as $room) {
+        $this->post(route('reservations.check-out', $room), ['_property' => $t->property->id, 'override_reason' => 'Ministry pays later'])->assertSessionHasNoErrors();
+    }
+
+    $report = collect(generalReceiptMessages($t, 'checkout'))->firstWhere('subject_id', $first->id)->getAttribute('provider_references');
+    inTenant($t->property, function () use ($folio, $dinner, $report) {
+        $charges = Posting::query()->where('folio_id', $folio->id)->where('type', 'charge')->sum('amount');
+        expect($charges)->toBe((int) round($report['totalAmount'] * 100) + $dinner->amount);
+    });
+});
