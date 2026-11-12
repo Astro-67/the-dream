@@ -8,7 +8,6 @@ use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Models\User;
 use App\Support\Audit\Audit;
-use App\Support\Outbox\OutboxMessage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
@@ -27,10 +26,6 @@ class CloseCustomerAccount
                 if ($folio->balance()->amount !== 0) {
                     throw ValidationException::withMessages(['balance' => __('Settle every currency balance before closing this customer account.')]);
                 }
-            }
-            if (OutboxMessage::query()->where('property_id', $account->property_id)->where('integration', 'vfms')
-                ->where('subject_type', $account->getMorphClass())->where('subject_id', $account->id)->where('event', 'generalReceipt')->where('status', 'rejected')->exists()) {
-                throw ValidationException::withMessages(['general_receipt' => __('Re-file the refused ZRA receipt before closing this customer account.')]);
             }
             app(IssueGeneralReceipt::class)->issue($actor, $account,
                 (string) ($account->getAttribute('paying_institution_name') ?: $account->customer_name), self::held($account));

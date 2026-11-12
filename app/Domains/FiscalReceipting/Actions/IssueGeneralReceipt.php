@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Support\Audit\Audit;
 use App\Support\Outbox\Outbox;
 use App\Support\Outbox\OutboxMessage;
+use App\Support\Outbox\OutboxRecovery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -46,12 +47,8 @@ class IssueGeneralReceipt
         return Audit::validationRefusal($actor, $reservation, 'General receipt refused', fn () => DB::transaction(function () use ($actor, $reservation, $automatic) {
             $members = app(BookingGroupMembers::class)->reservations($reservation, lock: true);
             $stay = $members->find($reservation->id) ?? $reservation;
-            $refused = OutboxMessage::query()->where('property_id', $stay->property_id)->where('integration', VfmsAdapter::INTEGRATION)
-                ->where('subject_type', $stay->getMorphClass())->whereIn('subject_id', $members->modelKeys())
-                ->where('event', 'generalReceipt')->where('status', 'rejected')->exists();
             $refusal = match (true) {
                 $stay->getAttribute('paying_institution_type') === null => __('Only a stay paid by an institution gets an institution receipt.'),
-                $refused => __('ZRA refused an earlier receipt for this group. Re-file it from the VFMS filings first.'),
                 default => null,
             };
             $messages = $refusal === null ? $this->issue($actor, $stay, (string) $stay->getAttribute('paying_institution_name'), self::held($members)) : [];
@@ -81,8 +78,21 @@ class IssueGeneralReceipt
                 throw ValidationException::withMessages(['general_receipt' => __('A ZRA receipt needs the customer\'s name.')]);
             }
             $credential = VfmsCredential::for($property);
+            $subjectIds = $subject instanceof Reservation ? app(BookingGroupMembers::class)->reservations($subject)->modelKeys() : [$subject->id];
             $messages = [];
             foreach ($held->lockForUpdate()->get()->groupBy(fn (Posting $posting) => $posting->currency->value) as $postings) {
+                $rejected = OutboxMessage::query()->where('property_id', $property->id)->where('integration', VfmsAdapter::INTEGRATION)
+                    ->where('subject_type', $subject->getMorphClass())->whereIn('subject_id', $subjectIds)
+                    ->where('event', 'generalReceipt')->where('status', 'rejected')
+                    ->lockForUpdate()->get()
+                    ->first(fn (OutboxMessage $message) => $message->payload['mode'] === $credential->mode->value
+                        && $message->payload['body']['currency'] === $this->payloads->currency($postings->first()->currency));
+                if ($rejected !== null) {
+                    app(OutboxRecovery::class)->correctRejected($actor, $rejected, __('Issue current extras after ZRA refusal.'), []);
+                    $messages[] = $rejected->fresh();
+
+                    continue;
+                }
                 $id = (string) Str::ulid();
                 $message = $this->outbox->record(VfmsAdapter::INTEGRATION, $subject, 'generalReceipt', [
                     'mode' => $credential->mode->value, 'unit_id' => $credential->unit_id,

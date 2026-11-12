@@ -2,10 +2,12 @@
 
 namespace App\Domains\FiscalReceipting\Adapters;
 
+use App\Domains\Billing\Actions\CloseCustomerAccount;
 use App\Domains\Billing\Actions\PostVfmsAdjustment;
 use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Domains\FiscalReceipting\CheckoutFigures;
 use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
@@ -13,6 +15,7 @@ use App\Domains\FiscalReceipting\IssuedDocuments;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FiscalReceipting\VfmsPayloads;
 use App\Domains\FiscalReceipting\VfmsTranslator;
+use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -128,6 +131,15 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
             throw new RuntimeException('The filing no longer matches this stay and VFMS mode.');
         }
         $ids = $message->payload['posting_ids'] ?? [];
+        if ($message->status === 'rejected') {
+            $held = $reservation instanceof CustomerAccount
+                ? CloseCustomerAccount::held($reservation)
+                : IssueGeneralReceipt::held(app(BookingGroupMembers::class)->reservations($reservation, lock: true));
+            $ids = $held->where('currency', $this->payloads->fromVfmsCurrency($message->payload['body']['currency']))->lockForUpdate()->pluck('id')->all();
+            if ($ids === []) {
+                throw new RuntimeException('Nothing is waiting for a ZRA receipt.');
+            }
+        }
         $postings = Posting::query()->where('property_id', $property->id)->whereKey($ids)->orderBy('posted_at')->orderBy('id')->lockForUpdate()->get();
         if ($postings->count() !== count($ids) || $postings->contains(fn (Posting $posting) => $posting->vfms_receipt_number !== null
             || ! in_array($posting->general_receipt_id, [null, $message->id], true)
@@ -136,7 +148,7 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
         }
         Posting::query()->whereKey($ids)->toBase()->update(['general_receipt_id' => $message->id]);
 
-        return [...$message->payload, 'body' => $this->payloads->generalReceipt($message->payload['body']['documentNumber'], $postings, $message->payload['body']['referenceNumber'])];
+        return [...$message->payload, 'posting_ids' => $ids, 'body' => $this->payloads->generalReceipt($message->payload['body']['documentNumber'], $postings, $message->payload['body']['referenceNumber'])];
     }
 
     public function send(array $messages): array

@@ -173,13 +173,42 @@ test('re-filing a refused receipt reclaims its extras and records the receipt', 
     fakeGeneralReceiptService(Http::sequence()->push(['statusCode' => 5000, 'statusMessage' => 'Invalid item'])->push(['receiptNumber' => 'WS-REFILED']));
     issueGeneralReceiptAs($this, $t, $first);
     [$message] = generalReceiptMessages($t, 'generalReceipt');
-    issueGeneralReceiptAs($this, $t, $first)->assertSessionHasErrors('general_receipt');
-
     $this->post(route('reservations.vfms.refile', [$first, $message]), ['_property' => $t->property->id, 'reason' => 'Item name fixed'])->assertSessionHasNoErrors();
 
     expect($message->fresh()->status)->toBe('delivered')
         ->and(inTenant($t->property, fn () => $dinner->fresh()->only(['general_receipt_id', 'vfms_receipt_number'])))->toBe(['general_receipt_id' => $message->id, 'vfms_receipt_number' => 'WS-REFILED']);
 });
+
+test('a refused group receipt can issue the current extras after a held item is corrected', function (string $trigger) {
+    $t = twoTenants()->a;
+    [$first, $second] = generalReceiptGroup($t);
+    $folio = inTenant($t->property, fn () => Folio::query()->where('reservation_id', $first->id)->sole());
+    $wrong = postGeneralReceiptExtra($this, $t, $folio, ['description' => 'WRONG']);
+    fakeGeneralReceiptService(Http::sequence()->push(['statusCode' => 5000, 'statusMessage' => 'Invalid item'])->push(['receiptNumber' => 'WS-CORRECTED']));
+    issueGeneralReceiptAs($this, $t, $first)->assertSessionHasNoErrors();
+    [$message] = generalReceiptMessages($t, 'generalReceipt');
+    $this->post(route('postings.reverse', $wrong), ['_property' => $t->property->id, 'reason' => 'Wrong item'])->assertSessionHasNoErrors();
+    $replacement = postGeneralReceiptExtra($this, $t, $folio, ['description' => 'DINNER']);
+
+    if ($trigger === 'refile') {
+        $this->post(route('reservations.vfms.refile', [$first, $message]), ['_property' => $t->property->id, 'reason' => 'Corrected item'])->assertSessionHasNoErrors();
+    } elseif ($trigger === 'issue') {
+        issueGeneralReceiptAs($this, $t, $first)->assertSessionHasNoErrors();
+    } else {
+        foreach (['2026-12-10', '2026-12-11'] as $date) {
+            inTenant($t->property, fn () => app(CloseBusinessDate::class)->handle($t->owner, $t->property->fresh(), $date));
+        }
+        foreach ([$first, $second] as $stay) {
+            $this->post(route('reservations.check-out', $stay), ['_property' => $t->property->id, 'override_reason' => 'Ministry pays later'])->assertSessionHasNoErrors();
+        }
+    }
+
+    expect($message->fresh()->status)->toBe('delivered')
+        ->and($message->fresh()->payload['posting_ids'])->toBe([$replacement->id])
+        ->and(array_column($message->fresh()->payload['body']['service'], 'itemName'))->toBe(['DINNER'])
+        ->and(inTenant($t->property, fn () => $replacement->fresh()->vfms_receipt_number))->toBe('WS-CORRECTED')
+        ->and(inTenant($t->property, fn () => $wrong->fresh()->vfms_receipt_number))->toBeNull();
+})->with(['refile', 'issue', 'last checkout']);
 
 // protects=the group's last check-out issues whatever is still held (spec #249); fails_when=an earlier room's check-out issues or the last one forgets; no_claim=automatic check-out jobs.
 test('the last room of an institution group to check out issues what is still held', function () {
