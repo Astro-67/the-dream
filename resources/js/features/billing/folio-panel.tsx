@@ -431,7 +431,7 @@ export function FolioPanel({
                                 <Link
                                     href={fiscalReport(stay.reservation_number)}
                                 >
-                                    Fiscal check-out report
+                                    ZRA documents
                                 </Link>
                             </Button>
                         )}

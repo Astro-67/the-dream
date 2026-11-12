@@ -1,6 +1,5 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import { PropertyIntent } from '@/components/shared/property-intent';
-import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
@@ -331,15 +330,18 @@ export default function CheckoutReport({
                         </div>
                     </div>
                     {sandbox && (
-                        <Alert>
+                        <div
+                            role="status"
+                            className="flex flex-wrap items-center gap-3 rounded-lg border bg-card px-4 py-3"
+                        >
                             <StatusChip tone="warning">
                                 TEST, NOT FISCAL
                             </StatusChip>
-                            <span data-slot="alert-description">
+                            <span>
                                 This property files with ZRA's test server. None
                                 of these documents is fiscal.
                             </span>
-                        </Alert>
+                        </div>
                     )}
                 </header>
 

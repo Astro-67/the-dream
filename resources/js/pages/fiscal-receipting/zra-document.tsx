@@ -169,10 +169,10 @@ function Sheet({
                     <TableHeader>
                         <TableRow>
                             <TableHead>Item</TableHead>
-                            <TableHead>Status</TableHead>
+                            <TableHead className="zra-status">Status</TableHead>
                             <TableHead numeric>Qty</TableHead>
                             <TableHead numeric>Price</TableHead>
-                            <TableHead numeric>Subtotal</TableHead>
+                            <TableHead numeric>Amount</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -186,7 +186,9 @@ function Sheet({
                                         </span>
                                     ) : null}
                                 </TableCell>
-                                <TableCell>Taxable</TableCell>
+                                <TableCell className="zra-status">
+                                    Taxable
+                                </TableCell>
                                 <TableCell numeric>{line.quantity}</TableCell>
                                 <TableCell numeric>
                                     {money(line.price)}
@@ -283,21 +285,23 @@ export default function ZraDocument({
     return (
         <>
             <Head title={title}>
-                <style media="print">{`@page { size: ${paper === 'thermal' ? '80mm 200mm' : 'A4'}; margin: ${paper === 'thermal' ? '4mm' : '12mm'}; }`}</style>
+                <style media="print">{`@page { size: ${paper === 'thermal' ? '80mm 300mm' : 'A4'}; margin: ${paper === 'thermal' ? '4mm' : '12mm'}; }`}</style>
             </Head>
             <div
                 data-paper={paper}
                 className="receipt-print mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-8 p-4 text-sm [overflow-wrap:anywhere] md:p-6 print:gap-0 print:p-0"
             >
-                {documents.map((document) => (
-                    <Sheet
-                        key={document.id}
-                        document={document}
-                        timezone={timezone}
-                        property={property}
-                        branding={branding}
-                    />
-                ))}
+                <div className="flex flex-col gap-8 print:gap-0">
+                    {documents.map((document) => (
+                        <Sheet
+                            key={document.id}
+                            document={document}
+                            timezone={timezone}
+                            property={property}
+                            branding={branding}
+                        />
+                    ))}
+                </div>
                 {documents.length === 0 && (
                     <p className="text-muted-foreground">
                         {property.name} has no issued ZRA documents to print.

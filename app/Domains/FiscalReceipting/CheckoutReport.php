@@ -159,7 +159,7 @@ final class CheckoutReport
             $url = $issued?->getAttribute('viewer_url');
 
             return [
-                'number' => $issued?->number, 'customer' => $message->payload['body']['documentNumber'], 'items' => count($message->payload['body']['service']),
+                'number' => $issued?->number ?? $message->getAttribute('provider_references')['receiptNumber'] ?? null, 'customer' => $message->payload['body']['documentNumber'], 'items' => count($message->payload['body']['service']),
                 ...($issued === null ? self::filed($message) : ['amount' => $issued->getAttribute('amount'), 'currency' => $issued->getAttribute('currency')]),
                 'mode' => $issued->mode ?? $message->payload['mode'] ?? null, 'issuedAt' => $issued?->issued_at?->toIso8601String(),
                 'portalUrl' => $url, 'qrSvg' => $url === null ? null : self::qr($url),
