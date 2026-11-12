@@ -27,6 +27,7 @@ use App\Domains\Tenancy\Models\Organization;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Outbox\Outbox;
+use App\Support\Outbox\OutboxMessage;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -317,4 +318,10 @@ function fakeGeneralReceiptService(mixed $response): void
     Http::swap(new Factory);
     Http::fake([VfmsHttp::TEST_URL.'service/' => $response]);
     VfmsHttp::fake();
+}
+
+/** @return list<OutboxMessage> */
+function generalReceiptMessages(TenantFixture $tenant, string $event): array
+{
+    return inTenant($tenant->property, fn () => OutboxMessage::query()->where('integration', 'vfms')->where('event', $event)->orderBy('created_at')->orderBy('sequence')->get()->all());
 }

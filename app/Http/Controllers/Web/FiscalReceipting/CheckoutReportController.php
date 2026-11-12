@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web\FiscalReceipting;
 
+use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Domains\FiscalReceipting\Actions\RefreshCorrectionDecisions;
 use App\Domains\FiscalReceipting\Actions\RevealFiscalIdentity;
 use App\Domains\FiscalReceipting\CheckoutReport;
@@ -76,6 +77,8 @@ class CheckoutReportController extends Controller
             // Current branding, so a reprint after a rebrand shows the new logo; fiscal evidence is untouched.
             'branding' => $property->branding(),
             'reservationUrl' => $request->user()?->can('view', $reservation) ? route('reservations.show', $reservation) : null,
+            'printAllUrl' => route('reservations.fiscal-report.print', $reservation),
+            'generalReceipt' => $request->user()?->can('issueGeneralReceipt', $reservation) ? IssueGeneralReceipt::preview($reservation) : null,
         ]);
     }
 }

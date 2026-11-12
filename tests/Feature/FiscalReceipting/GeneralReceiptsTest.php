@@ -15,19 +15,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
-use Tests\Support\TenantFixture;
 use Tests\Support\VfmsHttp;
 
 beforeEach(function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
     VfmsHttp::fake();
 });
-
-/** @return list<OutboxMessage> */
-function generalReceiptMessages(TenantFixture $tenant, string $event): array
-{
-    return inTenant($tenant->property, fn () => OutboxMessage::query()->where('integration', 'vfms')->where('event', $event)->orderBy('created_at')->orderBy('sequence')->get()->all());
-}
 
 // protects=a checked-in guest's own extra stays a guest receipt (CS) with its discount (spec #249); fails_when=the type, document or discount changes; no_claim=Live acceptance.
 test('a checked-in guest paying for themselves gets a guest receipt with the line discount', function () {

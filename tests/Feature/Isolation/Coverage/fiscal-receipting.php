@@ -194,6 +194,34 @@ return [
 
         return $responses;
     }),
+    'reservations.fiscal-report.print' => RouteCoverage::attempt(function (TwoTenants $t) {
+        // Bravo's issued receipt, with its number in the answer ZRA stored: Alpha must never be shown it.
+        $document = inTenant($t->b->property, function () use ($t) {
+            $stay = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            $message = OutboxMessage::query()->create([
+                'integration' => 'vfms', 'subject_type' => $stay->getMorphClass(), 'subject_id' => $stay->id,
+                'sequence' => 1, 'stream_key' => hash('sha256', $stay->id), 'idempotency_key' => 'foreign-print:'.$stay->id,
+                'event' => 'generalReceipt', 'payload' => [], 'status' => 'delivered',
+            ]);
+
+            return [$stay, IssuedDocument::query()->create([
+                'outbox_message_id' => $message->id, 'reservation_id' => $stay->id, 'type' => 'general_receipt',
+                'number' => 'BRAVO-PRINT', 'mode' => 'live', 'issued_at' => now(), 'guest_name' => 'Bravo Ministry',
+            ])];
+        });
+        [$stay, $receipt] = $document;
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->get(route('reservations.fiscal-report.print', [$stay, 'document' => $receipt->id]))->assertNotFound();
+            $responses[] = $this->actingAs($member)->get(route('reservations.fiscal-report.print', $stay))->assertNotFound();
+        }
+        // A sibling property in Alpha's own organization: the owner works in both, yet the open property decides.
+        $sibling = inTenant($t->a->otherProperty, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+        $responses[] = $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+            ->get(route('reservations.fiscal-report.print', $sibling))->assertNotFound();
+
+        return $responses;
+    }),
     'reservations.fiscal-report' => RouteCoverage::attempt(function (TwoTenants $t) {
         $reservation = inTenant($t->b->property, fn () => app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner)));
         $responses = [];

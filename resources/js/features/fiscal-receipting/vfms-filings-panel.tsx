@@ -162,7 +162,7 @@ export function VfmsFilingsPanel({
     );
 }
 
-function RecoverFiling({
+export function RecoverFiling({
     id: filingId,
     call,
     url,

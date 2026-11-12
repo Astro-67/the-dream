@@ -117,3 +117,52 @@ test('a printed general receipt and check-out report show ZRA\'s stored figures,
     inTenant($t->property, fn () => $first->forceFill(['booking_group_id' => null])->save());
     $print(['document' => $receipt->id], $first)->assertNotFound();
 });
+
+// protects=every state shows its sections and counts, and a refused receipt shows ZRA's reason with Re-file (spec #249 UI §1); fails_when=a state hides a section, loses a count, or a refusal has no reason or action; no_claim=Live acceptance.
+test('waiting, refused and complete states keep one layout with their counts and recovery actions', function () {
+    $t = twoTenants()->a;
+    [$first, $second] = generalReceiptGroup($t);
+    $folio = inTenant($t->property, fn () => Folio::query()->where('reservation_id', $first->id)->sole());
+    postGeneralReceiptExtra($this, $t, $folio, ['description' => 'DINNER']);
+    fakeGeneralReceiptService(Http::response(['statusCode' => 5000, 'statusMessage' => 'Invalid item']));
+    issueGeneralReceiptAs($this, $t, $first)->assertSessionHasNoErrors();
+    [$message] = generalReceiptMessages($t, 'generalReceipt');
+
+    // Refused: the receipt returns to "not yet receipted" and offers Re-file, to a role that may recover filings.
+    zraDocumentsPage($this, $t, $first, OrganizationRole::Owner)->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('status', 'waiting')
+        ->has('generalReceipts', 1)
+        ->where('generalReceipts.0.number', null)
+        ->where('generalReceipts.0.status', 'attention')
+        ->where('generalReceipts.0.reason', fn (string $reason) => str_contains($reason, 'ZRA refused'))
+        ->where('generalReceipts.0.refileUrl', route('reservations.vfms.refile', [$first, $message]))
+        ->where('generalReceipts.0.printUrl', null)
+        ->has('held', 1)->where('held.0.description', 'DINNER'));
+    // The same page for a role that cannot recover filings carries no Re-file.
+    zraDocumentsPage($this, $t, $first, OrganizationRole::Finance)->assertInertia(fn (Assert $page) => $page
+        ->where('generalReceipts.0.status', 'attention')->where('generalReceipts.0.refileUrl', null));
+
+    // Waiting for ZRA to answer: sending, with nothing to print yet.
+    inTenant($t->property, fn () => $message->forceFill(['status' => 'pending'])->save());
+    zraDocumentsPage($this, $t, $first, OrganizationRole::Owner)->assertInertia(fn (Assert $page) => $page
+        ->where('generalReceipts.0.status', 'sending')->where('generalReceipts.0.reason', null)->where('generalReceipts.0.printUrl', null));
+});
+
+// protects=no guest identity document reaches a page or print without permission (spec #249); fails_when=a passport number is shown to a role without GuestIdentityView or before an audited reveal.
+test('the ZRA documents page and print never carry a guest document before an audited reveal', function () {
+    $t = twoTenants()->a;
+    [$first, $second] = generalReceiptGroup($t);
+    foreach (['2026-12-10', '2026-12-11'] as $date) {
+        inTenant($t->property, fn () => app(CloseBusinessDate::class)->handle($t->owner, $t->property->fresh(), $date));
+    }
+    foreach ([$first, $second] as $room) {
+        $this->actingAs($t->owner)->post(route('reservations.check-out', $room), ['_property' => $t->property->id, 'override_reason' => 'Ministry pays later'])->assertSessionHasNoErrors();
+    }
+
+    foreach ([OrganizationRole::Finance, OrganizationRole::FrontDesk, OrganizationRole::Owner] as $role) {
+        zraDocumentsPage($this, $t, $second, $role)->assertOk()->assertDontSee('P1234567')->assertDontSee('P7654321');
+        $this->get(route('reservations.fiscal-report.print', $second))->assertOk()->assertDontSee('P1234567')->assertDontSee('P7654321');
+    }
+    zraDocumentsPage($this, $t, $second, OrganizationRole::Finance)->assertInertia(fn (Assert $page) => $page
+        ->has('guestReports', 2)->where('guestReports.0.identity', null)->where('revealIdentityUrl', null));
+});
