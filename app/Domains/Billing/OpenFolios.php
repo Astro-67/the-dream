@@ -2,6 +2,8 @@
 
 namespace App\Domains\Billing;
 
+use App\Domains\Billing\Actions\CloseCustomerAccount;
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Reservations\Enums\ReservationStatus;
@@ -40,9 +42,22 @@ final class OpenFolios
             return false;
         }
 
-        return self::withBalanceExistFor($property) || Tenancy::within(TenantContext::forOrganization($property->organization_id), fn () => Folio::query()
+        return self::withBalanceExistFor($property) || self::heldAccountExtrasExistFor($property) || Tenancy::within(TenantContext::forOrganization($property->organization_id), fn () => Folio::query()
             ->where('property_id', $property->id)
             ->whereIn('reservation_id', Reservation::query()->select('id')->where('status', ReservationStatus::CheckedIn))
             ->exists());
+    }
+
+    public static function heldAccountExtrasExistFor(Property $property): bool
+    {
+        return $property->exists && Tenancy::within(TenantContext::forOrganization($property->organization_id), function () use ($property) {
+            foreach (CustomerAccount::query()->where('property_id', $property->id)->cursor() as $account) {
+                if (CloseCustomerAccount::held($account)->exists()) {
+                    return true;
+                }
+            }
+
+            return false;
+        });
     }
 }
