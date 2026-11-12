@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Support\BookingForm;
+use Tests\Support\PropertyForm;
 use Tests\Support\VfmsHttp;
 
 beforeEach(function () {
@@ -74,6 +75,13 @@ test('account extras are held and closing a settled account issues one discounte
         ->where('booker.name', 'Pool visitor')->where('receipt.amount', 4500)->where('customerAccount.number', 'ACC-000001'));
     $this->post(route('customer-accounts.close', $account), $intent)->assertSessionHasNoErrors();
     $this->post(route('customer-accounts.close', $account), $intent)->assertSessionHasNoErrors();
+    $this->post(route('folios.payments.store', $folio), [
+        ...$intent, 'method' => 'cash', 'amount' => 4500, 'idempotency_key' => 'cash',
+    ])->assertRedirect(route('receipts.show', $receipt))->assertSessionHasNoErrors();
+    $this->post(route('folios.charges.store', $folio), [
+        ...$intent, 'category' => 'other', 'description' => 'POOL AND LUNCH', 'quantity' => 2,
+        'unit_price' => 2500, 'discount' => 500, 'idempotency_key' => 'pool',
+    ])->assertSessionHasNoErrors();
     inTenant($tenant->property, function () use ($account, $folio) {
         expect($account->fresh()->status)->toBe('closed')->and($folio->balance()->amount)->toBe(0);
         $message = OutboxMessage::query()->where('event', 'generalReceipt')->sole();
@@ -289,4 +297,17 @@ test('an invalid first item rolls back the account folio and number together', f
     expect(inTenant($tenant->property, fn () => [CustomerAccount::query()->count(), Folio::query()->count(), CustomerAccountSequence::query()->count()]))->toBe([0, 0, 0]);
     $this->post(route('customer-accounts.store'), $form)->assertSessionHasNoErrors();
     expect(inTenant($tenant->property, fn () => CustomerAccount::query()->sole()->number))->toBe('ACC-000001');
+});
+
+test('an open empty account prevents a jurisdiction change until it is closed', function () {
+    $tenant = twoTenants()->a;
+    $this->actingAs($tenant->owner)->post(route('customer-accounts.store'), [
+        '_property' => $tenant->property->id, 'kind' => 'event', 'customer_name' => 'Future conference', 'currency' => 'USD',
+    ])->assertSessionHasNoErrors();
+    $this->put(route('properties.update', $tenant->property), PropertyForm::payload(['_property' => $tenant->property->id]))
+        ->assertSessionHasErrors('jurisdiction_profile');
+    $account = inTenant($tenant->property, fn () => CustomerAccount::query()->sole());
+    $this->post(route('customer-accounts.close', $account), ['_property' => $tenant->property->id])->assertSessionHasNoErrors();
+    $this->put(route('properties.update', $tenant->property), PropertyForm::payload(['_property' => $tenant->property->id]))
+        ->assertSessionHasNoErrors();
 });

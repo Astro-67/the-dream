@@ -22,14 +22,18 @@ class FolioBackfillTest extends TestCase
             $reservations[] = [$property, \inTenant($property, fn () => app(CreateReservation::class)->handle($owner, BookingForm::details($owner)))];
         }
         $migration = require database_path('migrations/2026_10_23_000001_billing_create_folios_table.php');
-        Schema::withoutForeignKeyConstraints(function () use ($migration) {
-            $migration->down();
-            $migration->up();
-        });
-        foreach ($reservations as [$property, $reservation]) {
-            \inTenant($property, function () use ($reservation) {
-                $this->assertSame(Currency::USD, Folio::query()->where('reservation_id', $reservation->id)->sole()->currency);
+        try {
+            Schema::withoutForeignKeyConstraints(function () use ($migration) {
+                $migration->down();
+                $migration->up();
             });
+            foreach ($reservations as [$property, $reservation]) {
+                \inTenant($property, function () use ($reservation) {
+                    $this->assertSame(Currency::USD, Folio::query()->where('reservation_id', $reservation->id)->sole()->currency);
+                });
+            }
+        } finally {
+            $this->artisan('migrate:fresh', ['--force' => true])->assertSuccessful();
         }
     }
 }

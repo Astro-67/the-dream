@@ -34,15 +34,15 @@ class RecordPayment
     {
         return Audit::validationRefusal($actor, $folio, 'Payment refused', fn () => DB::transaction(function () use ($actor, $folio, $details) {
             $owner = $folio->lockOwner();
-            if ($owner instanceof CustomerAccount) {
-                $owner->ensureOpen();
-            }
             $reservation = $owner instanceof Reservation ? $owner : null;
             $folio = Folio::query()->whereKey($folio->id)->lockForUpdate()->firstOrFail();
             $key = $details['idempotency_key'] ?? (string) Str::ulid();
             $existing = Posting::query()->where('folio_id', $folio->id)->where('idempotency_key', $key)->first();
             if ($existing !== null) {
                 return $existing;
+            }
+            if ($owner instanceof CustomerAccount) {
+                $owner->ensureOpen();
             }
             $method = $details['method'];
             $property = Property::query()->whereKey($folio->property_id)

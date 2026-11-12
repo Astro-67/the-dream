@@ -33,9 +33,6 @@ class PostExtraCharge
     {
         return Audit::validationRefusal($actor, $folio, 'Extra charge refused', fn () => DB::transaction(function () use ($actor, $folio, $details) {
             $owner = $folio->lockOwner();
-            if ($owner instanceof CustomerAccount) {
-                $owner->ensureOpen();
-            }
             $reservation = $owner instanceof Reservation ? $owner : null;
             $folio = Folio::query()->whereKey($folio->id)->lockForUpdate()->firstOrFail();
             // Two identical extras can both be real, so without a client key each call is a new submission.
@@ -43,6 +40,9 @@ class PostExtraCharge
             $existing = Posting::query()->where('folio_id', $folio->id)->where('idempotency_key', $key)->first();
             if ($existing !== null) {
                 return $existing;
+            }
+            if ($owner instanceof CustomerAccount) {
+                $owner->ensureOpen();
             }
             $property = Property::query()->findOrFail($folio->property_id);
             $date = BusinessDate::of($property);
