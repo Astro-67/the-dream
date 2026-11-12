@@ -79,12 +79,35 @@ final class VfmsPayloads
                 'itemName' => $posting->description ?? $posting->category,
                 'price' => $this->amount($posting->unit_price, $posting->currency),
                 'quantity' => $posting->quantity,
-                'discount' => 0.0,
+                'discount' => $this->amount($posting->discount, $posting->currency),
             ]],
             'referenceNumber' => $this->referenceNumber($event, $reservation),
             'type' => 'CS',
             'currency' => $this->currency($posting->currency),
         ];
+    }
+
+    /**
+     * A general receipt (`WS`): ZRA names the customer from `documentNumber`, so it carries the payer's
+     * name, never a guest's document (ZRA would attach the sale to that guest's stay). One currency.
+     *
+     * @param  iterable<Posting>  $postings
+     * @return array<string, mixed>
+     */
+    public function generalReceipt(string $customer, iterable $postings, string $referenceNumber): array
+    {
+        $service = [];
+        foreach ($postings as $posting) {
+            $currency = $posting->currency;
+            $service[] = [
+                'itemName' => $posting->description ?? $posting->category,
+                'price' => $this->amount($posting->unit_price, $posting->currency),
+                'quantity' => $posting->quantity,
+                'discount' => $this->amount($posting->discount, $posting->currency),
+            ];
+        }
+
+        return ['documentNumber' => $customer, 'service' => $service, 'referenceNumber' => $referenceNumber, 'type' => 'WS', 'currency' => $this->currency($currency ?? throw new InvalidArgumentException('A general receipt needs at least one item.'))];
     }
 
     /**

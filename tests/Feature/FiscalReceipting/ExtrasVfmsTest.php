@@ -101,7 +101,7 @@ test('a repeated extra submission records one event and one services message', f
     });
 });
 
-// protects=only in-house stays' extras are filed (#163); fails_when=an extra outside an in-house stay files services; no_claim=validity of reservation status transitions.
+// protects=extras before arrival or on a cancelled stay are not filed (#163, spec #249); fails_when=such an extra files anything; no_claim=validity of reservation status transitions.
 test('extras outside an in-house stay are not filed', function (ReservationStatus $status) {
     $tenant = twoTenants()->a;
     inTenant($tenant->property, function () use ($tenant, $status) {
@@ -113,7 +113,8 @@ test('extras outside an in-house stay are not filed', function (ReservationStatu
             ->and(OutboxMessage::query()->where('integration', 'vfms')->count())->toBe(0)
             ->and($posting->fresh()->vfms_receipt_number)->toBeNull();
     });
-})->with([ReservationStatus::Confirmed, ReservationStatus::Cancelled, ReservationStatus::NoShow, ReservationStatus::CheckedOut]);
+    // A departed guest's extra gets a general receipt instead (GeneralReceiptsTest).
+})->with([ReservationStatus::Confirmed, ReservationStatus::Cancelled, ReservationStatus::NoShow]);
 
 // protects=fees remain fiscal exceptions rather than guest services (#163); fails_when=posting a cancellation or no-show fee files services; no_claim=fee policy calculations.
 test('cancellation and no-show fees remain fiscal exceptions', function (string $kind) {

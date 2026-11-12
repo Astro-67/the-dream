@@ -27,7 +27,7 @@ class PostExtraCharge
     /** Extras staff may post; an allowlist, so reserved posting categories (room, deposit, payment, refund, write_off) cannot skew folio totals. */
     public const array CATEGORIES = ['restaurant', 'bar', 'minibar', 'laundry', 'spa', 'transport', 'other'];
 
-    /** @param array{category?: string, description?: string|null, quantity: int, unit_price: int, idempotency_key?: string|null} $details */
+    /** @param array{category?: string, description?: string|null, quantity: int, unit_price: int, discount?: int, idempotency_key?: string|null} $details amounts in minor units; the discount is off the line, before tax */
     public function handle(?User $actor, Folio $folio, array $details): Posting
     {
         return Audit::validationRefusal($actor, $folio, 'Extra charge refused', fn () => DB::transaction(function () use ($actor, $folio, $details) {
@@ -41,7 +41,11 @@ class PostExtraCharge
             }
             $property = Property::query()->findOrFail($folio->property_id);
             $date = BusinessDate::of($property);
-            $gross = $details['quantity'] * $details['unit_price'];
+            $discount = $details['discount'] ?? 0;
+            $gross = $details['quantity'] * $details['unit_price'] - $discount;
+            if ($discount < 0 || $gross < 0) {
+                throw ValidationException::withMessages(['discount' => __('The discount cannot be more than the line total.')]);
+            }
             try {
                 $breakdown = TaxCalculator::forProperty($property, $gross, $folio->currency, $date, $reservation->getAttribute('adults') + $reservation->getAttribute('children'), ChargeKind::Extra, inclusivePrice: true);
             } catch (InvalidArgumentException $e) {
@@ -49,7 +53,7 @@ class PostExtraCharge
             }
             $posting = Posting::query()->create([
                 'folio_id' => $folio->id, 'type' => 'charge', 'category' => $details['category'] ?? 'other', 'description' => $details['description'] ?? null,
-                'quantity' => $details['quantity'], 'unit_price' => $details['unit_price'],
+                'quantity' => $details['quantity'], 'unit_price' => $details['unit_price'], 'discount' => $discount,
                 'net' => $breakdown->net, 'amount' => $breakdown->gross(), 'currency' => $folio->currency,
                 'tax_lines' => $breakdown->postedLines(), 'tax_rule_ids' => $breakdown->ruleIds,
                 'idempotency_key' => $key, 'actor_id' => $actor?->id, 'business_date' => $date, 'posted_at' => now(),
