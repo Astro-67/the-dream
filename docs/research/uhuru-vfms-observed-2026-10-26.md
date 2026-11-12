@@ -267,3 +267,136 @@ credentials; it allows no other outbound HTTP. No Live filing or real customer d
 - Both filings were accepted on their first attempt. This proves items accumulated
   over Karafuu business dates, not two elapsed days on ZRA's clock. There are no
   accommodation stays to leave open.
+
+### End-to-end acceptance evidence, 12 November 2026 (ticket #254)
+
+Required base: `origin/spec/ws-fiscal-receipt` at
+`4dad5e168697d1249719007c258b205b535717e0` (tickets #250-253), merged before
+editing on `t3/vfms-test-server-proof`. Driver changes:
+`2abeb64e` (`test: complete fiscal receipt route proofs and stay cleanup`).
+All data below is synthetic. Only Sandbox and the authorized test-server host
+`102.223.7.131` were allowed. No Live requests or credentials were used.
+SQLite was disposable; shared local MySQL was not modified.
+
+Command (real routes, real synchronous outbox delivery, no VFMS HTTP fake):
+
+```sh
+VFMS_TEST_SERVER_RUN=1 php artisan test \
+  tests/Feature/FiscalReceipting/VfmsTestServerGeneralReceiptTest.php \
+  tests/Feature/FiscalReceipting/VfmsTestServerCustomerAccountTest.php
+```
+
+Final run at approximately 22:33 EAT: **6 passed, 1 skipped, 62 assertions**.
+Three passes are the real normal/day-use/event scenarios; the other three are
+offline safety checks for cleanup success, cleanup refusal with continued
+attempts for the other room, and rejection of a non-test-server host.
+The skipped scenario is the real two-room BTOB group, not a successful proof.
+
+| Real route/outbox scenario               | Accepted ZRA evidence | Stored figures and provenance                                                                                                                                                                                        |
+| ---------------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Normal guest, first extra while in house | CS `XHE2104862`       | WATER, 2 x USD 10; sales USD 20. Outbox `01m78m13909ybtqp5hbb9axfy4`.                                                                                                                                                |
+| Same guest, second extra while in house  | CS `XHE2104863`       | LAUNDRY, 1 x USD 15; sales USD 15. Outbox `01m78m13s0w9a74k4czywt5wgw`.                                                                                                                                              |
+| Same stay, checkout                      | Report `XHE2104864`   | Room USD 100, extras USD 35, levy USD 5, total including levy USD 140, VAT USD 17.61. Outbox `01m78m149x437f1zah0cd5c719`.                                                                                           |
+| Extra after that checkout                | WS `XHE2104866`       | LATE DINNER, USD 25 less USD 5; sales USD 20, tax USD 2.6086956521739135. Customer "Test Guest 1", not a passport. Outbox `01m78m15034jzjz4mx4nbrdzsb`.                                                              |
+| Discounted day use, no stay              | WS `XHE2104867`       | POOL AND LUNCH, 2 x USD 25 less USD 5; sales USD 45, tax USD 5.869565217391304. Payment USD 45; closed. Outbox `01m78m178m4y9sg3vsrrpqmj67`.                                                                         |
+| Event over two business dates, no stay   | WS `XHE2104868`       | CONFERENCE HALL, 2 x USD 25 less USD 5, then SECOND DAY CATERING, 3 x USD 10 after the real night-audit route. Sales USD 75, tax USD 9.782608695652174. Payment USD 75; closed. Outbox `01m78m186gamn4v5xx1cgad861`. |
+
+Normal stay subject: `01m78m12hd8hrsmkbn3fhzasss`. Its accommodation outbox
+`01m78m12kvt7m7cvv34d9rjynj` was accepted before either extra. Each of the five
+normal-stay messages and the two account messages was delivered on its first
+attempt. The driver always attempts checkout in `finally`, including when an
+earlier assertion or route fails, tries the remaining rooms if one cleanup
+fails, and fails explicitly if an accepted stay lacks an accepted checkout.
+**No cleanup failed and no accepted stay was left open in these runs.**
+
+An earlier run of the same scenarios also accepted CS `XHE2104853`,
+CS `XHE2104854`, checkout `XHE2104855`, post-checkout WS `XHE2104857`,
+day-use WS `XHE2104858`, and event WS `XHE2104859`. That stay was also checked
+out. However, the stored response for report `XHE2104855` had an empty service
+array and extras USD 0 despite both accepted CS responses. The final run's
+`XHE2104864` includes both extras correctly. No payload-routing fix occurred
+between those runs; do not erase the first observation or claim that receipt
+linkage on the provider is invariably immediate. The stored response remains
+the source of print figures, not a reconstructed total.
+
+**Real BTOB acceptance remains blocked.** Checked `.env.example`,
+`config/services.php`, the documented test-server observations and the necessary
+test keys in the main checkout's `.env`; no
+`VFMS_TEST_BTOB_ZRB_NUMBER` authorized for this test unit was available.
+The driver explicitly skipped. No new numbers were tried, no institution was
+invented for the real server, and no DIRECT stay or direct service probe is
+claimed as BTOB route integration. Prior direct probes `XHE2104832` and
+`XHE2104833` remain direct probes only.
+
+#### Browser evidence and boundaries
+
+The T3 shared-browser status was `available: false`, `visible: false`, with no
+tab. Aside was also unavailable (`NEEDS_ASIDE: Linux`);
+the mandated gstack browse skill used its local Chromium fallback. No Chrome
+MCP or T3 preview browser was used. The local app ran only on
+`http://127.0.0.1:8124`, with a separate `.scratch/browser.sqlite` and synthetic
+tenant data. Its VFMS HTTP boundary was faked and stray HTTP was blocked.
+**Every `BROWSER-*` document in these screenshots is a fixture, not ZRA
+acceptance**, particularly the BTOB group. The real evidence is the table above.
+
+- Normal: reservation ZRA summary card, separate guest/general/report sections,
+  and print-all with four documents.
+- Two-room BTOB fixture: held USD/TZS extras on the reservation and non-fiscal
+  group statement; manual issue confirmation naming the institution; another
+  extra; first checkout leaving it held; last checkout issuing it; two checkout
+  reports and three general receipts. Both fixture stays ended checked out.
+- Day use: new-sale form with first item and discount, charge/balance display,
+  payment dialog, linked non-fiscal receipt, irreversible-close confirmation,
+  closed account and ZRA receipt.
+- Event: dated account form, first day's item, real night-audit UI, second
+  business day's charge dialog, both dates in Items, payment and close
+  confirmation, closed account and receipt.
+- Receipts: all three tabs, number filter, source links to the stay, group,
+  day-use account and event; account kind/status filters; light/dark captures
+  and mobile/tablet captures of the new account and register surfaces.
+- A4/80 mm screenshot and PDF artifacts for each scenario. A4 PDFs have
+  4/5/1/1 pages for normal/group/day-use/event respectively, one per document;
+  80 mm PDFs have the same page counts. This is a bounded verification of #252,
+  not a repeated print/QR redesign.
+
+No product regression was reproduced in these flows. The scratch database export
+initially omitted separate indexes (causing an account-create 500); restoring
+the indexes fixed the fixture, not application code. Initial navigation by
+reservation ULID instead of its public `RES-...` number produced a harness-only 404. Successful flows were repeated after fixing those harness mistakes;
+the final browser console had no errors.
+
+One existing display limitation remains visible: the Receipts table shows
+"Unavailable" as the customer of a CS receipt whose issue-time evidence contains
+only a document number. `IssuedDocumentsTest` explicitly preserves this rule
+instead of borrowing today's lead guest name. The source stay link works, and
+the stay's fiscal page groups the CS rows under its guest, but the register is
+not proof that every CS row has a named customer. No identity document was
+substituted or exposed to hide the limitation.
+
+Artifacts are local and untracked under `/tmp/spec249-254/`:
+`real-normal-final-run.json`, `vfms-test-server-account-day_use.json`,
+`vfms-test-server-account-event.json`, `real-normal-first-run.json`,
+`route-proof-result.json`, plus the scenario-named screenshots and
+`normal-a4.pdf`, `normal-80mm.pdf`, `group-a4.pdf`, `group-80mm.pdf`,
+`dayuse-a4.pdf`, `dayuse-80mm.pdf`, `event-a4.pdf`, `event-80mm.pdf`.
+The JSON logs contain outbox IDs, request types, paths, redacted bodies,
+provider references and responses, never credential headers.
+The screenshot manifest is `/tmp/spec249-254/browser-evidence.md`.
+
+#### Validation gate
+
+Affected billing/receipt tests: **40 passed, 4 opt-in skips, 362 assertions**
+(44 tests) before the browser walkthrough. Display, register, account-isolation
+and group-statement tests: **44 passed, 1,089 assertions**.
+
+Final fetch/merge of `origin/spec/ws-fiscal-receipt` was already up to date at
+`4dad5e168697d1249719007c258b205b535717e0`. Ran `composer check:fast`
+**once after that merge**: build passed; SQLite Pest **2,822 passed,
+26 skipped, 48,631 assertions** (2,848 tests); Pint, Larastan/PHPStan,
+TypeScript, formatting and lint all passed. Full log:
+`/tmp/spec249-254/check-fast.log`.
+
+Full MySQL/slow E2E is deliberately
+reserved for the parent's final post-review fix-up agent and CI, as instructed.
+**Ticket #254's full MySQL acceptance is still pending that final gate**, and
+real BTOB acceptance is still skipped. Neither is claimed complete here.
