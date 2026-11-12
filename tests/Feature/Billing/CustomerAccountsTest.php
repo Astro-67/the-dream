@@ -135,3 +135,20 @@ test('archiving checks held account extras even after payment and filters the su
     $this->actingAs($tenant->owner)->post(route('customer-accounts.close', $account), ['_property' => $tenant->property->id])->assertSessionHasNoErrors();
     expect($check->blockingReason($tenant->property))->toBeNull();
 });
+
+test('day-use creation can include the first item and the account screens expose separate items payments and receipt status', function () {
+    $tenant = twoTenants()->a;
+    $this->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id]);
+    $this->actingAs($tenant->owner)->post(route('customer-accounts.store'), [
+        '_property' => $tenant->property->id, 'kind' => 'day_use', 'customer_name' => 'Cash customer', 'currency' => 'USD',
+        'items' => [['category' => 'spa', 'description' => 'MASSAGE', 'quantity' => 1, 'unit_price' => 5000, 'discount' => 500, 'idempotency_key' => 'first']],
+    ])->assertSessionHasNoErrors();
+    $account = inTenant($tenant->property, fn () => CustomerAccount::query()->sole());
+    $this->get(route('customer-accounts.show', $account))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('customer-accounts/show')->where('account.number', 'ACC-000001')
+        ->where('folios.0.items.data.0.description', 'MASSAGE')->where('folios.0.summary.balance', 4500)
+        ->has('folios.0.payments.data', 0)->where('generalReceipt.items.0.discount', 500));
+    $this->get(route('customer-accounts.index', ['kind' => 'day_use', 'status' => 'open']))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('customer-accounts/index')->has('accounts.data', 1)->where('accounts.data.0.customer_name', 'Cash customer'));
+    $this->get(route('customer-accounts.index', ['kind' => 'event']))->assertOk()->assertInertia(fn (Assert $page) => $page->has('accounts.data', 0));
+});

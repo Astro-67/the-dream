@@ -2,6 +2,7 @@
 
 namespace App\Domains\FiscalReceipting\Actions;
 
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\Reservations\Models\Reservation;
 use App\Models\User;
@@ -12,7 +13,7 @@ use RuntimeException;
 
 class RecoverVfmsFiling
 {
-    public function handle(User $actor, Reservation $reservation, OutboxMessage $message, string $reason, bool $refile): void
+    public function handle(User $actor, Reservation|CustomerAccount $reservation, OutboxMessage $message, string $reason, bool $refile): void
     {
         $message = OutboxMessage::query()->where('property_id', $reservation->property_id)
             ->where('integration', VfmsAdapter::INTEGRATION)->where('subject_type', $reservation->getMorphClass())

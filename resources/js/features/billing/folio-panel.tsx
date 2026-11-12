@@ -625,7 +625,7 @@ export function ExtraChargeForm({
     categories: allowed,
     onSuccess,
 }: {
-    folio: Folio;
+    folio: { id: string; currency: string };
     categories: string[];
     onSuccess?: () => void;
 }) {

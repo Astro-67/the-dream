@@ -44,8 +44,12 @@ export type GeneralReceiptPreview = {
 /** Issue ZRA receipt: shows exactly what goes to ZRA before sending, because a ZRA receipt cannot be cancelled. */
 export function GeneralReceiptDialog({
     preview,
+    closeAccount = false,
+    fiscalEnabled = true,
 }: {
     preview: GeneralReceiptPreview | null;
+    closeAccount?: boolean;
+    fiscalEnabled?: boolean;
 }) {
     const [open, setOpen] = useState(false);
     if (preview === null) return null;
@@ -53,16 +57,28 @@ export function GeneralReceiptDialog({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="min-h-11">Issue ZRA receipt</Button>
+                <Button className="min-h-11">
+                    {closeAccount
+                        ? fiscalEnabled
+                            ? 'Close and issue receipt'
+                            : 'Close account'
+                        : 'Issue ZRA receipt'}
+                </Button>
             </DialogTrigger>
             <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>
-                        Issue a ZRA receipt to {preview.customer}?
+                        {closeAccount
+                            ? 'Close account for'
+                            : 'Issue a ZRA receipt to'}{' '}
+                        {preview.customer}?
                     </DialogTitle>
                     <DialogDescription>
-                        This sends a receipt to ZRA. ZRA receipts cannot be
-                        cancelled.
+                        {fiscalEnabled
+                            ? 'This sends a receipt to ZRA. ZRA receipts cannot be cancelled.'
+                            : 'This account will close without a ZRA filing for this property.'}
+                        {closeAccount &&
+                            ' Every currency balance must be zero.'}
                     </DialogDescription>
                 </DialogHeader>
                 <Table>
@@ -123,6 +139,8 @@ export function GeneralReceiptDialog({
                         <>
                             <PropertyIntent />
                             <InputError message={errors.general_receipt} />
+                            <InputError message={errors.balance} />
+                            <InputError message={errors.account} />
                             <DialogFooter className="mt-4">
                                 <DialogClose asChild>
                                     <Button type="button" variant="outline">
@@ -131,7 +149,11 @@ export function GeneralReceiptDialog({
                                 </DialogClose>
                                 <Button type="submit" disabled={processing}>
                                     {processing && <Spinner />}
-                                    Send to ZRA
+                                    {closeAccount
+                                        ? fiscalEnabled
+                                            ? 'Close and send to ZRA'
+                                            : 'Close account'
+                                        : 'Send to ZRA'}
                                 </Button>
                             </DialogFooter>
                         </>

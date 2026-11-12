@@ -24,11 +24,15 @@ class OpenCustomerAccount
                 ?? CustomerAccountSequence::query()->create(['last_number' => 0]);
             $sequence->increment('last_number');
             $currency = $details['currency'];
-            unset($details['currency']);
+            $items = $details['items'] ?? [];
+            unset($details['currency'], $details['items']);
             $account = CustomerAccount::query()->create([
                 ...$details, 'number' => 'ACC-'.str_pad((string) $sequence->last_number, 6, '0', STR_PAD_LEFT), 'status' => 'open',
             ]);
-            $account->folios()->create(['currency' => $currency]);
+            $folio = $account->folios()->create(['currency' => $currency]);
+            foreach ($items as $item) {
+                app(PostExtraCharge::class)->handle($actor, $folio, $item);
+            }
             Audit::record($actor, 'created', $account, 'Customer account opened');
 
             return $account;

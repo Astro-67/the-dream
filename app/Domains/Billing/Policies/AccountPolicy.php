@@ -28,4 +28,9 @@ class AccountPolicy
     {
         return Access::inProperty($user, P::ChargesPost, $account);
     }
+
+    public function recoverVfms(User $user, CustomerAccount $account): bool
+    {
+        return Access::inProperty($user, P::OutboxRecover, $account);
+    }
 }
