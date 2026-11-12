@@ -340,3 +340,18 @@ test('two tenants with the same institution and guest names stay apart', functio
         ->get(route('reservations.show', $a))->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('generalReceipt', null));
 });
+
+// protects=a reversed receipted extra is listed for the accountant, since ZRA cannot void it (spec #249); fails_when=the reversal is not listed or lacks the receipt number; no_claim=refunds.
+test('reversing a receipted extra lists a fiscal exception with its receipt number', function () {
+    $t = twoTenants()->a;
+    $reservation = generalReceiptStay($t);
+    $folio = inTenant($t->property, fn () => Folio::query()->sole());
+    $posting = postGeneralReceiptExtra($this, $t, $folio, ['description' => 'LUNCH']);
+    $this->post(route('postings.reverse', $posting), ['_property' => $t->property->id, 'reason' => 'Wrong room'])->assertSessionHasNoErrors();
+
+    $this->withSession(['tenancy.organization_id' => $t->organization->id, 'tenancy.property_id' => $t->property->id])
+        ->get(route('reports.index'))->assertInertia(fn (Assert $page) => $page
+        ->where('fiscalExceptions.0.reservationNumber', $reservation->reservation_number)
+        ->where('fiscalExceptions.0.kind', 'Receipted extra reversed')
+        ->where('fiscalExceptions.0.reason', 'ZRA receipt TEST-RECEIPT-169: Wrong room'));
+});
