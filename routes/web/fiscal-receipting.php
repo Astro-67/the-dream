@@ -17,6 +17,7 @@ Route::middleware(['auth', 'verified', 'tenant', 'property.intent', 'two-factor:
 
 Route::middleware(['auth', 'verified', 'tenant'])->group(function () {
     Route::get('reservations/{reservation:reservation_number}/fiscal-report', CheckoutReportController::class)->name('reservations.fiscal-report');
+    Route::get('reservations/{reservation:reservation_number}/fiscal-report/print', [CheckoutReportController::class, 'print'])->name('reservations.fiscal-report.print');
 });
 
 Route::middleware(['auth', 'verified', 'tenant', 'property.intent'])->group(function () {

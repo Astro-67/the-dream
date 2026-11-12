@@ -8,6 +8,7 @@ use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FiscalReceipting\VfmsPayloads;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
@@ -130,15 +131,19 @@ class IssueGeneralReceipt
         if ($property === null || ! $property->isLive() || ! JurisdictionRules::usesVfms($property) || $reservation->getAttribute('paying_institution_type') === null) {
             return null;
         }
-        $held = self::held(app(BookingGroupMembers::class)->reservations($reservation))->get();
+        $members = app(BookingGroupMembers::class)->reservations($reservation);
+        $held = self::held($members)->get();
         if ($held->isEmpty()) {
             return null;
         }
+        $stays = Folio::query()->where('property_id', $reservation->property_id)->whereIn('id', $held->pluck('folio_id'))->pluck('reservation_id', 'id');
+        $rooms = Room::query()->whereIn('id', $members->pluck('room_id')->filter())->pluck('number', 'id');
 
         return [
             'customer' => (string) $reservation->getAttribute('paying_institution_name'),
             'items' => $held->map(fn (Posting $posting) => [
                 ...$posting->only(['id', 'description', 'category', 'quantity', 'unit_price', 'discount', 'amount']), 'currency' => $posting->currency->value,
+                'room' => $rooms->get((string) $members->find($stays->get($posting->folio_id))?->room_id), 'postedAt' => $posting->posted_at->toIso8601String(),
             ])->all(),
             'totals' => $held->groupBy(fn (Posting $posting) => $posting->currency->value)
                 ->map(fn ($postings, string $currency) => ['currency' => $currency, 'amount' => (int) $postings->sum('amount')])->values()->all(),

@@ -1,13 +1,24 @@
 <?php
 
+use App\Domains\Billing\Models\Folio;
+use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\IssuedDocuments;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
+use App\Domains\FrontDesk\Actions\CheckIn;
+use App\Domains\Guests\Actions\CreateGuest;
+use App\Domains\Guests\Models\ReservationGuest;
+use App\Domains\Housekeeping\Enums\HousekeepingStatus;
+use App\Domains\Housekeeping\Models\RoomStatus;
+use App\Domains\Inventory\Actions\CreateRoom;
+use App\Domains\Inventory\Models\Room;
 use App\Domains\Platform\Actions\AssignPlatformRole;
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Rates\Models\TaxRule;
+use App\Domains\Reservations\Actions\AssignRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Subscriptions\Models\BillingDetails;
 use App\Domains\Tenancy\Actions\CreateOrganization;
 use App\Domains\Tenancy\Data\OrganizationSetup;
@@ -20,8 +31,10 @@ use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
 use Tests\Support\BookingForm;
+use Tests\Support\InventoryForm;
 use Tests\Support\TenantFixture;
 use Tests\Support\TwoTenants;
 use Tests\TestCase;
@@ -236,4 +249,44 @@ function submitCorrection($test, TenantFixture $tenant, IssuedDocument $old, Iss
     return $test->actingAs($tenant->owner)->post(route('issued-documents.corrections.store', $old), [
         '_property' => $tenant->property->id, 'replacement_id' => $new->id, 'reason' => 'Wrong particulars', 'confirmed' => true,
     ]);
+}
+
+/** Posts an extra through the real charge route as the owner. */
+function postGeneralReceiptExtra($test, TenantFixture $tenant, Folio $folio, array $charge): Posting
+{
+    $test->actingAs($tenant->owner)->post(route('folios.charges.store', $folio), [
+        '_property' => $tenant->property->id, 'category' => 'restaurant', 'description' => 'LUNCH', 'quantity' => 1, 'unit_price' => 1000,
+        'idempotency_key' => (string) Str::ulid(), ...$charge,
+    ])->assertSessionHasNoErrors();
+
+    return inTenant($tenant->property, fn () => Posting::query()->where('folio_id', $folio->id)->where('type', 'charge')->where('category', '!=', 'room')->latest('posted_at')->orderByDesc('id')->firstOrFail());
+}
+
+/** A two-room government group, both rooms checked in, Anna Berg in the first room. */
+function generalReceiptGroup(TenantFixture $tenant): array
+{
+    return inTenant($tenant->property, function () use ($tenant) {
+        $form = BookingForm::details($tenant->owner);
+        app(CreateRoom::class)->handle($tenant->owner, InventoryForm::room($form['room_type_id'], ['number' => '102']));
+        RoomStatus::query()->update(['status' => HousekeepingStatus::Clean]);
+        app(CreateReservation::class)->handle($tenant->owner, [
+            ...$form, 'rooms' => 2, 'adults' => 2, 'children' => 0, 'distribute_guests' => true, 'nightly_rate' => 11000, 'meal_plan' => 'bed-and-breakfast',
+            'paying_institution_type' => 'government', 'paying_institution_name' => 'Ministry of Health', 'paying_institution_zrb_number' => 'WA2400117',
+        ]);
+        $rooms = Room::query()->orderBy('number')->get();
+
+        return Reservation::query()->orderBy('reservation_number')->get()->map(function (Reservation $member, int $index) use ($tenant, $rooms) {
+            $guest = app(CreateGuest::class)->handle($tenant->owner, ['name' => ['Anna Berg', 'Ola Berg'][$index], 'documents' => [['type' => 'passport', 'number' => ['P1234567', 'P7654321'][$index], 'nationality' => 'DE']]]);
+            ReservationGuest::query()->create(['reservation_id' => $member->id, 'guest_id' => $guest->id]);
+            app(AssignRoom::class)->handle($tenant->owner, $member, $rooms[$index]->id);
+
+            return app(CheckIn::class)->handle($tenant->owner, $member->fresh());
+        })->all();
+    });
+}
+
+/** Issues the stay's held extras through the real route as the owner. */
+function issueGeneralReceiptAs($test, TenantFixture $tenant, Reservation $reservation)
+{
+    return $test->actingAs($tenant->owner)->post(route('reservations.general-receipt.store', $reservation), ['_property' => $tenant->property->id]);
 }

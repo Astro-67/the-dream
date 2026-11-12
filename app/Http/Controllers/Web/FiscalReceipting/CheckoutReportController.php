@@ -29,6 +29,11 @@ class CheckoutReportController extends Controller
         return $this->report($request, $reservation, CheckoutReport::of($reservation, Access::allows($request->user(), OrganizationPermission::GuestIdentityView, $reservation)));
     }
 
+    public function print(Request $request, Reservation $reservation): Response
+    {
+        abort(404);
+    }
+
     public function reveal(RevealFiscalIdentityRequest $request, Reservation $reservation, RevealFiscalIdentity $reveal): Response
     {
         /** @var User $actor */
