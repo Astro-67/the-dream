@@ -142,12 +142,17 @@ export function ZraDocumentsSummary({
     );
 }
 
-function Chip({ row }: { row: RowState }) {
+function Chip({ row, showMode }: { row: RowState; showMode: boolean }) {
     const [tone, label] = states[row.status];
 
     return (
         <div className="space-y-1">
             <StatusChip tone={tone}>{label}</StatusChip>
+            {showMode && row.mode !== null && (
+                <StatusChip tone={row.mode === 'sandbox' ? 'warning' : 'info'}>
+                    {row.mode === 'sandbox' ? 'Test (not fiscal)' : 'Live'}
+                </StatusChip>
+            )}
             {row.reason && (
                 <p className="max-w-64 text-xs whitespace-normal text-muted-foreground">
                     {row.reason}
@@ -302,6 +307,10 @@ export default function CheckoutReport({
 }) {
     const { tenant } = usePage().props;
     const timezone = tenant.property?.timezone ?? 'UTC';
+    const modes = [...generalReceipts, ...serviceReceipts, ...guestReports].map(
+        (row) => row.mode,
+    );
+    const mixedModes = modes.includes('live') && modes.includes('sandbox');
     const when = (instant: string | null) =>
         instant
             ? `${formatDate(instant, timezone)} ${formatTime(instant, timezone)}`
@@ -402,8 +411,8 @@ export default function CheckoutReport({
                                     TEST, NOT FISCAL
                                 </StatusChip>
                                 <span>
-                                    This property files with ZRA's test server.
-                                    None of these documents is fiscal.
+                                    Sandbox documents on this page are not
+                                    fiscal. Live documents remain fiscal.
                                 </span>
                             </div>
                         )}
@@ -475,7 +484,11 @@ export default function CheckoutReport({
                 </section>
 
                 {embedded && sandbox && (
-                    <StatusChip tone="warning">TEST, NOT FISCAL</StatusChip>
+                    <StatusChip tone="warning">
+                        {mixedModes
+                            ? 'Includes Sandbox documents'
+                            : 'TEST, NOT FISCAL'}
+                    </StatusChip>
                 )}
                 <Section
                     title="Not yet receipted"
@@ -591,7 +604,10 @@ export default function CheckoutReport({
                                             {when(row.issuedAt)}
                                         </TableCell>
                                         <TableCell>
-                                            <Chip row={row} />
+                                            <Chip
+                                                row={row}
+                                                showMode={mixedModes}
+                                            />
                                         </TableCell>
                                         <TableCell className="whitespace-normal">
                                             <Actions
@@ -660,7 +676,10 @@ export default function CheckoutReport({
                                                     {when(row.issuedAt)}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Chip row={row} />
+                                                    <Chip
+                                                        row={row}
+                                                        showMode={mixedModes}
+                                                    />
                                                 </TableCell>
                                                 <TableCell className="whitespace-normal">
                                                     <Actions
@@ -746,7 +765,10 @@ export default function CheckoutReport({
                                             {when(row.issuedAt)}
                                         </TableCell>
                                         <TableCell>
-                                            <Chip row={row} />
+                                            <Chip
+                                                row={row}
+                                                showMode={mixedModes}
+                                            />
                                         </TableCell>
                                         <TableCell className="whitespace-normal">
                                             <Actions

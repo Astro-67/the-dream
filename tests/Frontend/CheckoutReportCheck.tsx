@@ -163,6 +163,20 @@ const full: Props = {
 };
 const html = render(full);
 assert.equal((html.match(/TEST, NOT FISCAL/g) ?? []).length, 1);
+const mixed = render({
+    ...full,
+    guestReports: [{ ...report, mode: 'live' }],
+});
+assert.doesNotMatch(mixed, /None of these documents is fiscal/);
+const mixedRows = mixed.match(/<tr\b[\s\S]*?<\/tr>/g) ?? [];
+assert.match(
+    mixedRows.find((value) => value.includes('REPORT-1')) ?? '',
+    /Live/,
+);
+assert.match(
+    mixedRows.find((value) => value.includes('XHE2104621')) ?? '',
+    /Test \(not fiscal\)/,
+);
 for (const section of [
     /Not yet receipted \(1\)/,
     /General receipts \(1\)/,
