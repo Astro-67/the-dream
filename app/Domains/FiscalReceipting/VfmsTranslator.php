@@ -101,6 +101,7 @@ final class VfmsTranslator implements LifecycleTranslator
                 'request_type' => $requestType,
                 'path' => $path,
                 'reservation_id' => $reservation->id,
+                ...($builder === 'services' ? ['guest_name' => $this->payloads->guests($reservation)[0]['fullName']] : []),
                 ...(in_array($event->type, ['extra_posted', 'advance_payment_recorded'], true) ? ['posting_id' => $event->snapshot['posting_id']] : []),
                 'body' => $this->payloads->{$builder}($event, $reservation, $property),
             ], "vfms:{$event->id}");

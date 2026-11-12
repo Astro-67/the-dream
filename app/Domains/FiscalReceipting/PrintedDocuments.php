@@ -27,14 +27,13 @@ final class PrintedDocuments
         $members = $account ? collect([$reservation]) : app(BookingGroupMembers::class)->reservations($reservation);
         $documents = IssuedDocument::query()->where('property_id', $reservation->property_id)->whereIn($account ? 'customer_account_id' : 'reservation_id', $members->pluck('id'))
             ->when($documentId !== null, fn ($query) => $query->whereKey($documentId))->orderBy('issued_at')->orderBy('id')->get();
-        $leads = $account ? collect() : Reservation::guestNames($members);
 
-        return $documents->map(fn (IssuedDocument $document) => self::document($document, $leads->get((string) $document->getAttribute('reservation_id'))))
+        return $documents->map(fn (IssuedDocument $document) => self::document($document))
             ->values()->all();
     }
 
     /** @return array<string, mixed> */
-    private static function document(IssuedDocument $document, ?string $lead): array
+    private static function document(IssuedDocument $document): array
     {
         $url = $document->getAttribute('viewer_url');
         $answer = self::answer($document);
@@ -43,7 +42,7 @@ final class PrintedDocuments
             'currency' => $document->getAttribute('currency'), 'viewerUrl' => $url, 'qrSvg' => $url === null ? null : CheckoutReport::qr($url),
             'issuedAt' => $document->getAttribute('issued_at')?->toIso8601String(),
             'business' => self::business([]),
-            'customer' => null, 'items' => [], 'rooms' => [], 'taxExclusive' => null, 'tax' => null, 'levy' => null, 'total' => null,
+            'customer' => IssuedDocuments::customer($document), 'items' => [], 'rooms' => [], 'taxExclusive' => null, 'tax' => null, 'levy' => null, 'total' => null,
         ];
         if ($answer === null) {
             return $common;
@@ -51,7 +50,7 @@ final class PrintedDocuments
 
         return $document->type === 'checkout_report'
             ? self::report($common, $answer, $document->number)
-            : self::receipt($common, $answer, $document->type === 'general_receipt' ? null : $lead);
+            : self::receipt($common, $answer);
     }
 
     /**
@@ -61,7 +60,7 @@ final class PrintedDocuments
      * @param  array<string, mixed>  $answer
      * @return array<string, mixed>
      */
-    private static function receipt(array $common, array $answer, ?string $guestName): array
+    private static function receipt(array $common, array $answer): array
     {
         if (! in_array($answer['currency'] ?? $common['currency'], ['USD', 'EURO', 'EUR', 'TZS'], true)) {
             return $common;
@@ -70,7 +69,7 @@ final class PrintedDocuments
         $currency = $payloads->fromVfmsCurrency($answer['currency'] ?? $common['currency']);
         $minor = fn (mixed $value): ?int => is_numeric($value) ? $payloads->minor($value, $currency) : null;
 
-        return [...$common, 'currency' => $currency->value, 'business' => self::business($answer), 'customer' => $common['type'] === 'general_receipt' ? ($answer['documentNumber'] ?? null) : $guestName,
+        return [...$common, 'currency' => $currency->value, 'business' => self::business($answer),
             'issuedAt' => self::instant($answer['recordedAt'] ?? null) ?? $common['issuedAt'],
             'items' => array_map(fn (array $line) => [
                 'name' => $line['itemName'] ?? __('Item'), 'quantity' => $line['quantity'] + 0, 'price' => $minor($line['price']), 'discount' => $minor($line['discount'] ?? 0),

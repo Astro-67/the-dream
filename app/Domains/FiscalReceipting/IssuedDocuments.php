@@ -148,9 +148,11 @@ final class IssuedDocuments
             ->whereIn('id', collect($page->items())->pluck('reservation_id'))->get()->keyBy('id');
         $names = Reservation::guestNames($stays->only(collect($page->items())->where('type', 'non_fiscal')->pluck('reservation_id')->filter()->all()));
         $accounts = CustomerAccount::query()->where('property_id', $property->id)->whereIn('id', collect($page->items())->pluck('customer_account_id'))->get()->keyBy('id');
+        $historicalNames = IssuedDocument::query()->where('property_id', $property->id)->where('type', 'services_receipt')->whereNull('guest_name')
+            ->whereIn('id', collect($page->items())->pluck('id'))->get()->mapWithKeys(fn (IssuedDocument $document) => [$document->id => self::customer($document)]);
 
         // Raw union rows are untyped; every column but issued_at/amount/guest/currency/viewer is non-null in both sources.
-        return $page->through(function (stdClass $row) use ($stays, $names, $accounts): array {
+        return $page->through(function (stdClass $row) use ($stays, $names, $accounts, $historicalNames): array {
             $stay = $stays->get($row->reservation_id);
             $account = $accounts->get($row->customer_account_id);
             $source = $account ?? $stay;
@@ -161,7 +163,7 @@ final class IssuedDocuments
             return [
                 'id' => (string) $row->id, 'type' => (string) $row->type, 'number' => (string) $row->number,
                 'issuedAt' => $row->issued_at === null ? null : CarbonImmutable::parse((string) $row->issued_at, 'UTC')->toIso8601String(),
-                'guest' => $row->type === 'non_fiscal' ? ($accounts->get($row->customer_account_id)->customer_name ?? $names->get((string) $row->reservation_id)) : $row->guest_name,
+                'guest' => $row->type === 'non_fiscal' ? ($accounts->get($row->customer_account_id)->customer_name ?? $names->get((string) $row->reservation_id)) : ($row->guest_name ?? $historicalNames->get($row->id)),
                 'amount' => $row->amount === null ? null : (int) $row->amount, 'currency' => $row->currency,
                 'zraStatus' => (string) $row->zra_status, 'mode' => $row->type === 'non_fiscal' ? null : (string) $row->zra_status,
                 'viewerUrl' => $row->viewer_url, 'reservationId' => (string) $row->reservation_id,
@@ -202,10 +204,49 @@ final class IssuedDocuments
             // The amount filed, as the ZRA filings report shows it.
             'amount' => $payloads->minor(array_sum(array_map(fn (array $item) => $item['price'] * $item['quantity'] - $item['discount'], $body['service'])), $currency),
             'currency' => $currency->value,
-            // A guest receipt names only a document number; a general receipt's documentNumber is its customer's name.
-            'guest_name' => $message->event === 'generalReceipt' ? $body['documentNumber'] : null,
+            'guest_name' => self::receiptCustomer($message),
             'viewer_url' => is_string($references['receiptUrl'] ?? null) ? $references['receiptUrl'] : null,
         ]];
+    }
+
+    public static function customer(IssuedDocument $document): ?string
+    {
+        if ($document->getAttribute('guest_name') !== null || $document->type !== 'services_receipt') {
+            return $document->getAttribute('guest_name');
+        }
+        $message = OutboxMessage::query()->where('property_id', $document->property_id)->find($document->getAttribute('outbox_message_id'));
+
+        return $message === null ? null : self::receiptCustomer($message);
+    }
+
+    private static function receiptCustomer(OutboxMessage $message): ?string
+    {
+        if ($message->event === 'generalReceipt') {
+            return $message->payload['body']['documentNumber'];
+        }
+        if (is_string($message->payload['guest_name'] ?? null)) {
+            return $message->payload['guest_name'];
+        }
+        $documentNumber = $message->payload['body']['documentNumber'] ?? null;
+        if (! is_string($documentNumber) || $documentNumber === '') {
+            return null;
+        }
+        $history = OutboxMessage::query()->where('property_id', $message->property_id)->where('stream_key', $message->stream_key)
+            ->where('sequence', '<', $message->sequence)->where('status', 'delivered')
+            ->whereIn('event', ['accommodation', 'advanceAccommodation', 'addGuest', 'changeProfile'])->orderByDesc('sequence')->cursor();
+        foreach ($history as $filing) {
+            if (($filing->payload['mode'] ?? null) !== ($message->payload['mode'] ?? null)) {
+                continue;
+            }
+            $body = $filing->payload['body'];
+            foreach ($body['guest'] ?? [$body] as $guest) {
+                if (($guest['newDocumentNo'] ?? $guest['documentNo'] ?? null) === $documentNumber && is_string($guest['fullName'] ?? null)) {
+                    return $guest['fullName'];
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

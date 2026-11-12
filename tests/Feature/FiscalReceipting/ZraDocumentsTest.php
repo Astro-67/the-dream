@@ -8,11 +8,14 @@ use App\Domains\Billing\Models\Folio;
 use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FrontDesk\Actions\CloseBusinessDate;
+use App\Domains\Guests\Models\Guest;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\OrganizationRole;
 use App\Support\Outbox\DrainOutboxMessage;
+use App\Support\Outbox\OutboxMessage;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -334,5 +337,28 @@ test('a historical guest receipt with missing fields prints no invented figures 
     $this->actingAs($t->owner)->withSession(['tenancy.organization_id' => $t->organization->id, 'tenancy.property_id' => $t->property->id])
         ->get(route('reservations.fiscal-report.print', [$stay, 'document' => $old->id]))->assertOk()
         ->assertDontSee('PRIVATE-GUEST-ID')->assertInertia(fn (Assert $page) => $page
-        ->where('documents.0.total', null)->where('documents.0.customer', 'Travel Booker'));
+        ->where('documents.0.total', null)->where('documents.0.customer', null));
 });
+
+test('the receipts register and reprints retain the guest customer from filing evidence', function (bool $legacy) {
+    $t = twoTenants()->a;
+    $stay = generalReceiptStay($t);
+    $folio = inTenant($t->property, fn () => Folio::query()->sole());
+    postGeneralReceiptExtra($this, $t, $folio, []);
+    inTenant($t->property, function () use ($legacy) {
+        Guest::query()->sole()->update(['name' => 'Changed guest name']);
+        if ($legacy) {
+            $message = OutboxMessage::query()->where('event', 'services')->sole();
+            $payload = $message->payload;
+            unset($payload['guest_name']);
+            DB::table('outbox_messages')->where('id', $message->id)->update(['payload' => Crypt::encryptString(json_encode($payload, JSON_THROW_ON_ERROR))]);
+            DB::table('issued_documents')->where('type', 'services_receipt')->update(['guest_name' => null]);
+        }
+    });
+
+    $this->actingAs($t->owner)->withSession(['tenancy.organization_id' => $t->organization->id, 'tenancy.property_id' => $t->property->id])
+        ->get(route('receipts.index'))->assertOk()->assertDontSee('P1234567')
+        ->assertInertia(fn (Assert $page) => $page->has('documents.data', 1)->where('documents.data.0.guest', 'Anna Berg'));
+    $this->get(route('reservations.fiscal-report.print', $stay))->assertOk()->assertDontSee('P1234567')
+        ->assertInertia(fn (Assert $page) => $page->where('documents.0.customer', 'Anna Berg'));
+})->with([false, true]);
