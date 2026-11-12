@@ -13,7 +13,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { fiscalDocumentTypes } from '@/features/fiscal-receipting/document-correction';
+import {
+    CorrectionAnnotation,
+    fiscalDocumentTypes,
+    type CorrectionNote,
+} from '@/features/fiscal-receipting/document-correction';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney, formatTime } from '@/lib/utils';
 import { fiscalReport } from '@/routes/reservations';
@@ -54,6 +58,7 @@ export type PrintedDocument = {
     tax: number | null;
     levy: number | null;
     total: number | null;
+    annotations: CorrectionNote[];
 };
 
 const unavailable = 'Not available';
@@ -113,6 +118,9 @@ function Sheet({
                     </p>
                 )}
             </header>
+            {document.annotations.map((note, index) => (
+                <CorrectionAnnotation key={index} note={note} compact />
+            ))}
             <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
                 {(
                     [

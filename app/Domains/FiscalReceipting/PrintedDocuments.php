@@ -6,6 +6,7 @@ use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Models\Property;
 use App\Support\Outbox\OutboxAttempt;
 use Carbon\CarbonImmutable;
 use Throwable;
@@ -28,7 +29,9 @@ final class PrintedDocuments
         $documents = IssuedDocument::query()->where('property_id', $reservation->property_id)->whereIn($account ? 'customer_account_id' : 'reservation_id', $members->pluck('id'))
             ->when($documentId !== null, fn ($query) => $query->whereKey($documentId))->orderBy('issued_at')->orderBy('id')->get();
 
-        return $documents->map(fn (IssuedDocument $document) => self::document($document))
+        $annotations = DocumentCorrections::annotations(Property::query()->findOrFail($reservation->property_id), $documents->modelKeys());
+
+        return $documents->map(fn (IssuedDocument $document) => [...self::document($document), 'annotations' => $annotations[$document->id] ?? []])
             ->values()->all();
     }
 

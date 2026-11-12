@@ -63,6 +63,12 @@ test('document register folio and reprints annotate every correction state witho
     $this->get(route('reservations.show', $stay))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('correctionRefresh.refreshing', false)
         ->where("documentCorrections.{$old->id}.annotations.0.decision", $expected));
+    $this->get(route('reservations.fiscal-report.print', [$stay, 'document' => $old->id]))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('documents', 1)
+            ->where('documents.0.annotations.0.delivery', $delivery)
+            ->where('documents.0.annotations.0.decision', $expected)
+            ->where('documents.0.annotations.0.number', 'NEW-232')
+            ->where('documents.0.annotations.0.label', $decision === 'approved' ? 'Replaced by' : 'Proposed to be replaced by'));
     expect(DB::table('issued_documents')->orderBy('id')->get()->toJson())->toBe($before)
         ->and(DB::table('postings')->get()->toJson())->toBe($postings);
 })->with(['services_receipt', 'checkout_report'])->with([

@@ -313,6 +313,7 @@ const sheet = (over: Partial<PrintedDocument> = {}): PrintedDocument => ({
     viewerUrl: 'https://viewer.example/receipt-form/XHE2104621',
     qrSvg: '<svg data-qr="XHE2104621"></svg>',
     issuedAt: '2026-11-12T10:40:00Z',
+    annotations: [],
     business: {
         name: 'THE DREAM OF SAU INN BEACH HOTEL',
         street: 'Stone Town, Zanzibar',
@@ -382,6 +383,24 @@ assert.match(one, /TZS 11,109,000/);
 assert.match(one, /12 Nov 2026 13:40/);
 assert.match(one, /data-qr="XHE2104621"/);
 assert.match(one, /TEST, NOT FISCAL/);
+const corrected = printed([
+    sheet({
+        annotations: [
+            {
+                label: 'Replaced by',
+                number: 'REPLACEMENT-1',
+                url: null,
+                delivery: 'delivered',
+                decision: 'approved',
+                refreshUrl: '/corrections/refresh',
+            },
+        ],
+    }),
+]);
+assert.match(corrected, /Replaced by/);
+assert.match(corrected, /REPLACEMENT-1/);
+assert.match(corrected, /Approved/);
+assert.doesNotMatch(corrected, /corrections\/refresh/);
 assert.doesNotMatch(
     printed([sheet({ mode: 'live' })], false),
     /TEST, NOT FISCAL/,
