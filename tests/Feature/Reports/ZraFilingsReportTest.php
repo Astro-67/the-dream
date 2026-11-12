@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\FrontDesk\Actions\CheckIn;
 use App\Domains\Guests\Actions\CreateGuest;
@@ -102,6 +103,44 @@ test('the ZRA filings report counts and lists the property calls in range only',
         ->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('filings.counts.0.count', 0)
         ->has('filings.calls.data', 0));
+});
+
+test('general receipts for stays and accounts appear in filings counts rows and exports on the local issue date', function () {
+    $tenant = twoTenants()->a;
+    fakeGeneralReceiptService(Http::sequence()->push(['receiptNumber' => 'WS-STAY'])->push(['receiptNumber' => 'WS-ACCOUNT']));
+    $stay = generalReceiptStay($tenant, ['paying_institution_type' => 'government', 'paying_institution_name' => 'Ministry of Health']);
+    $folio = inTenant($tenant->property, fn () => Folio::query()->sole());
+    postGeneralReceiptExtra($this, $tenant, $folio, ['unit_price' => 1500]);
+    $this->travelTo(CarbonImmutable::parse('2026-12-11 00:30:00', 'Africa/Dar_es_Salaam'));
+    issueGeneralReceiptAs($this, $tenant, $stay)->assertSessionHasNoErrors();
+    $intent = ['_property' => $tenant->property->id];
+    $this->post(route('customer-accounts.store'), [...$intent, 'kind' => 'day_use', 'customer_name' => 'Pool visitor', 'currency' => 'USD',
+        'items' => [['category' => 'other', 'description' => 'POOL', 'quantity' => 1, 'unit_price' => 2500, 'idempotency_key' => 'pool']],
+    ])->assertSessionHasNoErrors();
+    $account = inTenant($tenant->property, fn () => CustomerAccount::query()->sole());
+    $accountFolio = inTenant($tenant->property, fn () => $account->folios()->sole());
+    $this->post(route('folios.payments.store', $accountFolio), [...$intent, 'method' => 'bank_transfer', 'amount' => 2500, 'idempotency_key' => 'paid'])->assertSessionHasNoErrors();
+    $this->post(route('customer-accounts.close', $account), $intent)->assertSessionHasNoErrors();
+
+    $this->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id])
+        ->get(route('reports.index', ['view' => 'filings', 'from' => '2026-12-11', 'to' => '2026-12-11']))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('filings.counts.4.count', 2)->where('filings.calls.total', 2)
+            ->where('filings.calls.data', function ($rows) use ($stay, $account) {
+                $calls = collect($rows)->keyBy('zraNumber');
+                expect($calls->keys()->sort()->values()->all())->toBe(['WS-ACCOUNT', 'WS-STAY'])
+                    ->and($calls['WS-STAY']['reservationNumber'])->toBe($stay->reservation_number)
+                    ->and($calls['WS-ACCOUNT']['reservationNumber'])->toBe($account->number)
+                    ->and($calls->pluck('date')->unique()->all())->toBe(['2026-12-11'])
+                    ->and($calls->pluck('call')->unique()->all())->toBe(['General receipt'])
+                    ->and($calls['WS-STAY']['amount'])->toBe(1500)
+                    ->and($calls['WS-ACCOUNT']['amount'])->toBe(2500);
+
+                return true;
+            }));
+    $csv = $this->get(route('reports.filings.csv', ['from' => '2026-12-11', 'to' => '2026-12-11']))->assertOk()->getContent();
+    expect($csv)->toContain('WS-STAY', 'WS-ACCOUNT', $account->number)->not->toContain('P1234567');
+    $this->get(route('reports.index', ['view' => 'filings', 'from' => '2026-12-10', 'to' => '2026-12-10']))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('filings.calls.total', 1));
 });
 
 // protects=the ZRA filings CSV carries the same calls as the report, for the current property only (#174); fails_when=columns drift from the screen or another property's call appears; no_claim=spreadsheet locale handling.

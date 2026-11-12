@@ -9,7 +9,9 @@ use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Money\Currency;
 use App\Support\Outbox\OutboxMessage;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -85,14 +87,14 @@ final class VfmsFilings
 
         return [
             'counts' => array_map(fn (string $status) => ['status' => $status, 'label' => __(self::STATUSES[$status]), 'count' => $counts[$status]], array_keys(self::STATUSES)),
-            'calls' => $this->query($property, $from, $to)->paginate(50)->withQueryString()->through($this->row(...)),
+            'calls' => $this->query($property, $from, $to)->paginate(50)->withQueryString()->through(fn (OutboxMessage $message) => $this->row($message, $property->timezone)),
         ];
     }
 
     /** @return list<array{id: string, date: string, reservationNumber: string, call: string, amount: int|null, currency: string|null, status: string, statusLabel: string, zraNumber: string|null}> */
     public function rows(Property $property, string $from, string $to): array
     {
-        return $this->query($property, $from, $to)->get()->map($this->row(...))->values()->all();
+        return $this->query($property, $from, $to)->get()->map(fn (OutboxMessage $message) => $this->row($message, $property->timezone))->values()->all();
     }
 
     /** Minor units as a plain decimal for CSV: TZS has no decimals, USD and EUR two. */
@@ -124,19 +126,32 @@ final class VfmsFilings
     {
         $property = Property::query()->real()->findOrFail($property->id);
 
-        // The idempotency key starts "vfms:{lifecycle event ULID}" (VfmsTranslator), kept across re-filing.
+        $start = CarbonImmutable::parse($from, $property->timezone)->startOfDay()->utc();
+        $end = CarbonImmutable::parse($to, $property->timezone)->addDay()->startOfDay()->utc();
+
+        // General receipts have no lifecycle event: use their property-local issue date.
         return OutboxMessage::query()
-            ->join('reservation_lifecycle_events as events', DB::raw('SUBSTR(outbox_messages.idempotency_key, 6, 26)'), '=', 'events.id')
-            ->join('reservations', 'reservations.id', '=', 'outbox_messages.subject_id')
-            ->where('outbox_messages.property_id', $property->id)->where('events.property_id', $property->id)->where('reservations.property_id', $property->id)
+            ->leftJoin('reservation_lifecycle_events as events', fn (JoinClause $join) => $join
+                ->on(DB::raw('SUBSTR(outbox_messages.idempotency_key, 6, 26)'), '=', 'events.id')
+                ->on('events.reservation_id', '=', 'outbox_messages.subject_id')->where('events.property_id', $property->id))
+            ->leftJoin('reservations', fn (JoinClause $join) => $join->on('reservations.id', '=', 'outbox_messages.subject_id')
+                ->where('outbox_messages.subject_type', (new Reservation)->getMorphClass())->where('reservations.property_id', $property->id))
+            ->leftJoin('customer_accounts as accounts', fn (JoinClause $join) => $join->on('accounts.id', '=', 'outbox_messages.subject_id')
+                ->where('outbox_messages.subject_type', (new CustomerAccount)->getMorphClass())->where('accounts.property_id', $property->id))
+            ->where('outbox_messages.property_id', $property->id)
+            ->where(fn ($query) => $query->whereNotNull('reservations.id')->orWhereNotNull('accounts.id'))
             ->where('outbox_messages.integration', VfmsAdapter::INTEGRATION)
-            ->whereDate('events.business_date', '>=', $from)->whereDate('events.business_date', '<=', $to)
-            ->select('outbox_messages.*', 'events.business_date as filed_on', 'reservations.reservation_number')
-            ->orderBy('events.business_date')->orderBy('reservations.reservation_number')->orderBy('outbox_messages.sequence');
+            ->whereIn('outbox_messages.event', array_keys(self::CALLS))
+            ->where(fn ($query) => $query
+                ->where(fn ($query) => $query->whereNotNull('reservations.id')->whereDate('events.business_date', '>=', $from)->whereDate('events.business_date', '<=', $to))
+                ->orWhere(fn ($query) => $query->where('outbox_messages.event', 'generalReceipt')->where('outbox_messages.created_at', '>=', $start)->where('outbox_messages.created_at', '<', $end)))
+            ->select('outbox_messages.*', 'events.business_date as filed_on')
+            ->selectRaw('COALESCE(reservations.reservation_number, accounts.number) as reservation_number')
+            ->orderByRaw('COALESCE(events.business_date, outbox_messages.created_at)')->orderBy('reservation_number')->orderBy('outbox_messages.sequence')->orderBy('outbox_messages.id');
     }
 
     /** @return array{id: string, date: string, reservationNumber: string, call: string, amount: int|null, currency: string|null, status: string, statusLabel: string, zraNumber: string|null} */
-    private function row(OutboxMessage $message): array
+    private function row(OutboxMessage $message, string $timezone): array
     {
         $status = self::status($message->status, $message->getAttribute('provider_references')['mode'] ?? null);
         $references = $message->getAttribute('provider_references') ?? [];
@@ -159,7 +174,7 @@ final class VfmsFilings
 
         return [
             'id' => $message->id,
-            'date' => substr((string) $message->getAttribute('filed_on'), 0, 10),
+            'date' => $message->getAttribute('filed_on') === null ? $message->created_at->timezone($timezone)->toDateString() : substr((string) $message->getAttribute('filed_on'), 0, 10),
             'reservationNumber' => (string) $message->getAttribute('reservation_number'),
             'call' => self::call($message),
             'amount' => $major === null || $currency === null ? null : $payloads->minor((float) $major, $currency),
