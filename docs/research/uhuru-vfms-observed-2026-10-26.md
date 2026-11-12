@@ -198,3 +198,42 @@ Ran the integration branch locally against a disposable SQLite database, fake gu
 - All institution/guest names in screenshots are demo labels, not proof that the named institution owns the test ZRB number. `WITHHOLD` acceptance on Live remains unproven.
 
 This was an interactive browser run, not the full repeatable #246 opt-in driver. That driver and the final release checks remain outstanding; keep the PR draft.
+
+## Services receipt types `CS` and `WS` on ZRA's test server, 12 November 2026
+
+Question: can the hotel API issue a receipt like the hotel's portal-issued government receipt `OGK283` (customer "OR-TAWALA ZA MIKOA", TZS, meals and conference items, 15% VAT, no levy, one receipt)? Probed `service/` (`ACCOMMODATION_ADD_SERVICE`) with `scripts/vfms-probe.sh`, using the two test logins printed in the test guide (Note brief, p.33): accommodation unit `5940` and restaurant/other-services unit `5941`. No checked-in guest was used.
+
+| Body                                                                                | Unit | ZRA answer                                                                 |
+| ----------------------------------------------------------------------------------- | ---- | -------------------------------------------------------------------------- |
+| `WS`, `documentNumber` empty or null                                                | both | HTTP 400, `documentNo Field is Missing or Null` / `Can't be blank`         |
+| `WS`, any text as `documentNumber` (no such guest)                                  | 5940 | accepted; receipts `XHE2104619`, `XHE2104620`                              |
+| `WS`, same                                                                          | 5941 | accepted; receipts `US024729`, `US024730`                                  |
+| `WS`, `documentNumber` `OR-TAWALA ZA MIKOA`, the two `OGK283` items and prices, TZS | 5940 | accepted; `XHE2104621`, TZS 11,109,000.25, tax 1,449,000.03                |
+| `CS`, a document with no checked-in guest                                           | 5940 | HTTP 200, `5000` `This Business Unit do not have parent Accomodation unit` |
+| `CS`, same                                                                          | 5941 | HTTP 200, `5000` `Guest Document … Not Found`                              |
+| `WS`, a reference already used                                                      | 5940 | HTTP 200, `5000` `Reference number … already exists`                       |
+
+- **`WS` is a stand-alone sale; it needs no guest or stay.** Whatever is sent as `documentNumber` becomes the receipt's customer: ZRA's viewer data (`sales-service/api/v2/sales_detail/receipt/<n>`) for `XHE2104621` shows `customer` "OR-TAWALA ZA MIKOA", both items, receipt amount 11,109,000.25 and tax 1,449,000.03. These are the same figures as `OGK283`, so the receipt matches the portal one apart from its number.
+- Extra fields (`customerName`, `zrbNumber`) are accepted but ignored; the customer comes only from `documentNumber`.
+- Price is tax-inclusive, VAT 15%, no infrastructure levy, as on `OGK283`. The response returns `type` `WS`; the guide's example returns `CR` for `CS`.
+- **`WS` is an ordinary receipt, not a withholding one.** ZRA's viewer has a separate withholding layout (`withhold-form/<n>`, read from `sales-service/api/v2/withold/receipt/<n>`); for `XHE2104621` that call answers `Receipt Number XHE2104621 is not withhold`. `OGK283` also uses the ordinary layout, so it is a plain sale in the institution's name; any withholding is recorded on ZRA's side separately.
+- Not yet shown: whether Live accepts `WS` under the hotel's production accommodation unit. Karafuu sends only `CS` today.
+
+### `WS` beside an open stay, 12 November 2026 (run `WSG122943`)
+
+A two-guest `DIRECT` stay was checked in (reference `WSG122943-IN`, room 2811, USD 100 BB). While it was open:
+
+- `WS` in a made-up institution's name with two items (4 × 20 + 1 × 150, USD) was accepted as receipt `XHE2104623`: sales 230, tax 30.00. It is not attached to any guest.
+- `CS` for guest A was accepted as `XHE2104624`, as today.
+- **`WS` with guest A's document number was accepted (`XHE2104625`) but ZRA attached it to guest A's stay**: `accommodationReport` lists it under guest A's `service` with `type` `WS` beside the `CS` item. So the `documentNumber` of a `WS` must be the payer's name, never a checked-in guest's document, or the sale is counted in that guest's check-out.
+- Check-out of both guests was accepted; the stay is closed (`isClosed` true, both guests `isChackedOut`). Nothing is left open on unit `5940`.
+
+### Guest-type scenarios, 12 November 2026 (runs `SCN130316`, `SCN130340`)
+
+Each stay was one guest, USD 100, checked in and checked out on unit `5940`; nothing is left open.
+
+- **Normal guest with extras (`SCN130316`).** Check-in accepted. Three `CS` extras were accepted, each with its own receipt: laundry `XHE2104640` (hotel unit 5940), dinner `US024735` (**restaurant unit 5941**, same guest document), spa TZS 50,000 `XHE2104641`. The check-out report `XHE2104642` listed the room (100, tax 13.04) and **all three extras, including the restaurant unit's**, with the TZS spa converted to USD 19.23. Total 159.23, tax 20.76, levy 5.00. So a stay produces one receipt per extra plus one check-out report that summarises them.
+- **`WS` with a checked-in guest's document (`SCN130340`).** Conference hall USD 40 was accepted as `XHE2104645` and then **appeared in that guest's check-out report** `XHE2104646` (total 140). So `WS` with a guest's document behaves like `CS`.
+- **After check-out.** `CS` with the departed guest's document was refused (`This Business Unit do not have parent Accomodation unit`). `WS` with the same document was accepted as a stand-alone receipt (`XHE2104648`).
+- **Day use (no room).** `WS` in the name "CASH CUSTOMER" with pool day pass 2 × 15 and lunch 2 × 12 was accepted as `XHE2104649`: sales 54.00, tax 7.04, no levy.
+- **Discount.** `WS` spa 100 with `discount` 10 was accepted as `XHE2104650`: sales 90.00, tax 11.74. The discount is an amount per line, taken off before tax is extracted.
