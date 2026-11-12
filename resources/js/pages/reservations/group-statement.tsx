@@ -1,6 +1,20 @@
 import { Head, Link } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Identifier } from '@/components/ui/identifier';
+import { StatusChip } from '@/components/ui/status-chip';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import {
+    ZraDocumentsSummary,
+    type ZraDocumentsOverview,
+} from '@/features/fiscal-receipting/zra-documents';
+import { formatMoney } from '@/lib/utils';
 import {
     FolioSummaryList,
     type FolioSummary,
@@ -30,6 +44,7 @@ type GroupStatementProps = {
         estimate: FolioTotal['estimate'];
     })[];
     generalReceipt: GeneralReceiptPreview | null;
+    zraDocuments: ZraDocumentsOverview | null;
 };
 
 export default function GroupStatement({
@@ -39,6 +54,7 @@ export default function GroupStatement({
     rooms,
     totals,
     generalReceipt,
+    zraDocuments,
 }: GroupStatementProps) {
     return (
         <>
@@ -152,26 +168,77 @@ export default function GroupStatement({
                         </div>
                     ))}
                 </section>
-                <section className="space-y-3">
-                    <h2 className="text-lg font-semibold">
-                        ZRA fiscal reports
-                    </h2>
-                    {rooms.map((room) => (
-                        <div key={room.reservation.reservation_number}>
-                            <Identifier
-                                value={room.reservation.reservation_number}
-                            />
-                            :{' '}
-                            {room.reports.length === 0
-                                ? 'Not yet filed'
-                                : room.reports.map((number) => (
-                                      <span key={number} className="mr-3">
-                                          <Identifier value={number} />
-                                      </span>
-                                  ))}
-                        </div>
-                    ))}
-                </section>
+                {zraDocuments && (
+                    <section className="space-y-3">
+                        <ZraDocumentsSummary documents={zraDocuments} />
+                        {zraDocuments.generalReceipts.length > 0 && (
+                            <Table aria-label="General receipts">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>General receipt</TableHead>
+                                        <TableHead>Customer</TableHead>
+                                        <TableHead numeric>Amount</TableHead>
+                                        <TableHead>Status</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {zraDocuments.generalReceipts.map(
+                                        (receipt) => (
+                                            <TableRow key={receipt.number}>
+                                                <TableCell>
+                                                    <Identifier
+                                                        value={receipt.number}
+                                                    />
+                                                </TableCell>
+                                                <TableCell>
+                                                    {receipt.customer}
+                                                </TableCell>
+                                                <TableCell numeric>
+                                                    {receipt.amount === null ||
+                                                    receipt.currency === null
+                                                        ? 'Issue amount unavailable'
+                                                        : formatMoney(
+                                                              receipt.amount,
+                                                              receipt.currency,
+                                                          )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <StatusChip tone="success">
+                                                        Issued
+                                                    </StatusChip>
+                                                </TableCell>
+                                            </TableRow>
+                                        ),
+                                    )}
+                                </TableBody>
+                            </Table>
+                        )}
+                        {zraDocuments.guestReports.length > 0 && (
+                            <Table aria-label="Check-out reports per room">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Room</TableHead>
+                                        <TableHead>Check-out report</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {zraDocuments.guestReports.map((report) => (
+                                        <TableRow key={report.number}>
+                                            <TableCell>
+                                                {report.room ?? 'Not assigned'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Identifier
+                                                    value={report.number}
+                                                />
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        )}
+                    </section>
+                )}
                 <div className="flex flex-wrap gap-3 print:hidden">
                     <Button variant="outline" onClick={() => window.print()}>
                         Print group statement

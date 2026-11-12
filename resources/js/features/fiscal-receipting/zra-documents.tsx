@@ -89,6 +89,59 @@ const states = {
     attention: ['error', 'Needs attention'],
 } as const;
 
+export type ZraDocumentsOverview = {
+    counts: {
+        generalReceipts: number;
+        serviceReceipts: number;
+        guestReports: number;
+        held: number;
+    };
+    held: { currency: string; amount: number }[];
+    needsAttention: boolean;
+    url: string;
+    statementUrl: string;
+    generalReceipts: Pick<
+        GeneralReceipt,
+        'number' | 'customer' | 'amount' | 'currency' | 'status'
+    >[];
+    guestReports: Pick<GuestReport, 'number' | 'room'>[];
+};
+
+export function ZraDocumentsSummary({
+    documents,
+}: {
+    documents: ZraDocumentsOverview;
+}) {
+    return (
+        <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-lg font-semibold">ZRA documents</h2>
+                {documents.needsAttention && (
+                    <StatusChip tone="error">Needs attention</StatusChip>
+                )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+                Check-out reports ({documents.counts.guestReports}) · Guest
+                receipts ({documents.counts.serviceReceipts}) · General receipts
+                ({documents.counts.generalReceipts}) · Not yet receipted (
+                {documents.counts.held})
+            </p>
+            {documents.held.map((total) => (
+                <p key={total.currency}>
+                    Not yet receipted:{' '}
+                    {formatMoney(total.amount, total.currency)}
+                </p>
+            ))}
+            <Link
+                href={documents.url}
+                className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+            >
+                Open ZRA documents
+            </Link>
+        </div>
+    );
+}
+
 function Chip({ row }: { row: RowState }) {
     const [tone, label] = states[row.status];
 

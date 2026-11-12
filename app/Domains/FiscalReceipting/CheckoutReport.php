@@ -14,6 +14,7 @@ use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Outbox\OutboxMessage;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
@@ -30,6 +31,30 @@ use Illuminate\Support\Facades\Gate;
  */
 final class CheckoutReport
 {
+    /** @return array<string, mixed>|null */
+    public static function overview(Reservation $reservation): ?array
+    {
+        $property = Property::query()->findOrFail($reservation->property_id);
+        if ($property->demo || ! JurisdictionRules::usesVfms($property)) {
+            return null;
+        }
+        $documents = self::of($reservation);
+
+        return [
+            'counts' => collect(['generalReceipts', 'serviceReceipts', 'guestReports', 'held'])
+                ->mapWithKeys(fn (string $section) => [$section => count($documents[$section])])->all(),
+            'held' => collect($documents['summary'])->where('held', '>', 0)
+                ->map(fn (array $total) => ['currency' => $total['currency'], 'amount' => $total['held']])->values()->all(),
+            'needsAttention' => $documents['needsAttention'],
+            'url' => route('reservations.fiscal-report', $reservation),
+            'statementUrl' => route('reservations.group-statement', $reservation),
+            'generalReceipts' => collect($documents['generalReceipts'])->where('status', 'issued')
+                ->map(fn (array $row) => array_intersect_key($row, array_flip(['number', 'customer', 'amount', 'currency', 'status'])))->values()->all(),
+            'guestReports' => collect($documents['guestReports'])->where('status', 'issued')
+                ->map(fn (array $row) => array_intersect_key($row, array_flip(['number', 'room'])))->values()->all(),
+        ];
+    }
+
     /** @return list<string> */
     public static function numbers(Reservation $reservation): array
     {
@@ -168,6 +193,7 @@ final class CheckoutReport
             ];
         })->values()->all();
         $group = [
+            'needsAttention' => $messages->contains(fn (OutboxMessage $message) => self::state($message)['status'] === 'attention'),
             'rooms' => $members->count(),
             'payingInstitution' => $reservation->paying_institution_type === null ? null : [
                 'name' => $reservation->paying_institution_name, 'zrbNumber' => $reservation->paying_institution_zrb_number,

@@ -203,6 +203,31 @@ const groupStatement = renderToStaticMarkup(
                     zrbNumber: 'ZRB-245',
                 }}
                 generalReceipt={null}
+                zraDocuments={{
+                    counts: {
+                        generalReceipts: 1,
+                        serviceReceipts: 0,
+                        guestReports: 2,
+                        held: 1,
+                    },
+                    held: [{ currency: 'TZS', amount: 180000 }],
+                    needsAttention: false,
+                    url: '/reservations/R-245/fiscal-report',
+                    statementUrl: '/reservations/R-245/group-statement',
+                    generalReceipts: [
+                        {
+                            number: 'WS-245',
+                            customer: 'Island Research',
+                            amount: 5400,
+                            currency: 'USD',
+                            status: 'issued',
+                        },
+                    ],
+                    guestReports: [
+                        { number: 'ZRA-245', room: '101' },
+                        { number: 'ZRA-246', room: '101' },
+                    ],
+                }}
                 group={{
                     arrival: '2026-12-10',
                     departure: '2026-12-12',
@@ -243,10 +268,13 @@ assert.match(groupStatement, /R-245/);
 assert.match(groupStatement, /R-246/);
 assert.match(groupStatement, /Bank transfer/);
 assert.match(groupStatement, /VAT, of which/);
-assert.match(groupStatement, /ZRA fiscal reports/);
+assert.match(groupStatement, /ZRA documents/);
+assert.match(groupStatement, /WS-245/);
+assert.match(groupStatement, /Issued/);
+assert.match(groupStatement, /TZS 180,000/);
+assert.match(groupStatement, /href="\/reservations\/R-245\/fiscal-report"/);
 assert.match(groupStatement, /ZRA-245/);
 assert.match(groupStatement, /ZRA-246/);
-assert.match(groupStatement, /Not yet filed/);
 assert.match(groupStatement, /USD 5\.00/);
 assert.match(groupStatement, /TZS 500/);
 assert.match(groupStatement, /Print group statement/);
