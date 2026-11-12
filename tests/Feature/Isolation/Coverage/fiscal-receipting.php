@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Models\Folio;
 use App\Domains\FiscalReceipting\Actions\SaveVfmsCredentials;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\DocumentCorrection;
@@ -122,6 +124,34 @@ return [
             ])->assertNotFound();
         }
         expect(inTenant($t->b->property, fn () => $reservation->fresh()->getAttribute('fiscal_exception_reason')))->toBeNull();
+
+        return $responses;
+    }),
+    'reservations.general-receipt.store' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $institution = ['paying_institution_type' => 'government', 'paying_institution_name' => 'Bravo Ministry', 'paying_institution_zrb_number' => 'WA2400117'];
+        // A foreign organization's stay, and a sibling property's stay in Alpha's own organization.
+        [$foreign, $foreignExtra] = inTenant($t->b->property, function () use ($t, $institution) {
+            $stay = app(CreateReservation::class)->handle($t->b->owner, [...BookingForm::details($t->b->owner), ...$institution]);
+            $stay->update(['status' => 'checked_in']);
+
+            return [$stay, app(PostExtraCharge::class)->handle($t->b->owner, Folio::query()->sole(), ['category' => 'bar', 'description' => 'BRAVO BAR', 'quantity' => 1, 'unit_price' => 500])];
+        });
+        [$sibling, $siblingExtra] = inTenant($t->a->otherProperty, function () use ($t, $institution) {
+            $stay = app(CreateReservation::class)->handle($t->a->owner, [...BookingForm::details($t->a->owner), ...$institution]);
+            $stay->update(['status' => 'checked_in']);
+
+            return [$stay, app(PostExtraCharge::class)->handle($t->a->owner, Folio::query()->sole(), ['category' => 'bar', 'description' => 'SIBLING BAR', 'quantity' => 1, 'unit_price' => 500])];
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('reservations.general-receipt.store', $foreign), ['_property' => $t->a->property->id])->assertNotFound();
+        }
+        // Stale intent: a form opened at Alpha's main property runs there, so the sibling's stay is not found.
+        $responses[] = $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->otherProperty->id])
+            ->post(route('reservations.general-receipt.store', $sibling), ['_property' => $t->a->property->id])->assertNotFound();
+        expect(inTenant($t->b->property, fn () => $foreignExtra->fresh()->general_receipt_id))->toBeNull()
+            ->and(inTenant($t->a->otherProperty, fn () => $siblingExtra->fresh()->general_receipt_id))->toBeNull()
+            ->and(inTenant($t->b->property, fn () => OutboxMessage::query()->where('event', 'generalReceipt')->count()))->toBe(0);
 
         return $responses;
     }),

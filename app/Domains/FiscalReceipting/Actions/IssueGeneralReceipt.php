@@ -118,6 +118,34 @@ class IssueGeneralReceipt
             ->orderBy('posted_at')->orderBy('id');
     }
 
+    /**
+     * What the Issue ZRA receipt dialog shows before sending: the customer, the held items and a total per currency.
+     * Null when this stay has nothing to send.
+     *
+     * @return array{customer: string, items: list<array<string, mixed>>, totals: list<array{currency: string, amount: int}>, url: string}|null
+     */
+    public static function preview(Reservation $reservation): ?array
+    {
+        $property = Property::query()->real()->find($reservation->property_id);
+        if ($property === null || ! $property->isLive() || ! JurisdictionRules::usesVfms($property) || $reservation->getAttribute('paying_institution_type') === null) {
+            return null;
+        }
+        $held = self::held(app(BookingGroupMembers::class)->reservations($reservation))->get();
+        if ($held->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'customer' => (string) $reservation->getAttribute('paying_institution_name'),
+            'items' => $held->map(fn (Posting $posting) => [
+                ...$posting->only(['id', 'description', 'category', 'quantity', 'unit_price', 'discount', 'amount']), 'currency' => $posting->currency->value,
+            ])->all(),
+            'totals' => $held->groupBy(fn (Posting $posting) => $posting->currency->value)
+                ->map(fn ($postings, string $currency) => ['currency' => $currency, 'amount' => (int) $postings->sum('amount')])->values()->all(),
+            'url' => route('reservations.general-receipt.store', $reservation),
+        ];
+    }
+
     /** Issues anything still held once no room of the institution group is left to arrive or depart. */
     public function afterCheckOut(?User $actor, Reservation $reservation): void
     {

@@ -3,6 +3,7 @@
 namespace App\Domains\FrontDesk\Actions;
 
 use App\Domains\Billing\Models\Folio;
+use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Housekeeping\Actions\ClearRoomOccupied;
 use App\Domains\Inventory\Models\Room;
@@ -61,6 +62,7 @@ class CheckOut
                 app(ClearRoomOccupied::class)->handle($actor, Room::query()->findOrFail($locked->room_id), 'Check-out '.$locked->reservation_number);
             }
             app(RecordLifecycleEvent::class)->handle($locked, 'checked_out', $actor, $details);
+            app(IssueGeneralReceipt::class)->afterCheckOut($actor, $locked);
             Audit::record($actor, 'checked_out', $locked, $open === [] ? 'Reservation checked out' : 'Reservation checked out with an open balance', $details);
 
             return $locked;

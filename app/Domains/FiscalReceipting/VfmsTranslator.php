@@ -89,7 +89,9 @@ final class VfmsTranslator implements LifecycleTranslator
             $reservation = Reservation::query()->findOrFail($event->getAttribute('reservation_id'));
             if ($event->type === 'extra_posted' && $departed) {
                 $posting = Posting::query()->where('property_id', $property->id)->whereKey($event->snapshot['posting_id']);
-                app(IssueGeneralReceipt::class)->issue($event->actor, $reservation, $this->payloads->guests($reservation)[0]['fullName'] ?? '', $posting);
+                // The lead guest's ZRA name, else the booker; ZRA refuses an empty customer.
+                $customer = $this->payloads->guests($reservation)[0]['fullName'] ?? Reservation::guestNames(collect([$reservation]))->get($reservation->id) ?? 'Cash customer';
+                app(IssueGeneralReceipt::class)->issue($event->actor, $reservation, $customer, $posting);
 
                 return;
             }

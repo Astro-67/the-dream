@@ -25,11 +25,11 @@ use stdClass;
  */
 final class IssuedDocuments
 {
-    public const TYPES = ['non_fiscal', 'services_receipt', 'checkout_report'];
+    public const TYPES = ['non_fiscal', 'services_receipt', 'general_receipt', 'checkout_report'];
 
     public const ZRA_STATUSES = ['live', 'sandbox', 'not_applicable'];
 
-    private const EVENTS = ['services' => 'services_receipt', 'checkout' => 'checkout_report', 'guestDeparture' => 'checkout_report'];
+    private const EVENTS = ['services' => 'services_receipt', 'generalReceipt' => 'general_receipt', 'checkout' => 'checkout_report', 'guestDeparture' => 'checkout_report'];
 
     /** Idempotent: an existing document (same property, mode, type and number) is left as first projected. */
     public function project(OutboxMessage $message): void
@@ -45,7 +45,7 @@ final class IssuedDocuments
             'outbox_message_id' => $message->id, 'outbox_attempt_id' => $attempt?->id, 'reservation_id' => $message->subject_id,
             'type' => $type, 'mode' => $mode, 'issued_at' => $message->delivered_at,
         ];
-        $documents = $type === 'services_receipt' ? $this->receipt($message, $references) : $this->reports($message, $references, $attempt?->response_body);
+        $documents = $type === 'checkout_report' ? $this->reports($message, $references, $attempt?->response_body) : $this->receipt($message, $references);
         // All of a message's documents or none, so the catch-up can skip any message with a row.
         DB::transaction(function () use ($documents, $message, $mode, $type, $common): void {
             foreach ($documents as $document) {
@@ -158,8 +158,8 @@ final class IssuedDocuments
             // The amount filed, as the ZRA filings report shows it.
             'amount' => $payloads->minor(array_sum(array_map(fn (array $item) => $item['price'] * $item['quantity'] - $item['discount'], $body['service'])), $currency),
             'currency' => $currency->value,
-            // The services filing and its answer name no guest (only a document number); today's guest links are not evidence.
-            'guest_name' => null,
+            // A guest receipt names only a document number; a general receipt's documentNumber is its customer's name.
+            'guest_name' => $message->event === 'generalReceipt' ? $body['documentNumber'] : null,
             'viewer_url' => is_string($references['receiptUrl'] ?? null) ? $references['receiptUrl'] : null,
         ]];
     }
