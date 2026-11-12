@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Pagination } from '@/components/ui/pagination';
+import { Spinner } from '@/components/ui/spinner';
 import { NativeSelect } from '@/components/ui/select';
 import { StatusChip, Tag } from '@/components/ui/status-chip';
 import {
@@ -52,11 +53,13 @@ export default function Index({
     filters,
     canCreate,
     currencies,
+    extraCategories,
 }: {
     accounts: Paginated<Account>;
     filters: { kind?: string; status?: string };
     canCreate: boolean;
     currencies: string[];
+    extraCategories: string[];
 }) {
     return (
         <>
@@ -72,8 +75,13 @@ export default function Index({
                             <NewAccount
                                 kind="day_use"
                                 currencies={currencies}
+                                extraCategories={extraCategories}
                             />
-                            <NewAccount kind="event" currencies={currencies} />
+                            <NewAccount
+                                kind="event"
+                                currencies={currencies}
+                                extraCategories={extraCategories}
+                            />
                         </div>
                     )}
                 </div>
@@ -199,9 +207,11 @@ export default function Index({
 function NewAccount({
     kind,
     currencies,
+    extraCategories,
 }: {
     kind: keyof typeof accountKinds;
     currencies: string[];
+    extraCategories: string[];
 }) {
     const [open, setOpen] = useState(false);
     const [currency, setCurrency] = useState(currencies[0] ?? 'USD');
@@ -384,14 +394,13 @@ function NewAccount({
                                             name="items[0][category]"
                                             defaultValue="other"
                                         >
-                                            {Object.entries(
-                                                postingCategories,
-                                            ).map(([value, label]) => (
+                                            {extraCategories.map((value) => (
                                                 <option
                                                     key={value}
                                                     value={value}
                                                 >
-                                                    {label}
+                                                    {postingCategories[value] ??
+                                                        value}
                                                 </option>
                                             ))}
                                         </NativeSelect>
@@ -452,6 +461,9 @@ function NewAccount({
                             </div>
                             <div className="sm:col-span-2">
                                 <Button disabled={processing}>
+                                    <span className="size-4">
+                                        {processing && <Spinner />}
+                                    </span>
                                     Open account
                                 </Button>
                             </div>

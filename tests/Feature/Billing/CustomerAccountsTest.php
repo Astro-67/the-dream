@@ -12,6 +12,7 @@ use App\Domains\Billing\Models\Receipt;
 use App\Domains\Billing\PreventArchivingWithOpenBalances;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\Reservations\Actions\CreateReservation;
+use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Subscriptions\Models\Subscription;
 use App\Support\Outbox\OutboxMessage;
 use App\Support\Tenancy\PropertyPurge;
@@ -175,6 +176,8 @@ test('account payments appear in the receipt register and corrections never move
         ->where('documents.data.0.guest', 'Pool visitor'));
     $payment = inTenant($tenant->property, fn () => Posting::query()->where('type', 'payment')->sole());
     $this->post(route('postings.reverse', $payment), [...$intent, 'reason' => 'Wrong payment'])->assertRedirect(route('customer-accounts.show', $first))->assertSessionHasNoErrors();
+    $this->get(route('customer-accounts.show', $first))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('folios.0.items.data', 1)->has('folios.0.payments.data', 2));
 });
 
 test('a refused account receipt can be refiled without issuing a second sale', function () {
@@ -221,6 +224,7 @@ test('demo and Mainland customer accounts close without contacting ZRA', functio
     $property = $mode === 'mainland' ? $tenant->otherProperty : $tenant->property;
     if ($mode === 'demo') {
         DB::table('properties')->where('id', $property->id)->update(['demo' => true]);
+        inTenant($property, fn () => $property->refresh());
     }
     $currency = $mode === 'mainland' ? 'TZS' : 'USD';
     $intent = ['_property' => $property->id];
@@ -231,6 +235,9 @@ test('demo and Mainland customer accounts close without contacting ZRA', functio
     $this->post(route('folios.payments.store', $folio), [...$intent, 'method' => 'bank_transfer', 'amount' => 1000, 'idempotency_key' => 'paid'])->assertSessionHasNoErrors();
     $this->post(route('customer-accounts.close', $account), $intent)->assertSessionHasNoErrors();
     expect(inTenant($property, fn () => $account->fresh()->status))->toBe('closed');
+    expect((new PreventArchivingWithOpenBalances)->blockingReason($property))->toBeNull();
+    $this->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $property->id])
+        ->get(route('customer-accounts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('accounts.data.0.receiptStatus', 'Not applicable'));
     Http::assertNothingSent();
 })->with(['demo', 'mainland']);
 
@@ -247,4 +254,39 @@ test('demo purge covers customer accounts and their sequences folios and payment
         expect(CustomerAccount::query()->count())->toBe(0)->and(Folio::query()->count())->toBe(0)->and(Receipt::query()->count())->toBe(0)
             ->and(CustomerAccountSequence::query()->count())->toBe(0);
     });
+});
+
+test('rolling back account ownership refuses to destroy existing account folios', function () {
+    $tenant = twoTenants()->a;
+    inTenant($tenant->property, fn () => app(OpenCustomerAccount::class)->handle($tenant->owner, ['kind' => 'day_use', 'customer_name' => 'Visitor', 'currency' => 'USD']));
+    $migration = require database_path('migrations/2026_11_12_000237_billing_create_customer_accounts.php');
+    expect(fn () => $migration->down())->toThrow(RuntimeException::class);
+    expect(inTenant($tenant->property, fn () => CustomerAccount::query()->count()))->toBe(1);
+});
+
+test('an event receipts the paying institution rather than a guest document', function (string $type) {
+    $tenant = twoTenants()->a;
+    $intent = ['_property' => $tenant->property->id];
+    $this->actingAs($tenant->owner)->post(route('customer-accounts.store'), [
+        ...$intent, 'kind' => 'event', 'customer_name' => 'Conference organiser', 'currency' => 'USD',
+        'paying_institution_type' => $type, 'paying_institution_name' => 'Conference payer', 'paying_institution_zrb_number' => 'TEST-ZRB',
+        'starts_on' => '2026-12-10', 'ends_on' => '2026-12-11', 'note' => 'Two-day conference without rooms',
+        'items' => [['category' => 'other', 'description' => 'HALL', 'quantity' => 2, 'unit_price' => 5000, 'idempotency_key' => 'hall']],
+    ])->assertSessionHasNoErrors();
+    [$account, $folio] = inTenant($tenant->property, fn () => [CustomerAccount::query()->sole(), Folio::query()->sole()]);
+    $this->post(route('folios.payments.store', $folio), [...$intent, 'method' => 'bank_transfer', 'amount' => 10000, 'idempotency_key' => 'paid'])->assertSessionHasNoErrors();
+    $this->post(route('customer-accounts.close', $account), $intent)->assertSessionHasNoErrors();
+    expect(inTenant($tenant->property, fn () => OutboxMessage::query()->sole()->payload['body']['documentNumber']))->toBe('Conference payer')
+        ->and(inTenant($tenant->property, fn () => Reservation::query()->count()))->toBe(0);
+})->with(['government', 'business']);
+
+test('an invalid first item rolls back the account folio and number together', function () {
+    $tenant = twoTenants()->a;
+    $form = ['_property' => $tenant->property->id, 'kind' => 'day_use', 'customer_name' => 'Visitor', 'currency' => 'USD'];
+    $this->actingAs($tenant->owner)->postJson(route('customer-accounts.store'), [
+        ...$form, 'items' => [['category' => 'spa', 'description' => 'SPA', 'quantity' => 1, 'unit_price' => 1000, 'discount' => 2000, 'idempotency_key' => 'spa']],
+    ])->assertUnprocessable()->assertJsonValidationErrors('discount');
+    expect(inTenant($tenant->property, fn () => [CustomerAccount::query()->count(), Folio::query()->count(), CustomerAccountSequence::query()->count()]))->toBe([0, 0, 0]);
+    $this->post(route('customer-accounts.store'), $form)->assertSessionHasNoErrors();
+    expect(inTenant($tenant->property, fn () => CustomerAccount::query()->sole()->number))->toBe('ACC-000001');
 });

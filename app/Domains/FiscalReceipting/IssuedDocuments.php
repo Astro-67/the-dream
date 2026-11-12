@@ -128,7 +128,7 @@ final class IssuedDocuments
         return $page->through(fn (stdClass $row): array => [
             'id' => (string) $row->id, 'type' => (string) $row->type, 'number' => (string) $row->number,
             'issuedAt' => $row->issued_at === null ? null : CarbonImmutable::parse((string) $row->issued_at, 'UTC')->toIso8601String(),
-            'guest' => $row->type === 'non_fiscal' ? ($accounts->get($row->customer_account_id)?->customer_name ?? $names->get((string) $row->reservation_id)) : $row->guest_name,
+            'guest' => $row->type === 'non_fiscal' ? ($accounts->get($row->customer_account_id)->customer_name ?? $names->get((string) $row->reservation_id)) : $row->guest_name,
             'amount' => $row->amount === null ? null : (int) $row->amount, 'currency' => $row->currency,
             'zraStatus' => (string) $row->zra_status, 'mode' => $row->type === 'non_fiscal' ? null : (string) $row->zra_status,
             'viewerUrl' => $row->viewer_url, 'reservationId' => (string) $row->reservation_id,

@@ -40,7 +40,7 @@ final class ReceiptView
                 ->map(fn (Posting $posting) => ['id' => $posting->id, 'type' => $posting->type, 'amount' => $posting->amount, 'business_date' => $posting->business_date->toDateString()])->all(),
             'reservation' => $reservation === null ? null : ['reservation_number' => $reservation->reservation_number, 'payment_collector' => $reservation->payment_collector],
             // Who paid: the booker when there is one, otherwise the guest.
-            'booker' => ['name' => $summary['customer_account']['customer_name'] ?? $account?->customer_name ?? Booker::query()->find($reservation?->getAttribute('booker_id'))?->getAttribute('name') ?? $reservation?->leadGuest()?->name ?? __('Guest')],
+            'booker' => ['name' => $summary['customer_account']['customer_name'] ?? $account->customer_name ?? Booker::query()->find($reservation?->getAttribute('booker_id'))?->getAttribute('name') ?? $reservation?->leadGuest()->name ?? __('Guest')],
             'property' => Property::query()->findOrFail($receipt->getAttribute('property_id'))->only(['name', 'address_line', 'city', 'phone', 'email']),
         ];
     }

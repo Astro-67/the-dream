@@ -28,7 +28,7 @@ class ApprovalController extends Controller
                     'id' => $approval->id, 'status' => $approval->status, 'folio_id' => $approval->folio_id,
                     'type' => $approval->posting['type'], 'amount' => $approval->posting['amount'], 'currency' => $approval->posting['currency'],
                     'reason' => $approval->posting['reason'], 'requested_by' => $approval->requested_by,
-                    'requester' => $approval->requester?->name, 'reservation_number' => $approval->folio->reservation?->reservation_number ?? $approval->folio->customerAccount?->number,
+                    'requester' => $approval->requester?->name, 'reservation_number' => $approval->folio->reservation->reservation_number ?? $approval->folio->customerAccount?->number,
                     'sourceUrl' => $approval->folio->url(),
                     'canResolve' => $approval->requested_by !== $request->user()?->id,
                 ]),

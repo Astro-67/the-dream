@@ -11,16 +11,21 @@ use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\VfmsFilings;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
+use App\Support\Tenancy\Tenancy;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 
 final class CustomerAccounts
 {
     /** @param array<string, mixed> $filters
-     * @return LengthAwarePaginator<int, array<string, mixed>>
+     * @return LengthAwarePaginator<int, array{id: string, number: string, kind: string, customer_name: string, starts_on: string|null, ends_on: string|null, status: string, balances: Collection<int, array{currency: string, amount: int}>, receiptStatus: string}>
      */
     public static function listing(array $filters): LengthAwarePaginator
     {
+        $property = Tenancy::property();
+        $fiscal = ! $property->isDemo() && $property->isLive() && JurisdictionRules::usesVfms($property);
+
         return CustomerAccount::query()->with(['folios' => fn ($query) => $query->withSum('postings', 'amount')])
             ->when($filters['kind'] ?? null, fn ($query, $kind) => $query->where('kind', $kind))
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
@@ -28,13 +33,16 @@ final class CustomerAccounts
             ->through(fn (CustomerAccount $account) => [
                 ...$account->only(['id', 'number', 'kind', 'customer_name', 'starts_on', 'ends_on', 'status']),
                 'balances' => $account->folios->map(fn (Folio $folio) => ['currency' => $folio->currency->value, 'amount' => (int) $folio->getAttribute('postings_sum_amount')]),
-                'receiptStatus' => self::receiptStatus(VfmsFilings::of($account, false)),
+                'receiptStatus' => self::receiptStatus($account, $fiscal),
             ]);
     }
 
-    /** @param list<array<string, mixed>> $filings */
-    private static function receiptStatus(array $filings): string
+    private static function receiptStatus(CustomerAccount $account, bool $fiscal): string
     {
+        if (! $fiscal) {
+            return __('Not applicable');
+        }
+        $filings = VfmsFilings::of($account, false);
         $statuses = array_column($filings, 'status');
         if (array_intersect($statuses, ['refused', 'unknown']) !== []) {
             return __('Needs attention');
@@ -64,8 +72,8 @@ final class CustomerAccounts
                     'summary' => $summary,
                     'total' => [...$summary, 'currency' => $folio->currency->value, 'due' => $summary['balance'], 'estimate' => null,
                         'status' => $summary['balance'] <= 0 ? 'paid' : ($summary['net_payments'] > 0 ? 'partially_paid' : 'unpaid')],
-                    'items' => $folio->postings()->whereNotIn('type', ['payment', 'refund'])->paginate(50, ['*'], 'items_'.$folio->id)->withQueryString(),
-                    'payments' => $folio->postings()->whereIn('type', ['payment', 'refund'])->with('receipt')->paginate(50, ['*'], 'payments_'.$folio->id)->withQueryString(),
+                    'items' => $folio->postings()->whereNot(fn ($query) => $query->moneyMovements())->paginate(50, ['*'], 'items_'.$folio->id)->withQueryString(),
+                    'payments' => $folio->postings()->moneyMovements()->with('receipt')->paginate(50, ['*'], 'payments_'.$folio->id)->withQueryString(),
                 ];
             }),
             'canPost' => $account->status === 'open' && Gate::allows('close', $account),

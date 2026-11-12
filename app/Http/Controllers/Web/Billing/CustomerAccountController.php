@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web\Billing;
 
 use App\Domains\Billing\Actions\CloseCustomerAccount;
 use App\Domains\Billing\Actions\OpenCustomerAccount;
+use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\CustomerAccounts;
 use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\FiscalReceipting\Actions\RecoverVfmsFiling;
@@ -36,6 +37,7 @@ class CustomerAccountController extends Controller
             'accounts' => CustomerAccounts::listing($request->validated()),
             'filters' => $request->validated(),
             'canCreate' => Gate::allows('create', CustomerAccount::class),
+            'extraCategories' => PostExtraCharge::CATEGORIES,
             'currencies' => array_map(fn (Currency $currency) => $currency->value, JurisdictionRules::allowedCurrencies(Tenancy::property())),
         ]);
     }

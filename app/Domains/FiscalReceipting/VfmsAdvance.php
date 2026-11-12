@@ -142,7 +142,7 @@ final class VfmsAdvance
         }
         $reservation = Reservation::query()->findOrFail(Folio::query()->findOrFail($payment->folio_id)->reservation_id);
         $property = Property::query()->findOrFail($reservation->property_id);
-        if (! JurisdictionRules::usesVfms($property) || $payment->category !== 'deposit') {
+        if (! JurisdictionRules::usesVfms($property)) {
             return null;
         }
         $message = self::latest($reservation);

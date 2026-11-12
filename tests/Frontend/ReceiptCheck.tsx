@@ -63,7 +63,10 @@ const base = {
     },
 };
 const render = (
-    props: Omit<typeof base, 'summary'> & {
+    props: Omit<typeof base, 'summary' | 'stay' | 'reservation'> & {
+        stay: typeof base.stay | null;
+        reservation: typeof base.reservation | null;
+        customerAccount?: ComponentProps<typeof Show>['customerAccount'];
         advancePayment?: AdvancePayment;
         summary:
             | (typeof base.summary & {
@@ -91,6 +94,23 @@ const render = (
     );
 
 const html = render(base);
+const accountReceipt = render({
+    ...base,
+    stay: null,
+    reservation: null,
+    customerAccount: {
+        id: 'account-1',
+        number: 'ACC-000001',
+        customer_name: 'Pool visitor',
+        kind: 'day_use',
+    },
+    booker: { name: 'Pool visitor' },
+});
+assert.match(accountReceipt, /Pool visitor/);
+assert.match(accountReceipt, /ACC-000001/);
+assert.match(accountReceipt, /customer-accounts\/account-1/);
+assert.doesNotMatch(accountReceipt, /reservations\/R-1042/);
+assert.doesNotMatch(accountReceipt, /Not assigned/);
 assert.match(html, /NON-FISCAL RECEIPT/);
 assert.match(html, /Folio summary at payment time/);
 assert.match(html, /USD 30\.00/);

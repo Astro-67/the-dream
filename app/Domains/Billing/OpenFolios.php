@@ -8,6 +8,7 @@ use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Tenancy\Tenancy;
 use App\Support\Tenancy\TenantContext;
@@ -50,6 +51,10 @@ final class OpenFolios
 
     public static function heldAccountExtrasExistFor(Property $property): bool
     {
+        if ($property->isDemo() || ! $property->isLive() || ! JurisdictionRules::usesVfms($property)) {
+            return false;
+        }
+
         return $property->exists && Tenancy::within(TenantContext::forOrganization($property->organization_id), function () use ($property) {
             foreach (CustomerAccount::query()->where('property_id', $property->id)->cursor() as $account) {
                 if (CloseCustomerAccount::held($account)->exists()) {

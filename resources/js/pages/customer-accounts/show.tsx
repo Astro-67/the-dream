@@ -286,7 +286,7 @@ function AccountFolio({
                         <DialogTrigger asChild>
                             <Button variant="outline">Add item</Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-h-[90dvh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle>Add item</DialogTitle>
                                 <DialogDescription>
@@ -374,7 +374,7 @@ function AccountFolio({
                         <DialogTrigger asChild>
                             <Button variant="outline">Take payment</Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="max-h-[90dvh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle>Take payment</DialogTitle>
                                 <DialogDescription>

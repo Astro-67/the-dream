@@ -74,3 +74,17 @@ test('identical customer names never mix account numbers postings or receipts be
     expect(array_map(fn (CustomerAccount $account) => $account->number, $accounts))->toBe(['ACC-000001', 'ACC-000001', 'ACC-000001']);
     $this->get(route('customer-accounts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->has('accounts.data', 1));
 });
+
+test('an authorized stale account form keeps its original property after the switcher changes', function () {
+    $tenant = twoTenants()->a;
+    $this->actingAs($tenant->owner)->withSession(['tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->otherProperty->id]);
+    $intent = ['_property' => $tenant->property->id];
+    $this->post(route('customer-accounts.store'), [
+        ...$intent, 'kind' => 'day_use', 'customer_name' => 'Original property customer', 'currency' => 'USD',
+    ])->assertSessionHasNoErrors();
+    $account = inTenant($tenant->property, fn () => CustomerAccount::query()->sole());
+    $this->get(route('customer-accounts.show', $account))->assertNotFound();
+    $this->post(route('customer-accounts.close', $account), $intent)->assertSessionHasNoErrors();
+    expect(inTenant($tenant->property, fn () => $account->fresh()->status))->toBe('closed')
+        ->and(inTenant($tenant->otherProperty, fn () => CustomerAccount::query()->count()))->toBe(0);
+});
