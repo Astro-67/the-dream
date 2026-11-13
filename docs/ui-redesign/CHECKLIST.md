@@ -195,7 +195,8 @@ Reference: [front desk light](approved/front-desk-light.html) /
 
 - Latest completed work: **Batch 1 - Public site and authentication**, implemented
   and validated on 13 November 2026 after integrating Batch 0's finished
-  `d9cf9ef9` foundation in `fc6a4fdd`. No merge or deployment is performed.
+  `d9cf9ef9` foundation in `fc6a4fdd`. Merge/deployment status is tracked in
+  [PR #257](https://github.com/Astro-67/the-dream/pull/257).
 - Page migration: **nine of the 81 pages are complete**, all in Batch 1. No other
   batch's page checkboxes change. Shared styling alone is not page migration.
 - Next bounded batch: **Batch 2 - Organization setup and onboarding**. The

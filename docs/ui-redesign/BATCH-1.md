@@ -11,8 +11,8 @@ implementation of the approved references, not another concept round.
 - Finished Batch 0 foundation: `d9cf9ef94408dbdf67e4f9953d8a0a6b711ce878`,
   integrated by merge commit `fc6a4fdd`. Both Batch 0's connection check and
   Batch 1's public/auth check are retained in `test:frontend`.
-- Batch 0 is PR #256. Batch 1 is stacked on `feat/ui-redesign-batch-0` while
-  that PR remains unmerged. Retarget to main after the foundation merges.
+- Batch 1 was initially stacked on Batch 0's PR #256. That dependency merged
+  into main as `39975870`; PR #257 now targets main.
 - No project-root edits, stash, staging, commits or thread interruption were
   used to acquire the foundation. Only its finished committed branch was merged.
 
@@ -27,6 +27,8 @@ All nine inventoried Batch 1 pages are implemented:
   hotel photograph, responsive single-column mobile form and existing theme
   control. The form family also covers confirmation, forgotten/reset passwords,
   invitations, account registration, email verification and two-factor challenges.
+- The mobile "Back to website" link is icon-only below 760px, retaining its
+  accessible name and a 44px tap target. Desktop keeps the text.
 - Registration and verification retain the account/email progress presentation.
   Business and Property are non-interactive future-step labels, not implemented
   setup screens or verification shortcuts.
@@ -137,11 +139,10 @@ Representative captures use disposable test data, not customer data:
 
 ## Remaining limits and next batch
 
-- No merge or production deployment is performed. Batch 0's PR must land before
-  this stacked PR can merge independently.
-- Batch 1 is [PR #257](https://github.com/Astro-67/the-dream/pull/257). Repository
-  CI only runs for PRs targeting main, so no remote checks run on this stacked
-  base. Retarget after #256 merges to obtain CI; local integrated checks pass.
+- Track merge and deployment status through
+  [PR #257](https://github.com/Astro-67/the-dream/pull/257) and its workflows.
+  It now targets main after #256 merged, enabling the repository CI that did not
+  run on the original stacked base. Local integrated checks pass.
 - Physical-device review, physical passkey success and native background-tab
   lifecycle review remain manual checks. No new MySQL run is needed for this
   presentation-only change; no schemas or queries change.
