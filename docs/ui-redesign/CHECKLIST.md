@@ -201,12 +201,19 @@ Reference: [front desk light](approved/front-desk-light.html) /
   batch's page checkboxes change. Shared styling alone is not page migration.
 - Next bounded batch: **Batch 2 - Organization setup and onboarding**. The
   operational guest-list cards and queue remain Batch 3.
-- Batch 1 checks: integrated `composer check:fast` passed (2,837 Pest tests passed,
-  26 skipped; 49,106 assertions), all frontend checks, affected build and
-  TypeScript. Nine pages passed desktop/mobile and Light/Dark/System browser
-  review, including validation, loading, keyboard, unsupported passkeys, offline
-  retention and reduced motion. Physical passkey success and native background-tab
-  lifecycle remain unverified; page-visibility events were simulated.
+- Batch 1 checks: final serialized `composer check:fast` exits zero (2,843 Pest
+  tests passed, 26 skipped; 49,165 assertions), with build, Pint, PHPStan,
+  TypeScript and formatting/lint passing. All frontend checks pass. Only actual
+  admin-configured plans are advertised; the admin-update/fresh-guest and
+  empty-plan regressions pass (24 focused landing/subscription tests, 233
+  assertions). Supplied photography and the owner's landing
+  masthead/DM Sans/icon-only-control refinements passed a combined 90-result
+  browser matrix plus a native reduced-motion menu check and nine real admin/
+  public pricing cases. The handoff records
+  the corrected evidence-formatting finding and earlier build/test collision.
+  The original nine-page review also covers validation, loading, unsupported
+  passkeys and offline retention. Physical passkey success and native
+  background-tab lifecycle remain unverified; visibility events were simulated.
 - Batch 1 scope, dependencies, actual checks and evidence: [validation record](BATCH-1.md).
 
 ### Preserved Batch 0 record

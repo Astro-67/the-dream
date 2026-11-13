@@ -1,10 +1,17 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { ArrowRight, Check, Plus } from 'lucide-react';
+import { ArrowRight, Check, Menu, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { AppearanceToggle } from '@/components/appearance-toggle';
 import BrandLogo from '@/components/brand-logo';
 import LandingHero from '@/components/public/landing-hero';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { formatMoney } from '@/lib/utils';
 import { dashboard, login, register } from '@/routes';
 import '../../css/public-auth.css';
@@ -21,8 +28,8 @@ type Plan = {
 const features = [
     {
         label: 'Front desk',
-        photo: 'hero',
-        alt: 'An open hotel doorway facing the Indian Ocean',
+        photo: 'coastal-reception-welcome',
+        alt: 'A receptionist welcoming a guest across a carved wooden reception desk',
         title: 'From a reservation to a warm welcome.',
         body: 'Arrivals, departures and in-house guests in one workspace. Keep the details close, so your attention stays with the guest.',
         points: [
@@ -33,8 +40,8 @@ const features = [
     },
     {
         label: 'Room readiness',
-        photo: 'feature-housekeeping',
-        alt: 'A prepared guest room with warm wood and coastal light',
+        photo: 'coastal-prepared-room',
+        alt: 'A prepared guest room with a carved bed, blue cushions and an open courtyard doorway',
         title: 'Know the room before the guest arrives.',
         body: 'Room status, housekeeping and availability stay connected. Your front desk and housekeepers work from the same picture.',
         points: [
@@ -45,8 +52,8 @@ const features = [
     },
     {
         label: 'Billing',
-        photo: 'feature-billing',
-        alt: 'A hotel reception desk prepared for the day',
+        photo: 'coastal-reception-welcome',
+        alt: 'A guest and receptionist at a carved wooden reception counter',
         title: 'Every charge. A clear account.',
         body: 'Keep folios, payments, receipts and the daily close traceable, from the first night to the final receipt.',
         points: [
@@ -60,7 +67,7 @@ const features = [
 const faqs = [
     [
         'Can I try Karafuu first?',
-        'Yes. Every new organization starts on a free trial with the full product. No card is needed to start.',
+        'Trial availability and duration are shown with each plan in Pricing. Contact us if you need help choosing a plan.',
     ],
     [
         'Can I run more than one property?',
@@ -93,7 +100,7 @@ export default function Welcome({
     const feature = features[area];
     const signedIn = Boolean(auth.user);
     const start = signedIn ? dashboard() : register();
-    const startLabel = signedIn ? 'Go to dashboard' : 'Start your free trial';
+    const startLabel = signedIn ? 'Go to dashboard' : 'Get started';
 
     return (
         <>
@@ -112,52 +119,80 @@ export default function Welcome({
                             <a href="#team">Your team</a>
                             <a href="#pricing">Pricing</a>
                         </nav>
-                        <div className="flex items-center gap-3">
+                        <div className="landing-header-actions">
                             <AppearanceToggle />
-                            <Link
-                                href={signedIn ? dashboard() : login()}
-                                className="public-text-link"
-                            >
-                                {signedIn ? 'Dashboard' : 'Log in'}
-                            </Link>
                             {!signedIn && (
-                                <Button
-                                    asChild
-                                    size="lg"
-                                    className="landing-start"
-                                >
-                                    <Link href={register()}>Get started</Link>
-                                </Button>
+                                <Link href={login()} className="landing-login">
+                                    Log in
+                                </Link>
                             )}
-                            <details className="landing-mobile-menu">
-                                <summary>Menu</summary>
-                                <nav aria-label="Mobile navigation">
-                                    <a href="#product">Product</a>
-                                    <a href="#team">Your team</a>
-                                    <a href="#pricing">Pricing</a>
-                                    <a href="#faq">FAQ</a>
-                                </nav>
-                            </details>
+                            <Button asChild size="lg" className="landing-start">
+                                <Link
+                                    href={signedIn ? dashboard() : register()}
+                                >
+                                    {signedIn
+                                        ? 'Go to dashboard'
+                                        : 'Get started'}
+                                </Link>
+                            </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="landing-mobile-menu"
+                                        aria-label="Main menu"
+                                    >
+                                        <Menu className="size-5" aria-hidden />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="landing-menu-content"
+                                >
+                                    {[
+                                        ['#product', 'Product'],
+                                        ['#team', 'Your team'],
+                                        ['#pricing', 'Pricing'],
+                                        ['#faq', 'FAQ'],
+                                    ].map(([href, label]) => (
+                                        <DropdownMenuItem asChild key={href}>
+                                            <a href={href}>{label}</a>
+                                        </DropdownMenuItem>
+                                    ))}
+                                    <DropdownMenuSeparator />
+                                    {!signedIn && (
+                                        <DropdownMenuItem asChild>
+                                            <Link href={login()}>Log in</Link>
+                                        </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem
+                                        asChild
+                                        className="landing-menu-cta"
+                                    >
+                                        <Link
+                                            href={
+                                                signedIn
+                                                    ? dashboard()
+                                                    : register()
+                                            }
+                                        >
+                                            {signedIn
+                                                ? 'Go to dashboard'
+                                                : 'Get started'}
+                                            <ArrowRight
+                                                className="size-4"
+                                                aria-hidden
+                                            />
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </header>
                     <main id="main-content">
                         <LandingHero signedIn={signedIn} />
-                        <div
-                            className="landing-flow"
-                            aria-label="The connected guest journey"
-                        >
-                            {[
-                                'Reservations',
-                                'Front desk',
-                                'Housekeeping',
-                                'Billing',
-                            ].map((step, index) => (
-                                <span key={step}>
-                                    {index > 0 && <ArrowRight aria-hidden />}
-                                    {step}
-                                </span>
-                            ))}
-                        </div>
                         <section
                             className="landing-pad"
                             id="product"
@@ -201,18 +236,15 @@ export default function Welcome({
                                         src={`/images/marketing/${feature.photo}.webp`}
                                         alt={feature.alt}
                                         loading="lazy"
-                                        width="1536"
-                                        height="1024"
+                                        width="1448"
+                                        height="1086"
                                     />
                                     <div>
                                         <h3>{feature.title}</h3>
                                         <p>{feature.body}</p>
                                         <ul>
                                             {feature.points.map((point) => (
-                                                <li key={point}>
-                                                    <Check aria-hidden />
-                                                    {point}
-                                                </li>
+                                                <li key={point}>{point}</li>
                                             ))}
                                         </ul>
                                     </div>
@@ -225,11 +257,11 @@ export default function Welcome({
                             aria-labelledby="team-title"
                         >
                             <img
-                                src="/images/marketing/feature-team.webp"
-                                alt="Hotel team members on a coastal veranda, seen from behind"
+                                src="/images/marketing/coastal-team-veranda.webp"
+                                alt="Two uniformed colleagues talking on a shaded veranda"
                                 loading="lazy"
-                                width="1536"
-                                height="1024"
+                                width="1448"
+                                height="1086"
                             />
                             <div>
                                 <h2 id="team-title">
@@ -267,9 +299,9 @@ export default function Welcome({
                                     Room to grow.
                                 </h2>
                                 <p>
-                                    Start with a free trial, then pay per
-                                    subscribed room. Know the currency, period
-                                    and room basis before you begin.
+                                    Pay per subscribed room. Know the currency,
+                                    billing period and trial terms before you
+                                    begin.
                                 </p>
                             </div>
                             <ul className="landing-plans">
@@ -291,6 +323,11 @@ export default function Welcome({
                                                 ? 'month'
                                                 : 'year'}
                                         </p>
+                                        <p>
+                                            {plan.trialDays > 0
+                                                ? `${plan.trialDays}-day trial`
+                                                : 'No trial included'}
+                                        </p>
                                         <ul>
                                             {[
                                                 'Pay only for the rooms you choose',
@@ -311,76 +348,11 @@ export default function Welcome({
                                             size="lg"
                                         >
                                             <Link href={start}>
-                                                {signedIn
-                                                    ? 'Go to dashboard'
-                                                    : plan.trialDays > 0
-                                                      ? `Start ${plan.trialDays}-day free trial`
-                                                      : 'Get started'}
+                                                {startLabel}
                                             </Link>
                                         </Button>
                                     </li>
                                 ))}
-                                {[
-                                    {
-                                        name: 'Growth',
-                                        body: 'For properties that want more sales channels.',
-                                        points: [
-                                            'Everything in Essential',
-                                            'Richer reports',
-                                            'Help planning your sales channels',
-                                        ],
-                                    },
-                                    {
-                                        name: 'Group / Enterprise',
-                                        body: 'For multi-property operators and chains.',
-                                        points: [
-                                            'Multiple properties in one organization',
-                                            'Group roles scoped by property',
-                                            'Onboarding support',
-                                            'Negotiated capacity and service terms',
-                                        ],
-                                    },
-                                ]
-                                    .filter(
-                                        (offer) =>
-                                            !plans.some(
-                                                (plan) =>
-                                                    plan.name === offer.name,
-                                            ),
-                                    )
-                                    .map((offer) => (
-                                        <li
-                                            className="landing-plan"
-                                            key={offer.name}
-                                        >
-                                            <h3>{offer.name}</h3>
-                                            <p className="landing-price">
-                                                Talk to us
-                                            </p>
-                                            <p className="landing-price-basis">
-                                                {offer.body}
-                                            </p>
-                                            <ul>
-                                                {offer.points.map((point) => (
-                                                    <li key={point}>
-                                                        <Check aria-hidden />
-                                                        {point}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                            <Button
-                                                asChild
-                                                variant="outline"
-                                                size="lg"
-                                            >
-                                                <a
-                                                    href={`mailto:${contactEmail}?subject=${encodeURIComponent(`${offer.name} plan`)}`}
-                                                >
-                                                    Contact us
-                                                </a>
-                                            </Button>
-                                        </li>
-                                    ))}
                                 {plans.length === 0 && (
                                     <li className="landing-plan">
                                         <h3>Plan pricing</h3>

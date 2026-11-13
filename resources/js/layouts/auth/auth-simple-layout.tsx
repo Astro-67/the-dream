@@ -74,10 +74,10 @@ export default function AuthSimpleLayout({
                         aria-label="Karafuu hospitality"
                     >
                         <img
-                            src="/images/marketing/hero.webp"
-                            alt="A coastal hotel entrance opening toward the ocean"
-                            width="1536"
-                            height="1024"
+                            src="/images/marketing/coastal-doorway-ocean-portrait.webp"
+                            alt="Carved wooden doors opening onto a sunlit courtyard and ocean view"
+                            width="1024"
+                            height="1536"
                         />
                         <div>
                             <h2>

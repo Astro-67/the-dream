@@ -62,11 +62,59 @@ assert.match(landing, /EUR 123\.45/);
 assert.match(landing, /USD 8\.76/);
 assert.match(landing, /per subscribed room \/ year/);
 assert.match(landing, /per subscribed room \/ month/);
-assert.match(landing, /Start 21-day free trial/);
-assert.doesNotMatch(landing, /Start 0-day/);
+assert.match(landing, /21-day trial/);
+assert.match(landing, /No trial included/);
+assert.doesNotMatch(
+    landing,
+    /free trial|No card|Full product access|Everything in Essential|Growth|Group \/ Enterprise|Hotel operator/i,
+);
+const pricing =
+    landing.match(/<section[^>]*id="pricing"[\s\S]*?<\/section>/)?.[0] ?? '';
+assert.equal(
+    (pricing.match(/class="landing-plan"/g) ?? []).length,
+    plans.length,
+);
+assert.doesNotMatch(pricing, /Talk to us|Contact us/);
 assert.doesNotMatch(landing, /49\.00|hello@example\.com|marketing\/screens/);
 assert.match(landing, /aria-label="Pause hero animation"/);
+const pauseControl =
+    landing.match(
+        /<button[^>]*aria-label="Pause hero animation"[^>]*>[\s\S]*?<\/button>/,
+    )?.[0] ?? '';
+assert.match(pauseControl, /lucide-pause/);
+assert.match(pauseControl, /aria-hidden="true"/);
+assert.match(pauseControl, /aria-controls="hero-photography"/);
+assert.match(pauseControl, /aria-pressed="false"/);
+assert.equal(pauseControl.replace(/<[^>]+>/g, '').trim(), '');
+assert.match(landing, /aria-label="Main menu"/);
+assert.match(landing, /aria-haspopup="menu"/);
+assert.doesNotMatch(landing, /landing-flow/);
+assert.match(landing, /Welcome the guest\./);
+assert.equal((landing.match(/class="hero-line"/g) ?? []).length, 2);
+const featureMarkup =
+    landing.match(/<section[^>]*id="product"[\s\S]*?<\/section>/)?.[0] ?? '';
+assert.match(featureMarkup, /Reservations and guest history/);
+assert.doesNotMatch(featureMarkup, /lucide-check/);
+assert.match(
+    landing.match(/<section[^>]*id="pricing"[\s\S]*?<\/section>/)?.[0] ?? '',
+    /lucide-check/,
+);
 assert.equal((landing.match(/class="hero-scene"/g) ?? []).length, 3);
+assert.deepEqual(
+    [...landing.matchAll(/class="hero-scene" src="([^"]+)"/g)].map(
+        (match) => match[1],
+    ),
+    [
+        '/images/marketing/coastal-reception-welcome.webp',
+        '/images/marketing/coastal-prepared-room.webp',
+        '/images/marketing/coastal-team-veranda.webp',
+    ],
+);
+assert.match(landing, /two colleagues on a veranda/);
+assert.doesNotMatch(
+    landing,
+    /images\/marketing\/(?:hero|feature-front-desk|feature-housekeeping|feature-billing|feature-team|cta)\.webp/,
+);
 assert.match(landing, /data-running="false"/);
 const footer = landing.slice(landing.indexOf('<footer'));
 assert.match(footer, /© .*Karafuu PMS/);
@@ -77,7 +125,34 @@ const empty = render('welcome', () => (
     <Welcome plans={[]} contactEmail="sales@example.test" />
 ));
 assert.match(empty, /No prices are published yet/);
+const emptyPricing =
+    empty.match(/<section[^>]*id="pricing"[\s\S]*?<\/section>/)?.[0] ?? '';
+assert.equal((emptyPricing.match(/class="landing-plan"/g) ?? []).length, 1);
+assert.match(emptyPricing, /href="mailto:sales@example.test"/);
+assert.doesNotMatch(empty, /Growth|Group \/ Enterprise|free trial/i);
 assert.doesNotMatch(empty, /undefined|NaN/);
+const updated = render('welcome', () => (
+    <Welcome
+        plans={[
+            {
+                name: 'Admin configured',
+                price: 76543,
+                currency: 'TZS',
+                period: 'monthly',
+                trialDays: 5,
+            },
+        ]}
+        contactEmail="sales@example.test"
+    />
+));
+assert.match(updated, /Admin configured/);
+assert.match(updated, /TZS 76,543/);
+assert.match(updated, /per subscribed room \/ month/);
+assert.match(updated, /5-day trial/);
+assert.doesNotMatch(
+    updated,
+    /Coastal|123\.45|21-day|Growth|Group \/ Enterprise/,
+);
 const member = render(
     'welcome',
     () => <Welcome plans={plans} contactEmail="sales@example.test" />,
@@ -132,7 +207,14 @@ for (const [page, content, layout] of authPages) {
         <AuthLayout {...layout}>{content}</AuthLayout>
     ));
     assert.match(html, /auth-site/);
-    assert.match(html, /images\/marketing\/hero.webp/);
+    assert.match(
+        html,
+        /images\/marketing\/coastal-doorway-ocean-portrait.webp/,
+    );
+    assert.match(
+        html,
+        /Carved wooden doors opening onto a sunlit courtyard and ocean view/,
+    );
     assert.match(html, /karafuu-logo-dark.png/);
     assert.match(html, /Theme: System/);
     assert.match(
@@ -208,7 +290,15 @@ assert.match(heroSource, /visibilitychange/);
 assert.match(heroSource, /observer\.disconnect/);
 assert.match(heroSource, /removeEventListener\('change'/);
 const css = readFileSync('resources/css/landing.css', 'utf8');
+assert.match(
+    css,
+    /\.landing-hero h1\s*\{[^}]*font-family: var\(--font-sans\);[^}]*font-weight: 500;/,
+);
 assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+assert.match(
+    css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)')),
+    /\.landing-menu-content,/,
+);
 assert.match(css, /\.hero-scene:first-child\s*\{\s*opacity: 1/);
 const authCss = readFileSync('resources/css/public-auth.css', 'utf8');
 assert.match(

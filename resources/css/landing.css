@@ -1,14 +1,7 @@
-.landing-site h1,
 .landing-site h2,
 .landing-site h3 {
     font-weight: 600;
     text-wrap: balance;
-}
-
-.landing-site h1 {
-    font-size: clamp(52px, 8.65vw, 92px);
-    line-height: 0.99;
-    letter-spacing: -0.04em;
 }
 
 .landing-site h2 {
@@ -37,8 +30,45 @@
     padding: 56px 32px;
 }
 
+.landing-site .public-topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 28px;
+    padding: 12px 32px;
+    border-bottom: 1px solid var(--border);
+}
+
+.landing-site .public-brand {
+    width: 128px;
+    height: auto;
+}
+
+.landing-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.landing-header-actions > [data-slot='tooltip-trigger'],
+.landing-login {
+    color: var(--muted-foreground);
+}
+
+.landing-login {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: 8px;
+    font-size: 14px;
+}
+
+.landing-login:hover {
+    color: var(--foreground);
+}
+
 .landing-nav {
     display: flex;
+    justify-self: center;
     gap: 28px;
     font-size: 14px;
 }
@@ -46,6 +76,8 @@
 .landing-nav a {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    min-width: 44px;
     min-height: 44px;
 }
 
@@ -53,13 +85,44 @@
     display: none;
 }
 
+.landing-menu-content {
+    min-width: 240px;
+    padding: 8px;
+}
+
+.landing-menu-content [role='menuitem'] {
+    min-height: 44px;
+    padding: 8px 12px;
+}
+
+.landing-menu-content .landing-menu-cta,
+.landing-menu-content .landing-menu-cta:focus {
+    justify-content: space-between;
+    margin-top: 4px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.landing-menu-cta svg {
+    color: inherit;
+}
+
 .landing-hero {
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
     align-items: center;
     gap: 28px;
-    padding-top: 46px;
+    padding-top: 32px;
     padding-bottom: 34px;
+}
+
+.landing-hero h1 {
+    font-family: var(--font-sans);
+    font-size: clamp(38px, 5.2vw, 60px);
+    font-weight: 500;
+    line-height: 1.14;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
 }
 
 .hero-line {
@@ -74,10 +137,6 @@
 .hero-line:nth-child(2) > span {
     animation-delay: 100ms;
 }
-.hero-line:nth-child(3) > span {
-    animation-delay: 200ms;
-}
-
 .hero-copy p {
     font-size: 15px;
     line-height: 1.7;
@@ -86,16 +145,10 @@
     margin: 24px 0;
 }
 
-.hero-footnote {
-    display: block;
-    margin-top: 16px;
-    color: var(--muted-foreground);
-    font-size: 14px;
-}
-
 .hero-frame {
     position: relative;
-    height: 470px;
+    width: 100%;
+    aspect-ratio: 1;
     overflow: hidden;
     background: var(--muted);
 }
@@ -106,8 +159,12 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: 47% center;
+    object-position: 50% center;
     animation: public-hotel-scenes 18s linear infinite paused;
+}
+
+.hero-scene:first-child {
+    object-position: 30% center;
 }
 
 .hero-scene:nth-child(2) {
@@ -135,30 +192,9 @@
 }
 
 .hero-toggle {
-    min-width: 60px;
+    min-width: 44px;
+    min-height: 44px;
     color: var(--foreground);
-}
-
-.landing-flow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 20px 32px;
-    border-block: 1px solid var(--border);
-    font-size: 14px;
-    color: var(--muted-foreground);
-}
-
-.landing-flow span {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-}
-
-.landing-flow svg {
-    width: 16px;
-    height: 16px;
 }
 
 .landing-intro {
@@ -229,6 +265,7 @@
     width: 100%;
     height: 340px;
     object-fit: cover;
+    object-position: 30% center;
 }
 
 .landing-feature p,
@@ -243,13 +280,11 @@
     font-size: 14px;
 }
 
-.landing-feature li,
 .landing-plan li {
     display: flex;
     gap: 8px;
 }
 
-.landing-feature li svg,
 .landing-plan li svg {
     width: 16px;
     height: 16px;
@@ -264,7 +299,7 @@
 
 .landing-team img {
     width: 100%;
-    height: 400px;
+    aspect-ratio: 4 / 3;
     object-fit: cover;
 }
 
@@ -371,75 +406,49 @@
     0%,
     100% {
         opacity: 1;
-        transform: scale(1.02);
     }
     26% {
         opacity: 1;
-        transform: scale(1.07);
     }
     33% {
         opacity: 0;
-        transform: scale(1.08);
     }
     92% {
         opacity: 0;
-        transform: scale(1.02);
     }
 }
 
 @media (max-width: 760px) {
+    .landing-site .public-topbar {
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        padding: 12px 20px;
+    }
+    .landing-site .public-brand {
+        width: 120px;
+    }
     .landing-pad {
         padding: 40px 20px;
     }
     .landing-nav {
         display: none;
     }
-    .landing-start {
+    .landing-start,
+    .landing-login {
         display: none;
     }
     .landing-mobile-menu {
-        display: block;
-        position: relative;
-        font-size: 14px;
-    }
-    .landing-mobile-menu summary {
-        display: flex;
-        align-items: center;
+        display: inline-flex;
+        min-width: 44px;
         min-height: 44px;
-        cursor: pointer;
-    }
-    .landing-mobile-menu nav {
-        position: absolute;
-        right: 0;
-        z-index: 10;
-        width: 180px;
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: var(--card);
-    }
-    .landing-mobile-menu a {
-        display: block;
-        padding: 12px;
     }
     .landing-hero {
         grid-template-columns: 1fr;
         gap: 32px;
         padding-top: 24px;
     }
-    .landing-site h1 {
-        font-size: clamp(52px, 13vw, 76px);
-    }
     .hero-frame {
         height: 280px;
-    }
-    .landing-flow {
-        flex-wrap: wrap;
-        justify-content: center;
-        padding: 20px;
-    }
-    .landing-flow span {
-        gap: 12px;
     }
     .landing-intro,
     .landing-feature,
@@ -472,6 +481,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .landing-menu-content,
     .hero-line > span,
     .hero-scene {
         animation: none;

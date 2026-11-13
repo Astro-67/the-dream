@@ -1,0 +1,1123 @@
+{
+    "surfaceStateResults": 90,
+    "nativeReducedMotionMenu": {
+        "viewport": {
+            "width": 390,
+            "height": 844
+        },
+        "reducedMotion": true,
+        "heroAnimation": "none",
+        "heroControlHidden": true,
+        "menuAnimation": "none",
+        "keyboardEscapeAndFocusReturn": true,
+        "offscreenPauseAndResume": true,
+        "simulatedPageVisibilityPauseAndResume": true
+    },
+    "heroLayouts": [
+        {
+            "size": "desktop",
+            "appearance": "light",
+            "viewportWidth": 1280,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "60px",
+            "lines": 2,
+            "frame": {
+                "width": 462.609375,
+                "height": 462.609375
+            },
+            "headlineBesidePhoto": true,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "desktop",
+            "appearance": "dark",
+            "viewportWidth": 1280,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "60px",
+            "lines": 2,
+            "frame": {
+                "width": 462.609375,
+                "height": 462.609375
+            },
+            "headlineBesidePhoto": true,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "desktop",
+            "appearance": "system",
+            "viewportWidth": 1280,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "60px",
+            "lines": 2,
+            "frame": {
+                "width": 462.609375,
+                "height": 462.609375
+            },
+            "headlineBesidePhoto": true,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "tablet",
+            "appearance": "light",
+            "viewportWidth": 1024,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "53.248px",
+            "lines": 2,
+            "frame": {
+                "width": 419.40625,
+                "height": 419.40625
+            },
+            "headlineBesidePhoto": true,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "tablet",
+            "appearance": "dark",
+            "viewportWidth": 1024,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "53.248px",
+            "lines": 2,
+            "frame": {
+                "width": 419.40625,
+                "height": 419.40625
+            },
+            "headlineBesidePhoto": true,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "tablet",
+            "appearance": "system",
+            "viewportWidth": 1024,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "53.248px",
+            "lines": 2,
+            "frame": {
+                "width": 419.40625,
+                "height": 419.40625
+            },
+            "headlineBesidePhoto": true,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "narrow",
+            "appearance": "light",
+            "viewportWidth": 900,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "46.8px",
+            "lines": 2,
+            "frame": {
+                "width": 363.609375,
+                "height": 363.609375
+            },
+            "headlineBesidePhoto": true,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "narrow",
+            "appearance": "dark",
+            "viewportWidth": 900,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "46.8px",
+            "lines": 2,
+            "frame": {
+                "width": 363.609375,
+                "height": 363.609375
+            },
+            "headlineBesidePhoto": true,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "narrow",
+            "appearance": "system",
+            "viewportWidth": 900,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "46.8px",
+            "lines": 2,
+            "frame": {
+                "width": 363.609375,
+                "height": 363.609375
+            },
+            "headlineBesidePhoto": true,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "mobile",
+            "appearance": "light",
+            "viewportWidth": 390,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "38px",
+            "lines": 2,
+            "frame": {
+                "width": 350,
+                "height": 280
+            },
+            "headlineBesidePhoto": false,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "mobile",
+            "appearance": "dark",
+            "viewportWidth": 390,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "38px",
+            "lines": 2,
+            "frame": {
+                "width": 350,
+                "height": 280
+            },
+            "headlineBesidePhoto": false,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "mobile",
+            "appearance": "system",
+            "viewportWidth": 390,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "38px",
+            "lines": 2,
+            "frame": {
+                "width": 350,
+                "height": 280
+            },
+            "headlineBesidePhoto": false,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "small",
+            "appearance": "light",
+            "viewportWidth": 320,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "38px",
+            "lines": 3,
+            "frame": {
+                "width": 280,
+                "height": 280
+            },
+            "headlineBesidePhoto": false,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "small",
+            "appearance": "dark",
+            "viewportWidth": 320,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "38px",
+            "lines": 3,
+            "frame": {
+                "width": 280,
+                "height": 280
+            },
+            "headlineBesidePhoto": false,
+            "receptionAndTeamFacesRetained": true
+        },
+        {
+            "size": "small",
+            "appearance": "system",
+            "viewportWidth": 320,
+            "font": "\"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+            "weight": "500",
+            "fontSize": "38px",
+            "lines": 3,
+            "frame": {
+                "width": 280,
+                "height": 280
+            },
+            "headlineBesidePhoto": false,
+            "receptionAndTeamFacesRetained": true
+        }
+    ],
+    "landingBehavior": [
+        {
+            "size": "desktop",
+            "appearance": "light",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": false,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "desktop",
+            "appearance": "dark",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": false,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "desktop",
+            "appearance": "system",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": false,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "tablet",
+            "appearance": "light",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": false,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "tablet",
+            "appearance": "dark",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": false,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "tablet",
+            "appearance": "system",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": false,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "narrow",
+            "appearance": "light",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": false,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "narrow",
+            "appearance": "dark",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": false,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "narrow",
+            "appearance": "system",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": false,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "mobile",
+            "appearance": "light",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": true,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "mobile",
+            "appearance": "dark",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": true,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "mobile",
+            "appearance": "system",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": true,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "small",
+            "appearance": "light",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": true,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "small",
+            "appearance": "dark",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": true,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        },
+        {
+            "size": "small",
+            "appearance": "system",
+            "surface": "landing-safeguards",
+            "iconKeyboardToggle": true,
+            "mobileMenu": true,
+            "crossfade": [0.349206, 0.652778, 0],
+            "reducedMotion": true,
+            "supportingSlots": true,
+            "originalFooter": true,
+            "minimumHeaderTargetWidth": 44,
+            "minimumHeaderTargetHeight": 44
+        }
+    ],
+    "authContrast": [
+        {
+            "surface": "login",
+            "size": "desktop",
+            "appearance": "light",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 11.27,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 16.27,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "The heart of hospitality.",
+                    "minimum": 15.94,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "register",
+            "size": "desktop",
+            "appearance": "light",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 10.97,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 15.66,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "Your account. Your business. Your property.",
+                    "minimum": 15.94,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "One connected start.",
+                    "minimum": 17.71,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "login",
+            "size": "desktop",
+            "appearance": "dark",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 10.15,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 14.66,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "The heart of hospitality.",
+                    "minimum": 14.36,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "register",
+            "size": "desktop",
+            "appearance": "dark",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9.88,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 14.11,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "Your account. Your business. Your property.",
+                    "minimum": 14.36,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "One connected start.",
+                    "minimum": 15.95,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "login",
+            "size": "desktop",
+            "appearance": "system",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 10.15,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 14.66,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "The heart of hospitality.",
+                    "minimum": 14.36,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "register",
+            "size": "desktop",
+            "appearance": "system",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9.88,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 14.11,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "Your account. Your business. Your property.",
+                    "minimum": 14.36,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "One connected start.",
+                    "minimum": 15.95,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "login",
+            "size": "tablet",
+            "appearance": "light",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9.99,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 15.7,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "The heart of hospitality.",
+                    "minimum": 15.94,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "register",
+            "size": "tablet",
+            "appearance": "light",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9.99,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 12.3,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "Your account. Your business. Your property.",
+                    "minimum": 15.92,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "One connected start.",
+                    "minimum": 17.42,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "login",
+            "size": "tablet",
+            "appearance": "dark",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 14.14,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "The heart of hospitality.",
+                    "minimum": 14.36,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "register",
+            "size": "tablet",
+            "appearance": "dark",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 11.08,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "Your account. Your business. Your property.",
+                    "minimum": 14.34,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "One connected start.",
+                    "minimum": 15.69,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "login",
+            "size": "tablet",
+            "appearance": "system",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 14.14,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "The heart of hospitality.",
+                    "minimum": 14.36,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "register",
+            "size": "tablet",
+            "appearance": "system",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 11.08,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "Your account. Your business. Your property.",
+                    "minimum": 14.34,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "One connected start.",
+                    "minimum": 15.69,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "login",
+            "size": "narrow",
+            "appearance": "light",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 10.02,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 12.28,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "The heart of hospitality.",
+                    "minimum": 13.76,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "register",
+            "size": "narrow",
+            "appearance": "light",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9.96,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 12.14,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "Your account. Your business. Your property.",
+                    "minimum": 13.43,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "One connected start.",
+                    "minimum": 16.08,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "login",
+            "size": "narrow",
+            "appearance": "dark",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9.02,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 11.07,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "The heart of hospitality.",
+                    "minimum": 12.39,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "register",
+            "size": "narrow",
+            "appearance": "dark",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 8.97,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 10.94,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "Your account. Your business. Your property.",
+                    "minimum": 12.1,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "One connected start.",
+                    "minimum": 14.49,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "login",
+            "size": "narrow",
+            "appearance": "system",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 9.02,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 11.07,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "The heart of hospitality.",
+                    "minimum": 12.39,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "register",
+            "size": "narrow",
+            "appearance": "system",
+            "imageHidden": false,
+            "sourceCrop": {
+                "left": 0,
+                "right": 1024
+            },
+            "text": [
+                {
+                    "text": "A warm welcome.A well-run day.",
+                    "minimum": 8.97,
+                    "threshold": 3
+                },
+                {
+                    "text": "From the first arrival to the final receipt.",
+                    "minimum": 10.94,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "Your account. Your business. Your property.",
+                    "minimum": 12.1,
+                    "threshold": 4.5
+                },
+                {
+                    "text": "One connected start.",
+                    "minimum": 14.49,
+                    "threshold": 4.5
+                }
+            ]
+        },
+        {
+            "surface": "login",
+            "size": "mobile",
+            "appearance": "light",
+            "imageHidden": true
+        },
+        {
+            "surface": "register",
+            "size": "mobile",
+            "appearance": "light",
+            "imageHidden": true
+        },
+        {
+            "surface": "login",
+            "size": "mobile",
+            "appearance": "dark",
+            "imageHidden": true
+        },
+        {
+            "surface": "register",
+            "size": "mobile",
+            "appearance": "dark",
+            "imageHidden": true
+        },
+        {
+            "surface": "login",
+            "size": "mobile",
+            "appearance": "system",
+            "imageHidden": true
+        },
+        {
+            "surface": "register",
+            "size": "mobile",
+            "appearance": "system",
+            "imageHidden": true
+        },
+        {
+            "surface": "login",
+            "size": "small",
+            "appearance": "light",
+            "imageHidden": true
+        },
+        {
+            "surface": "register",
+            "size": "small",
+            "appearance": "light",
+            "imageHidden": true
+        },
+        {
+            "surface": "login",
+            "size": "small",
+            "appearance": "dark",
+            "imageHidden": true
+        },
+        {
+            "surface": "register",
+            "size": "small",
+            "appearance": "dark",
+            "imageHidden": true
+        },
+        {
+            "surface": "login",
+            "size": "small",
+            "appearance": "system",
+            "imageHidden": true
+        },
+        {
+            "surface": "register",
+            "size": "small",
+            "appearance": "system",
+            "imageHidden": true
+        }
+    ],
+    "minimumHeadingContrast": 8.97,
+    "minimumSmallTextContrast": 10.94,
+    "contrastMethod": "Conservative 2px-grid sampling of the actual WebP plus computed localized CSS gradient across each overlay text bounding box; native browser color values.",
+    "browserConsoleErrors": 0,
+    "pricing": [
+        {
+            "surface": "platform-plans",
+            "realAuthenticatedAdminUpdate": true,
+            "currency": "EUR",
+            "price": 32109,
+            "period": "yearly",
+            "trialDays": 0
+        },
+        {
+            "surface": "public-pricing",
+            "width": 1280,
+            "mode": "light",
+            "freshGuestRequest": true,
+            "onlyConfiguredPlan": true,
+            "adminUpdatedPriceAndTerms": true,
+            "overflow": false
+        },
+        {
+            "surface": "public-pricing",
+            "width": 390,
+            "mode": "light",
+            "freshGuestRequest": true,
+            "onlyConfiguredPlan": true,
+            "adminUpdatedPriceAndTerms": true,
+            "overflow": false
+        },
+        {
+            "surface": "public-pricing",
+            "width": 1280,
+            "mode": "dark",
+            "freshGuestRequest": true,
+            "onlyConfiguredPlan": true,
+            "adminUpdatedPriceAndTerms": true,
+            "overflow": false
+        },
+        {
+            "surface": "public-pricing",
+            "width": 390,
+            "mode": "dark",
+            "freshGuestRequest": true,
+            "onlyConfiguredPlan": true,
+            "adminUpdatedPriceAndTerms": true,
+            "overflow": false
+        },
+        {
+            "surface": "public-pricing",
+            "width": 1280,
+            "mode": "system",
+            "freshGuestRequest": true,
+            "onlyConfiguredPlan": true,
+            "adminUpdatedPriceAndTerms": true,
+            "overflow": false
+        },
+        {
+            "surface": "public-pricing",
+            "width": 390,
+            "mode": "system",
+            "freshGuestRequest": true,
+            "onlyConfiguredPlan": true,
+            "adminUpdatedPriceAndTerms": true,
+            "overflow": false
+        },
+        {
+            "surface": "public-pricing",
+            "updatedPositiveTrial": 5,
+            "genericAccountCTA": true
+        },
+        {
+            "surface": "public-pricing",
+            "noPlanContactFallback": true,
+            "noInventedOffers": true
+        }
+    ]
+}

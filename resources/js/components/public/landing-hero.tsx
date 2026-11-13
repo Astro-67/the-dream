@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Pause, Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { dashboard, register } from '@/routes';
@@ -40,7 +40,7 @@ export default function LandingHero({ signedIn }: { signedIn: boolean }) {
         >
             <div className="hero-copy">
                 <h1 id="hero-title">
-                    {['Run the day.', 'Welcome', 'the guest.'].map((line) => (
+                    {['Run the day.', 'Welcome the guest.'].map((line) => (
                         <span className="hero-line" key={line}>
                             <span>{line}</span>
                         </span>
@@ -53,9 +53,7 @@ export default function LandingHero({ signedIn }: { signedIn: boolean }) {
                 <div className="flex flex-wrap items-center gap-3">
                     <Button asChild size="lg">
                         <Link href={signedIn ? dashboard() : register()}>
-                            {signedIn
-                                ? 'Go to dashboard'
-                                : 'Start your free trial'}
+                            {signedIn ? 'Go to dashboard' : 'Get started'}
                             <ArrowRight aria-hidden />
                         </Link>
                     </Button>
@@ -63,9 +61,6 @@ export default function LandingHero({ signedIn }: { signedIn: boolean }) {
                         Meet Karafuu
                     </a>
                 </div>
-                <small className="hero-footnote">
-                    Full product access. No card needed.
-                </small>
             </div>
             <figure>
                 <div
@@ -73,27 +68,31 @@ export default function LandingHero({ signedIn }: { signedIn: boolean }) {
                     className="hero-frame"
                     id="hero-photography"
                     role="img"
-                    aria-label="Coastal hotel reception, guest room and terrace"
+                    aria-label="A receptionist welcoming a guest, a prepared room, and two colleagues on a veranda"
                 >
-                    {['feature-front-desk', 'feature-housekeeping', 'cta'].map(
-                        (photo, index) => (
-                            <img
-                                key={photo}
-                                className="hero-scene"
-                                src={`/images/marketing/${photo}.webp`}
-                                alt=""
-                                width="1536"
-                                height="1024"
-                                fetchPriority={index === 0 ? 'high' : 'auto'}
-                            />
-                        ),
-                    )}
+                    {[
+                        'coastal-reception-welcome',
+                        'coastal-prepared-room',
+                        'coastal-team-veranda',
+                    ].map((photo, index) => (
+                        <img
+                            key={photo}
+                            className="hero-scene"
+                            src={`/images/marketing/${photo}.webp`}
+                            alt=""
+                            width="1448"
+                            height="1086"
+                            fetchPriority={index === 0 ? 'high' : 'auto'}
+                        />
+                    ))}
                 </div>
                 <figcaption>
                     <span>For the people behind a warm welcome.</span>
-                    <button
+                    <Button
                         type="button"
-                        className="hero-toggle public-text-link"
+                        variant="outline"
+                        size="icon"
+                        className="hero-toggle"
                         aria-controls="hero-photography"
                         aria-label={
                             paused
@@ -103,8 +102,12 @@ export default function LandingHero({ signedIn }: { signedIn: boolean }) {
                         aria-pressed={paused}
                         onClick={() => setPaused(!paused)}
                     >
-                        {paused ? 'Play' : 'Pause'}
-                    </button>
+                        {paused ? (
+                            <Play className="size-5" aria-hidden />
+                        ) : (
+                            <Pause className="size-5" aria-hidden />
+                        )}
+                    </Button>
                 </figcaption>
             </figure>
         </section>
