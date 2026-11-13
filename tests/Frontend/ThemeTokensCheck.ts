@@ -125,6 +125,7 @@ for (const [theme, selector] of [
         pass('brand-accent', bg, 3); // graphic only, never text
     }
     pass('primary-foreground', 'primary', 4.5);
+    pass('masthead-foreground', 'masthead', 4.5);
     pass('primary-foreground', 'primary-hover', 4.5);
     pass('primary', 'primary-tint', 4.5); // active filters
     pass('sidebar-foreground', 'sidebar', 4.5);
@@ -178,7 +179,51 @@ assert.match(
     'print surfaces must drop screen elevation',
 );
 console.log('Elevation tokens: PASS');
-for (const slot of ['dialog-overlay', 'dialog-content']) {
+
+assert.equal(
+    block(':root').radius,
+    '0.5rem',
+    'Public/auth radius is unchanged',
+);
+assert.match(
+    css,
+    /body:has\(\.operational-ui\)\s*\{[^}]*--elevation-panel: 0 0 transparent/,
+);
+assert.match(
+    css,
+    /body:has\(\.operational-ui\)\s+:is\([^}]*\[data-slot='select-trigger'\][^}]*border-radius: 0/,
+);
+assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+assert.match(
+    css,
+    /scroll-padding-top: calc\(var\(--workspace-header-height, 14rem\) \+ 0\.5rem\)/,
+);
+assert.match(
+    css,
+    /body:has\(\.operational-ui\)\s+:is\([^}]*\[data-slot='tooltip-trigger'\][^}]*border-radius: 0/,
+);
+assert.doesNotMatch(
+    css,
+    /\[data-slot='button'\][^{]*\{[^}]*box-shadow:\s*none/,
+    'Flat buttons must not remove focus rings',
+);
+console.log(
+    'Scoped operational geometry, public/auth radius and focus rings: PASS',
+);
+const masthead = block('\\.workspace-masthead');
+assert.equal(masthead['color-ring'], 'var(--masthead-foreground)');
+assert.equal(masthead['color-background'], 'var(--masthead)');
+assert.equal(
+    masthead['color-sidebar-accent-foreground'],
+    'var(--masthead-foreground)',
+);
+
+for (const slot of [
+    'dialog-overlay',
+    'dialog-content',
+    'sheet-overlay',
+    'sheet-content',
+]) {
     assert.match(
         css,
         new RegExp(

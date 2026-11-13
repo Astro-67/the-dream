@@ -47,6 +47,8 @@
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
+    --color-masthead: var(--masthead);
+    --color-masthead-foreground: var(--masthead-foreground);
 
     --color-chart-1: var(--chart-1);
     --color-chart-2: var(--chart-2);
@@ -109,6 +111,8 @@
     --border: #e5dfd3;
     --input: #878592;
     --ring: #1f3b7a;
+    --masthead: #111a2e;
+    --masthead-foreground: #f8f6f1;
     --chart-1: oklch(0.646 0.222 41.116);
     --chart-2: oklch(0.6 0.118 184.704);
     --chart-3: oklch(0.398 0.07 227.392);
@@ -170,6 +174,8 @@
     --border: #283350;
     --input: #68728e;
     --ring: #93b2f0;
+    --masthead: #121a2c;
+    --masthead-foreground: #f1f3f8;
     --chart-1: oklch(0.488 0.243 264.376);
     --chart-2: oklch(0.696 0.17 162.48);
     --chart-3: oklch(0.769 0.188 70.08);
@@ -232,6 +238,148 @@
     }
 }
 
+.workspace-masthead {
+    color: var(--masthead-foreground);
+    background: var(--masthead);
+    --color-ring: var(--masthead-foreground);
+    --color-background: var(--masthead);
+    --color-sidebar-accent: color-mix(
+        in srgb,
+        var(--masthead-foreground) 12%,
+        var(--masthead)
+    );
+    --color-sidebar-accent-foreground: var(--masthead-foreground);
+}
+
+.workspace-masthead [data-sidebar='menu-button'] {
+    color: inherit;
+}
+
+.workspace-masthead [data-slot='tenant-icon'] {
+    display: none;
+}
+
+body:has(.operational-ui)
+    :is(
+        [data-slot='button'],
+        [data-slot='tooltip-trigger'],
+        [data-slot='dialog-close'],
+        [data-slot='sheet-close'],
+        [data-slot='sidebar-trigger'],
+        [data-slot='dropdown-menu-trigger'],
+        [data-slot='dialog-trigger'],
+        [data-slot='collapsible-trigger'],
+        [data-slot='input'],
+        [data-slot='textarea'],
+        [data-slot='select-trigger'],
+        [data-slot='card'],
+        [data-slot='table-container'],
+        [data-slot='status-chip'],
+        [data-slot='tag'],
+        [data-slot='sidebar-menu-button'],
+        [data-slot='breadcrumb-item'] a,
+        [data-slot='breadcrumb-link'],
+        select
+    ) {
+    border-radius: 0;
+}
+
+body:has(.operational-ui) {
+    --elevation-panel: 0 0 transparent;
+    --elevation-primary: 0 0 transparent;
+}
+
+body:has(.operational-ui) [data-slot='button'] {
+    height: auto;
+    min-height: 2.25rem;
+    white-space: normal;
+}
+
+body:has(.operational-ui)
+    :is([data-slot='input'], [data-slot='select-trigger'], select) {
+    min-height: 2.25rem;
+}
+
+.operational-ui [data-slot='empty-state'] {
+    align-items: flex-start;
+    border-block: 1px solid var(--border);
+    padding-inline: 0;
+    text-align: left;
+}
+
+.operational-ui [data-slot='pagination'] {
+    border-top: 1px solid var(--border);
+    margin-top: 0.75rem;
+}
+
+.operational-ui [data-slot='table-container'] {
+    max-height: max(
+        12rem,
+        calc(100svh - var(--workspace-header-height, 12rem) - 5rem)
+    );
+}
+
+body:has(.operational-ui)
+    :is(
+        [data-slot='dialog-content'],
+        [data-slot='sheet-content'],
+        [data-slot='dropdown-menu-content'],
+        [data-slot='dropdown-menu-sub-content'],
+        [data-slot='dropdown-menu-item'],
+        [data-slot='dropdown-menu-checkbox-item'],
+        [data-slot='dropdown-menu-radio-item'],
+        [data-slot='select-content'],
+        [data-slot='select-item'],
+        [data-slot='popover-content']
+    ) {
+    border-radius: 0;
+}
+
+body:has(.operational-ui)
+    :is([data-slot='dialog-content'], [data-slot='sheet-content'])
+    > button:last-child {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    border-radius: 0;
+}
+
+html:has(.operational-ui) {
+    scroll-padding-top: calc(var(--workspace-header-height, 14rem) + 0.5rem);
+}
+
+@media (any-pointer: coarse) {
+    body:has(.operational-ui)
+        :is(
+            [data-slot='button'],
+            [data-slot='input'],
+            [data-slot='select-trigger'],
+            select
+        ) {
+        min-height: 2.75rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .operational-ui,
+    .operational-ui *,
+    body:has(.operational-ui)
+        :is(
+            [data-slot='dialog-content'],
+            [data-slot='sheet-content'],
+            [data-slot='dialog-overlay'],
+            [data-slot='sheet-overlay'],
+            [data-slot='dropdown-menu-content'],
+            [data-slot='select-content']
+        ) {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 @media print {
     body:has(.receipt-print),
     body:has(.receipt-print) * {
@@ -245,6 +393,8 @@
     body:has(.receipt-print) [data-slot='sidebar-inset'] > header,
     body:has(.receipt-print) [data-slot='dialog-overlay'],
     body:has(.receipt-print) [data-slot='dialog-content'],
+    body:has(.receipt-print) [data-slot='sheet-overlay'],
+    body:has(.receipt-print) [data-slot='sheet-content'],
     .receipt-print button {
         display: none !important;
     }
