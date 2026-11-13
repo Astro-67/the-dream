@@ -1,7 +1,9 @@
 # UI redesign handoff
 
 The owner approved the direction below. **Batch 0 implements the shared
-operational foundation; individual page migrations remain pending.**
+operational foundation; Batch 1 implements the nine public/authentication pages.**
+Batch 1's integrated checks, evidence and remaining limits are recorded in
+[its validation record](BATCH-1.md). Later page families remain pending.
 Continue from this package rather than repeating the design conversation.
 
 ## Start a batch

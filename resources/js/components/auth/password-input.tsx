@@ -2,6 +2,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import type { ComponentProps } from 'react';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 export default function AuthPasswordInput(
     props: Omit<ComponentProps<'input'>, 'type'>,
@@ -13,7 +14,7 @@ export default function AuthPasswordInput(
             <Input
                 {...props}
                 type={visible ? 'text' : 'password'}
-                className="pr-12"
+                className={cn('pr-12', props.className)}
             />
             <button
                 type="button"

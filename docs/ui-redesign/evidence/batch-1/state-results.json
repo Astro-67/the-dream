@@ -1,0 +1,26 @@
+[
+    {
+        "label": "forgot-password",
+        "sentStatus": true
+    },
+    {
+        "label": "reset-password",
+        "validation": true,
+        "tokenAndEmailRetained": true
+    },
+    {
+        "label": "offline-login",
+        "inputRetained": true,
+        "noSuccessOrNavigation": true,
+        "retryEnabled": true
+    },
+    {
+        "label": "passkey-error",
+        "credentialCancellationSimulated": true,
+        "errorShown": true
+    },
+    {
+        "label": "two-factor",
+        "invalidAuthenticatorCode": true
+    }
+]

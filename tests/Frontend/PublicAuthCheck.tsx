@@ -142,6 +142,7 @@ for (const [page, content, layout] of authPages) {
         assert.match(html, /minlength: 15; required: upper;/);
         assert.match(html, /Use at least 15 characters/);
         assert.match(html, /aria-controls="password"/);
+        assert.match(html, /aria-describedby="password-hint"/);
         assert.doesNotMatch(
             html,
             /aria-label="Show password"[^>]*tabindex="-1"/,

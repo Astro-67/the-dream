@@ -39,21 +39,21 @@ batch. That belongs to Batch 3.
 Reference: [landing](approved/landing.html), [login](approved/login.html),
 [signup account/email steps](approved/signup.html).
 
-- [ ] Implement the approved landing hero, original footer and current plan-driven pricing.
-- [ ] Preserve passkey capability checks, two-factor and password/reset/verification behaviour.
-- [ ] Carry the auth visual family across the remaining auth screens without another concept round.
+- [x] Implement the approved landing hero, original footer and current plan-driven pricing.
+- [x] Preserve passkey capability checks, two-factor and password/reset/verification behaviour.
+- [x] Carry the auth visual family across the remaining auth screens without another concept round.
 
 9 page files:
 
-- [ ] `auth/confirm-password.tsx`
-- [ ] `auth/forgot-password.tsx`
-- [ ] `auth/invitation.tsx`
-- [ ] `auth/login.tsx`
-- [ ] `auth/register.tsx`
-- [ ] `auth/reset-password.tsx`
-- [ ] `auth/two-factor-challenge.tsx`
-- [ ] `auth/verify-email.tsx`
-- [ ] `welcome.tsx`
+- [x] `auth/confirm-password.tsx`
+- [x] `auth/forgot-password.tsx`
+- [x] `auth/invitation.tsx`
+- [x] `auth/login.tsx`
+- [x] `auth/register.tsx`
+- [x] `auth/reset-password.tsx`
+- [x] `auth/two-factor-challenge.tsx`
+- [x] `auth/verify-email.tsx`
+- [x] `welcome.tsx`
 
 ## Batch 2 - Organization setup and onboarding
 
@@ -193,12 +193,23 @@ Reference: [front desk light](approved/front-desk-light.html) /
 
 ## Handoff record
 
-- Latest completed work: **Batch 0 - Shared UI foundation**, implemented and
-  validated on 13 November 2026; awaiting owner PR approval, not deployed.
-- Page migration: **none of the 81 pages is marked complete**. Shared styling
-  reaching an existing page is not its migration.
-- Next bounded batch: **Batch 1 - Public site and authentication**, after approval
-  of this foundation. The operational guest-list cards and queue remain Batch 3.
+- Latest completed work: **Batch 1 - Public site and authentication**, implemented
+  and validated on 13 November 2026 after integrating Batch 0's finished
+  `d9cf9ef9` foundation in `fc6a4fdd`. No merge or deployment is performed.
+- Page migration: **nine of the 81 pages are complete**, all in Batch 1. No other
+  batch's page checkboxes change. Shared styling alone is not page migration.
+- Next bounded batch: **Batch 2 - Organization setup and onboarding**. The
+  operational guest-list cards and queue remain Batch 3.
+- Batch 1 checks: integrated `composer check:fast` passed (2,837 Pest tests passed,
+  26 skipped; 49,106 assertions), all frontend checks, affected build and
+  TypeScript. Nine pages passed desktop/mobile and Light/Dark/System browser
+  review, including validation, loading, keyboard, unsupported passkeys, offline
+  retention and reduced motion. Physical passkey success and native background-tab
+  lifecycle remain unverified; page-visibility events were simulated.
+- Batch 1 scope, dependencies, actual checks and evidence: [validation record](BATCH-1.md).
+
+### Preserved Batch 0 record
+
 - Base: PR #255, `2aded5fe`; PR checks, main CI and the production deployment all
   succeeded before implementation. The checkout was clean, including
   `docs/design.md`. The branch includes the approved `93a4f619` handoff via

@@ -1,0 +1,595 @@
+[
+    {
+        "label": "landing-desktop-light",
+        "heading": "Run the day.Welcomethe guest.",
+        "overflow": false,
+        "width": 1280,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "login-desktop-light",
+        "heading": "Welcome back.",
+        "overflow": false,
+        "width": 1280,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "register-desktop-light",
+        "heading": "Create your account.",
+        "overflow": false,
+        "width": 1280,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "forgot-password-desktop-light",
+        "heading": "Forgot password",
+        "overflow": false,
+        "width": 1280,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "reset-password-desktop-light",
+        "heading": "Reset password",
+        "overflow": false,
+        "width": 1280,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "invitation-desktop-light",
+        "heading": "You're invited",
+        "overflow": false,
+        "width": 1280,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "landing-desktop-dark",
+        "heading": "Run the day.Welcomethe guest.",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "login-desktop-dark",
+        "heading": "Welcome back.",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "register-desktop-dark",
+        "heading": "Create your account.",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "forgot-password-desktop-dark",
+        "heading": "Forgot password",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "reset-password-desktop-dark",
+        "heading": "Reset password",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "invitation-desktop-dark",
+        "heading": "You're invited",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "landing-desktop-system",
+        "heading": "Run the day.Welcomethe guest.",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "login-desktop-system",
+        "heading": "Welcome back.",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "register-desktop-system",
+        "heading": "Create your account.",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "forgot-password-desktop-system",
+        "heading": "Forgot password",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "reset-password-desktop-system",
+        "heading": "Reset password",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "invitation-desktop-system",
+        "heading": "You're invited",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "landing-mobile-light",
+        "heading": "Run the day.Welcomethe guest.",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "login-mobile-light",
+        "heading": "Welcome back.",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "register-mobile-light",
+        "heading": "Create your account.",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "forgot-password-mobile-light",
+        "heading": "Forgot password",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "reset-password-mobile-light",
+        "heading": "Reset password",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "invitation-mobile-light",
+        "heading": "You're invited",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "landing-mobile-dark",
+        "heading": "Run the day.Welcomethe guest.",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "login-mobile-dark",
+        "heading": "Welcome back.",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "register-mobile-dark",
+        "heading": "Create your account.",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "forgot-password-mobile-dark",
+        "heading": "Forgot password",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "reset-password-mobile-dark",
+        "heading": "Reset password",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "invitation-mobile-dark",
+        "heading": "You're invited",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "landing-mobile-system",
+        "heading": "Run the day.Welcomethe guest.",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "login-mobile-system",
+        "heading": "Welcome back.",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "register-mobile-system",
+        "heading": "Create your account.",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "forgot-password-mobile-system",
+        "heading": "Forgot password",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "reset-password-mobile-system",
+        "heading": "Reset password",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "invitation-mobile-system",
+        "heading": "You're invited",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "landing-mobile-reduced-motion",
+        "heading": "Run the day.Welcomethe guest.",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "landing-behavior",
+        "pause": true,
+        "offscreen": true,
+        "visibilityEventSimulated": true,
+        "reducedMotion": true,
+        "radioKeyboard": true,
+        "faq": true
+    },
+    {
+        "label": "login-mobile-passkey-unavailable",
+        "heading": "Welcome back.",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "login-mobile-loading",
+        "heading": "Welcome back.",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "login-mobile-validation",
+        "heading": "Welcome back.",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "auth-interactions",
+        "passkeyUnavailable": true,
+        "keyboardPasswordToggle": true,
+        "loadingDisabledAndInert": true,
+        "serverValidation": true
+    },
+    {
+        "label": "register-mobile-validation",
+        "heading": "Create your account.",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "verify-email-desktop-light",
+        "heading": "Check your inbox.",
+        "overflow": false,
+        "width": 1280,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "verify-email-desktop-dark",
+        "heading": "Check your inbox.",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "verify-email-desktop-system",
+        "heading": "Check your inbox.",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "verify-email-mobile-light",
+        "heading": "Check your inbox.",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "verify-email-mobile-dark",
+        "heading": "Check your inbox.",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "verify-email-mobile-system",
+        "heading": "Check your inbox.",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "confirm-password-desktop-light",
+        "heading": "Confirm password",
+        "overflow": false,
+        "width": 1280,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "confirm-password-desktop-dark",
+        "heading": "Confirm password",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "confirm-password-desktop-system",
+        "heading": "Confirm password",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "confirm-password-mobile-light",
+        "heading": "Confirm password",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "confirm-password-mobile-dark",
+        "heading": "Confirm password",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "confirm-password-mobile-system",
+        "heading": "Confirm password",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "confirm-password-mobile-validation",
+        "heading": "Confirm password",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "invitation-signed-in-mobile",
+        "heading": "You're invited",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "two-factor-desktop-light",
+        "heading": "Authentication code",
+        "overflow": false,
+        "width": 1280,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "two-factor-desktop-dark",
+        "heading": "Authentication code",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "two-factor-desktop-system",
+        "heading": "Authentication code",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "two-factor-mobile-light",
+        "heading": "Authentication code",
+        "overflow": false,
+        "width": 390,
+        "dark": false,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "two-factor-mobile-dark",
+        "heading": "Authentication code",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "two-factor-mobile-system",
+        "heading": "Authentication code",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "recovery-code-mobile-validation",
+        "heading": "Recovery code",
+        "overflow": false,
+        "width": 390,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "recovery-code-desktop-dark",
+        "heading": "Recovery code",
+        "overflow": false,
+        "width": 1280,
+        "dark": true,
+        "headingFont": "\"General Sans\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+        "badImages": []
+    },
+    {
+        "label": "real-flows",
+        "registrationPolicyValidation": true,
+        "verificationRequired": true,
+        "resend": true,
+        "confirmValidation": true,
+        "invitation": true,
+        "mfaRecoveryValidation": true,
+        "recoveryLogin": true
+    }
+]

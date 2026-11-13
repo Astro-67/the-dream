@@ -66,7 +66,11 @@ export default function ResetPassword({
                                 placeholder="Password"
                                 passwordrules={passwordRules}
                                 aria-invalid={Boolean(errors.password)}
-                                aria-describedby="password-hint password-error"
+                                aria-describedby={
+                                    errors.password
+                                        ? 'password-hint password-error'
+                                        : 'password-hint'
+                                }
                             />
                             <p
                                 id="password-hint"
