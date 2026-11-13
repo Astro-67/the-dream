@@ -1,0 +1,12 @@
+{
+    "plans": [
+        {
+            "name": "Essential",
+            "price": 4900,
+            "currency": "USD",
+            "period": "monthly",
+            "trialDays": 14
+        }
+    ],
+    "contactEmail": "hello@example.com"
+}

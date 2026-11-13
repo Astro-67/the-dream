@@ -59,6 +59,14 @@ function sidebar(
 }
 
 const administrator = sidebar(['platform_administrator']);
+assert.ok(
+    [...administrator.matchAll(/<a\b[^>]*>/g)].some(
+        ([link]) =>
+            link.includes('href="/platform/organizations"') &&
+            link.includes('aria-current="page"'),
+    ),
+    'The current workspace destination is announced to assistive technology',
+);
 for (const target of administrator.matchAll(
     /<(?:a|button)\b[^>]*data-slot="(?:button|sidebar-menu-button|sidebar-group-label)"[^>]*>/g,
 )) {

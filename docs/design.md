@@ -2,7 +2,7 @@
 
 ## Overview
 
-A precise, calm interface for people running hotels: front desk, reservations, housekeeping, finance and compliance staff, working long shifts on desktops and tablets, often on slow connections. The aesthetic is a refined hospitality workspace: navy-led like the Karafuu logo, warm ivory surroundings, clean white panels with restrained depth, clear headings and disciplined spacing. The logo's gloss stays in the logo; controls borrow its navy and a little of its dimension, never its effects. Information density is high where staff scan and act (calendars, tables, folios) and relaxed where they read or decide (onboarding, settings, confirmations). Every status is readable at a glance and never depends on colour alone.
+A precise, calm interface for people running hotels: front desk, reservations, housekeeping, finance and compliance staff, working long shifts on desktops and tablets, often on slow connections. The approved operational direction is a flat, straight-edged hospitality workspace: navy-led like the Karafuu logo, warm ivory surroundings, deliberate typography, alignment and separators instead of generic rounded containers. The logo's gloss stays in the logo, never in operational controls. Information density is high where staff scan and act (calendars, tables, folios) and relaxed where they read or decide (onboarding, settings, confirmations). Every status is readable at a glance and never depends on colour alone.
 
 The interface is built on the Laravel React starter kit: Tailwind CSS 4, shadcn/ui and Radix. This document sets the values; the starter kit's components implement them. Interfaces ship in English only for this version; Kiswahili and translation infrastructure are deferred.
 
@@ -96,14 +96,16 @@ Headings use General Sans with letter spacing of -0.02em. Body and interface tex
 
 ## Elevation
 
-Surfaces are separated by 1px borders plus restrained depth. Elevation comes only from the theme tokens, never ad-hoc `shadow-[…]` values:
+Operational static surfaces and buttons are flat: use 1px borders, spacing and alignment, not shadows or hover lifts. `.operational-ui` scopes this treatment to the app shell and navigation; operational overlays are scoped through `body:has(.operational-ui)` because Radix portals live outside the shell. Public/auth keep their existing radius and restrained elevation. Later page batches replace remaining page-owned containers; receiving shared styles does not mark a page migrated.
+
+Outside operational surfaces, elevation comes only from the theme tokens, never ad-hoc `shadow-[…]` values:
 
 - **Panels** (`shadow-panel`): `Card`, the `Table` frame and other static content panels get a soft, low shadow (two layers, at most 5% navy in light, stronger in dark so it still reads). Never nest one elevated panel inside another; an inner section uses a border or a subtle fill.
 - **Primary buttons** (`shadow-primary`): a faint inset top highlight and a 1px drop give the navy fill a tonal edge. It flattens when pressed. No other button variant gets depth.
 - Dropdowns, popovers, the command palette and toasts use shadow-lg.
 - Dialogs and sheets use shadow-xl over a 40% black overlay.
 - Clickable cards gain a hover shadow (0 8px 30px rgba(0,0,0,0.08)) and lift 2px. Buttons, static cards and table rows never move.
-- The top bar uses a backdrop blur, not a shadow.
+- The operational masthead and breadcrumb bar use opaque theme surfaces, not blur or shadows.
 - Focus is shown by the solid focus ring, never by a shadow.
 - Print output drops every shadow (see Receipts and print).
 
@@ -113,22 +115,23 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 
 ## Components
 
-- **Buttons:** primary (Primary fill, white text, `shadow-primary` depth), secondary (surface fill, 1px Input Border), ghost (text only, tinted background on hover), destructive (Destructive fill). Radius 6px, DM Sans 500. Fine-pointer sizes: 32px (dense toolbars and table rows), 36px (default), 44px (large). When any pointer is coarse, shared buttons, dropdown actions and sidebar navigation (including linked section labels) have a minimum 44px height and width, including icon actions; the collapsed sidebar widens to 60px so its padded targets fit. Mouse-only desktop density stays unchanged. Buttons don't move on hover; they change colour only. Loading buttons keep their width and show a spinner.
-- **Cards:** Surface, 1px Border, 12px radius, `shadow-panel`. Only clickable cards (for example a property in the property picker) get the hover lift.
-- **Inputs and selects:** Surface fill, 1px Input Border, 6px radius, 8px × 12px padding, 14px text. Focus: Focus Ring. Error: Error border, plus an error message below the field (Error text, 13px, with an icon). The label always sits above the field, and placeholders are never used as labels.
+- **Buttons:** primary (Primary fill and Primary Foreground text), secondary (surface fill, 1px Input Border), ghost (text only, tinted background on hover), destructive (Destructive fill). Operational controls are square and flat, DM Sans 500, at least 36px high; text can wrap without clipping. Public/auth retain 6px radius and `shadow-primary`. Fine-pointer sizes outside the operational scope remain 32px (dense toolbars and table rows), 36px (default), 44px (large). When any pointer is coarse, shared buttons, dropdown actions and navigation (including linked section labels) have a minimum 44px height and width, including icon actions. Buttons don't move on hover; they change colour only. Loading buttons keep their width and show a spinner.
+- **Cards:** Operational shared cards are square, Surface and 1px Border, with no shadow. Prefer flat sections over adding containers. Intentional direct-access navigation cards are allowed; the Arrivals / Departures / In house cards belong to Batch 3, remain simultaneously visible on mobile and never become a dropdown. Arrival uses a concierge bell, departure an exit symbol and in-house a people symbol. Public/auth retain 12px radius and `shadow-panel`.
+- **Inputs and selects:** Surface fill, 1px Input Border, square operational edges (public/auth 6px radius), 8px × 12px padding, 14px text. Focus: Focus Ring. Error: Error border, plus an error message below the field (Error text, 13px, with an icon). The label always sits above the field, and placeholders are never used as labels.
 - **Checkboxes and switches:** square checkboxes (4px radius, 16px box inside a 24px hit area) for choosing items. Switches for settings that take effect immediately. Radios for one-of-many. Never round checkboxes.
 - **Chips:**
-    - **Status chips** are pill-shaped (9999px radius), 12px text, 2px × 8px padding, with a 6px dot and a label, in the status colours above.
-    - **Tags and filters** use a 4px radius, Background fill and Text Secondary text. Active filters use Primary Tint with Primary text.
+    - **Status chips** have square operational edges (pill-shaped elsewhere), 12px text, 2px × 8px padding, with a 6px dot and a label, in the status colours above. Dots remain round; status meanings and labels do not change.
+    - **Tags and filters** have square operational edges (4px radius elsewhere), Background fill and Text Secondary text. Active filters use Primary Tint with Primary text.
 - **Tooltips:** the shadcn/Radix Tooltip, which works with a keyboard and on touch. Never put essential information only in a tooltip, and never use native `title` tooltips.
 - **Dialogs and confirmations:** shadcn Dialog. Destructive confirmations name the object ("Cancel reservation R-1042?"), explain the consequence, and put the destructive button last. Any action that reports to ZRA says so ("This sends a cancellation to ZAN Gateway").
 - **Toasts:** bottom-right on desktop, top on mobile. Success, info and default toasts disappear after 4 seconds; error and warning toasts after 8 seconds. Hovering pauses dismissal. Every toast has a close button and is announced to assistive technology.
 - **Empty states:** a one-line explanation plus the next action ("No arrivals today. Create a reservation"). No illustrations.
-- **Navigation:** the starter kit's collapsible sidebar on desktop and tablet, which becomes a sheet on mobile.
+- **Navigation:** the approved masthead and a modal workspace menu at every breakpoint, built on the existing sidebar provider, Sheet and permission-filtered navigation definitions. The work area stays full width; stored sidebar preferences no longer reserve a rail or column in the operational shell. The menu traps focus, closes on Escape or navigation, returns focus to its trigger, and retains Ctrl/Cmd+B.
     - **Branding:** the full logo (`BrandLogo`) at a readable size on public and authentication surfaces, never cropped, recoloured or redrawn. The app shell uses `AppLogo`, which shows the same full artwork at 160px wide. No approved compact mark exists yet; until the owner supplies one, constrained navigation keeps the full logo or the product name in text, never an invented or cropped mark.
-    - **Organization and property switcher** at the top of the sidebar, always showing the current organization and property (PRD §4).
-    - **Top bar:** breadcrumb, the property's current **business date**, the connection status, and the user menu.
-    - **Sidebar sections:** Front desk, Reservations, Calendar, Housekeeping, Billing, Reports, Compliance (Zanzibar properties only), Settings.
+    - **Organization and property switcher:** real organization/property context stays visible in the masthead and is also available inside the menu. Long names wrap; the existing authorized switcher endpoints and property-keyed page remount remain unchanged.
+    - **Masthead:** full inverse logo, menu trigger, organization/property switcher, the property's current **business date**, live connection status and user menu. Use `--masthead` / `--masthead-foreground`: deep navy / ivory in Light, Card / Foreground in Dark.
+    - **Sticky context:** breadcrumb and the existing Light/Dark/System `AppearanceToggle` sit beneath the masthead. System follows device changes; explicit themes remain explicit. Do not derive the app theme from a preview or chat theme.
+    - **Menu sections:** preserve the existing Front desk, Money, Setup, More and role-gated Platform administration definitions and every permission/feature condition. No prototype navigation destinations or synthetic data.
 - **Page header:** title (Page title style), an optional one-line description below it, and page actions aligned to the right of the title on wide screens, wrapping beneath it on narrow ones. At most one primary action per section; existing permission checks decide which actions show.
 - **Parent navigation:** every nested page (detail, create, edit) shows a visible return link to its parent above the page title ("Back to Bookers"), plus a breadcrumb in the top bar.
     - The destination is the page's explicit parent, built with the route helpers and an Inertia `Link`, never browser history or a return URL taken from the request. It therefore works when the page is opened directly.
@@ -137,7 +140,7 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
     - Root pages (dashboard, top-level lists, reports) get no artificial Back link.
     - Links keep the current organization and property context and only point at pages the user can open.
 - **Command palette (⌘K / Ctrl+K):** searches reservations by number, guest name, channel reference and room number, within the current property only. Opened from a search bar showing the shortcut badge.
-- **Connection status:** when the browser goes offline, a persistent amber banner below the top bar says "Offline: changes can't be saved", and actions that change data are disabled. No false success messages (PRD connectivity requirement).
+- **Connection status:** when the browser goes offline, a persistent amber banner below the masthead says "Offline: changes can't be saved". The operational shell cancels non-GET Inertia visits while offline; existing page-level disabled controls remain intact. This is not an offline queue or a guarantee that the server is reachable while the browser reports online. No false success messages (PRD connectivity requirement).
 
 ## PMS patterns
 
@@ -158,14 +161,14 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 - Component padding: small 4 × 8, medium 8 × 12, large 12 × 20
 - Page padding: 16px on mobile, 24px on tablet and desktop
 - Section spacing: 24px on mobile, 32px on desktop
-- Content width: full width for calendars, tables, dashboards and report workspaces; never centre or cap them. A standalone short form (one bounded form that is the whole page) is centred horizontally in the work area remaining after the sidebar, at most 720px wide; the shell itself is never centred on the viewport. Detail and reading surfaces keep their readable bounds. Forms inside settings stay at most 720px wide; a long form may set its sections side by side on wide screens, each at most 720px, with a summary column holding the submit button. Short create forms on a list page open in a dialog from a button beside the heading.
-- The operational shell fills the viewport remaining after the visible sidebar (256px expanded, 48px fine-pointer rail or 60px with a coarse pointer); the sidebar owns that gap. No extra page offset or viewport-centred cap. The header and page share the 16px/24px horizontal gutter and a single token border marks each navigation boundary.
+- Content width: full width for calendars, tables, dashboards and report workspaces; never centre or cap them. A standalone short form (one bounded form that is the whole page) is centred horizontally in the work area, at most 720px wide; the shell itself is never centred on the viewport. Detail and reading surfaces keep their readable bounds. Forms inside settings stay at most 720px wide; a long form may set its sections side by side on wide screens, each at most 720px, with a summary column holding the submit button. Short create forms on a list page open in a dialog from a button beside the heading.
+- The operational shell fills the viewport width. Opening the menu overlays rather than resizes that work area. No sidebar offset or viewport-centred cap. The header and page share the 16px/24px horizontal gutter and a single token border marks each navigation boundary.
 - Dashboard grids, report filters and tables use that full work area, including sparse states. Reading/print surfaces and forms keep their bounds inside it. Account settings use a 192px navigation column, a 32px gap and a form column capped at 720px; navigation stacks above the form below `lg`.
 - Card grid gap: 16–24px
 
 ## Border Radius
 
-Set the starter kit's `--radius` to 8px. Its derived sizes then give:
+Keep the starter kit's global `--radius` at 8px for public/auth and unmigrated standalone surfaces. Operational shared controls, cards, tables, chips/tags and overlays use 0px through scoped selectors, not a global radius reset. Avatars and status dots retain their shape. The public/auth scale remains:
 
 - 4px (`rounded-sm`): tags, badges, inline code, checkboxes
 - 6px (`rounded-md`): buttons, inputs, selects
@@ -177,25 +180,26 @@ Set the starter kit's `--radius` to 8px. Its derived sizes then give:
 
 Map this document onto the variables in `resources/css/app.css` (`:root` for light, `.dark` for dark):
 
-| Variable                                   | Light            | Dark                      |
-| ------------------------------------------ | ---------------- | ------------------------- |
-| `--background`                             | #F8F6F1          | #0B1020                   |
-| `--foreground`                             | #111A2E          | #F1F3F8                   |
-| `--card`, `--popover`, `--sidebar`         | #FFFFFF          | #121A2C (popover #18223A) |
-| `--primary`                                | #1F3B7A          | #93B2F0                   |
-| `--primary-foreground`                     | #FFFFFF          | #0B1020                   |
-| `--secondary`, `--muted`, `--accent`       | #F1EDE4          | #1A2439                   |
-| `--muted-foreground`                       | #5B6070          | #A5ADBF                   |
-| `--destructive`                            | #DC2626          | #F87171                   |
-| `--border`                                 | #E5DFD3          | #283350                   |
-| `--input`                                  | #878592          | #68728E                   |
-| `--ring`                                   | #1F3B7A          | #93B2F0                   |
-| `--brand-accent`                           | #3F8A1E          | #7CC957                   |
-| `--elevation-panel`, `--elevation-primary` | soft navy shadow | deeper black shadow       |
-| `--radius`                                 | 0.5rem           | 0.5rem                    |
-| `--font-sans`                              | DM Sans          | DM Sans                   |
-| `--font-heading` (new)                     | General Sans     | General Sans              |
-| `--font-mono`                              | JetBrains Mono   | JetBrains Mono            |
+| Variable                                   | Light             | Dark                      |
+| ------------------------------------------ | ----------------- | ------------------------- |
+| `--background`                             | #F8F6F1           | #0B1020                   |
+| `--foreground`                             | #111A2E           | #F1F3F8                   |
+| `--card`, `--popover`, `--sidebar`         | #FFFFFF           | #121A2C (popover #18223A) |
+| `--primary`                                | #1F3B7A           | #93B2F0                   |
+| `--primary-foreground`                     | #FFFFFF           | #0B1020                   |
+| `--secondary`, `--muted`, `--accent`       | #F1EDE4           | #1A2439                   |
+| `--muted-foreground`                       | #5B6070           | #A5ADBF                   |
+| `--destructive`                            | #DC2626           | #F87171                   |
+| `--border`                                 | #E5DFD3           | #283350                   |
+| `--input`                                  | #878592           | #68728E                   |
+| `--ring`                                   | #1F3B7A           | #93B2F0                   |
+| `--masthead`, `--masthead-foreground`      | #111A2E / #F8F6F1 | #121A2C / #F1F3F8         |
+| `--brand-accent`                           | #3F8A1E           | #7CC957                   |
+| `--elevation-panel`, `--elevation-primary` | soft navy shadow  | deeper black shadow       |
+| `--radius`                                 | 0.5rem            | 0.5rem                    |
+| `--font-sans`                              | DM Sans           | DM Sans                   |
+| `--font-heading` (new)                     | General Sans      | General Sans              |
+| `--font-mono`                              | JetBrains Mono    | JetBrains Mono            |
 
 `--elevation-*` feed the `shadow-panel` and `shadow-primary` utilities. Status colours become additional tokens (`--status-success`, `--status-success-tint` and so on) so that chips, room status and compliance views share one definition.
 
@@ -217,7 +221,7 @@ Every new screen uses the shared building blocks; don't hand-roll their markup o
 
 **Pagination:** any list that can grow without limit (reservations, guests, folios, audit logs) is paginated on the server with `->paginate(50)->withQueryString()`, so filters and sorting survive page changes, and rendered with `Pagination` directly below its `Table`. It shows "Showing 51–100 of 1,240", previous and next, and windowed page numbers; it hides itself when there is one page. Changing page resets the table to its first row. Bounded lists (room types, rate plans, members) are not paginated. Calendars page by date range, never by page number. An empty page uses `EmptyState`, not an empty table.
 
-**Long pages and scrolling:** the top bar (breadcrumb, current property) is sticky and stays visible however far the page scrolls. A `Table` scrolls inside its own bordered card, capped to the viewport below the top bar, so its header row stays visible; the page itself only scrolls for content above and below it. Wide tables and the rate calendar scroll horizontally inside their card, never the whole page. Don't nest a second scroll area inside a table card.
+**Long pages and scrolling:** the masthead and breadcrumb context stay sticky however far the page scrolls. A `Table` scrolls inside its own square bordered frame, capped using the measured context height (`--workspace-header-height`), so its header row stays visible; the page itself only scrolls for content above and below it. Wide tables and the rate calendar scroll horizontally inside their frame, never the whole page. Don't nest a second scroll area inside a table frame.
 
 Colours come only from theme tokens (`bg-primary`, `bg-primary-tint`, `text-muted-foreground`, `text-status-warning` and so on), never Tailwind palette colours such as `text-green-600`.
 
@@ -239,9 +243,9 @@ Public pages that sell Karafuu (the landing page at `/`) follow every rule above
 - Do use General Sans for headings and DM Sans for everything else; never swap them.
 - Do show the current organization, property and business date on every operational screen.
 - Do test every screen in light and dark themes, in English, and with the keyboard only.
-- Do keep the radius scale: cards 12px, controls 6px, chips as specified.
+- Do keep operational shared surfaces square and flat; preserve the separate public/auth radius and elevation scale.
 - Don't use the bright status shades (#10B981, #F59E0B, #EF4444) for text.
-- Do use the elevation tokens for depth; don't add ad-hoc shadows, nest elevated panels, or move buttons on hover.
+- Do reserve elevation for overlays in operational screens and use the elevation tokens elsewhere; don't add ad-hoc shadows, nest elevated panels, or move buttons on hover.
 - Don't use the brand accent green for text, controls or anything that could read as a status.
 - Don't use more than three font weights (400, 500, 600) on a screen.
 - Don't place more than one primary button in the same section.

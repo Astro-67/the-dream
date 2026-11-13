@@ -45,6 +45,9 @@ export function NavMain({
                     >
                         <Link
                             href={item.href}
+                            aria-current={
+                                isCurrentUrl(item.href) ? 'page' : undefined
+                            }
                             prefetch
                             onClick={() => setOpenMobile(false)}
                         >
