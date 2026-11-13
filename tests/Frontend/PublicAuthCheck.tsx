@@ -135,6 +135,10 @@ for (const [page, content, layout] of authPages) {
     assert.match(html, /images\/marketing\/hero.webp/);
     assert.match(html, /karafuu-logo-dark.png/);
     assert.match(html, /Theme: System/);
+    assert.match(
+        html.match(/<a\b[^>]*class="public-back"[^>]*>/)?.[0] ?? '',
+        /aria-label="Back to website"/,
+    );
     assert.equal((html.match(/<h1/g) ?? []).length, 1);
     assert.doesNotMatch(html, /tabindex="[1-9]/i);
     assert.doesNotMatch(html, /readonly=""[^>]*type="password"/);
@@ -206,6 +210,11 @@ assert.match(heroSource, /removeEventListener\('change'/);
 const css = readFileSync('resources/css/landing.css', 'utf8');
 assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 assert.match(css, /\.hero-scene:first-child\s*\{\s*opacity: 1/);
+const authCss = readFileSync('resources/css/public-auth.css', 'utf8');
+assert.match(
+    authCss,
+    /@media \(max-width: 760px\)[\s\S]*\.public-back span\s*\{\s*display: none;/,
+);
 console.log(
     'Public/auth: live pricing, real navigation, nine page surfaces, password policy, invitation states and motion safeguards PASS',
 );

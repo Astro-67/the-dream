@@ -27,7 +27,11 @@ export default function AuthSimpleLayout({
                     </Link>
                     <div className="flex items-center gap-3">
                         <AppearanceToggle />
-                        <Link href={home()} className="public-back">
+                        <Link
+                            href={home()}
+                            className="public-back"
+                            aria-label="Back to website"
+                        >
                             <ArrowLeft className="size-4" aria-hidden />
                             <span>Back to website</span>
                         </Link>

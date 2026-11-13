@@ -272,8 +272,13 @@
         height: 56px;
     }
 
+    .public-back {
+        min-width: 44px;
+        justify-content: center;
+    }
+
     .public-back span {
-        max-width: 8ch;
+        display: none;
     }
 
     .auth-layout {
