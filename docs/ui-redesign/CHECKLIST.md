@@ -1,0 +1,201 @@
+# UI migration checklist
+
+Current inventory: **75 page files** under `resources/js/pages/`.
+Page paths below are relative to that directory. Add/remove entries when the
+page inventory changes. Each page appears in exactly one batch.
+
+**Checked means implemented, visually reviewed and validated**, using the
+completion criteria in [the handoff brief](README.md#check-and-hand-off).
+Approved mockups are references, not completed production pages.
+
+## Preparation
+
+- [x] Preserve the approved landing, login, signup and both front-desk themes.
+- [x] Preserve the public pricing snapshot with its limitations.
+- [x] Inventory all current page files and define bounded batches.
+- [x] Commit this handoff package before depending on it from a new worktree.
+- [ ] Verify the pending PR/implementation base and preserve existing local work.
+- [ ] Reconcile this page inventory against the merged implementation base.
+
+## Batch 0 - Shared UI foundation
+
+Start here. Scope is existing shared UI, not new business features.
+
+- [ ] Reconcile the approved operational decisions into `docs/design.md`, preserving its existing edits.
+- [ ] Scope public/auth versus operational radius, spacing and density deliberately.
+- [ ] Implement the approved masthead/menu using the existing app shell/navigation, sticky context and parent-navigation components.
+- [ ] Reuse/update existing Button, input/select, Table, StatusChip/Tag, Identifier, EmptyState, Pagination and overlay components.
+- [ ] Keep the full brand and real organization/property context, permission-based navigation and property-switch state resets.
+- [ ] Wire Light/Dark/System through the existing appearance hook and theme tokens.
+- [ ] Verify representative operational and public/auth surfaces after shared changes.
+- [ ] Update affected theme, sidebar, workspace and page-navigation frontend checks.
+- [ ] Complete the shared completion criteria and update the handoff record.
+
+Do not wire the prototype guest queue or change reservation queries in this
+batch. That belongs to Batch 3.
+
+## Batch 1 - Public site and authentication
+
+Reference: [landing](approved/landing.html), [login](approved/login.html),
+[signup account/email steps](approved/signup.html).
+
+- [ ] Implement the approved landing hero, original footer and current plan-driven pricing.
+- [ ] Preserve passkey capability checks, two-factor and password/reset/verification behaviour.
+- [ ] Carry the auth visual family across the remaining auth screens without another concept round.
+
+9 page files:
+
+- [ ] `auth/confirm-password.tsx`
+- [ ] `auth/forgot-password.tsx`
+- [ ] `auth/invitation.tsx`
+- [ ] `auth/login.tsx`
+- [ ] `auth/register.tsx`
+- [ ] `auth/reset-password.tsx`
+- [ ] `auth/two-factor-challenge.tsx`
+- [ ] `auth/verify-email.tsx`
+- [ ] `welcome.tsx`
+
+## Batch 2 - Organization setup and onboarding
+
+Reference: [signup business/property/checklist steps](approved/signup.html).
+
+- [ ] Stage business/property draft fields while retaining the single existing creation action.
+- [ ] Preserve required property fields, optional registration details, jurisdiction rules and server validation.
+- [ ] Migrate the shared onboarding checklist, preserving real readiness and go-live gates.
+- [ ] Preserve the reservation-import workflow; consult `docs/imports.md` when changing its UI.
+
+2 page files:
+
+- [ ] `onboarding/import.tsx`
+- [ ] `organizations/create.tsx`
+
+## Batch 3 - Front desk, reservations and guest records
+
+Reference: [front desk light](approved/front-desk-light.html) /
+[dark](approved/front-desk-dark.html).
+
+- [ ] Implement the direct-access guest-list cards, clear active state and distinct icons.
+- [ ] Supply the guest queue from existing scoped reservation-list logic; retain real search, pagination and permissions.
+- [ ] Preserve independent occupancy/readiness states, balance semantics and guarded check-in/out.
+- [ ] Reuse list/detail/form patterns for guest and booker pages; retain merge confirmations and identity privacy.
+- [ ] Preserve property business dates and night-audit behaviour.
+
+18 page files:
+
+- [ ] `bookers/create.tsx`
+- [ ] `bookers/edit.tsx`
+- [ ] `bookers/index.tsx`
+- [ ] `bookers/show.tsx`
+- [ ] `dashboard.tsx`
+- [ ] `guests/create.tsx`
+- [ ] `guests/edit.tsx`
+- [ ] `guests/index.tsx`
+- [ ] `guests/merge.tsx`
+- [ ] `guests/show.tsx`
+- [ ] `night-audit/index.tsx`
+- [ ] `night-audit/show.tsx`
+- [ ] `reservations/availability.tsx`
+- [ ] `reservations/create.tsx`
+- [ ] `reservations/guests.tsx`
+- [ ] `reservations/index.tsx`
+- [ ] `reservations/show.tsx`
+- [ ] `reservations/statement.tsx`
+
+## Batch 4 - Rooms, housekeeping, maintenance and rates
+
+- [ ] Apply the operational visual family to the existing list/detail/form patterns.
+- [ ] Keep room readiness, assignments and out-of-service periods distinct.
+- [ ] Keep calendar/date-range navigation, horizontal scrolling and sticky labels usable.
+- [ ] Preserve real room/rate validation, currency labels and permissions.
+
+19 page files:
+
+- [ ] `housekeeping/assignments.tsx`
+- [ ] `housekeeping/history.tsx`
+- [ ] `housekeeping/index.tsx`
+- [ ] `housekeeping/my-rooms.tsx`
+- [ ] `inventory/room-types/create.tsx`
+- [ ] `inventory/room-types/edit.tsx`
+- [ ] `inventory/room-types/index.tsx`
+- [ ] `inventory/rooms/create.tsx`
+- [ ] `inventory/rooms/edit.tsx`
+- [ ] `inventory/rooms/index.tsx`
+- [ ] `maintenance/index.tsx`
+- [ ] `maintenance/show.tsx`
+- [ ] `rates/calendar.tsx`
+- [ ] `rates/create.tsx`
+- [ ] `rates/edit.tsx`
+- [ ] `rates/index.tsx`
+- [ ] `rates/prices.tsx`
+- [ ] `rates/quote.tsx`
+- [ ] `rates/restrictions.tsx`
+
+## Batch 5 - Finance, reporting and compliance
+
+- [ ] Keep money, balances and mixed currencies precise; retain approval/override and receipt rules.
+- [ ] Keep reporting periods, authorized exports and jurisdiction-specific controls intact.
+- [ ] Recheck A4/80mm print views and fiscal/non-fiscal information after shared-style changes.
+
+10 page files:
+
+- [ ] `approvals/index.tsx`
+- [ ] `billing/open-balances.tsx`
+- [ ] `cashier-shifts/index.tsx`
+- [ ] `fiscal-receipting/checkout-report.tsx`
+- [ ] `payments/index.tsx`
+- [ ] `rates/tax-preview.tsx`
+- [ ] `rates/taxes.tsx`
+- [ ] `receipts/show.tsx`
+- [ ] `reports/group.tsx`
+- [ ] `reports/index.tsx`
+
+## Batch 6 - Settings, teams, subscriptions and platform
+
+- [ ] Reuse the settings/form/list family with bounded reading widths.
+- [ ] Keep organization, property, team-role and platform-admin boundaries visible and enforced.
+- [ ] Keep subscription billing, payment-slip privacy, confirmation and configuration behaviour.
+
+17 page files:
+
+- [ ] `invitations/create.tsx`
+- [ ] `members/edit.tsx`
+- [ ] `members/index.tsx`
+- [ ] `platform/billing-details/edit.tsx`
+- [ ] `platform/invoices/index.tsx`
+- [ ] `platform/organizations/index.tsx`
+- [ ] `platform/organizations/show.tsx`
+- [ ] `platform/plans/index.tsx`
+- [ ] `platform/staff/index.tsx`
+- [ ] `properties/create.tsx`
+- [ ] `properties/edit.tsx`
+- [ ] `properties/index.tsx`
+- [ ] `settings/appearance.tsx`
+- [ ] `settings/profile.tsx`
+- [ ] `settings/security.tsx`
+- [ ] `subscription/invoice.tsx`
+- [ ] `subscription/show.tsx`
+
+## Final cross-screen pass
+
+- [ ] Every current page file is represented and checked off; no unreviewed page is counted as migrated.
+- [ ] Shared dialogs/sheets, search, empty/error/loading/offline states and destructive confirmations are consistent.
+- [ ] Light/Dark/System, narrow mobile/tablet/desktop, keyboard focus and long-content cases pass.
+- [ ] Server pagination, calendar ranges, sticky context/table headers and internal scrolling remain usable.
+- [ ] Financial and print verification passes; property switching and isolation checks remain green.
+- [ ] Required automated checks pass and actual remaining limitations are recorded.
+- [ ] The owner reviews representative completed flows across all screen families.
+
+## Handoff record
+
+- Latest completed work: reference preservation and the 75-page inventory.
+- Production migration: not started; no implementation batch is complete.
+- Next batch: **Batch 0**.
+- Implementation base: verify the expected PR merge; no PR number was supplied.
+- Handoff preservation: committed with this checklist; a new worktree must include that commit.
+- Validation: all 75 page entries, documentation/asset links, script syntax,
+  theme parity, pricing provenance and all five archived render/self-checks pass.
+- Repository checks: build, 2,407 Pest tests (19 skipped), Pint, PHPStan and
+  TypeScript passed against disposable SQLite. The full check reached formatting;
+  `docs/research/uhuru-vfms-observed-2026-10-26.md` still has pre-existing formatting
+  findings and was left untouched. Handoff/reference formatting passes.
+- Production UI migration remains untested because implementation has not started.

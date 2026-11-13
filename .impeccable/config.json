@@ -16,6 +16,20 @@
                 "files": ["tests/Frontend/PropertySettingsCheck.tsx"],
                 "createdAt": "2026-11-02T13:24:08.159Z",
                 "reason": "Agent: existing regex assertions inspect SSR img markup, not shipped image elements"
+            },
+            {
+                "rule": "low-contrast",
+                "value": "*",
+                "files": ["docs/ui-redesign/approved/landing.html"],
+                "createdAt": "2026-11-13T06:20:41.333Z",
+                "reason": "Agent decided: approved non-production visual snapshot preserved for comparison; production contrast validation remains mandatory and is not exempted."
+            },
+            {
+                "rule": "low-contrast",
+                "value": "*",
+                "files": ["docs/ui-redesign/approved/login.html"],
+                "createdAt": "2026-11-13T06:20:41.339Z",
+                "reason": "Agent decided: approved non-production visual snapshot preserved for comparison; production contrast validation remains mandatory and is not exempted."
             }
         ]
     }
