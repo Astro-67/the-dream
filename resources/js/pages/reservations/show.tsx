@@ -31,6 +31,10 @@ import {
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import {
+    ZraDocumentsSummary,
+    type ZraDocumentsOverview,
+} from '@/features/fiscal-receipting/zra-documents';
+import {
     Table,
     TableBody,
     TableCell,
@@ -43,6 +47,10 @@ import { PayingInstitutionDialog } from '@/features/reservations/paying-institut
 import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
 import type { CheckoutBalance } from '@/features/front-desk/check-out-dialog';
 import { StayLengthActions } from '@/features/front-desk/stay-length-actions';
+import {
+    GeneralReceiptDialog,
+    type GeneralReceiptPreview,
+} from '@/features/fiscal-receipting/general-receipt-dialog';
 import { formatDate } from '@/features/platform/format';
 import {
     AmendmentForm,
@@ -137,6 +145,8 @@ export default function Show({
     canRecordPayment,
     acceptedPaymentMethods,
     extraCategories,
+    generalReceipt,
+    zraDocuments,
     paymentsReportUrl,
     vfmsRefusal,
     vfmsFilings,
@@ -180,6 +190,8 @@ export default function Show({
     canRecordPayment: boolean;
     acceptedPaymentMethods: string[];
     extraCategories: string[];
+    generalReceipt: GeneralReceiptPreview | null;
+    zraDocuments: ZraDocumentsOverview | null;
     paymentsReportUrl: string | null;
     vfmsRefusal: VfmsRefusal | null;
     vfmsFilings: VfmsFiling[];
@@ -563,14 +575,16 @@ export default function Show({
                 )}
                 <FolioPanel
                     groupStatementLink={
-                        <Link
-                            href={groupStatement(
-                                reservation.reservation_number,
-                            )}
-                            className="text-primary underline underline-offset-4"
-                        >
-                            Group statement
-                        </Link>
+                        !zraDocuments && (
+                            <Link
+                                href={groupStatement(
+                                    reservation.reservation_number,
+                                )}
+                                className="text-primary underline underline-offset-4"
+                            >
+                                Group statement
+                            </Link>
+                        )
                     }
                     stay={stay}
                     folios={folios}
@@ -608,6 +622,24 @@ export default function Show({
                             <FeeProposals fees={feeProposals} />
                         </CollapsibleContent>
                     </Collapsible>
+                )}
+                {zraDocuments && (
+                    <Card>
+                        <CardContent className="space-y-3">
+                            <ZraDocumentsSummary documents={zraDocuments} />
+                            <div className="flex flex-wrap items-center gap-3">
+                                <Link
+                                    href={zraDocuments.statementUrl}
+                                    className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+                                >
+                                    Group statement
+                                </Link>
+                                <GeneralReceiptDialog
+                                    preview={generalReceipt}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
                 <VfmsFilingsPanel
                     filings={vfmsFilings}

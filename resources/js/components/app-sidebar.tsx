@@ -33,6 +33,7 @@ import {
 import { useCan } from '@/hooks/use-can';
 import { dashboard, rateCalendar } from '@/routes';
 import { index as cashierShifts } from '@/routes/cashier-shifts';
+import { index as customerAccounts } from '@/routes/customer-accounts';
 import { index as approvals } from '@/routes/approvals';
 import { index as guests } from '@/routes/guests';
 import { index as members } from '@/routes/members';
@@ -129,6 +130,15 @@ export function AppSidebar() {
             : []),
     ];
     const moneyItems: NavItem[] = [
+        ...(can('charges.post', 'finance.view')
+            ? [
+                  {
+                      title: 'Day use & events',
+                      href: customerAccounts(),
+                      icon: ReceiptText,
+                  },
+              ]
+            : []),
         ...(can('reports.view')
             ? [
                   {

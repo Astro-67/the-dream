@@ -19,12 +19,13 @@ class ReceiptsController extends Controller
     {
         Gate::authorize('view', PropertyKpis::class);
         $property = Tenancy::property() ?? abort(404);
-        $filters = $request->only(['from', 'to', 'type', 'zra_status', 'number']);
+        $filters = ['tab' => 'zra_receipts', ...$request->only(['tab', 'from', 'to', 'type', 'zra_status', 'number'])];
         $page = $documents->register($property, $filters);
         $annotations = DocumentCorrections::annotations($property, collect($page->items())->pluck('id')->all());
 
         return Inertia::render('receipts/index', [
             'filters' => $filters,
+            'tabCounts' => $documents->tabCounts($property, $filters),
             'correctionRefresh' => RefreshCorrectionDecisions::status($property),
             'documents' => $page->through(fn (array $row) => [...$row, 'annotations' => $annotations[$row['id']] ?? []]),
         ]);

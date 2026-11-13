@@ -1,5 +1,7 @@
 <?php
 
+use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Models\Folio;
 use App\Domains\FiscalReceipting\Actions\SaveVfmsCredentials;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
 use App\Domains\FiscalReceipting\Models\DocumentCorrection;
@@ -125,6 +127,34 @@ return [
 
         return $responses;
     }),
+    'reservations.general-receipt.store' => RouteCoverage::attempt(function (TwoTenants $t) {
+        $institution = ['paying_institution_type' => 'government', 'paying_institution_name' => 'Bravo Ministry', 'paying_institution_zrb_number' => 'WA2400117'];
+        // A foreign organization's stay, and a sibling property's stay in Alpha's own organization.
+        [$foreign, $foreignExtra] = inTenant($t->b->property, function () use ($t, $institution) {
+            $stay = app(CreateReservation::class)->handle($t->b->owner, [...BookingForm::details($t->b->owner), ...$institution]);
+            $stay->update(['status' => 'checked_in']);
+
+            return [$stay, app(PostExtraCharge::class)->handle($t->b->owner, Folio::query()->sole(), ['category' => 'bar', 'description' => 'BRAVO BAR', 'quantity' => 1, 'unit_price' => 500])];
+        });
+        [$sibling, $siblingExtra] = inTenant($t->a->otherProperty, function () use ($t, $institution) {
+            $stay = app(CreateReservation::class)->handle($t->a->owner, [...BookingForm::details($t->a->owner), ...$institution]);
+            $stay->update(['status' => 'checked_in']);
+
+            return [$stay, app(PostExtraCharge::class)->handle($t->a->owner, Folio::query()->sole(), ['category' => 'bar', 'description' => 'SIBLING BAR', 'quantity' => 1, 'unit_price' => 500])];
+        });
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->post(route('reservations.general-receipt.store', $foreign), ['_property' => $t->a->property->id])->assertNotFound();
+        }
+        // Stale intent: a form opened at Alpha's main property runs there, so the sibling's stay is not found.
+        $responses[] = $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->otherProperty->id])
+            ->post(route('reservations.general-receipt.store', $sibling), ['_property' => $t->a->property->id])->assertNotFound();
+        expect(inTenant($t->b->property, fn () => $foreignExtra->fresh()->general_receipt_id))->toBeNull()
+            ->and(inTenant($t->a->otherProperty, fn () => $siblingExtra->fresh()->general_receipt_id))->toBeNull()
+            ->and(inTenant($t->b->property, fn () => OutboxMessage::query()->where('event', 'generalReceipt')->count()))->toBe(0);
+
+        return $responses;
+    }),
     'reservations.vfms.refile' => RouteCoverage::attempt(fn (TwoTenants $t) => $recoverForeignFiling->call($this, $t, 'reservations.vfms.refile')),
     'reservations.vfms.retry' => RouteCoverage::attempt(fn (TwoTenants $t) => $recoverForeignFiling->call($this, $t, 'reservations.vfms.retry')),
     'properties.vfms.update' => RouteCoverage::attempt(function (TwoTenants $t) use ($bravoCredentials) {
@@ -161,6 +191,34 @@ return [
         ];
         Http::assertSentCount(1);
         expect(VfmsCredential::for($t->b->property)->zra_check)->toBe('refused');
+
+        return $responses;
+    }),
+    'reservations.fiscal-report.print' => RouteCoverage::attempt(function (TwoTenants $t) {
+        // Bravo's issued receipt, with its number in the answer ZRA stored: Alpha must never be shown it.
+        $document = inTenant($t->b->property, function () use ($t) {
+            $stay = app(CreateReservation::class)->handle($t->b->owner, BookingForm::details($t->b->owner));
+            $message = OutboxMessage::query()->create([
+                'integration' => 'vfms', 'subject_type' => $stay->getMorphClass(), 'subject_id' => $stay->id,
+                'sequence' => 1, 'stream_key' => hash('sha256', $stay->id), 'idempotency_key' => 'foreign-print:'.$stay->id,
+                'event' => 'generalReceipt', 'payload' => [], 'status' => 'delivered',
+            ]);
+
+            return [$stay, IssuedDocument::query()->create([
+                'outbox_message_id' => $message->id, 'reservation_id' => $stay->id, 'type' => 'general_receipt',
+                'number' => 'BRAVO-PRINT', 'mode' => 'live', 'issued_at' => now(), 'guest_name' => 'Bravo Ministry',
+            ])];
+        });
+        [$stay, $receipt] = $document;
+        $responses = [];
+        foreach ($t->a->members() as $member) {
+            $responses[] = $this->actingAs($member)->get(route('reservations.fiscal-report.print', [$stay, 'document' => $receipt->id]))->assertNotFound();
+            $responses[] = $this->actingAs($member)->get(route('reservations.fiscal-report.print', $stay))->assertNotFound();
+        }
+        // A sibling property in Alpha's own organization: the owner works in both, yet the open property decides.
+        $sibling = inTenant($t->a->otherProperty, fn () => app(CreateReservation::class)->handle($t->a->owner, BookingForm::details($t->a->owner)));
+        $responses[] = $this->actingAs($t->a->owner)->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])
+            ->get(route('reservations.fiscal-report.print', $sibling))->assertNotFound();
 
         return $responses;
     }),

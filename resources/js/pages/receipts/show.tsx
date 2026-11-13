@@ -20,6 +20,10 @@ import {
     show as showReservation,
     statement,
 } from '@/routes/reservations';
+import {
+    index as accounts,
+    show as showAccount,
+} from '@/routes/customer-accounts';
 
 type Receipt = {
     id: string;
@@ -43,6 +47,12 @@ type Stay = {
     arrival: string;
     departure: string;
 };
+type CustomerAccount = {
+    id: string;
+    number: string;
+    customer_name: string;
+    kind: string;
+};
 const corrections: Record<string, string> = {
     reversal: 'Reversed',
     refund: 'Refunded',
@@ -55,6 +65,7 @@ export default function Show({
     property,
     summary,
     stay,
+    customerAccount = null,
     corrections: later,
     advancePayment = null,
 }: {
@@ -70,14 +81,18 @@ export default function Show({
               } | null;
           })
         | null;
-    stay: Stay;
+    stay: Stay | null;
+    customerAccount?: CustomerAccount | null;
     corrections: {
         id: string;
         type: string;
         amount: number;
         business_date: string;
     }[];
-    reservation: { reservation_number: string; payment_collector: string };
+    reservation: {
+        reservation_number: string;
+        payment_collector: string;
+    } | null;
     booker: { name: string };
     property: {
         name: string;
@@ -126,21 +141,45 @@ export default function Show({
                                 `${formatDate(receipt.issued_at, timezone)} ${formatTime(receipt.issued_at, timezone)}`,
                             ],
                             ['Received from', booker.name],
-                            ['Guest', stay.guest],
-                            [
-                                'Reservation',
-                                <Link
-                                    key="reservation"
-                                    href={showReservation(
-                                        reservation.reservation_number,
-                                    )}
-                                    className="underline underline-offset-4"
-                                >
-                                    <Identifier
-                                        value={reservation.reservation_number}
-                                    />
-                                </Link>,
-                            ],
+                            ...(stay ? [['Guest', stay.guest]] : []),
+                            ...(reservation
+                                ? [
+                                      [
+                                          'Reservation',
+                                          <Link
+                                              key="reservation"
+                                              href={showReservation(
+                                                  reservation.reservation_number,
+                                              )}
+                                              className="underline underline-offset-4"
+                                          >
+                                              <Identifier
+                                                  value={
+                                                      reservation.reservation_number
+                                                  }
+                                              />
+                                          </Link>,
+                                      ],
+                                  ]
+                                : []),
+                            ...(customerAccount
+                                ? [
+                                      [
+                                          'Customer account',
+                                          <Link
+                                              key="account"
+                                              href={showAccount(
+                                                  customerAccount.id,
+                                              )}
+                                              className="underline underline-offset-4"
+                                          >
+                                              <Identifier
+                                                  value={customerAccount.number}
+                                              />
+                                          </Link>,
+                                      ],
+                                  ]
+                                : []),
                             [
                                 receipt.deposit ? 'Deposit' : 'Payment',
                                 <span key="amount" className="tabular-nums">
@@ -154,14 +193,18 @@ export default function Show({
                             ...(receipt.cashier
                                 ? [['Processed by', receipt.cashier]]
                                 : []),
-                            [
-                                'Room',
-                                `${stay.room ?? 'Not assigned'}${stay.room_type ? `, ${stay.room_type}` : ''}`,
-                            ],
-                            [
-                                'Stay',
-                                `${formatDate(stay.arrival, 'UTC')} to ${formatDate(stay.departure, 'UTC')}`,
-                            ],
+                            ...(stay
+                                ? [
+                                      [
+                                          'Room',
+                                          `${stay.room ?? 'Not assigned'}${stay.room_type ? `, ${stay.room_type}` : ''}`,
+                                      ],
+                                      [
+                                          'Stay',
+                                          `${formatDate(stay.arrival, 'UTC')} to ${formatDate(stay.departure, 'UTC')}`,
+                                      ],
+                                  ]
+                                : []),
                             ...(receipt.reference
                                 ? [['Reference', receipt.reference]]
                                 : []),
@@ -183,7 +226,7 @@ export default function Show({
                                 ? [
                                       [
                                           'Payment collector',
-                                          reservation.payment_collector,
+                                          reservation?.payment_collector,
                                       ],
                                   ]
                                 : []),
@@ -267,12 +310,20 @@ export default function Show({
                         </p>
                     </section>
                 )}
-                <Link
-                    href={statement(stay.reservation_number)}
-                    className="underline underline-offset-4 print:hidden"
-                >
-                    Folio statement
-                </Link>
+                {(stay || customerAccount) && (
+                    <Link
+                        href={
+                            customerAccount
+                                ? showAccount(customerAccount.id)
+                                : statement(stay!.reservation_number)
+                        }
+                        className="underline underline-offset-4 print:hidden"
+                    >
+                        {customerAccount
+                            ? 'Customer account'
+                            : 'Folio statement'}
+                    </Link>
+                )}
                 <div className="flex flex-wrap items-end gap-3 print:hidden">
                     <div className="space-y-2">
                         <Label htmlFor="receipt-paper">Paper size</Label>
@@ -294,13 +345,30 @@ export default function Show({
     );
 }
 
-Show.layout = ({ stay }: { stay: { reservation_number: string } }) => ({
-    breadcrumbs: [
-        { title: 'Reservations', href: index() },
-        {
-            title: stay.reservation_number,
-            href: showReservation(stay.reservation_number),
-        },
-        { title: 'Receipt', href: '#' },
-    ],
+Show.layout = ({
+    stay,
+    customerAccount,
+}: {
+    stay: Stay | null;
+    customerAccount?: CustomerAccount | null;
+}) => ({
+    breadcrumbs: customerAccount
+        ? [
+              { title: 'Day use & events', href: accounts() },
+              {
+                  title: customerAccount.number,
+                  href: showAccount(customerAccount.id),
+              },
+              { title: 'Receipt', href: '#' },
+          ]
+        : stay
+          ? [
+                { title: 'Reservations', href: index() },
+                {
+                    title: stay.reservation_number,
+                    href: showReservation(stay.reservation_number),
+                },
+                { title: 'Receipt', href: '#' },
+            ]
+          : [{ title: 'Receipts', href: '#' }],
 });

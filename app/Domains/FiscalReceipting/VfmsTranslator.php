@@ -3,6 +3,8 @@
 namespace App\Domains\FiscalReceipting;
 
 use App\Domains\Billing\Actions\PostExtraCharge;
+use App\Domains\Billing\Models\Posting;
+use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\FiscalReceipting\Models\IssuedDocument;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
@@ -68,7 +70,11 @@ final class VfmsTranslator implements LifecycleTranslator
         if ($builder === null) {
             return;
         }
-        if ($event->type === 'extra_posted' && (($event->snapshot['status'] ?? null) !== 'checked_in' || ! in_array($event->snapshot['category'] ?? null, PostExtraCharge::CATEGORIES, true))) {
+        // Spec #249: an institution's extras are held for its general receipt; a departed guest's get one now.
+        $departed = ($event->snapshot['status'] ?? null) === 'checked_out';
+        if ($event->type === 'extra_posted' && (! in_array($event->snapshot['status'] ?? null, ['checked_in', 'checked_out'], true)
+            || ($event->snapshot['paying_institution_type'] ?? null) !== null
+            || ! in_array($event->snapshot['category'] ?? null, PostExtraCharge::CATEGORIES, true))) {
             return;
         }
         // §2.7 is keyed on the document VFMS holds; with none, VFMS can never accept the change.
@@ -79,14 +85,23 @@ final class VfmsTranslator implements LifecycleTranslator
         if ($property === null || ! JurisdictionRules::usesVfms($property)) {
             return;
         }
-        Tenancy::within(TenantContext::forProperty($property), function () use ($event, $property, $requestType, $path, $builder) {
+        Tenancy::within(TenantContext::forProperty($property), function () use ($event, $property, $requestType, $path, $builder, $departed) {
             $reservation = Reservation::query()->findOrFail($event->getAttribute('reservation_id'));
+            if ($event->type === 'extra_posted' && $departed) {
+                $posting = Posting::query()->where('property_id', $property->id)->whereKey($event->snapshot['posting_id']);
+                // The lead guest's ZRA name, else the booker; ZRA refuses an empty customer.
+                $customer = $this->payloads->guests($reservation)[0]['fullName'] ?? Reservation::guestNames(collect([$reservation]))->get($reservation->id) ?? 'Cash customer';
+                app(IssueGeneralReceipt::class)->issue($event->actor, $reservation, $customer, $posting);
+
+                return;
+            }
             $this->outbox->record(VfmsAdapter::INTEGRATION, $reservation, $builder, [
                 'mode' => VfmsCredential::for($property)->mode->value,
                 'unit_id' => VfmsCredential::for($property)->unit_id,
                 'request_type' => $requestType,
                 'path' => $path,
                 'reservation_id' => $reservation->id,
+                ...($builder === 'services' ? ['guest_name' => $this->payloads->guests($reservation)[0]['fullName']] : []),
                 ...(in_array($event->type, ['extra_posted', 'advance_payment_recorded'], true) ? ['posting_id' => $event->snapshot['posting_id']] : []),
                 'body' => $this->payloads->{$builder}($event, $reservation, $property),
             ], "vfms:{$event->id}");

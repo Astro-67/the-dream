@@ -131,7 +131,9 @@ test('an incomplete or uncertain checkout never adjusts the folio or replays', f
     });
     expect($calls)->toBe(1);
     fiscalReport($tenant, $reservation)->assertOk()->assertInertia(fn (Assert $page) => $page
-        ->where('needsAttention', true)->where('report', null)->where('guestReports', []));
+        ->where('needsAttention', true)->where('report', null)
+        // Shown as needing attention, with no report number invented (spec #249).
+        ->has('guestReports', 1)->where('guestReports.0.number', null)->where('guestReports.0.status', 'attention')->where('guestReports.0.amount', null));
     Http::assertNotSent(fn (Request $request) => str_ends_with($request->url(), '/accommodationReport/'));
 })->with([
     'scalar without guest evidence' => [fn () => Http::response(['reportNo' => 'CO-171', 'totalAmount' => 100, 'totalTax' => 999, 'infrastructureTax' => 5])],

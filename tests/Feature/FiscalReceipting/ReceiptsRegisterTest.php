@@ -1,7 +1,9 @@
 <?php
 
+use App\Domains\Billing\Actions\OpenCustomerAccount;
 use App\Domains\Billing\Actions\PostExtraCharge;
 use App\Domains\Billing\Actions\RecordPayment;
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Receipt;
 use App\Domains\FiscalReceipting\IssuedDocuments;
@@ -59,12 +61,77 @@ test('receipts register has exactly the payments access gate and defaults to all
         if ($receipts->isOk()) {
             $receipts->assertInertia(fn (Assert $page) => $page
                 ->component('receipts/index')
-                ->where('filters', [])
+                ->where('filters', ['tab' => 'zra_receipts'])
                 ->where('documents.data', [])
                 ->where('documents.total', 0));
         }
     }
 });
+
+test('receipt tabs separate guest and general receipts from reports and non-fiscal payments with scoped counts', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
+    VfmsHttp::fake();
+    $tenant = twoTenants()->a;
+    [$stay] = receiptsRegisterStay($tenant);
+    inTenant($tenant->property, fn () => app(GuestLeaves::class)->handle($tenant->owner, $stay, ReservationGuest::query()->orderByDesc('id')->firstOrFail()->guest_id));
+    $this->actingAs($tenant->owner)->withSession([
+        'tenancy.organization_id' => $tenant->organization->id,
+        'tenancy.property_id' => $tenant->property->id,
+    ]);
+
+    $this->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('filters.tab', 'zra_receipts')
+        ->where('tabCounts', ['zra_receipts' => 1, 'checkout_reports' => 1, 'non_fiscal' => 1])
+        ->has('documents.data', 1)->where('documents.data.0.type', 'services_receipt'));
+    foreach (['checkout_reports' => 'checkout_report', 'non_fiscal' => 'non_fiscal'] as $tab => $type) {
+        $this->get(route('receipts.index', ['tab' => $tab]))->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('documents.data', 1)->where('documents.data.0.type', $type));
+    }
+    $this->getJson(route('receipts.index', ['tab' => 'all']))->assertUnprocessable()->assertJsonValidationErrors('tab');
+});
+
+test('receipt sources link only to authorized stays groups and customer accounts', function (string $kind, string $label) {
+    $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
+    VfmsHttp::fake();
+    $tenant = twoTenants()->a;
+    $this->actingAs($tenant->owner)->withSession([
+        'tenancy.organization_id' => $tenant->organization->id, 'tenancy.property_id' => $tenant->property->id,
+    ]);
+    if (in_array($kind, ['day_use', 'event'], true)) {
+        $source = inTenant($tenant->property, fn () => app(OpenCustomerAccount::class)->handle($tenant->owner, [
+            'kind' => $kind, 'customer_name' => 'Ministry of Health', 'currency' => 'USD',
+            'items' => [['category' => 'other', 'description' => 'LUNCH', 'quantity' => 1, 'unit_price' => 900]],
+        ]));
+        inTenant($tenant->property, fn () => app(RecordPayment::class)->handle($tenant->owner, $source->folios()->sole(), ['method' => 'bank_transfer', 'amount' => 900, 'currency' => 'USD']));
+        $this->post(route('customer-accounts.close', $source), ['_property' => $tenant->property->id])->assertSessionHasNoErrors();
+        $url = route('customer-accounts.show', $source);
+        $number = $source->number;
+    } elseif ($kind === 'group') {
+        [$source] = generalReceiptGroup($tenant);
+        $folio = inTenant($tenant->property, fn () => Folio::query()->where('reservation_id', $source->id)->sole());
+        postGeneralReceiptExtra($this, $tenant, $folio, ['unit_price' => 900]);
+        issueGeneralReceiptAs($this, $tenant, $source)->assertSessionHasNoErrors();
+        $url = route('reservations.group-statement', $source);
+        $number = $source->reservation_number;
+    } else {
+        [$source] = receiptsRegisterStay($tenant);
+        $url = route('reservations.show', $source);
+        $number = $source->reservation_number;
+    }
+    $this->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->has('documents.data', 1)
+        ->where('documents.data.0.source', ['label' => $label, 'number' => $number, 'url' => $url]));
+    $this->get($url)->assertOk();
+    $reader = $tenant->member(OrganizationRole::Auditor);
+    inTenant($tenant->property, function () use ($reader) {
+        $reader->syncRoles([]);
+        $reader->givePermissionTo(OrganizationPermission::ReportsView->value);
+    });
+    $this->actingAs($reader)->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('documents.data.0.source.url', null)
+        ->where('documents.data.0.localUrl', fn ($url) => $source instanceof CustomerAccount ? $url === null : str_contains($url, '/fiscal-report')));
+    $this->get($url)->assertForbidden();
+})->with([['stay', 'Stay'], ['group', 'Group'], ['day_use', 'Day use'], ['event', 'Event']]);
 
 test('register links issued documents to their local pages and stored viewers without identity data', function () {
     $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam'));
@@ -77,18 +144,20 @@ test('register links issued documents to their local pages and stored viewers wi
         'tenancy.property_id' => $tenant->property->id,
     ])->get(route('receipts.index'))->assertOk();
     $response->assertInertia(fn (Assert $page) => $page
-        ->where('documents.total', 2)
-        ->where('documents.data', function ($rows) use ($stay, $receipt) {
+        ->where('documents.total', 1)
+        ->where('documents.data', function ($rows) use ($stay) {
             $rows = collect($rows)->keyBy('type');
-            expect($rows['non_fiscal']['localUrl'])->toBe(route('receipts.show', $receipt))
-                ->and($rows['non_fiscal']['mode'])->toBeNull()
-                ->and($rows['services_receipt']['localUrl'])->toBe(route('reservations.fiscal-report', $stay).'#document-services_receipt-TEST-RECEIPT-169')
+            expect($rows['services_receipt']['localUrl'])->toBe(route('reservations.fiscal-report', $stay).'#document-services_receipt-TEST-RECEIPT-169')
                 ->and($rows['services_receipt']['viewerUrl'])->toBe('https://vfms-viewer.example/receipt-form/TEST-RECEIPT-169')
                 ->and($rows['services_receipt']['mode'])->toBe('sandbox');
 
             return true;
         }));
     $response->assertDontSee('P1234567')->assertDontSee('P7654321')->assertDontSee('documentNo');
+    $this->get(route('receipts.index', ['tab' => 'non_fiscal']))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('documents.total', 1)
+        ->where('documents.data.0.localUrl', route('receipts.show', $receipt))
+        ->where('documents.data.0.mode', null));
 });
 
 test('reports-only readers can open issued receipts and early documents without reservation or identity access', function () {
@@ -157,7 +226,7 @@ test('register combines filters in property local time and keeps them on paginat
         'tenancy.organization_id' => $tenant->organization->id,
         'tenancy.property_id' => $tenant->property->id,
     ]);
-    $filters = ['from' => '2026-12-11', 'to' => '2026-12-11', 'type' => 'non_fiscal', 'zra_status' => 'not_applicable'];
+    $filters = ['tab' => 'non_fiscal', 'from' => '2026-12-11', 'to' => '2026-12-11', 'type' => 'non_fiscal', 'zra_status' => 'not_applicable'];
     $response = $this->get(route('receipts.index', $filters))->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('filters', $filters)
         ->where('documents.total', 51)
@@ -168,7 +237,8 @@ test('register combines filters in property local time and keeps them on paginat
     expect($query)->toEqual([...$filters, 'page' => '2']);
     $this->get($next)->assertOk()->assertInertia(fn (Assert $page) => $page
         ->where('documents.total', 51)->has('documents.data', 1));
-    $this->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('documents.total', 53));
+    $this->get(route('receipts.index'))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('documents.total', 1)->where('tabCounts.non_fiscal', 52));
     $this->get(route('receipts.index', ['type' => 'services_receipt', 'zra_status' => 'sandbox']))
         ->assertOk()->assertInertia(fn (Assert $page) => $page->where('documents.total', 1));
     $fiscal = $this->get(route('receipts.index', ['type' => 'services_receipt']))->viewData('page')['props']['documents']['data'][0]['number'];
@@ -197,8 +267,12 @@ test('register and document reads refuse sibling properties even for an owner of
         'tenancy.property_id' => $tenants->a->property->id,
     ]);
     foreach ($foreign as [$stay, $receipt]) {
-        $this->get(route('receipts.index', ['property_id' => $receipt->property_id, 'reservation' => $stay->id, 'receipt' => $receipt->id]))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->where('documents.total', 0));
+        foreach (['zra_receipts', 'checkout_reports', 'non_fiscal'] as $tab) {
+            $this->get(route('receipts.index', ['tab' => $tab, 'property_id' => $receipt->property_id, 'reservation' => $stay->id, 'receipt' => $receipt->id]))
+                ->assertOk()->assertInertia(fn (Assert $page) => $page
+                ->where('documents.total', 0)
+                ->where('tabCounts', ['zra_receipts' => 0, 'checkout_reports' => 0, 'non_fiscal' => 0]));
+        }
         $this->get(route('receipts.show', $receipt))->assertNotFound();
         $this->get(route('reservations.fiscal-report', $stay))->assertNotFound();
     }

@@ -58,7 +58,7 @@ import {
     type FolioTotal,
     type TaxSource,
 } from './folio-summary';
-import { fiscalReport, statement } from '@/routes/reservations';
+import { statement } from '@/routes/reservations';
 import { PaymentsReceived, type ReceivedPayment } from './payments-received';
 
 export type Posting = {
@@ -422,19 +422,6 @@ export function FolioPanel({
                                 {groupStatementLink}
                             </Button>
                         )}
-                        {taxSource && (
-                            <Button
-                                asChild
-                                variant="link"
-                                className="h-auto min-h-11 text-left whitespace-normal"
-                            >
-                                <Link
-                                    href={fiscalReport(stay.reservation_number)}
-                                >
-                                    Fiscal check-out report
-                                </Link>
-                            </Button>
-                        )}
                         {paymentsReportUrl && (
                             <Button
                                 asChild
@@ -625,7 +612,7 @@ export function ExtraChargeForm({
     categories: allowed,
     onSuccess,
 }: {
-    folio: Folio;
+    folio: { id: string; currency: string };
     categories: string[];
     onSuccess?: () => void;
 }) {
@@ -707,6 +694,26 @@ export function ExtraChargeForm({
                             aria-invalid={Boolean(errors.unit_price)}
                         />
                         <InputError message={errors.unit_price} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor={id('discount')}>
+                            Discount in {folio.currency} (optional)
+                        </Label>
+                        <MoneyInput
+                            id={id('discount')}
+                            name="discount"
+                            currency={folio.currency}
+                            min={0}
+                            aria-invalid={Boolean(errors.discount)}
+                            aria-describedby={id('discount-help')}
+                        />
+                        <p
+                            id={id('discount-help')}
+                            className="text-sm text-muted-foreground"
+                        >
+                            Taken off the line total before VAT.
+                        </p>
+                        <InputError message={errors.discount} />
                     </div>
                     <InputError
                         message={errors.idempotency_key}

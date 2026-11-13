@@ -2,13 +2,16 @@
 
 namespace App\Domains\FiscalReceipting;
 
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Models\Property;
 use App\Support\Money\Currency;
 use App\Support\Outbox\OutboxMessage;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
@@ -21,7 +24,7 @@ final class VfmsFilings
     private const CALLS = [
         'advanceBooking' => 'Advance payment', 'advanceAccommodation' => 'Check-in with advance receipt',
         'accommodation' => 'Check-in', 'changeRoom' => 'Room move', 'changeRoomPrice' => 'Room price changed',
-        'addGuest' => 'Guest added', 'changeProfile' => 'Profile corrected', 'services' => 'Extras',
+        'addGuest' => 'Guest added', 'changeProfile' => 'Profile corrected', 'services' => 'Extras', 'generalReceipt' => 'General receipt',
         'guestDeparture' => 'Guest left', 'checkout' => 'Check-out',
     ];
 
@@ -39,12 +42,14 @@ final class VfmsFilings
     private const STATUSES = ['filed' => 'Filed', 'refused' => 'Refused', 'unknown' => 'Unknown', 'waiting' => 'Waiting', 'sandbox' => 'Sandbox — not fiscal', 'closed' => 'Closed without filing'];
 
     /** @return list<array{id: string, call: string, status: string, attempts: int, number: string|null, message: string|null, refileUrl: string|null, retryUrl: string|null}> */
-    public static function of(Reservation $reservation, bool $canRecover): array
+    public static function of(Reservation|CustomerAccount $reservation, bool $canRecover): array
     {
+        $routes = $reservation instanceof CustomerAccount ? 'customer-accounts' : 'reservations';
+
         return OutboxMessage::query()->where('property_id', $reservation->property_id)
             ->where('integration', VfmsAdapter::INTEGRATION)->where('subject_type', $reservation->getMorphClass())
             ->where('subject_id', $reservation->id)->where('event', '!=', 'errorSave')->orderBy('sequence')->get()
-            ->map(function (OutboxMessage $message) use ($reservation, $canRecover) {
+            ->map(function (OutboxMessage $message) use ($reservation, $canRecover, $routes) {
                 $references = $message->getAttribute('provider_references') ?? [];
                 $number = $references['reportNo'] ?? $references['receiptNumber'] ?? $references['responseNumber'] ?? null;
 
@@ -56,8 +61,8 @@ final class VfmsFilings
                     'number' => $number === null ? null : (string) $number,
                     'message' => $message->status === 'rejected' ? VfmsRefusal::summary($message) : null,
                     // Unknown outcomes never get an action: VFMS cannot prove whether ZRA kept them (unknownRetrySafe is false).
-                    'refileUrl' => $canRecover && $message->status === 'rejected' ? route('reservations.vfms.refile', [$reservation, $message]) : null,
-                    'retryUrl' => $canRecover && in_array($message->status, ['retryable', 'exhausted'], true) ? route('reservations.vfms.retry', [$reservation, $message]) : null,
+                    'refileUrl' => $canRecover && $message->status === 'rejected' ? route($routes.'.vfms.refile', [$reservation, $message]) : null,
+                    'retryUrl' => $canRecover && in_array($message->status, ['retryable', 'exhausted'], true) ? route($routes.'.vfms.retry', [$reservation, $message]) : null,
                 ];
             })->all();
     }
@@ -82,14 +87,14 @@ final class VfmsFilings
 
         return [
             'counts' => array_map(fn (string $status) => ['status' => $status, 'label' => __(self::STATUSES[$status]), 'count' => $counts[$status]], array_keys(self::STATUSES)),
-            'calls' => $this->query($property, $from, $to)->paginate(50)->withQueryString()->through($this->row(...)),
+            'calls' => $this->query($property, $from, $to)->paginate(50)->withQueryString()->through(fn (OutboxMessage $message) => $this->row($message, $property->timezone)),
         ];
     }
 
     /** @return list<array{id: string, date: string, reservationNumber: string, call: string, amount: int|null, currency: string|null, status: string, statusLabel: string, zraNumber: string|null}> */
     public function rows(Property $property, string $from, string $to): array
     {
-        return $this->query($property, $from, $to)->get()->map($this->row(...))->values()->all();
+        return $this->query($property, $from, $to)->get()->map(fn (OutboxMessage $message) => $this->row($message, $property->timezone))->values()->all();
     }
 
     /** Minor units as a plain decimal for CSV: TZS has no decimals, USD and EUR two. */
@@ -121,19 +126,32 @@ final class VfmsFilings
     {
         $property = Property::query()->real()->findOrFail($property->id);
 
-        // The idempotency key starts "vfms:{lifecycle event ULID}" (VfmsTranslator), kept across re-filing.
+        $start = CarbonImmutable::parse($from, $property->timezone)->startOfDay()->utc();
+        $end = CarbonImmutable::parse($to, $property->timezone)->addDay()->startOfDay()->utc();
+
+        // General receipts have no lifecycle event: use their property-local issue date.
         return OutboxMessage::query()
-            ->join('reservation_lifecycle_events as events', DB::raw('SUBSTR(outbox_messages.idempotency_key, 6, 26)'), '=', 'events.id')
-            ->join('reservations', 'reservations.id', '=', 'outbox_messages.subject_id')
-            ->where('outbox_messages.property_id', $property->id)->where('events.property_id', $property->id)->where('reservations.property_id', $property->id)
+            ->leftJoin('reservation_lifecycle_events as events', fn (JoinClause $join) => $join
+                ->on(DB::raw('SUBSTR(outbox_messages.idempotency_key, 6, 26)'), '=', 'events.id')
+                ->on('events.reservation_id', '=', 'outbox_messages.subject_id')->where('events.property_id', $property->id))
+            ->leftJoin('reservations', fn (JoinClause $join) => $join->on('reservations.id', '=', 'outbox_messages.subject_id')
+                ->where('outbox_messages.subject_type', (new Reservation)->getMorphClass())->where('reservations.property_id', $property->id))
+            ->leftJoin('customer_accounts as accounts', fn (JoinClause $join) => $join->on('accounts.id', '=', 'outbox_messages.subject_id')
+                ->where('outbox_messages.subject_type', (new CustomerAccount)->getMorphClass())->where('accounts.property_id', $property->id))
+            ->where('outbox_messages.property_id', $property->id)
+            ->where(fn ($query) => $query->whereNotNull('reservations.id')->orWhereNotNull('accounts.id'))
             ->where('outbox_messages.integration', VfmsAdapter::INTEGRATION)
-            ->whereDate('events.business_date', '>=', $from)->whereDate('events.business_date', '<=', $to)
-            ->select('outbox_messages.*', 'events.business_date as filed_on', 'reservations.reservation_number')
-            ->orderBy('events.business_date')->orderBy('reservations.reservation_number')->orderBy('outbox_messages.sequence');
+            ->whereIn('outbox_messages.event', array_keys(self::CALLS))
+            ->where(fn ($query) => $query
+                ->where(fn ($query) => $query->whereNotNull('reservations.id')->whereDate('events.business_date', '>=', $from)->whereDate('events.business_date', '<=', $to))
+                ->orWhere(fn ($query) => $query->where('outbox_messages.event', 'generalReceipt')->where('outbox_messages.created_at', '>=', $start)->where('outbox_messages.created_at', '<', $end)))
+            ->select('outbox_messages.*', 'events.business_date as filed_on')
+            ->selectRaw('COALESCE(reservations.reservation_number, accounts.number) as reservation_number')
+            ->orderByRaw('COALESCE(events.business_date, outbox_messages.created_at)')->orderBy('reservation_number')->orderBy('outbox_messages.sequence')->orderBy('outbox_messages.id');
     }
 
     /** @return array{id: string, date: string, reservationNumber: string, call: string, amount: int|null, currency: string|null, status: string, statusLabel: string, zraNumber: string|null} */
-    private function row(OutboxMessage $message): array
+    private function row(OutboxMessage $message, string $timezone): array
     {
         $status = self::status($message->status, $message->getAttribute('provider_references')['mode'] ?? null);
         $references = $message->getAttribute('provider_references') ?? [];
@@ -145,7 +163,7 @@ final class VfmsFilings
             'advanceBooking' => $body['amountToBePaid'] ?? null,
             'advanceAccommodation' => $body['accomodationPrice'] ?? null,
             'accommodation', 'changeRoom' => $body['accommodationPrice'] ?? null,
-            'services' => array_sum(array_map(fn (array $item) => $item['price'] * $item['quantity'] - $item['discount'], $body['service'] ?? [])),
+            'services', 'generalReceipt' => array_sum(array_map(fn (array $item) => $item['price'] * $item['quantity'] - $item['discount'], $body['service'] ?? [])),
             'checkout', 'guestDeparture' => $references['totalAmount'] ?? null,
             // shortcut: a room price call carries no currency, so no amount; add the folio currency if staff need it.
             default => null,
@@ -156,7 +174,7 @@ final class VfmsFilings
 
         return [
             'id' => $message->id,
-            'date' => substr((string) $message->getAttribute('filed_on'), 0, 10),
+            'date' => $message->getAttribute('filed_on') === null ? $message->created_at->timezone($timezone)->toDateString() : substr((string) $message->getAttribute('filed_on'), 0, 10),
             'reservationNumber' => (string) $message->getAttribute('reservation_number'),
             'call' => self::call($message),
             'amount' => $major === null || $currency === null ? null : $payloads->minor((float) $major, $currency),

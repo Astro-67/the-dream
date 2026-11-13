@@ -93,6 +93,12 @@ class ReservationPolicy
         return $this->view($user, $reservation) || Access::inProperty($user, P::ReportsView, $reservation);
     }
 
+    /** Sending held extras to ZRA is a billing task, like posting them. */
+    public function issueGeneralReceipt(User $user, Reservation $reservation): bool
+    {
+        return $this->view($user, $reservation) && Access::allows($user, P::ChargesPost, $reservation);
+    }
+
     public function recoverVfms(User $user, Reservation $reservation): bool
     {
         return $this->view($user, $reservation) && Access::allows($user, P::OutboxRecover, $reservation);

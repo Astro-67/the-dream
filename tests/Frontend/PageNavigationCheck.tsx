@@ -82,7 +82,7 @@ const cases = [
         'fiscal-receipting/checkout-report',
         'R-207',
         '/reservations/R-207',
-        'Fiscal documents',
+        'ZRA documents',
     ],
     ['night-audit/show', 'Night audit', '/night-audit', 'Close details'],
     ['maintenance/show', 'Maintenance', '/maintenance', 'Ticket'],

@@ -300,7 +300,22 @@
         white-space: normal;
     }
 
-    .receipt-print[data-paper='thermal'] td:nth-child(2) {
+    .receipt-print[data-paper='thermal'] .zra-status {
+        display: none;
+    }
+
+    .receipt-print[data-paper='thermal'] .zra-sheet :is(th, td) {
+        padding-inline: 0.5mm;
+        font-size: 8pt;
+    }
+
+    .receipt-print[data-paper='thermal']
+        .zra-sheet
+        :is(td, th):not(:first-child) {
+        white-space: nowrap;
+    }
+
+    .receipt-print[data-paper='thermal'] td:nth-child(2):not(.zra-status) {
         overflow-wrap: anywhere;
     }
 }

@@ -9,7 +9,9 @@ use App\Domains\Billing\Models\FeeProposal;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
 use App\Domains\FiscalReceipting\Actions\CorrectPayingInstitution;
+use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Domains\FiscalReceipting\Actions\RefreshCorrectionDecisions;
+use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\FiscalReceipting\DocumentCorrections;
 use App\Domains\FiscalReceipting\VfmsFilings;
 use App\Domains\FiscalReceipting\VfmsRefusal;
@@ -89,6 +91,7 @@ class ReservationController extends Controller
         $payments = FolioSummary::payments($folios->getCollection());
 
         return Inertia::render('reservations/show', [
+            'zraDocuments' => CheckoutReport::overview($reservation),
             'vfmsRefusal' => VfmsRefusal::of($reservation, $canRecoverVfms = Gate::allows('recoverVfms', $reservation)),
             'vfmsFilings' => $vfmsFilings = VfmsFilings::of($reservation, $canRecoverVfms),
             'vfmsCloseWithoutFilingUrl' => VfmsFilings::closeWithoutFilingUrl($reservation, $canRecoverVfms, $vfmsFilings),
@@ -131,6 +134,7 @@ class ReservationController extends Controller
             ])->all(),
             'canPostCharge' => $folios->isNotEmpty() && Gate::allows('postCharge', $folios->first()),
             'extraCategories' => PostExtraCharge::CATEGORIES,
+            'generalReceipt' => Gate::allows('issueGeneralReceipt', $reservation) ? IssueGeneralReceipt::preview($reservation) : null,
             'canReverse' => $folios->isNotEmpty() && Gate::allows('reverse', $folios->first()),
             'canTransfer' => $folios->total() > 1 && $folios->isNotEmpty() && Gate::allows('transfer', $folios->first()),
             'canOpenFolio' => Gate::allows('create', [Folio::class, $reservation]),
@@ -180,6 +184,9 @@ class ReservationController extends Controller
     {
         Gate::authorize('view', $reservation);
 
-        return Inertia::render('reservations/group-statement', GroupStatement::of($reservation));
+        return Inertia::render('reservations/group-statement', [
+            ...GroupStatement::of($reservation),
+            'generalReceipt' => Gate::allows('issueGeneralReceipt', $reservation) ? IssueGeneralReceipt::preview($reservation) : null,
+        ]);
     }
 }

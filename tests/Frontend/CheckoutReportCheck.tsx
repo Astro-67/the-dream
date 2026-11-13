@@ -3,28 +3,47 @@ import { App } from '@inertiajs/react';
 import type { ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import CheckoutReport from '@/pages/fiscal-receipting/checkout-report';
+import ZraDocument, {
+    type PrintedDocument,
+} from '@/pages/fiscal-receipting/zra-document';
 
 type Props = ComponentProps<typeof CheckoutReport>;
 
-const base: Props = {
-    status: 'sandbox',
-    report: {
-        number: 'SBX-1A2B',
-        currency: 'USD',
-        room: 22000,
-        extras: 1500,
-        vat: 0,
-        levy: 400,
-        total: 23900,
-    },
+const row = {
+    status: 'issued' as const,
+    reason: null,
+    retryUrl: null,
+    refileUrl: null,
+    printUrl: null,
+    issuedAt: '2026-12-10T09:40:00Z',
+    mode: 'sandbox' as const,
     portalUrl: null,
     qrSvg: null,
+};
+const base: Props = {
+    status: 'sandbox',
+    sandbox: true,
+    rooms: 1,
+    payingInstitution: null,
+    summary: [
+        {
+            currency: 'USD',
+            room: 22000,
+            extras: 1500,
+            vat: 0,
+            levy: 400,
+            charges: 23900,
+            held: 0,
+        },
+    ],
+    held: [],
+    generalReceipts: [],
+    serviceReceipts: [],
     guestReports: [],
-    business: null,
-    needsAttention: false,
+    generalReceipt: null,
+    printAllUrl: '/reservations/R-1042/fiscal-report/print',
     revealIdentityUrl: null,
     reservationUrl: '/reservations/R-1042',
-    serviceReceipts: [],
     stay: {
         reservation_number: 'R-1042',
         room: '101',
@@ -34,23 +53,15 @@ const base: Props = {
         nights: 2,
     },
     guests: ['Anna Berg', 'Ola Berg'],
-    property: {
-        name: 'Sea Inn',
-        address_line: 'Stone Town',
-        city: 'Zanzibar',
-        phone: '+255',
-        email: 'desk@example.test',
-    },
-    branding: { logo_url: null, accent_colour: null },
 };
 
-const render = (props: Props) =>
+const render = (props: Props, url = '/reservations/R-1042/fiscal-report') =>
     renderToStaticMarkup(
         <App
             initialPage={{
                 component: 'fiscal-receipting/checkout-report',
                 props: { ...props, tenant: { property: null } },
-                url: '/reservations/R-1042/fiscal-report',
+                url,
                 version: null,
                 clearHistory: false,
                 encryptHistory: false,
@@ -59,244 +70,211 @@ const render = (props: Props) =>
         />,
     );
 
-// A Sandbox report is stamped and carries no portal QR.
-const sandbox = render(base);
-assert.match(sandbox, /FISCAL CHECK-OUT REPORT/);
-assert.match(sandbox, /TEST, NOT FISCAL/);
-assert.match(sandbox, /SBX-1A2B/);
-assert.match(sandbox, /Anna Berg, Ola Berg/);
-assert.match(sandbox, /USD 239\.00/);
-assert.doesNotMatch(sandbox, /VFMS QR code/);
-assert.match(sandbox, /<section[^>]*aria-label="Financial summary"/);
-assert.match(sandbox, /<dt[^>]*><strong\b[^>]*>Total<\/strong><\/dt>/);
-assert.match(sandbox, /<dd[^>]*><strong\b[^>]*>USD 239\.00<\/strong><\/dd>/);
-assert.match(sandbox, /<dl[^>]*aria-label="Stay details"/);
-
-// A Live report shows the portal QR and no Sandbox stamp.
-const live = render({
-    ...base,
-    status: 'live',
-    report: { ...base.report!, number: 'CO-778' },
-    portalUrl: 'https://portalvfms.zanrevenue.org/checkout-report/guest/CO-778',
-    qrSvg: '<svg data-qr="1"></svg>',
-});
-assert.match(
-    live,
-    /VFMS QR code for https:\/\/portalvfms\.zanrevenue\.org\/checkout-report\/guest\/CO-778/,
-);
-assert.match(live, /data-qr="1"/);
-assert.doesNotMatch(live, /TEST, NOT FISCAL/);
-assert.match(
-    live,
-    /<figcaption[^>]*>.*href="https:\/\/portalvfms\.zanrevenue\.org\/checkout-report\/guest\/CO-778"[^>]*>Scan to verify with ZRA<\/a>.*CO-778.*<\/figcaption>/,
+// The page has one fixed layout, whatever the state: summary, then every section.
+const empty = render(base);
+assert.match(empty, /ZRA documents/);
+assert.doesNotMatch(empty, /Issued fiscal documents|Fiscal check-out report/i);
+assert.match(empty, /aria-label="Summary"/);
+assert.match(empty, /USD 220\.00/);
+assert.match(empty, /Everything is receipted/);
+assert.match(empty, /Print all/);
+assert.doesNotMatch(
+    empty,
+    /General receipts \(|Guest receipts \(|Check-out reports \(/,
 );
 
-// protects=each recorded guest report is printable with its own verification link (#172); fails_when=one report or the test stamp disappears; no_claim=physical A4 layout.
-const recordedProps: Props = {
-    ...base,
-    business: {
-        businessName: 'ZRA Test Hotel',
-        street: 'Test Street',
-        tinNumber: 'TEST-TIN',
-        vrnNumber: 'TEST-VRN',
-        znumber: 'TEST-Z',
+// protects=spec #249 "Sandbox banner shown once"; fails_when=the stamp repeats on a row.
+const report = {
+    ...row,
+    number: 'REPORT-1',
+    name: 'Private Guest',
+    room: '101',
+    amount: 23900,
+    currency: 'USD',
+    levy: 400,
+    identity: {
+        documentName: 'PASSPORT',
+        country: 'GERMANY',
+        documentNo: 'PRIVATE-DOCUMENT-172',
     },
-    guestReports: ['REPORT-1', 'REPORT-2'].map((number) => ({
-        number,
-        mode: 'sandbox',
-        name: `Guest ${number}`,
-        identity: {
-            documentName: 'PASSPORT',
-            country: 'GERMANY',
-            documentNo: 'PRIVATE-DOCUMENT-172',
+    departedEarly: false,
+    printUrl: '/print?document=r1',
+    portalUrl: 'https://viewer.example/checkout-report/guest/REPORT-1',
+    qrSvg: '<svg data-qr="REPORT-1"></svg>',
+};
+const full: Props = {
+    ...base,
+    rooms: 2,
+    payingInstitution: { name: 'Ministry of Health', zrbNumber: 'WA2400117' },
+    held: [
+        {
+            id: 'p1',
+            description: 'LATE BAR',
+            category: 'bar',
+            quantity: 1,
+            unit_price: 90000,
+            discount: 0,
+            amount: 90000,
+            currency: 'TZS',
+            room: '102',
+            postedAt: '2026-12-10T16:40:00Z',
         },
-        departedEarly: false,
-        portalUrl: `https://viewer.example/checkout-report/guest/${number}`,
-        qrSvg: `<svg data-qr="${number}"></svg>`,
-    })),
+    ],
+    generalReceipts: [
+        {
+            ...row,
+            number: 'XHE2104621',
+            customer: 'Ministry of Health',
+            items: 2,
+            amount: 1070000,
+            currency: 'TZS',
+            printUrl: '/print?document=g1',
+            portalUrl: 'https://viewer.example/receipt-form/XHE2104621',
+            qrSvg: '<svg data-qr="XHE2104621"></svg>',
+        },
+    ],
     serviceReceipts: [
         {
+            ...row,
             number: 'RECEIPT-172',
             description: 'Water',
             amount: 2000,
             currency: 'USD',
-            mode: 'sandbox',
+            guest: 'Amina Hassan',
+            room: '101',
+            printUrl: '/print?document=s1',
             portalUrl: 'https://viewer.example/receipt-form/RECEIPT-172',
             qrSvg: '<svg data-qr="RECEIPT-172"></svg>',
         },
     ],
+    guestReports: [report],
+    summary: [
+        { ...base.summary[0], held: 0 },
+        {
+            currency: 'TZS',
+            room: 0,
+            extras: 1250000,
+            vat: 163043,
+            levy: 0,
+            charges: 1250000,
+            held: 90000,
+        },
+    ],
 };
-const recorded = render(recordedProps);
-assert.match(recorded, /ZRA Test Hotel/);
-assert.match(recorded, /TIN TEST-TIN/);
-assert.match(recorded, /TEST, NOT FISCAL/);
-assert.match(recorded, /data-qr="REPORT-1"/);
-assert.match(recorded, /data-qr="REPORT-2"/);
-assert.match(recorded, /RECEIPT-172/);
-assert.match(recorded, /data-qr="RECEIPT-172"/);
+const html = render(full);
+assert.equal((html.match(/TEST, NOT FISCAL/g) ?? []).length, 1);
+const mixed = render({
+    ...full,
+    guestReports: [{ ...report, mode: 'live' }],
+});
+assert.doesNotMatch(mixed, /None of these documents is fiscal/);
+const mixedRows = mixed.match(/<tr\b[\s\S]*?<\/tr>/g) ?? [];
 assert.match(
-    recorded,
-    /href="https:\/\/viewer\.example\/receipt-form\/RECEIPT-172"/,
+    mixedRows.find((value) => value.includes('REPORT-1')) ?? '',
+    /Live/,
 );
-assert.doesNotMatch(recorded, /Zanzibar Revenue Authority|zra-logo/);
-assert.doesNotMatch(recorded, /Guest REPORT-[12]|PASSPORT|GERMANY/);
-assert.doesNotMatch(recorded, /PRIVATE-DOCUMENT-172/);
-const verificationBlocks = [
-    ...recorded.matchAll(/<figure\b[^>]*>.*?<\/figure>/g),
-].map(([figure]) => figure);
-assert.equal(verificationBlocks.length, 3);
-for (const number of ['REPORT-1', 'REPORT-2', 'RECEIPT-172']) {
-    const block = verificationBlocks.find((figure) =>
-        figure.includes(`data-qr="${number}"`),
-    );
-    assert.ok(block, `${number} has its own verification block`);
-    const path =
-        number === 'RECEIPT-172' ? 'receipt-form' : 'checkout-report/guest';
-    assert.ok(
-        block.includes(`href="https://viewer.example/${path}/${number}"`),
-    );
-    assert.match(block, />Scan to verify with ZRA<\/a>/);
-    assert.match(block, /<figcaption\b/);
-    assert.ok(block.slice(block.indexOf('<figcaption')).includes(number));
-    assert.doesNotMatch(
-        block,
-        /Guest REPORT|PASSPORT|GERMANY|PRIVATE-DOCUMENT/,
-    );
+assert.match(
+    mixedRows.find((value) => value.includes('XHE2104621')) ?? '',
+    /Test \(not fiscal\)/,
+);
+for (const section of [
+    /Not yet receipted \(1\)/,
+    /General receipts \(1\)/,
+    /Guest receipts \(1\)/,
+    /Check-out reports \(1\)/,
+]) {
+    assert.match(html, section);
 }
+assert.match(html, /Paid by Ministry of Health \(WA2400117\)/);
+assert.match(html, /group of 2 rooms/);
+assert.match(html, /Amina Hassan · Room 101/);
+// Money keeps its currency; currencies are never added together.
+assert.match(html, /TZS 1,070,000/);
+assert.match(html, /USD 20\.00/);
+assert.match(html, /TZS 90,000/);
+// Each row prints and opens its QR in a popover; the QR carries no guest name or document.
+for (const url of ['g1', 's1', 'r1']) {
+    assert.match(html, new RegExp(`href="/print\\?document=${url}"`));
+}
+const popovers = [
+    ...html.matchAll(
+        /<div[^>]*popover[^>]*>.*?<\/figcaption><\/figure><\/div>/g,
+    ),
+];
+assert.equal(popovers.length, 3);
+for (const [popover] of popovers) {
+    assert.doesNotMatch(
+        popover,
+        /Private Guest|PASSPORT|GERMANY|PRIVATE-DOCUMENT/,
+    );
+    assert.match(popover, />Scan to verify with ZRA<\/a>/);
+}
+assert.doesNotMatch(html, /PRIVATE-DOCUMENT-172/);
 
-const revealControl = render({
-    ...base,
+// Status chips: Sending to ZRA, and Needs attention with ZRA's reason, Retry and Re-file.
+const states = render({
+    ...full,
+    serviceReceipts: [],
+    guestReports: [],
+    generalReceipts: [
+        {
+            ...full.generalReceipts[0],
+            number: null,
+            status: 'sending',
+            printUrl: null,
+            portalUrl: null,
+            qrSvg: null,
+        },
+        {
+            ...full.generalReceipts[0],
+            number: null,
+            status: 'attention',
+            reason: 'Invalid item',
+            refileUrl: '/reservations/R-1042/vfms/m1/refile',
+            retryUrl: '/reservations/R-1042/vfms/m2/retry',
+            printUrl: null,
+            portalUrl: null,
+            qrSvg: null,
+        },
+    ],
+});
+assert.match(states, /Sending to ZRA/);
+assert.match(states, /Needs attention/);
+assert.match(states, /Invalid item/);
+assert.match(states, />Re-file<\/button>/);
+assert.match(states, />Retry<\/button>/);
+assert.doesNotMatch(states, /data-qr=/);
+
+// A document without a stored viewer link shows no QR or verify link.
+const noLinks = render({
+    ...full,
+    guestReports: [
+        { ...report, portalUrl: null, qrSvg: '<svg data-qr="x"></svg>' },
+    ],
+    serviceReceipts: [],
+    generalReceipts: [],
+});
+assert.doesNotMatch(noLinks, /Scan to verify|data-qr=/);
+
+// A waiting check-out says so; already-issued documents stay listed.
+const waiting = render({ ...full, status: 'waiting' });
+assert.match(waiting, /final check-out report is not complete/);
+assert.match(waiting, /id="document-checkout_report-REPORT-1"/);
+assert.match(waiting, /id="document-services_receipt-RECEIPT-172"/);
+
+// Reveal document numbers stays, and a reveal is never put beside a QR.
+assert.doesNotMatch(html, /Reveal document numbers/);
+const reveal = render({
+    ...full,
     revealIdentityUrl: '/reservations/R-1042/fiscal-report/reveal-identity',
 });
-assert.match(revealControl, /Reveal document numbers for printing \(logged\)/);
-assert.match(revealControl, /method="post"/);
-const revealed = render({
-    ...base,
-    identityRevealed: true,
-    guestReports: [
-        {
-            number: 'REPORT-1',
-            mode: 'sandbox',
-            name: 'Anna Berg',
-            identity: {
-                documentName: 'PASSPORT',
-                documentNo: 'REVEALED-DOCUMENT-172',
-                country: 'GERMANY',
-            },
-            departedEarly: false,
-            portalUrl: null,
-            qrSvg: null,
-        },
-    ],
-});
-assert.match(revealed, /REVEALED-DOCUMENT-172/);
-assert.doesNotMatch(revealed, /Reveal document numbers for printing/);
+assert.match(reveal, /Reveal document numbers for printing \(logged\)/);
+const revealed = render({ ...full, identityRevealed: true });
 assert.match(revealed, /Revealed identity documents/);
-for (const [figure] of revealed.matchAll(/<figure\b[^>]*>.*?<\/figure>/g)) {
-    assert.doesNotMatch(figure, /Anna Berg|PASSPORT|GERMANY|REVEALED-DOCUMENT/);
-}
+assert.match(revealed, /PRIVATE-DOCUMENT-172/);
+assert.doesNotMatch(revealed, /Reveal document numbers for printing/);
 
-const withoutDestinations: Props = {
-    ...base,
-    qrSvg: '<svg data-qr="orphan-fallback"></svg>',
-    guestReports: [
-        {
-            number: 'NO-LINK-GUEST',
-            mode: 'sandbox',
-            name: 'Private Guest',
-            identity: null,
-            departedEarly: true,
-            portalUrl: null,
-            qrSvg: '<svg data-qr="orphan-guest"></svg>',
-        },
-    ],
-    serviceReceipts: [
-        {
-            number: 'NO-LINK-RECEIPT',
-            description: 'Water',
-            amount: 2000,
-            currency: 'USD',
-            mode: 'sandbox',
-            portalUrl: null,
-            qrSvg: '<svg data-qr="orphan-receipt"></svg>',
-        },
-    ],
-};
-const noLinks = render(withoutDestinations);
-assert.match(noLinks, /NO-LINK-GUEST/);
-assert.match(noLinks, /NO-LINK-RECEIPT/);
-assert.match(noLinks, /Departed before stay check-out/);
-assert.match(noLinks, /USD 20\.00/);
-assert.match(noLinks, /TEST, NOT FISCAL/);
-assert.doesNotMatch(
-    noLinks,
-    /Scan to verify|data-qr=|VFMS QR code|Private Guest/,
-);
-assert.doesNotMatch(
-    render({ ...withoutDestinations, guestReports: [] }),
-    /Scan to verify|data-qr=|VFMS QR code/,
-);
-
-const linkOnly = render({
-    ...withoutDestinations,
-    guestReports: [
-        {
-            ...withoutDestinations.guestReports[0],
-            portalUrl:
-                'https://viewer.example/checkout-report/guest/NO-LINK-GUEST',
-            qrSvg: null,
-        },
-    ],
-});
-assert.match(
-    linkOnly,
-    /href="https:\/\/viewer\.example\/checkout-report\/guest\/NO-LINK-GUEST"[^>]*>Scan to verify with ZRA<\/a>/,
-);
-assert.doesNotMatch(linkOnly, /data-qr=|VFMS QR code/);
-
-// Until VFMS accepts every filing the report shows no figures.
-const waiting = render({ ...base, status: 'waiting', report: null });
-assert.match(waiting, /final check-out report is not complete/);
-assert.match(waiting, /ISSUED FISCAL DOCUMENTS/);
-assert.doesNotMatch(waiting, /SBX-1A2B|USD 239\.00/);
-
-const earlyDocuments = render({
-    ...recordedProps,
-    status: 'waiting',
-    report: null,
-    reservationUrl: null,
-});
-assert.match(earlyDocuments, /id="document-services_receipt-RECEIPT-172"/);
-assert.match(earlyDocuments, /id="document-checkout_report-REPORT-1"/);
-assert.match(earlyDocuments, /USD 20\.00/);
-assert.match(earlyDocuments, /TEST, NOT FISCAL/);
-assert.doesNotMatch(
-    earlyDocuments,
-    /FISCAL CHECK-OUT REPORT|href="\/reservations\/R-1042"/,
-);
-assert.match(
-    render({ ...base, status: 'waiting', report: null, needsAttention: true }),
-    /Needs attention: ZRA returned no verifiable check-out report/,
-);
-
-// protects=#220 the letterhead is the property's, never ZRA's; fails_when=the ZRA logo returns, the logo is missing or fiscal identity is replaced.
-assert.doesNotMatch(sandbox, /zra-logo|Zanzibar Revenue Authority|<img/);
-assert.match(sandbox, /<p[^>]*>Sea Inn<\/p>/);
-const branded = render({
-    ...recordedProps,
-    branding: {
-        logo_url: 'data:image/png;base64,TE9HTw==',
-        accent_colour: '#1f6f5c',
-    },
-});
-assert.match(branded, /<img[^>]*src="data:image\/png;base64,TE9HTw=="/);
-assert.match(branded, /<img[^>]*alt="Sea Inn"/);
-assert.doesNotMatch(branded, /zra-logo/);
-assert.match(branded, /#1f6f5c/);
-assert.match(branded, /ZRA Test Hotel/);
-assert.match(branded, /TIN TEST-TIN/);
-assert.match(branded, /TEST, NOT FISCAL/);
-
+// Document-correction controls keep working on the rows they apply to.
 const correctionDocument = {
     id: 'issued-1',
     number: 'RECEIPT-172',
@@ -304,67 +282,180 @@ const correctionDocument = {
     issued_at: '2026-12-10T09:00:00Z',
     amount: 2000,
     currency: 'USD',
-    mode: 'live' as const,
+    mode: 'sandbox' as const,
 };
-const correctionProps = {
-    ...recordedProps,
-    serviceReceipts: recordedProps.serviceReceipts.map((receipt) => ({
-        ...receipt,
-        mode: 'live' as const,
-    })),
-    documentCorrections: {
-        'issued-1': {
-            document: correctionDocument,
-            submitUrl: '/issued-documents/issued-1/corrections',
-            replacements: [],
-            business: {},
-            refusal: null,
-            annotations: [],
-        },
-    },
-};
-assert.match(render(correctionProps), /Correct this document/);
-for (const [decision, label] of [
-    ['awaiting', 'Awaiting ZRA status'],
-    ['pending', 'Pending'],
-    ['verification', 'Under verification'],
-    ['approved', 'Approved'],
-    ['rejected', 'Correction rejected'],
-]) {
-    const corrected = render({
-        ...correctionProps,
+const withCorrection = (extra: object) =>
+    render({
+        ...full,
         documentCorrections: {
             'issued-1': {
-                ...correctionProps.documentCorrections['issued-1'],
-                submitUrl: null,
-                annotations: [
-                    {
-                        label:
-                            decision === 'approved'
-                                ? 'Replaced by'
-                                : 'Proposed to be replaced by',
-                        number: 'REPLACEMENT-172',
-                        url: '/replacement',
-                        delivery: 'delivered',
-                        decision,
-                        refreshUrl: '/refresh',
-                    },
-                ],
+                document: correctionDocument,
+                submitUrl: '/issued-documents/issued-1/corrections',
+                replacements: [],
+                business: {},
+                refusal: null,
+                annotations: [],
+                ...extra,
             },
         },
     });
-    assert.match(corrected, new RegExp(label));
-    assert.match(corrected, /Submission delivered/);
-    assert.match(corrected, /REPLACEMENT-172/);
-    assert.match(corrected, /Refresh ZRA status/);
-    assert.match(corrected, /RECEIPT-172/);
-    assert.match(corrected, /data-qr="RECEIPT-172"/);
-    assert.match(
-        corrected,
-        /href="https:\/\/viewer\.example\/receipt-form\/RECEIPT-172"/,
-    );
-    assert.match(corrected, /USD 20\.00/);
-    assert.doesNotMatch(corrected, /Correct this document/);
-}
+assert.match(withCorrection({}), /Correct this document/);
+assert.match(
+    withCorrection({
+        submitUrl: null,
+        annotations: [
+            {
+                label: 'Replaced by',
+                number: 'REPLACEMENT-172',
+                url: '/replacement',
+                delivery: 'delivered',
+                decision: 'approved',
+                refreshUrl: '/refresh',
+            },
+        ],
+    }),
+    /REPLACEMENT-172/,
+);
 
-console.log('Fiscal check-out report: PASS');
+// The print view: ZRA's receipt frame, one sheet per document.
+const sheet = (over: Partial<PrintedDocument> = {}): PrintedDocument => ({
+    id: 'g1',
+    type: 'general_receipt',
+    number: 'XHE2104621',
+    mode: 'sandbox',
+    currency: 'TZS',
+    viewerUrl: 'https://viewer.example/receipt-form/XHE2104621',
+    qrSvg: '<svg data-qr="XHE2104621"></svg>',
+    issuedAt: '2026-11-12T10:40:00Z',
+    annotations: [],
+    business: {
+        name: 'THE DREAM OF SAU INN BEACH HOTEL',
+        street: 'Stone Town, Zanzibar',
+        phone: '+255',
+        tin: 'TIN-1',
+        vrn: 'VRN-1',
+        znumber: 'Z-1',
+    },
+    customer: 'OR-TAWALA ZA MIKOA',
+    items: [
+        {
+            name: 'BREAKFAST AND LUNCH',
+            quantity: 10,
+            price: 555450,
+            discount: 0,
+            amount: 5554500,
+        },
+        {
+            name: 'CONFERENCE HALL',
+            quantity: 13,
+            price: 427269,
+            discount: 0,
+            amount: 5554500,
+        },
+    ],
+    rooms: [],
+    taxExclusive: 9660000,
+    tax: 1449000,
+    levy: null,
+    total: 11109000,
+    ...over,
+});
+const printed = (documents: PrintedDocument[], sandbox = true) =>
+    renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'fiscal-receipting/zra-document',
+                props: {
+                    tenant: { property: { timezone: 'Africa/Dar_es_Salaam' } },
+                },
+                url: '/reservations/R-1042/fiscal-report/print',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+            }}
+            initialComponent={() => (
+                <ZraDocument
+                    documents={documents}
+                    sandbox={sandbox}
+                    property={{ name: 'Sea Inn' }}
+                    branding={{ logo_url: null }}
+                    reservationNumber="R-1042"
+                />
+            )}
+        />,
+    );
+const one = printed([sheet()]);
+assert.match(one, /Start of a legal receipt/);
+assert.match(one, /End of a legal receipt/);
+assert.match(one, /THE DREAM OF SAU INN BEACH HOTEL/);
+assert.match(one, /Z-number Z-1/);
+assert.match(one, /OR-TAWALA ZA MIKOA/);
+assert.match(one, /TZS 555,450/);
+assert.match(one, /Tax exclusive/);
+assert.match(one, /TZS 9,660,000/);
+assert.match(one, /TZS 11,109,000/);
+assert.match(one, /12 Nov 2026 13:40/);
+assert.match(one, /data-qr="XHE2104621"/);
+assert.match(one, /TEST, NOT FISCAL/);
+const corrected = printed([
+    sheet({
+        annotations: [
+            {
+                label: 'Replaced by',
+                number: 'REPLACEMENT-1',
+                url: null,
+                delivery: 'delivered',
+                decision: 'approved',
+                refreshUrl: '/corrections/refresh',
+            },
+        ],
+    }),
+]);
+assert.match(corrected, /Replaced by/);
+assert.match(corrected, /REPLACEMENT-1/);
+assert.match(corrected, /Approved/);
+assert.doesNotMatch(corrected, /corrections\/refresh/);
+assert.doesNotMatch(
+    printed([sheet({ mode: 'live' })], false),
+    /TEST, NOT FISCAL/,
+);
+// Print all: one sheet per document, each a page of its own.
+const all = printed([sheet(), sheet({ id: 'g2', number: 'XHE2104622' })]);
+assert.equal((all.match(/<article/g) ?? []).length, 2);
+assert.match(all, /break-after-page/);
+assert.match(all, /Print all documents/);
+// Figures ZRA never stored are unavailable, never invented.
+const missing = printed([
+    sheet({
+        items: [],
+        taxExclusive: null,
+        tax: null,
+        total: null,
+        customer: null,
+        qrSvg: null,
+        viewerUrl: null,
+    }),
+]);
+assert.match(missing, /Not available/);
+assert.doesNotMatch(missing, /Scan to verify/);
+// A check-out report uses the same frame, with rooms and the levy.
+const checkout = printed([
+    sheet({
+        type: 'checkout_report',
+        number: 'REPORT-1',
+        currency: 'USD',
+        customer: 'Anna Berg',
+        items: [],
+        rooms: [{ room: '101', days: 2, price: 11000, amount: 22000, tax: 0 }],
+        taxExclusive: null,
+        tax: 0,
+        levy: 500,
+        total: 22500,
+    }),
+]);
+assert.match(checkout, /Start of a legal report/);
+assert.match(checkout, /Infrastructure levy/);
+assert.match(checkout, /USD 225\.00/);
+assert.doesNotMatch(checkout, /PASSPORT|P1234567/);
+
+console.log('ZRA documents: PASS');

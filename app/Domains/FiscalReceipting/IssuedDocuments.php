@@ -2,6 +2,7 @@
 
 namespace App\Domains\FiscalReceipting;
 
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Receipt;
 use App\Domains\FiscalReceipting\Adapters\VfmsAdapter;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
@@ -15,6 +16,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use stdClass;
 
@@ -25,11 +27,17 @@ use stdClass;
  */
 final class IssuedDocuments
 {
-    public const TYPES = ['non_fiscal', 'services_receipt', 'checkout_report'];
+    public const TYPES = ['non_fiscal', 'services_receipt', 'general_receipt', 'checkout_report'];
 
     public const ZRA_STATUSES = ['live', 'sandbox', 'not_applicable'];
 
-    private const EVENTS = ['services' => 'services_receipt', 'checkout' => 'checkout_report', 'guestDeparture' => 'checkout_report'];
+    public const TABS = [
+        'zra_receipts' => ['services_receipt', 'general_receipt'],
+        'checkout_reports' => ['checkout_report'],
+        'non_fiscal' => ['non_fiscal'],
+    ];
+
+    private const EVENTS = ['services' => 'services_receipt', 'generalReceipt' => 'general_receipt', 'checkout' => 'checkout_report', 'guestDeparture' => 'checkout_report'];
 
     /** Idempotent: an existing document (same property, mode, type and number) is left as first projected. */
     public function project(OutboxMessage $message): void
@@ -42,10 +50,12 @@ final class IssuedDocuments
         }
         $attempt = $message->attempts()->where('outcome', 'accepted')->orderByDesc('attempt_number')->first();
         $common = [
-            'outbox_message_id' => $message->id, 'outbox_attempt_id' => $attempt?->id, 'reservation_id' => $message->subject_id,
+            'outbox_message_id' => $message->id, 'outbox_attempt_id' => $attempt?->id,
+            'reservation_id' => ($message->payload['customer_account_id'] ?? null) === null ? $message->subject_id : null,
+            'customer_account_id' => $message->payload['customer_account_id'] ?? null,
             'type' => $type, 'mode' => $mode, 'issued_at' => $message->delivered_at,
         ];
-        $documents = $type === 'services_receipt' ? $this->receipt($message, $references) : $this->reports($message, $references, $attempt?->response_body);
+        $documents = $type === 'checkout_report' ? $this->reports($message, $references, $attempt?->response_body) : $this->receipt($message, $references);
         // All of a message's documents or none, so the catch-up can skip any message with a row.
         DB::transaction(function () use ($documents, $message, $mode, $type, $common): void {
             foreach ($documents as $document) {
@@ -80,14 +90,12 @@ final class IssuedDocuments
     }
 
     /**
-     * The property's issued documents, newest first (unknown issue times last), 50 a page.
-     *
      * @param  array<string, mixed>  $filters  from/to (property-local Y-m-d, inclusive), type, zra_status; 'all' means no filter
-     * @return LengthAwarePaginator<int|string, array{id: string, type: string, number: string, issuedAt: string|null, guest: mixed, amount: int|null, currency: mixed, zraStatus: string, mode: string|null, viewerUrl: mixed, reservationId: string, localUrl: string|null}> guest, currency and viewerUrl are strings or null
      */
-    public function register(Property $property, array $filters): LengthAwarePaginator
+    private function query(Property $property, array $filters): Builder
     {
-        $filters = Validator::make(array_filter($filters, fn ($value) => $value !== 'all'), [
+        $filters = Validator::make(array_filter($filters, fn ($value, $key) => $key === 'tab' || $value !== 'all', ARRAY_FILTER_USE_BOTH), [
+            'tab' => ['sometimes', 'required', 'in:'.implode(',', array_keys(self::TABS))],
             'from' => ['nullable', 'date_format:Y-m-d'],
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],
             'type' => ['nullable', 'in:'.implode(',', self::TYPES)],
@@ -97,40 +105,78 @@ final class IssuedDocuments
         $receipts = Receipt::query()->where('receipts.property_id', $property->id)
             ->join('postings', 'postings.id', '=', 'receipts.posting_id')->join('folios', 'folios.id', '=', 'postings.folio_id')
             ->where('postings.property_id', $property->id)->where('folios.property_id', $property->id)
-            ->select('receipts.id', 'receipts.number', 'receipts.issued_at', 'folios.reservation_id', 'postings.currency')
+            ->select('receipts.id', 'receipts.number', 'receipts.issued_at', 'folios.reservation_id', 'postings.currency', 'folios.customer_account_id')
             ->selectRaw("'non_fiscal' as type, -postings.amount as amount, 'not_applicable' as zra_status, null as guest_name, null as viewer_url")
             ->toBase();
         $fiscal = IssuedDocument::query()->where('property_id', $property->id)
-            ->select('id', 'number', 'issued_at', 'reservation_id', 'currency', 'type', 'amount')
+            ->select('id', 'number', 'issued_at', 'reservation_id', 'currency', 'customer_account_id', 'type', 'amount')
             ->selectRaw('mode as zra_status')->addSelect('guest_name', 'viewer_url')
             ->toBase();
         // Next local midnight, converted afterwards: a DST day is 23 or 25 hours long.
         $local = fn (string $date, int $days = 0) => CarbonImmutable::parse($date, $property->timezone)->addDays($days)->utc();
 
-        $page = DB::query()->fromSub($receipts->unionAll($fiscal), 'documents')
+        return DB::query()->fromSub($receipts->unionAll($fiscal), 'documents')
             ->when($filters['from'] ?? null, fn (Builder $query, string $from) => $query->where('issued_at', '>=', $local($from)))
             ->when($filters['to'] ?? null, fn (Builder $query, string $to) => $query->where('issued_at', '<', $local($to, 1)))
             ->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('type', $type))
             ->when($filters['zra_status'] ?? null, fn (Builder $query, string $status) => $query->where('zra_status', $status))
-            ->when($filters['number'] ?? null, fn (Builder $query, string $number) => $query->where('number', 'like', '%'.addcslashes(trim($number), '%_\\').'%'))
+            ->when($filters['number'] ?? null, fn (Builder $query, string $number) => $query->where('number', 'like', '%'.addcslashes(trim($number), '%_\\').'%'));
+    }
+
+    /** @param array<string, mixed> $filters
+     * @return array<string, int>
+     */
+    public function tabCounts(Property $property, array $filters): array
+    {
+        $counts = $this->query($property, $filters)->select('type')->selectRaw('COUNT(*) as total')->groupBy('type')->pluck('total', 'type');
+
+        return collect(self::TABS)->map(fn (array $types) => (int) $counts->only($types)->sum())->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return LengthAwarePaginator<int|string, array{id: string, type: string, number: string, issuedAt: string|null, guest: mixed, amount: int|null, currency: mixed, zraStatus: string, mode: string|null, viewerUrl: mixed, reservationId: string, source: array{label: array<mixed, mixed>|string, number: string, url: string|null}|null, localUrl: string|null}>
+     */
+    public function register(Property $property, array $filters): LengthAwarePaginator
+    {
+        $page = $this->query($property, $filters)
+            ->when($filters['tab'] ?? null, fn (Builder $query, string $tab) => $query->whereIn('type', self::TABS[$tab]))
             ->orderByRaw('issued_at is null')->orderByDesc('issued_at')->orderByDesc('id')
             ->paginate(50)->withQueryString();
         // Payers of non-fiscal receipts: the stay's lead guest, or its booker (as payment reports show them).
         $stays = Reservation::query()->where('property_id', $property->id)
             ->whereIn('id', collect($page->items())->pluck('reservation_id'))->get()->keyBy('id');
-        $names = Reservation::guestNames($stays->only(collect($page->items())->where('type', 'non_fiscal')->pluck('reservation_id')->all()));
+        $names = Reservation::guestNames($stays->only(collect($page->items())->where('type', 'non_fiscal')->pluck('reservation_id')->filter()->all()));
+        $accounts = CustomerAccount::query()->where('property_id', $property->id)->whereIn('id', collect($page->items())->pluck('customer_account_id'))->get()->keyBy('id');
+        $historicalNames = IssuedDocument::query()->where('property_id', $property->id)->where('type', 'services_receipt')->whereNull('guest_name')
+            ->whereIn('id', collect($page->items())->pluck('id'))->get()->mapWithKeys(fn (IssuedDocument $document) => [$document->id => self::customer($document)]);
 
         // Raw union rows are untyped; every column but issued_at/amount/guest/currency/viewer is non-null in both sources.
-        return $page->through(fn (stdClass $row): array => [
-            'id' => (string) $row->id, 'type' => (string) $row->type, 'number' => (string) $row->number,
-            'issuedAt' => $row->issued_at === null ? null : CarbonImmutable::parse((string) $row->issued_at, 'UTC')->toIso8601String(),
-            'guest' => $row->type === 'non_fiscal' ? $names->get((string) $row->reservation_id) : $row->guest_name,
-            'amount' => $row->amount === null ? null : (int) $row->amount, 'currency' => $row->currency,
-            'zraStatus' => (string) $row->zra_status, 'mode' => $row->type === 'non_fiscal' ? null : (string) $row->zra_status,
-            'viewerUrl' => $row->viewer_url, 'reservationId' => (string) $row->reservation_id,
-            'localUrl' => $row->type === 'non_fiscal' ? route('receipts.show', (string) $row->id)
-                : ($stays->has($row->reservation_id) ? self::reportUrl($stays[$row->reservation_id], (string) $row->type, (string) $row->number) : null),
-        ]);
+        return $page->through(function (stdClass $row) use ($stays, $names, $accounts, $historicalNames): array {
+            $stay = $stays->get($row->reservation_id);
+            $account = $accounts->get($row->customer_account_id);
+            $source = $account ?? $stay;
+            $sourceUrl = $source !== null && Gate::allows('view', $source)
+                ? ($account !== null ? route('customer-accounts.show', $account)
+                    : route($stay->booking_group_id === null ? 'reservations.show' : 'reservations.group-statement', $stay)) : null;
+
+            return [
+                'id' => (string) $row->id, 'type' => (string) $row->type, 'number' => (string) $row->number,
+                'issuedAt' => $row->issued_at === null ? null : CarbonImmutable::parse((string) $row->issued_at, 'UTC')->toIso8601String(),
+                'guest' => $row->type === 'non_fiscal' ? ($accounts->get($row->customer_account_id)->customer_name ?? $names->get((string) $row->reservation_id)) : ($row->guest_name ?? $historicalNames->get($row->id)),
+                'amount' => $row->amount === null ? null : (int) $row->amount, 'currency' => $row->currency,
+                'zraStatus' => (string) $row->zra_status, 'mode' => $row->type === 'non_fiscal' ? null : (string) $row->zra_status,
+                'viewerUrl' => $row->viewer_url, 'reservationId' => (string) $row->reservation_id,
+                'source' => $source === null ? null : [
+                    'label' => $account !== null ? ($account->kind === 'day_use' ? __('Day use') : __('Event'))
+                        : ($stay->booking_group_id === null ? __('Stay') : __('Group')),
+                    'number' => $account->number ?? $stay->reservation_number, 'url' => $sourceUrl,
+                ],
+                'localUrl' => $row->type === 'non_fiscal' ? route('receipts.show', (string) $row->id)
+                    : ($account !== null ? $sourceUrl
+                        : ($stay !== null && Gate::allows('viewFiscalReport', $stay) ? self::reportUrl($stay, (string) $row->type, (string) $row->number) : null)),
+            ];
+        });
     }
 
     /** The fiscal-report page, scrolled to one issued document. */
@@ -158,10 +204,49 @@ final class IssuedDocuments
             // The amount filed, as the ZRA filings report shows it.
             'amount' => $payloads->minor(array_sum(array_map(fn (array $item) => $item['price'] * $item['quantity'] - $item['discount'], $body['service'])), $currency),
             'currency' => $currency->value,
-            // The services filing and its answer name no guest (only a document number); today's guest links are not evidence.
-            'guest_name' => null,
+            'guest_name' => self::receiptCustomer($message),
             'viewer_url' => is_string($references['receiptUrl'] ?? null) ? $references['receiptUrl'] : null,
         ]];
+    }
+
+    public static function customer(IssuedDocument $document): ?string
+    {
+        if ($document->getAttribute('guest_name') !== null || $document->type !== 'services_receipt') {
+            return $document->getAttribute('guest_name');
+        }
+        $message = OutboxMessage::query()->where('property_id', $document->property_id)->find($document->getAttribute('outbox_message_id'));
+
+        return $message === null ? null : self::receiptCustomer($message);
+    }
+
+    private static function receiptCustomer(OutboxMessage $message): ?string
+    {
+        if ($message->event === 'generalReceipt') {
+            return $message->payload['body']['documentNumber'];
+        }
+        if (is_string($message->payload['guest_name'] ?? null)) {
+            return $message->payload['guest_name'];
+        }
+        $documentNumber = $message->payload['body']['documentNumber'] ?? null;
+        if (! is_string($documentNumber) || $documentNumber === '') {
+            return null;
+        }
+        $history = OutboxMessage::query()->where('property_id', $message->property_id)->where('stream_key', $message->stream_key)
+            ->where('sequence', '<', $message->sequence)->where('status', 'delivered')
+            ->whereIn('event', ['accommodation', 'advanceAccommodation', 'addGuest', 'changeProfile'])->orderByDesc('sequence')->cursor();
+        foreach ($history as $filing) {
+            if (($filing->payload['mode'] ?? null) !== ($message->payload['mode'] ?? null)) {
+                continue;
+            }
+            $body = $filing->payload['body'];
+            foreach ($body['guest'] ?? [$body] as $guest) {
+                if (($guest['newDocumentNo'] ?? $guest['documentNo'] ?? null) === $documentNumber && is_string($guest['fullName'] ?? null)) {
+                    return $guest['fullName'];
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

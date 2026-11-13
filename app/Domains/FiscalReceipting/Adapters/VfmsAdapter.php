@@ -2,9 +2,12 @@
 
 namespace App\Domains\FiscalReceipting\Adapters;
 
+use App\Domains\Billing\Actions\CloseCustomerAccount;
 use App\Domains\Billing\Actions\PostVfmsAdjustment;
+use App\Domains\Billing\Models\CustomerAccount;
 use App\Domains\Billing\Models\Folio;
 use App\Domains\Billing\Models\Posting;
+use App\Domains\FiscalReceipting\Actions\IssueGeneralReceipt;
 use App\Domains\FiscalReceipting\CheckoutFigures;
 use App\Domains\FiscalReceipting\CheckoutReport;
 use App\Domains\FiscalReceipting\Enums\VfmsMode;
@@ -12,6 +15,7 @@ use App\Domains\FiscalReceipting\IssuedDocuments;
 use App\Domains\FiscalReceipting\Models\VfmsCredential;
 use App\Domains\FiscalReceipting\VfmsPayloads;
 use App\Domains\FiscalReceipting\VfmsTranslator;
+use App\Domains\Reservations\BookingGroupMembers;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\Models\ReservationLifecycleEvent;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
@@ -67,8 +71,15 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
         if ($message->event === 'errorSave') {
             throw new RuntimeException('Issued-document corrections require reconciliation, not filing recovery.');
         }
-        $reservation = Reservation::query()->where('property_id', $message->property_id)->findOrFail($message->subject_id);
         $property = Property::query()->findOrFail($message->property_id);
+        if ($message->event === 'generalReceipt') {
+            $subject = $message->subject_type === (new CustomerAccount)->getMorphClass()
+                ? CustomerAccount::query()->where('property_id', $message->property_id)->findOrFail($message->subject_id)
+                : Reservation::query()->where('property_id', $message->property_id)->findOrFail($message->subject_id);
+
+            return $this->rebuildGeneralReceipt($message, $subject, $property);
+        }
+        $reservation = Reservation::query()->where('property_id', $message->property_id)->findOrFail($message->subject_id);
         if ($message->integration !== self::INTEGRATION || $message->subject_type !== $reservation->getMorphClass()
             || ($message->payload['reservation_id'] ?? null) !== $reservation->id
             || ($message->payload['mode'] ?? null) !== VfmsCredential::for($property)->mode->value) {
@@ -106,65 +117,115 @@ final class VfmsAdapter implements AcceptanceProjector, DeliveryAdapter, OutboxC
         return [...$message->payload, 'body' => $body];
     }
 
+    /**
+     * Re-filing a refused general receipt reclaims its own postings, which the refusal released;
+     * one another receipt has claimed, receipted, reversed or moved since cannot be re-sent.
+     *
+     * @return array<string, mixed>
+     */
+    private function rebuildGeneralReceipt(OutboxMessage $message, Reservation|CustomerAccount $reservation, Property $property): array
+    {
+        $ownerKey = $reservation instanceof CustomerAccount ? 'customer_account_id' : 'reservation_id';
+        if ($message->subject_type !== $reservation->getMorphClass() || ($message->payload[$ownerKey] ?? null) !== $reservation->id
+            || ($message->payload['mode'] ?? null) !== VfmsCredential::for($property)->mode->value) {
+            throw new RuntimeException('The filing no longer matches this stay and VFMS mode.');
+        }
+        $ids = $message->payload['posting_ids'] ?? [];
+        if ($message->status === 'rejected' && ($reservation instanceof CustomerAccount || $reservation->getAttribute('paying_institution_type') !== null)) {
+            $held = $reservation instanceof CustomerAccount
+                ? CloseCustomerAccount::held($reservation)
+                : IssueGeneralReceipt::held(app(BookingGroupMembers::class)->reservations($reservation, lock: true));
+            $ids = $held->where('currency', $this->payloads->fromVfmsCurrency($message->payload['body']['currency']))->lockForUpdate()->pluck('id')->all();
+            if ($ids === []) {
+                throw new RuntimeException('Nothing is waiting for a ZRA receipt.');
+            }
+        }
+        $postings = Posting::query()->where('property_id', $property->id)->whereKey($ids)->orderBy('posted_at')->orderBy('id')->lockForUpdate()->get();
+        if ($postings->count() !== count($ids) || $postings->contains(fn (Posting $posting) => $posting->vfms_receipt_number !== null
+            || ! in_array($posting->general_receipt_id, [null, $message->id], true)
+            || Posting::query()->where('related_posting_id', $posting->id)->exists())) {
+            throw new RuntimeException('Some of these extras were receipted, reversed or moved since; issue a new ZRA receipt instead.');
+        }
+        Posting::query()->whereKey($ids)->toBase()->update(['general_receipt_id' => $message->id]);
+
+        return [...$message->payload, 'posting_ids' => $ids, 'body' => $this->payloads->generalReceipt($message->payload['body']['documentNumber'], $postings, $message->payload['body']['referenceNumber'])];
+    }
+
     public function send(array $messages): array
     {
         return array_map(function ($message) {
-            $property = Property::query()->findOrFail($message->property_id);
-            if ($message->event === 'errorSave' && ($property->demo || $property->archived_at !== null
-                || ! JurisdictionRules::usesVfms($property))) {
-                return new DeliveryResult('rejected', responseBody: ['error' => 'Issued-document corrections require an active real Zanzibar property.'], messageId: $message->id);
-            }
-            $credential = VfmsCredential::for($property);
-            if ($message->payload['mode'] !== $credential->mode->value) {
-                return new DeliveryResult('rejected', responseBody: ['error' => 'VFMS mode changed; review the queued filing before sending.'], messageId: $message->id);
-            }
-            $live = $credential->mode === VfmsMode::Live;
-            if ($live && ! $credential->isComplete()) {
-                return new DeliveryResult('rejected', ['mode' => 'live'], ['error' => 'VFMS credentials are incomplete.'], messageId: $message->id);
-            }
-            $result = $this->http->send($message->payload, $credential);
-            if ($message->event === 'services' && $result->outcome === 'accepted' && filled($result->references['receiptNumber'] ?? null)) {
-                Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $message->subject_id))
-                    ->findOrFail($message->payload['posting_id'])
-                    ->recordFiscalReceipt((string) $result->references['receiptNumber']);
-            }
-            if ($message->event === 'checkout' && $result->outcome === 'accepted') {
-                $reports = $result->responseBody['body'] ?? null;
-                if (is_array($reports) && array_is_list($reports)) {
-                    $request = $message->payload['body'];
-                    $departures = OutboxMessage::query()->where('integration', self::INTEGRATION)
-                        ->where('subject_type', $message->subject_type)->where('subject_id', $message->subject_id)
-                        ->where('event', 'guestDeparture')->where('status', 'delivered')->get();
-                    foreach ($departures as $departure) {
-                        $attempt = $departure->attempts()->where('outcome', 'accepted')->orderByDesc('attempt_number')->first();
-                        $previous = $attempt?->response_body === null ? null : json_decode($attempt->response_body, true, flags: JSON_THROW_ON_ERROR)['body'] ?? null;
-                        if (! is_array($previous) || ! array_is_list($previous)
-                            || ($departure->getAttribute('provider_references')['mode'] ?? null) !== $message->payload['mode']) {
-                            return new DeliveryResult('unknown', responseBody: $result->responseBody, messageId: $message->id);
-                        }
-                        $reports = [...$previous, ...$reports];
-                        $request['documentNumberList'] = [...$departure->payload['body']['documentNumberList'], ...$request['documentNumberList']];
-                    }
-                    $figures = app(CheckoutFigures::class)->of($reports, $request);
-                    if ($figures === null) {
-                        return new DeliveryResult('unknown', responseBody: $result->responseBody, messageId: $message->id);
-                    }
-                    $currency = $this->payloads->fromVfmsCurrency($request['currency']);
-                    $result = new DeliveryResult('accepted', [
-                        ...$result->references,
-                        'reportNumbers' => json_encode($figures['numbers'], JSON_THROW_ON_ERROR),
-                        'roomAmount' => $this->payloads->amount($figures['room'], $currency),
-                        'extrasAmount' => $this->payloads->amount($figures['extras'], $currency),
-                        'totalAmount' => $this->payloads->amount($figures['total'], $currency),
-                        'totalTax' => $this->payloads->amount($figures['tax'], $currency),
-                        'infrastructureTax' => $this->payloads->amount($figures['levy'], $currency),
-                    ], $result->responseBody);
+            $result = $this->deliver($message);
+            if ($message->event === 'generalReceipt') {
+                $claimed = Posting::query()->where('property_id', $message->property_id)->where('general_receipt_id', $message->id)->whereKey($message->payload['posting_ids']);
+                if ($result->outcome === 'accepted' && filled($result->references['receiptNumber'] ?? null)) {
+                    $claimed->get()->each->recordFiscalReceipt((string) $result->references['receiptNumber']);
+                } elseif ($result->outcome === 'rejected') {
+                    // ZRA kept nothing, so the extras go back to "not yet receipted"; unknown keeps them claimed.
+                    $claimed->toBase()->update(['general_receipt_id' => null]);
                 }
-                $this->adjustFolio($message->payload, $result->references);
             }
 
-            return new DeliveryResult($result->outcome, ['mode' => $credential->mode->value, ...(isset($message->payload['unit_id']) ? ['unitId' => $message->payload['unit_id']] : []), ...$result->references, ...$this->links($live, $result)], $result->responseBody, $result->retryAt, $message->id);
+            return $result;
         }, $messages);
+    }
+
+    private function deliver(OutboxMessage $message): DeliveryResult
+    {
+        $property = Property::query()->findOrFail($message->property_id);
+        if ($message->event === 'errorSave' && ($property->demo || $property->archived_at !== null
+            || ! JurisdictionRules::usesVfms($property))) {
+            return new DeliveryResult('rejected', responseBody: ['error' => 'Issued-document corrections require an active real Zanzibar property.'], messageId: $message->id);
+        }
+        $credential = VfmsCredential::for($property);
+        if ($message->payload['mode'] !== $credential->mode->value) {
+            return new DeliveryResult('rejected', responseBody: ['error' => 'VFMS mode changed; review the queued filing before sending.'], messageId: $message->id);
+        }
+        $live = $credential->mode === VfmsMode::Live;
+        if ($live && ! $credential->isComplete()) {
+            return new DeliveryResult('rejected', ['mode' => 'live'], ['error' => 'VFMS credentials are incomplete.'], messageId: $message->id);
+        }
+        $result = $this->http->send($message->payload, $credential);
+        if ($message->event === 'services' && $result->outcome === 'accepted' && filled($result->references['receiptNumber'] ?? null)) {
+            Posting::query()->whereIn('folio_id', Folio::query()->select('id')->where('reservation_id', $message->subject_id))
+                ->findOrFail($message->payload['posting_id'])
+                ->recordFiscalReceipt((string) $result->references['receiptNumber']);
+        }
+        if ($message->event === 'checkout' && $result->outcome === 'accepted') {
+            $reports = $result->responseBody['body'] ?? null;
+            if (is_array($reports) && array_is_list($reports)) {
+                $request = $message->payload['body'];
+                $departures = OutboxMessage::query()->where('integration', self::INTEGRATION)
+                    ->where('subject_type', $message->subject_type)->where('subject_id', $message->subject_id)
+                    ->where('event', 'guestDeparture')->where('status', 'delivered')->get();
+                foreach ($departures as $departure) {
+                    $attempt = $departure->attempts()->where('outcome', 'accepted')->orderByDesc('attempt_number')->first();
+                    $previous = $attempt?->response_body === null ? null : json_decode($attempt->response_body, true, flags: JSON_THROW_ON_ERROR)['body'] ?? null;
+                    if (! is_array($previous) || ! array_is_list($previous)
+                        || ($departure->getAttribute('provider_references')['mode'] ?? null) !== $message->payload['mode']) {
+                        return new DeliveryResult('unknown', responseBody: $result->responseBody, messageId: $message->id);
+                    }
+                    $reports = [...$previous, ...$reports];
+                    $request['documentNumberList'] = [...$departure->payload['body']['documentNumberList'], ...$request['documentNumberList']];
+                }
+                $figures = app(CheckoutFigures::class)->of($reports, $request);
+                if ($figures === null) {
+                    return new DeliveryResult('unknown', responseBody: $result->responseBody, messageId: $message->id);
+                }
+                $currency = $this->payloads->fromVfmsCurrency($request['currency']);
+                $result = new DeliveryResult('accepted', [
+                    ...$result->references,
+                    'reportNumbers' => json_encode($figures['numbers'], JSON_THROW_ON_ERROR),
+                    'roomAmount' => $this->payloads->amount($figures['room'], $currency),
+                    'extrasAmount' => $this->payloads->amount($figures['extras'], $currency),
+                    'totalAmount' => $this->payloads->amount($figures['total'], $currency),
+                    'totalTax' => $this->payloads->amount($figures['tax'], $currency),
+                    'infrastructureTax' => $this->payloads->amount($figures['levy'], $currency),
+                ], $result->responseBody);
+            }
+            $this->adjustFolio($message->payload, $result->references);
+        }
+
+        return new DeliveryResult($result->outcome, ['mode' => $credential->mode->value, ...(isset($message->payload['unit_id']) ? ['unitId' => $message->payload['unit_id']] : []), ...$result->references, ...$this->links($live, $result)], $result->responseBody, $result->retryAt, $message->id);
     }
 
     /**

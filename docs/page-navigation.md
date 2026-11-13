@@ -10,31 +10,31 @@ the exceptions below deliberately preserve the existing form behaviour.
 
 Paths below are relative to `resources/js/pages/`. Braces enumerate files.
 
-| Nested surfaces                                      | Intended immediate parent               | Placement                                                                             |
-| ---------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------- |
-| `bookers/{create,show}`                              | Bookers `/bookers`                      | Bounded create; readable detail                                                       |
-| `bookers/edit`                                       | Named booker `/bookers/{id}`            | Bounded form; Cancel retains `/bookers`                                               |
-| `guests/{create,show}`                               | Guests `/guests`                        | Bounded create; detail/stay history retains composition                               |
-| `guests/{edit,merge}`                                | Named guest `/guests/{id}`              | Bounded edit (Cancel retains `/guests`); merge comparison retains composition         |
-| `properties/{create,show}`                           | Properties `/properties`                | Bounded create; property details with permitted Edit action                           |
-| `properties/edit`                                    | Property `/properties/{property}`       | Edit and Cancel return to the property details; successful saves return there too     |
-| `invitations/create`, `members/edit`                 | Staff `/members`                        | Bounded invitation; access/ownership/removal sections retain composition              |
-| `inventory/room-types/{create,edit}`                 | Room types `/room-types`                | Bounded forms                                                                         |
-| `inventory/rooms/{create,edit}`                      | Rooms `/rooms`                          | Bounded forms                                                                         |
-| `rates/create`                                       | Rate plans `/rate-plans`                | Bounded form, policy sections retained                                                |
-| `rates/edit`                                         | Prices `/rate-plans/{plan}/prices`      | Bounded form; Cancel retains `/rate-plans`                                            |
-| `rates/prices`                                       | Rate plans `/rate-plans`                | Wide table plus bounded editor                                                        |
-| `rates/{restrictions,quote}`                         | Prices `/rate-plans/{plan}/prices`      | Wide results plus bounded editor                                                      |
-| `rates/tax-preview`                                  | Tax rules `/tax-rules`                  | Bounded input plus results                                                            |
-| `reservations/{create,show}`                         | Reservations `/reservations`            | Wide multi-section form/detail                                                        |
-| `reservations/{guests,statement}`                    | Reservation `/reservations/{number}`    | Bounded guest management / printable statement                                        |
-| `receipts/show`, `fiscal-receipting/checkout-report` | Reservation `/reservations/{number}`    | Existing printable document composition                                               |
-| `night-audit/show`                                   | Night audit `/night-audit`              | Wide charges and exceptions                                                           |
-| `maintenance/show`                                   | Maintenance `/maintenance`              | Readable ticket and history                                                           |
-| `housekeeping/{history,assignments}`                 | Housekeeping `/housekeeping`            | Wide history and assignments                                                          |
-| `platform/organizations/show`                        | Organizations `/platform/organizations` | Wide multi-section detail                                                             |
-| `subscription/invoice` (owner route)                 | Subscription `/subscription`            | Existing invoice/payment/slip composition                                             |
-| `subscription/invoice` (platform route)              | SaaS invoices `/platform/invoices`      | Same document; parent selected from the current route, not roles or upload permission |
+| Nested surfaces                                                     | Intended immediate parent               | Placement                                                                             |
+| ------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------- |
+| `bookers/{create,show}`                                             | Bookers `/bookers`                      | Bounded create; readable detail                                                       |
+| `bookers/edit`                                                      | Named booker `/bookers/{id}`            | Bounded form; Cancel retains `/bookers`                                               |
+| `guests/{create,show}`                                              | Guests `/guests`                        | Bounded create; detail/stay history retains composition                               |
+| `guests/{edit,merge}`                                               | Named guest `/guests/{id}`              | Bounded edit (Cancel retains `/guests`); merge comparison retains composition         |
+| `properties/{create,show}`                                          | Properties `/properties`                | Bounded create; property details with permitted Edit action                           |
+| `properties/edit`                                                   | Property `/properties/{property}`       | Edit and Cancel return to the property details; successful saves return there too     |
+| `invitations/create`, `members/edit`                                | Staff `/members`                        | Bounded invitation; access/ownership/removal sections retain composition              |
+| `inventory/room-types/{create,edit}`                                | Room types `/room-types`                | Bounded forms                                                                         |
+| `inventory/rooms/{create,edit}`                                     | Rooms `/rooms`                          | Bounded forms                                                                         |
+| `rates/create`                                                      | Rate plans `/rate-plans`                | Bounded form, policy sections retained                                                |
+| `rates/edit`                                                        | Prices `/rate-plans/{plan}/prices`      | Bounded form; Cancel retains `/rate-plans`                                            |
+| `rates/prices`                                                      | Rate plans `/rate-plans`                | Wide table plus bounded editor                                                        |
+| `rates/{restrictions,quote}`                                        | Prices `/rate-plans/{plan}/prices`      | Wide results plus bounded editor                                                      |
+| `rates/tax-preview`                                                 | Tax rules `/tax-rules`                  | Bounded input plus results                                                            |
+| `reservations/{create,show}`                                        | Reservations `/reservations`            | Wide multi-section form/detail                                                        |
+| `reservations/{guests,statement}`                                   | Reservation `/reservations/{number}`    | Bounded guest management / printable statement                                        |
+| `receipts/show`, `fiscal-receipting/{checkout-report,zra-document}` | Reservation `/reservations/{number}`    | Existing printable document composition                                               |
+| `night-audit/show`                                                  | Night audit `/night-audit`              | Wide charges and exceptions                                                           |
+| `maintenance/show`                                                  | Maintenance `/maintenance`              | Readable ticket and history                                                           |
+| `housekeeping/{history,assignments}`                                | Housekeeping `/housekeeping`            | Wide history and assignments                                                          |
+| `platform/organizations/show`                                       | Organizations `/platform/organizations` | Wide multi-section detail                                                             |
+| `subscription/invoice` (owner route)                                | Subscription `/subscription`            | Existing invoice/payment/slip composition                                             |
+| `subscription/invoice` (platform route)                             | SaaS invoices `/platform/invoices`      | Same document; parent selected from the current route, not roles or upload permission |
 
 ## Intentional roots and exceptions
 

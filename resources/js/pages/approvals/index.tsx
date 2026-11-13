@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/table';
 import { formatMoney } from '@/lib/utils';
 import { resolve } from '@/routes/approvals';
-import { show as showReservation } from '@/routes/reservations';
 import { update } from '@/routes/approval-thresholds';
 import type { Paginated } from '@/types';
 import { Spinner } from '@/components/ui/spinner';
@@ -32,6 +31,7 @@ type Approval = {
     requested_by: string;
     requester: string | null;
     reservation_number: string;
+    sourceUrl: string;
     type: string;
     amount: number;
     currency: string;
@@ -124,9 +124,7 @@ export default function Approvals({
                                 <TableRow key={approval.id}>
                                     <TableCell>
                                         <Link
-                                            href={showReservation(
-                                                approval.reservation_number,
-                                            )}
+                                            href={approval.sourceUrl}
                                             className="text-primary underline-offset-4 hover:underline"
                                         >
                                             <Identifier

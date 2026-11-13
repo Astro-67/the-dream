@@ -86,7 +86,7 @@ test('accepted services receipts and guest reports each project one issued row',
         ->and(array_map(fn (array $row) => array_intersect_key($row, array_flip(['type', 'number', 'guest', 'amount', 'currency', 'zraStatus', 'viewerUrl'])), issuedFiscalRows($tenant)))->toEqual([
             ['type' => 'checkout_report', 'number' => 'TEST-CHECKOUT-169', 'guest' => 'Anna Berg', 'amount' => 22000, 'currency' => 'USD', 'zraStatus' => 'sandbox', 'viewerUrl' => 'https://vfms-viewer.example/checkout-report/guest/TEST-CHECKOUT-169'],
             ['type' => 'checkout_report', 'number' => 'TEST-CHECKOUT-169-2', 'guest' => 'Ola Berg', 'amount' => 22000, 'currency' => 'USD', 'zraStatus' => 'sandbox', 'viewerUrl' => 'https://vfms-viewer.example/checkout-report/guest/TEST-CHECKOUT-169-2'],
-            ['type' => 'services_receipt', 'number' => 'TEST-RECEIPT-169', 'guest' => null, 'amount' => 2000, 'currency' => 'USD', 'zraStatus' => 'sandbox', 'viewerUrl' => 'https://vfms-viewer.example/receipt-form/TEST-RECEIPT-169'],
+            ['type' => 'services_receipt', 'number' => 'TEST-RECEIPT-169', 'guest' => 'Anna Berg', 'amount' => 2000, 'currency' => 'USD', 'zraStatus' => 'sandbox', 'viewerUrl' => 'https://vfms-viewer.example/receipt-form/TEST-RECEIPT-169'],
         ]);
     $json = json_encode(issuedFiscalRows($tenant));
     expect($json)->not->toContain('P1234567', 'P7654321', 'TEST-TOKEN');
@@ -156,7 +156,7 @@ test('legacy evidence without stored links or readable reports is marked unavail
     expect(array_map(fn (array $row) => [$row['number'], $row['guest'], $row['amount'], $row['viewerUrl']], issuedFiscalRows($tenant)))->toBe([
         ['TEST-CHECKOUT-169', null, null, null],
         ['TEST-CHECKOUT-169-2', null, null, null],
-        ['TEST-RECEIPT-169', null, 2000, null],
+        ['TEST-RECEIPT-169', 'Anna Berg', 2000, null],
     ]);
 });
 
@@ -229,12 +229,13 @@ test('the register filters by local date, type and ZRA status and paginates at 5
         ->and(fn () => $register(['type' => 'advance']))->toThrow(ValidationException::class);
 });
 
-// protects=a services receipt's guest is issue-time evidence only (#229); fails_when=the projection names the stay's current lead guest, which the services filing never carried.
+// protects=a guest receipt's customer is issue-time evidence only (#249); fails_when=the register follows a later guest name change.
 test('a services receipt never takes its guest from today\'s stay', function () {
     $tenant = twoTenants()->a;
     issuedDocumentsStay($tenant, earlyDeparture: false);
+    inTenant($tenant->property, fn () => Guest::query()->where('name', 'Anna Berg')->sole()->update(['name' => 'Changed guest']));
 
-    expect(collect(issuedFiscalRows($tenant))->firstWhere('type', 'services_receipt')['guest'])->toBeNull();
+    expect(collect(issuedFiscalRows($tenant))->firstWhere('type', 'services_receipt')['guest'])->toBe('Anna Berg');
 });
 
 // protects=a legacy filing without a delivery time shows its issue time as unavailable (#229); fails_when=the update time stands in for it, it sorts among dated rows or a date filter matches it.

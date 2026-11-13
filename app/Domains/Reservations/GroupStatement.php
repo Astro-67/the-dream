@@ -39,6 +39,7 @@ final class GroupStatement
             ],
             'rooms' => $rooms,
             'totals' => $totals,
+            'zraDocuments' => CheckoutReport::overview($reservation),
         ];
     }
 }
