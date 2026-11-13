@@ -259,6 +259,10 @@
     display: none;
 }
 
+.workspace-page > :where(.p-4, .p-6) {
+    padding: 0;
+}
+
 body:has(.operational-ui)
     :is(
         [data-slot='button'],

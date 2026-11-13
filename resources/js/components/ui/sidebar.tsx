@@ -182,7 +182,7 @@ function Sidebar({
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
-          id={navigation === "menu" ? "workspace-navigation" : undefined}
+          id="workspace-navigation"
           onCloseAutoFocus={(event) => {
             event.preventDefault()
             document.querySelector<HTMLButtonElement>('[data-sidebar="trigger"]')?.focus()
@@ -209,7 +209,8 @@ function Sidebar({
 
   return (
     <div
-      className="group peer text-sidebar-foreground hidden md:block"
+      id="workspace-navigation"
+      className="group peer text-sidebar-foreground hidden md:block print:hidden"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-variant={variant}
@@ -265,9 +266,9 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
-      aria-expanded={navigation === "menu" ? openMobile : undefined}
-      aria-controls={navigation === "menu" ? "workspace-navigation" : undefined}
-      aria-haspopup={navigation === "menu" ? "dialog" : undefined}
+      aria-expanded={isMobile || navigation === "menu" ? openMobile : state === "expanded"}
+      aria-controls="workspace-navigation"
+      aria-haspopup={isMobile || navigation === "menu" ? "dialog" : undefined}
       aria-label={navigation === "menu" ? "Open workspace navigation" : undefined}
       className={cn("h-7 w-7", className)}
       onClick={(event) => {

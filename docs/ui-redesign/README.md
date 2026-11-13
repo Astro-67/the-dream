@@ -34,7 +34,10 @@ equivalent changes are included before starting in a new checkout.
 
 - Use the approved front-desk masthead/menu as the operational shell target,
   keeping the work area wide. Reuse the existing navigation components and
-  permission-based item definitions.
+  permission-based item definitions. The owner's follow-up overrides the
+  prototype's menu-only navigation: keep the expanded sidebar visible from
+  768px upwards, with a modal menu only on smaller screens. Apply shared
+  16px/24px page gutters without doubling existing page padding.
 - Use intentional navigation cards, not generic rounded containers everywhere.
   All three guest-list choices stay visible and one click away, including on
   mobile. A dropdown is not the approved replacement for these choices.

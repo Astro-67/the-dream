@@ -50,7 +50,10 @@ export function AppSidebarHeader({
         >
             <div className="workspace-masthead grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-3 px-4 py-4 md:grid-cols-[auto_minmax(0,1fr)_auto_auto] md:gap-x-6 md:px-6">
                 <div className="col-span-2 col-start-1 row-start-1 flex min-w-0 items-center gap-3 pr-14 md:col-span-1 md:pr-0">
-                    <SidebarTrigger className="size-11 shrink-0 border border-current/50" />
+                    <SidebarTrigger
+                        className="size-11 shrink-0 border border-current/50 md:hidden"
+                        aria-label="Open workspace navigation"
+                    />
                     <Link
                         href={dashboard()}
                         aria-label="Karafuu home"

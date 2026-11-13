@@ -1,5 +1,20 @@
 # Batch 0 - Shared UI foundation
 
+## Desktop navigation follow-up
+
+The owner's 13 November 2026 follow-up supersedes the menu-only navigation
+described in the original capture below. Desktop navigation stays expanded from
+768px upwards, regardless of old sidebar cookies; smaller screens use the
+existing modal drawer. A shared page wrapper supplies 16px/24px padding and
+removes duplicate legacy page padding. Sidebar space and page padding disappear
+for print.
+
+Validation: the desktop visibility regression failed before the change and now
+passes. All frontend checks and `composer check:fast` pass (2,836 Pest tests,
+26 skipped). A fresh synthetic-data browser pass covers 26 responsive, theme,
+drawer, keyboard and print-layout cases with no JavaScript exceptions. This
+does not replace physical-device or full A4/80mm content verification.
+
 ## Verified implementation base
 
 Verified on 13 November 2026, before implementation:
