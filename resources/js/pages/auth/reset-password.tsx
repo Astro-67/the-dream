@@ -1,6 +1,6 @@
 import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
+import PasswordInput from '@/components/auth/password-input';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +28,7 @@ export default function ResetPassword({
                 {...update.form()}
                 transform={(data) => ({ ...data, token, email })}
                 resetOnSuccess={['password', 'password_confirmation']}
+                disableWhileProcessing
             >
                 {({ processing, errors }) => (
                     <div className="grid gap-6">
@@ -41,8 +42,13 @@ export default function ResetPassword({
                                 value={email}
                                 className="mt-1 block w-full"
                                 readOnly
+                                aria-invalid={Boolean(errors.email)}
+                                aria-describedby={
+                                    errors.email ? 'email-error' : undefined
+                                }
                             />
                             <InputError
+                                id="email-error"
                                 message={errors.email}
                                 className="mt-2"
                             />
@@ -56,9 +62,15 @@ export default function ResetPassword({
                                 autoComplete="new-password"
                                 className="mt-1 block w-full"
                                 autoFocus
+                                required
                                 placeholder="Password"
                                 passwordrules={passwordRules}
-                                aria-describedby="password-hint"
+                                aria-invalid={Boolean(errors.password)}
+                                aria-describedby={
+                                    errors.password
+                                        ? 'password-hint password-error'
+                                        : 'password-hint'
+                                }
                             />
                             <p
                                 id="password-hint"
@@ -66,7 +78,10 @@ export default function ResetPassword({
                             >
                                 {passwordHint}
                             </p>
-                            <InputError message={errors.password} />
+                            <InputError
+                                id="password-error"
+                                message={errors.password}
+                            />
                         </div>
 
                         <div className="grid gap-2">
@@ -80,8 +95,18 @@ export default function ResetPassword({
                                 className="mt-1 block w-full"
                                 placeholder="Confirm password"
                                 passwordrules={passwordRules}
+                                required
+                                aria-invalid={Boolean(
+                                    errors.password_confirmation,
+                                )}
+                                aria-describedby={
+                                    errors.password_confirmation
+                                        ? 'confirmation-error'
+                                        : undefined
+                                }
                             />
                             <InputError
+                                id="confirmation-error"
                                 message={errors.password_confirmation}
                                 className="mt-2"
                             />

@@ -32,9 +32,11 @@ export default function Invitation({
             <Head title={`Join ${invitation.organization}`} />
 
             <div className="flex flex-col gap-6">
-                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl border bg-card p-4 text-sm">
+                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 rounded-xl border bg-card p-4 text-sm">
                     <dt className="text-muted-foreground">Organization</dt>
-                    <dd className="font-medium">{invitation.organization}</dd>
+                    <dd className="font-medium wrap-anywhere">
+                        {invitation.organization}
+                    </dd>
                     <dt className="text-muted-foreground">Role</dt>
                     <dd>{invitation.role}</dd>
                     <dt className="text-muted-foreground">Sent to</dt>

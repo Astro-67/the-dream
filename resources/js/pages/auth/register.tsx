@@ -1,6 +1,6 @@
 import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
-import PasswordInput from '@/components/password-input';
+import PasswordInput from '@/components/auth/password-input';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,12 +34,16 @@ export default function Register({ passwordRules, passwordHint }: Props) {
                                     type="text"
                                     required
                                     autoFocus
-                                    tabIndex={1}
                                     autoComplete="name"
                                     name="name"
                                     placeholder="Amina Hassan"
+                                    aria-invalid={Boolean(errors.name)}
+                                    aria-describedby={
+                                        errors.name ? 'name-error' : undefined
+                                    }
                                 />
                                 <InputError
+                                    id="name-error"
                                     message={errors.name}
                                     className="mt-2"
                                 />
@@ -51,12 +55,18 @@ export default function Register({ passwordRules, passwordHint }: Props) {
                                     id="email"
                                     type="email"
                                     required
-                                    tabIndex={2}
                                     autoComplete="email"
                                     name="email"
                                     placeholder="you@yourhotel.com"
+                                    aria-invalid={Boolean(errors.email)}
+                                    aria-describedby={
+                                        errors.email ? 'email-error' : undefined
+                                    }
                                 />
-                                <InputError message={errors.email} />
+                                <InputError
+                                    id="email-error"
+                                    message={errors.email}
+                                />
                             </div>
 
                             <div className="grid gap-2">
@@ -64,12 +74,16 @@ export default function Register({ passwordRules, passwordHint }: Props) {
                                 <PasswordInput
                                     id="password"
                                     required
-                                    tabIndex={3}
                                     autoComplete="new-password"
                                     name="password"
                                     placeholder="Password"
                                     passwordrules={passwordRules}
-                                    aria-describedby="password-hint"
+                                    aria-invalid={Boolean(errors.password)}
+                                    aria-describedby={
+                                        errors.password
+                                            ? 'password-hint password-error'
+                                            : 'password-hint'
+                                    }
                                 />
                                 <p
                                     id="password-hint"
@@ -77,7 +91,10 @@ export default function Register({ passwordRules, passwordHint }: Props) {
                                 >
                                     {passwordHint}
                                 </p>
-                                <InputError message={errors.password} />
+                                <InputError
+                                    id="password-error"
+                                    message={errors.password}
+                                />
                             </div>
 
                             <div className="grid gap-2">
@@ -87,13 +104,21 @@ export default function Register({ passwordRules, passwordHint }: Props) {
                                 <PasswordInput
                                     id="password_confirmation"
                                     required
-                                    tabIndex={4}
                                     autoComplete="new-password"
                                     name="password_confirmation"
                                     placeholder="Confirm password"
                                     passwordrules={passwordRules}
+                                    aria-invalid={Boolean(
+                                        errors.password_confirmation,
+                                    )}
+                                    aria-describedby={
+                                        errors.password_confirmation
+                                            ? 'confirmation-error'
+                                            : undefined
+                                    }
                                 />
                                 <InputError
+                                    id="confirmation-error"
                                     message={errors.password_confirmation}
                                 />
                             </div>
@@ -106,7 +131,6 @@ export default function Register({ passwordRules, passwordHint }: Props) {
                             <Button
                                 type="submit"
                                 className="w-full"
-                                tabIndex={5}
                                 data-test="register-user-button"
                             >
                                 {processing && <Spinner />}
@@ -116,9 +140,7 @@ export default function Register({ passwordRules, passwordHint }: Props) {
 
                         <div className="text-center text-sm text-muted-foreground">
                             Already have an account?{' '}
-                            <TextLink href={login()} tabIndex={6}>
-                                Log in
-                            </TextLink>
+                            <TextLink href={login()}>Log in</TextLink>
                         </div>
                     </>
                 )}
@@ -128,6 +150,6 @@ export default function Register({ passwordRules, passwordHint }: Props) {
 }
 
 Register.layout = {
-    title: 'Create your account',
-    description: 'Start setting up your hotel in a few minutes',
+    title: 'Create your account.',
+    description: 'Your login for the work behind every stay.',
 };

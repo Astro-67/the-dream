@@ -1,8 +1,16 @@
 # UI redesign handoff
 
 The owner approved the direction below. **Batch 0 implements the shared
-operational foundation; individual page migrations remain pending.**
+operational foundation; Batch 1 implements the nine public/authentication pages.**
+Batch 1's integrated checks, evidence and remaining limits are recorded in
+[its validation record](BATCH-1.md). Later page families remain pending.
 Continue from this package rather than repeating the design conversation.
+The owner's later Batch 1 refinements (supplied photography, landing masthead,
+DM Sans hero, icon-only pause and reduced decorative ticks) are recorded in
+[the Batch 1 handoff](BATCH-1.md#owners-landing-refinements); the
+[pricing correction](BATCH-1.md#administrator-driven-pricing-correction) removes
+invented offers and uses only current administrator-configured plans and terms.
+Approved auth and operational typography remain unchanged.
 
 ## Start a batch
 
