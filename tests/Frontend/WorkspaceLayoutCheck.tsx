@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { App } from '@inertiajs/react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AppContent } from '@/components/app-content';
+import { readFileSync } from 'node:fs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import SettingsLayout from '@/layouts/settings/layout';
@@ -110,20 +111,18 @@ for (const sidebarOpen of [true, false]) {
             initialComponent={component}
         />,
     );
-    assert.match(
-        shell,
-        new RegExp(`data-state="${sidebarOpen ? 'expanded' : 'collapsed'}"`),
-    );
-    assert.match(shell, /data-variant="sidebar"/);
-    assert.match(
-        shell,
-        sidebarOpen ? /data-collapsible=""/ : /data-collapsible="icon"/,
-    );
+    assert.match(shell, /operational-ui flex-col/);
+    assert.doesNotMatch(shell, /data-variant="sidebar"|data-collapsible=/);
+    assert.match(shell, /aria-expanded="false"/);
     assert.equal((shell.match(/<main\b/g) ?? []).length, 1);
     assert.match(shell, /Workspace content/);
     assert.doesNotMatch(shell, /overflow-x-clip/);
-    assert.match(shell, /href="\/reservations"/);
-    assert.match(shell, /Toggle sidebar/);
+    assert.doesNotMatch(shell, /href="\/reservations"/);
+    assert.match(shell, /Open workspace navigation/);
+    assert.match(shell, /src="\/karafuu-logo-dark\.png"/);
+    assert.match(shell, /User menu: Front desk/);
+    assert.match(shell, /role="status">Online/);
+    assert.match(shell, /Theme: System/);
     assert.match(shell, /aria-label="Settings"/);
     assert.match(shell, /href="\/settings\/profile"/);
     assert.match(shell, /<section[^>]*max-w-\[720px\]/);
@@ -135,8 +134,8 @@ for (const sidebarOpen of [true, false]) {
     assert.match(shell, /10 Dec 2026/);
     assert.match(
         shell,
-        /<header[^>]*flex-wrap/,
-        'The sticky header must reflow rather than squeeze property context out',
+        /workspace-masthead grid grid-cols-\[minmax\(0,1fr\)_auto\]/,
+        'The sticky masthead must reflow rather than squeeze property context out',
     );
 }
 
@@ -148,7 +147,25 @@ const headerWorkspace = renderToStaticMarkup(
 assert.match(headerWorkspace, /min-w-0/);
 assert.match(headerWorkspace, /gap-6/);
 assert.doesNotMatch(headerWorkspace, /max-w-|mx-auto/);
-console.log('Expanded, collapsed and alternate shell contracts: PASS');
+console.log(
+    'Full-width menu shell ignores old sidebar state; alternate shell: PASS',
+);
+
+const layoutSource = readFileSync(
+    new URL(
+        '../../resources/js/layouts/app/app-sidebar-layout.tsx',
+        import.meta.url,
+    ),
+    'utf8',
+);
+assert.match(layoutSource, /<Fragment key=\{tenantKey\}>/);
+const tenantKeySource = readFileSync(
+    new URL('../../resources/js/hooks/use-tenant-key.ts', import.meta.url),
+    'utf8',
+);
+assert.match(tenantKeySource, /tenant\.organization\?\.id/);
+assert.match(tenantKeySource, /tenant\.property\?\.id/);
+assert.match(tenantKeySource, /router\.flushAll\(\)/);
 
 const booker = {
     id: 'booker-207',
@@ -229,6 +246,7 @@ for (const sidebarOpen of [true, false]) {
             /Stone Town Waterfront Hotel with a long property name/,
         );
         assert.match(markup, /10 Dec 2026/);
+        assert.match(markup, /Coastal organization/);
         if (Page !== BookerShow) {
             assert.match(markup, /<a[^>]*href="\/bookers"[^>]*>Cancel<\/a>/);
             assert.match(markup, /name="_property"[^>]*value="property-207"/);

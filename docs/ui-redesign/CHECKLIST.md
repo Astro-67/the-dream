@@ -1,6 +1,6 @@
 # UI migration checklist
 
-Current inventory: **75 page files** under `resources/js/pages/`.
+Current inventory: **81 page files** under `resources/js/pages/`.
 Page paths below are relative to that directory. Add/remove entries when the
 page inventory changes. Each page appears in exactly one batch.
 
@@ -14,22 +14,22 @@ Approved mockups are references, not completed production pages.
 - [x] Preserve the public pricing snapshot with its limitations.
 - [x] Inventory all current page files and define bounded batches.
 - [x] Commit this handoff package before depending on it from a new worktree.
-- [ ] Verify the pending PR/implementation base and preserve existing local work.
-- [ ] Reconcile this page inventory against the merged implementation base.
+- [x] Verify the pending PR/implementation base and preserve existing local work.
+- [x] Reconcile this page inventory against the merged implementation base.
 
 ## Batch 0 - Shared UI foundation
 
 Start here. Scope is existing shared UI, not new business features.
 
-- [ ] Reconcile the approved operational decisions into `docs/design.md`, preserving its existing edits.
-- [ ] Scope public/auth versus operational radius, spacing and density deliberately.
-- [ ] Implement the approved masthead/menu using the existing app shell/navigation, sticky context and parent-navigation components.
-- [ ] Reuse/update existing Button, input/select, Table, StatusChip/Tag, Identifier, EmptyState, Pagination and overlay components.
-- [ ] Keep the full brand and real organization/property context, permission-based navigation and property-switch state resets.
-- [ ] Wire Light/Dark/System through the existing appearance hook and theme tokens.
-- [ ] Verify representative operational and public/auth surfaces after shared changes.
-- [ ] Update affected theme, sidebar, workspace and page-navigation frontend checks.
-- [ ] Complete the shared completion criteria and update the handoff record.
+- [x] Reconcile the approved operational decisions into `docs/design.md`, preserving its existing edits.
+- [x] Scope public/auth versus operational radius, spacing and density deliberately.
+- [x] Implement the approved masthead/menu using the existing app shell/navigation, sticky context and parent-navigation components.
+- [x] Reuse/update existing Button, input/select, Table, StatusChip/Tag, Identifier, EmptyState, Pagination and overlay components.
+- [x] Keep the full brand and real organization/property context, permission-based navigation and property-switch state resets.
+- [x] Wire Light/Dark/System through the existing appearance hook and theme tokens.
+- [x] Verify representative operational and public/auth surfaces after shared changes.
+- [x] Update affected theme, sidebar, workspace and page-navigation frontend checks.
+- [x] Complete the shared completion criteria and update the handoff record.
 
 Do not wire the prototype guest queue or change reservation queries in this
 batch. That belongs to Batch 3.
@@ -80,7 +80,7 @@ Reference: [front desk light](approved/front-desk-light.html) /
 - [ ] Reuse list/detail/form patterns for guest and booker pages; retain merge confirmations and identity privacy.
 - [ ] Preserve property business dates and night-audit behaviour.
 
-18 page files:
+19 page files:
 
 - [ ] `bookers/create.tsx`
 - [ ] `bookers/edit.tsx`
@@ -97,6 +97,7 @@ Reference: [front desk light](approved/front-desk-light.html) /
 - [ ] `reservations/availability.tsx`
 - [ ] `reservations/create.tsx`
 - [ ] `reservations/guests.tsx`
+- [ ] `reservations/group-statement.tsx`
 - [ ] `reservations/index.tsx`
 - [ ] `reservations/show.tsx`
 - [ ] `reservations/statement.tsx`
@@ -136,16 +137,20 @@ Reference: [front desk light](approved/front-desk-light.html) /
 - [ ] Keep reporting periods, authorized exports and jurisdiction-specific controls intact.
 - [ ] Recheck A4/80mm print views and fiscal/non-fiscal information after shared-style changes.
 
-10 page files:
+14 page files:
 
 - [ ] `approvals/index.tsx`
 - [ ] `billing/open-balances.tsx`
 - [ ] `cashier-shifts/index.tsx`
+- [ ] `customer-accounts/index.tsx`
+- [ ] `customer-accounts/show.tsx`
 - [ ] `fiscal-receipting/checkout-report.tsx`
+- [ ] `fiscal-receipting/zra-document.tsx`
 - [ ] `payments/index.tsx`
 - [ ] `rates/tax-preview.tsx`
 - [ ] `rates/taxes.tsx`
 - [ ] `receipts/show.tsx`
+- [ ] `receipts/index.tsx`
 - [ ] `reports/group.tsx`
 - [ ] `reports/index.tsx`
 
@@ -155,7 +160,7 @@ Reference: [front desk light](approved/front-desk-light.html) /
 - [ ] Keep organization, property, team-role and platform-admin boundaries visible and enforced.
 - [ ] Keep subscription billing, payment-slip privacy, confirmation and configuration behaviour.
 
-17 page files:
+18 page files:
 
 - [ ] `invitations/create.tsx`
 - [ ] `members/edit.tsx`
@@ -169,6 +174,7 @@ Reference: [front desk light](approved/front-desk-light.html) /
 - [ ] `properties/create.tsx`
 - [ ] `properties/edit.tsx`
 - [ ] `properties/index.tsx`
+- [ ] `properties/show.tsx`
 - [ ] `settings/appearance.tsx`
 - [ ] `settings/profile.tsx`
 - [ ] `settings/security.tsx`
@@ -187,15 +193,38 @@ Reference: [front desk light](approved/front-desk-light.html) /
 
 ## Handoff record
 
-- Latest completed work: reference preservation and the 75-page inventory.
-- Production migration: not started; no implementation batch is complete.
-- Next batch: **Batch 0**.
-- Implementation base: verify the expected PR merge; no PR number was supplied.
-- Handoff preservation: committed with this checklist; a new worktree must include that commit.
-- Validation: all 75 page entries, documentation/asset links, script syntax,
-  theme parity, pricing provenance and all five archived render/self-checks pass.
-- Repository checks: build, 2,407 Pest tests (19 skipped), Pint, PHPStan and
-  TypeScript passed against disposable SQLite. The full check reached formatting;
-  `docs/research/uhuru-vfms-observed-2026-10-26.md` still has pre-existing formatting
-  findings and was left untouched. Handoff/reference formatting passes.
-- Production UI migration remains untested because implementation has not started.
+- Latest completed work: **Batch 0 - Shared UI foundation**, implemented and
+  validated on 13 November 2026; awaiting owner PR approval, not deployed.
+- Page migration: **none of the 81 pages is marked complete**. Shared styling
+  reaching an existing page is not its migration.
+- Next bounded batch: **Batch 1 - Public site and authentication**, after approval
+  of this foundation. The operational guest-list cards and queue remain Batch 3.
+- Base: PR #255, `2aded5fe`; PR checks, main CI and the production deployment all
+  succeeded before implementation. The checkout was clean, including
+  `docs/design.md`. The branch includes the approved `93a4f619` handoff via
+  `2fe909f4`, preserving both sides of the detector-config conflict.
+- Changed surfaces: operational masthead/menu, tenant/date/user context,
+  breadcrumbs and existing parent navigation, scoped shared controls and
+  portals, flat table/card geometry, status/tag geometry, identifier targets,
+  empty states, pagination, theme aliases and online/offline feedback.
+- Automated: `composer check:fast` passed (2,836 Pest tests passed, 26 skipped;
+  49,087 assertions), including build, Pint, PHPStan, TypeScript and repository
+  formatting/lint. Final affected build, `bun run types:check`,
+  `bun run test:frontend`, exact 81-page inventory and `git diff --check` passed.
+  Disposable SQLite only; the development database was not migrated, wiped or
+  seeded. PHPStan's optional local Turbo-extension warning is non-blocking.
+- Browser: operational 320/390/768/1440px and public landing/login/signup at
+  390/1440px; Light/Dark/System against both device schemes. Keyboard/focus,
+  desktop/mobile menus and confirmations, select portal, property-switch reset,
+  validation, empty state, real server pagination/scroll reset, long-content
+  stress, coarse-pointer targets, native reduced motion and real browser
+  offline/recovery checks passed. No browser JavaScript errors.
+- Evidence and full scope: [Batch 0 validation record](BATCH-0.md), including
+  representative before/after captures. T3 preview screenshot timeouts required
+  a documented switch to the already-installed Playwright/Chrome tools.
+- Remaining limitations: physical-device and full A4/80mm print reviews remain
+  outstanding; no new local MySQL run (no schema/query changes), no production
+  deployment or merge. Page-owned layouts and later batches remain unmigrated.
+  Offline protection cancels Inertia writes; it is not a queue, does not promise
+  server reachability while online and does not visually disable every existing
+  write control.

@@ -1,7 +1,7 @@
 import { Slot } from "@radix-ui/react-slot"
 import type { VariantProps} from "class-variance-authority";
 import { cva } from "class-variance-authority"
-import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react"
+import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react"
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,7 @@ const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 type SidebarContext = {
+  navigation: "sidebar" | "menu"
   state: "expanded" | "collapsed"
   open: boolean
   setOpen: (open: boolean) => void
@@ -51,6 +52,7 @@ function useSidebar() {
 }
 
 function SidebarProvider({
+  navigation = "sidebar",
   defaultOpen = true,
   open: openProp,
   onOpenChange: setOpenProp,
@@ -59,6 +61,7 @@ function SidebarProvider({
   children,
   ...props
 }: React.ComponentProps<"div"> & {
+  navigation?: "sidebar" | "menu"
   defaultOpen?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
@@ -87,8 +90,8 @@ function SidebarProvider({
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
-    return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
-  }, [isMobile, setOpen, setOpenMobile])
+    return isMobile || navigation === "menu" ? setOpenMobile((open) => !open) : setOpen((open) => !open)
+  }, [isMobile, navigation, setOpen, setOpenMobile])
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
@@ -112,6 +115,7 @@ function SidebarProvider({
 
   const contextValue = React.useMemo<SidebarContext>(
     () => ({
+      navigation,
       state,
       open,
       setOpen,
@@ -120,7 +124,7 @@ function SidebarProvider({
       setOpenMobile,
       toggleSidebar,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [navigation, state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
   )
 
   return (
@@ -157,7 +161,7 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { navigation, isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
   if (collapsible === "none") {
     return (
@@ -174,22 +178,18 @@ function Sidebar({
     )
   }
 
-  if (isMobile) {
+  if (isMobile || navigation === "menu") {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-        <SheetHeader className="sr-only">
-          <SheetTitle>Sidebar</SheetTitle>
-          <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-        </SheetHeader>
         <SheetContent
+          id={navigation === "menu" ? "workspace-navigation" : undefined}
           onCloseAutoFocus={(event) => {
             event.preventDefault()
             document.querySelector<HTMLButtonElement>('[data-sidebar="trigger"]')?.focus()
           }}
           data-sidebar="sidebar"
-          data-slot="sidebar"
-          data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          data-mobile={isMobile || undefined}
+          className="operational-ui bg-sidebar text-sidebar-foreground w-[min(20rem,100%)] max-w-full gap-0 p-0"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -197,7 +197,11 @@ function Sidebar({
           }
           side={side}
         >
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <SheetHeader className="shrink-0 border-b pr-16">
+            <SheetTitle>Your workspace</SheetTitle>
+            <SheetDescription>Navigation and property context</SheetDescription>
+          </SheetHeader>
+          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
         </SheetContent>
       </Sheet>
     )
@@ -253,7 +257,7 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar, isMobile, state } = useSidebar()
+  const { toggleSidebar, isMobile, state, navigation, openMobile } = useSidebar()
 
   return (
     <Button
@@ -261,6 +265,10 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
+      aria-expanded={navigation === "menu" ? openMobile : undefined}
+      aria-controls={navigation === "menu" ? "workspace-navigation" : undefined}
+      aria-haspopup={navigation === "menu" ? "dialog" : undefined}
+      aria-label={navigation === "menu" ? "Open workspace navigation" : undefined}
       className={cn("h-7 w-7", className)}
       onClick={(event) => {
         onClick?.(event)
@@ -268,8 +276,8 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      {isMobile || state === "collapsed" ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
-      <span className="sr-only">Toggle sidebar</span>
+      {navigation === "menu" ? <MenuIcon /> : isMobile || state === "collapsed" ? <PanelLeftOpenIcon /> : <PanelLeftCloseIcon />}
+      <span className="sr-only">{navigation === "menu" ? "Open workspace navigation" : "Toggle sidebar"}</span>
     </Button>
   )
 }

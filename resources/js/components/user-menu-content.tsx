@@ -14,12 +14,14 @@ import type { User } from '@/types';
 
 type Props = {
     user: User;
+    onNavigate?: () => void;
 };
 
-export function UserMenuContent({ user }: Props) {
+export function UserMenuContent({ user, onNavigate }: Props) {
     const cleanup = useMobileNavigation();
 
     const handleLogout = () => {
+        onNavigate?.();
         cleanup();
         router.flushAll();
     };
@@ -38,7 +40,10 @@ export function UserMenuContent({ user }: Props) {
                         className="block w-full cursor-pointer"
                         href={edit()}
                         prefetch
-                        onClick={cleanup}
+                        onClick={() => {
+                            onNavigate?.();
+                            cleanup();
+                        }}
                     >
                         <Settings className="mr-2" />
                         Settings

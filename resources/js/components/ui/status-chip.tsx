@@ -24,6 +24,7 @@ export function StatusChip({
 }) {
     return (
         <span
+            data-slot="status-chip"
             className={cn(
                 'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap',
                 tones[tone],
@@ -48,6 +49,7 @@ export function Tag({
 }) {
     return (
         <span
+            data-slot="tag"
             className={cn(
                 'inline-flex items-center rounded-sm px-1.5 py-0.5 text-xs',
                 active

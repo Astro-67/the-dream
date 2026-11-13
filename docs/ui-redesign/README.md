@@ -1,24 +1,25 @@
 # UI redesign handoff
 
-The owner approved the direction below. Production migration has **not started**.
+The owner approved the direction below. **Batch 0 implements the shared
+operational foundation; individual page migrations remain pending.**
 Continue from this package rather than repeating the design conversation.
 
 ## Start a batch
 
-1. Check the implementation base and existing local changes. A PR was expected
-   to merge, but its number and merge status were not supplied. The reference
-   capture was made at `74535c02`; that is not an instruction to use it
-   as the implementation base.
+1. Check current main, the preceding implementation's checks/deployment and
+   existing local changes. Batch 0's verified base and checks are recorded in
+   [its validation record](BATCH-0.md). The reference capture was made at
+   `74535c02`; that is not an instruction to use it as the implementation base.
 2. Reconcile the page inventory in [the checklist](CHECKLIST.md) after a merge
    or rebase, then load only the current batch's reference and relevant
-   application files. Start with **Batch 0**.
+   application files. Follow the checklist's next bounded batch.
 3. Implement one batch with the existing Laravel/Inertia components and real
    authorized data. Update its checkboxes and the handoff record after checks.
    A shared style reaching a page does not by itself finish that page.
 
 The files are saved in a trackable directory, not ignored scratch storage.
-Until committed, they are available in this checkout but are **not inherited
-by a new worktree**. Preserve the package in the selected checkout before starting.
+The original package was preserved in `93a4f619`. Ensure that commit or its
+equivalent changes are included before starting in a new checkout.
 
 ## Approved direction
 

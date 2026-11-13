@@ -17,5 +17,13 @@ export function AppShell({ children, variant = 'sidebar' }: Props) {
         );
     }
 
-    return <SidebarProvider defaultOpen={isOpen}>{children}</SidebarProvider>;
+    return (
+        <SidebarProvider
+            navigation="menu"
+            defaultOpen={isOpen}
+            className="operational-ui flex-col"
+        >
+            {children}
+        </SidebarProvider>
+    );
 }

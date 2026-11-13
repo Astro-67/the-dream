@@ -24,6 +24,7 @@ export function Pagination({
 
     return (
         <nav
+            data-slot="pagination"
             aria-label="Pagination"
             className={cn(
                 'flex flex-wrap items-center justify-between gap-3 pt-3 text-sm',

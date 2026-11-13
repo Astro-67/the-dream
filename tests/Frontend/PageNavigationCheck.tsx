@@ -185,6 +185,12 @@ assert.match(registration, /children do not need to be added/);
 
 for (const [path, parent, href, current] of cases) {
     const markup = await navigation(path);
+    assert.match(markup, /Open workspace navigation/);
+    assert.ok(
+        markup.indexOf('workspace-context') <
+            markup.indexOf('aria-label="Parent page"'),
+        `${path}: parent navigation remains below the shared context`,
+    );
     const ancestors = [...markup.matchAll(/<a\b[^>]*>[^<]*<\/a>/g)];
     assert.ok(
         ancestors.some(
