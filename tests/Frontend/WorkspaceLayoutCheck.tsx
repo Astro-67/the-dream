@@ -270,6 +270,11 @@ for (const sidebarOpen of [true, false]) {
         );
         assert.match(markup, /10 Dec 2026/);
         assert.match(markup, /Coastal organization/);
+        assert.equal(
+            (markup.match(/data-test="sidebar-tenant"/g) ?? []).length,
+            1,
+            'Organization and property selection belong in the sidebar, not twice in the workspace',
+        );
         if (Page !== BookerShow) {
             assert.match(markup, /<a[^>]*href="\/bookers"[^>]*>Cancel<\/a>/);
             assert.match(markup, /name="_property"[^>]*value="property-207"/);

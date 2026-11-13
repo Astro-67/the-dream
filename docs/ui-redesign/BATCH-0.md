@@ -8,6 +8,8 @@ described in the original capture below. Desktop navigation stays expanded from
 existing modal drawer. A shared page wrapper supplies 16px/24px padding and
 removes duplicate legacy page padding. Sidebar space and page padding disappear
 for print.
+The sidebar owns the only organization/property switcher, including on mobile;
+the masthead retains the business date/status and a read-only mobile property name.
 
 Validation: the desktop visibility regression failed before the change and now
 passes. All frontend checks and `composer check:fast` pass (2,836 Pest tests,
