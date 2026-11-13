@@ -139,6 +139,9 @@ Representative captures use disposable test data, not customer data:
 
 - No merge or production deployment is performed. Batch 0's PR must land before
   this stacked PR can merge independently.
+- Batch 1 is [PR #257](https://github.com/Astro-67/the-dream/pull/257). Repository
+  CI only runs for PRs targeting main, so no remote checks run on this stacked
+  base. Retarget after #256 merges to obtain CI; local integrated checks pass.
 - Physical-device review, physical passkey success and native background-tab
   lifecycle review remain manual checks. No new MySQL run is needed for this
   presentation-only change; no schemas or queries change.
