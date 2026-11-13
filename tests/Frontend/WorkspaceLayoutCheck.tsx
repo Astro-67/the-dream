@@ -111,13 +111,28 @@ for (const sidebarOpen of [true, false]) {
             initialComponent={component}
         />,
     );
-    assert.match(shell, /operational-ui flex-col/);
-    assert.doesNotMatch(shell, /data-variant="sidebar"|data-collapsible=/);
-    assert.match(shell, /aria-expanded="false"/);
+    assert.match(
+        shell,
+        /data-slot="sidebar"[^>]*data-state="expanded"|data-state="expanded"[^>]*data-slot="sidebar"/,
+        'Desktop navigation stays expanded even with an old collapsed-sidebar cookie',
+    );
+    assert.match(shell, /data-variant="sidebar"/);
+    assert.match(shell, /href="\/reservations"/);
+    assert.match(
+        shell,
+        /workspace-page[^"]*p-4[^"]*md:p-6/,
+        'The shared page wrapper supplies mobile and desktop gutters',
+    );
+    const navigationTrigger =
+        shell.match(/<button\b[^>]*data-sidebar="trigger"[^>]*>/)?.[0] ?? '';
+    assert.match(
+        navigationTrigger,
+        /class="[^"]*md:hidden/,
+        'Only small screens need a navigation drawer trigger',
+    );
     assert.equal((shell.match(/<main\b/g) ?? []).length, 1);
     assert.match(shell, /Workspace content/);
     assert.doesNotMatch(shell, /overflow-x-clip/);
-    assert.doesNotMatch(shell, /href="\/reservations"/);
     assert.match(shell, /Open workspace navigation/);
     assert.match(shell, /src="\/karafuu-logo-dark\.png"/);
     assert.match(shell, /User menu: Front desk/);
@@ -147,9 +162,7 @@ const headerWorkspace = renderToStaticMarkup(
 assert.match(headerWorkspace, /min-w-0/);
 assert.match(headerWorkspace, /gap-6/);
 assert.doesNotMatch(headerWorkspace, /max-w-|mx-auto/);
-console.log(
-    'Full-width menu shell ignores old sidebar state; alternate shell: PASS',
-);
+console.log('Persistent desktop sidebar and responsive page gutters: PASS');
 
 const layoutSource = readFileSync(
     new URL(
@@ -159,6 +172,16 @@ const layoutSource = readFileSync(
     'utf8',
 );
 assert.match(layoutSource, /<Fragment key=\{tenantKey\}>/);
+assert.match(layoutSource, /workspace-page[^"]*print:p-0/);
+const appCss = readFileSync(
+    new URL('../../resources/css/app.css', import.meta.url),
+    'utf8',
+);
+assert.match(
+    appCss,
+    /\.workspace-page > :where\(\.p-4, \.p-6\) \{\s*padding: 0;/,
+    'Legacy page padding must not double the shared page gutters',
+);
 const tenantKeySource = readFileSync(
     new URL('../../resources/js/hooks/use-tenant-key.ts', import.meta.url),
     'utf8',
@@ -247,6 +270,11 @@ for (const sidebarOpen of [true, false]) {
         );
         assert.match(markup, /10 Dec 2026/);
         assert.match(markup, /Coastal organization/);
+        assert.equal(
+            (markup.match(/data-test="sidebar-tenant"/g) ?? []).length,
+            1,
+            'Organization and property selection belong in the sidebar, not twice in the workspace',
+        );
         if (Page !== BookerShow) {
             assert.match(markup, /<a[^>]*href="\/bookers"[^>]*>Cancel<\/a>/);
             assert.match(markup, /name="_property"[^>]*value="property-207"/);

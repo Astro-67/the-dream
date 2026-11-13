@@ -251,12 +251,8 @@
     --color-sidebar-accent-foreground: var(--masthead-foreground);
 }
 
-.workspace-masthead [data-sidebar='menu-button'] {
-    color: inherit;
-}
-
-.workspace-masthead [data-slot='tenant-icon'] {
-    display: none;
+.workspace-page > :where(.p-4, .p-6) {
+    padding: 0;
 }
 
 body:has(.operational-ui)
