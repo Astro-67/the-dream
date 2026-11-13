@@ -62,6 +62,7 @@ export default function TwoFactorChallenge() {
                     className="space-y-4"
                     resetOnError
                     resetOnSuccess={!showRecoveryInput}
+                    disableWhileProcessing
                 >
                     {({ errors, processing, clearErrors }) => (
                         <>
@@ -75,8 +76,17 @@ export default function TwoFactorChallenge() {
                                         autoComplete="one-time-code"
                                         autoFocus={showRecoveryInput}
                                         required
+                                        aria-invalid={Boolean(
+                                            errors.recovery_code,
+                                        )}
+                                        aria-describedby={
+                                            errors.recovery_code
+                                                ? 'recovery-error'
+                                                : undefined
+                                        }
                                     />
                                     <InputError
+                                        id="recovery-error"
                                         message={errors.recovery_code}
                                     />
                                 </>
@@ -91,6 +101,12 @@ export default function TwoFactorChallenge() {
                                             disabled={processing}
                                             pattern={REGEXP_ONLY_DIGITS}
                                             aria-label="Authentication code"
+                                            aria-invalid={Boolean(errors.code)}
+                                            aria-describedby={
+                                                errors.code
+                                                    ? 'code-error'
+                                                    : undefined
+                                            }
                                             autoFocus
                                         >
                                             <InputOTPGroup>
@@ -106,7 +122,10 @@ export default function TwoFactorChallenge() {
                                             </InputOTPGroup>
                                         </InputOTP>
                                     </div>
-                                    <InputError message={errors.code} />
+                                    <InputError
+                                        id="code-error"
+                                        message={errors.code}
+                                    />
                                 </div>
                             )}
 
@@ -125,7 +144,7 @@ export default function TwoFactorChallenge() {
                                 <span>or you can </span>
                                 <button
                                     type="button"
-                                    className="cursor-pointer text-foreground underline decoration-border underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current!"
+                                    className="public-text-link cursor-pointer text-foreground"
                                     onClick={() =>
                                         toggleRecoveryMode(clearErrors)
                                     }

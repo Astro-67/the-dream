@@ -24,7 +24,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
             )}
 
             <div className="space-y-6">
-                <Form {...email.form()}>
+                <Form {...email.form()} disableWhileProcessing>
                     {({ processing, errors }) => (
                         <>
                             <div className="grid gap-2">
@@ -37,9 +37,16 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                     required
                                     autoFocus
                                     placeholder="email@example.com"
+                                    aria-invalid={Boolean(errors.email)}
+                                    aria-describedby={
+                                        errors.email ? 'email-error' : undefined
+                                    }
                                 />
 
-                                <InputError message={errors.email} />
+                                <InputError
+                                    id="email-error"
+                                    message={errors.email}
+                                />
                             </div>
 
                             <div className="my-6 flex items-center justify-start">

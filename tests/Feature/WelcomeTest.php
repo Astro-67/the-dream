@@ -1,5 +1,6 @@
 <?php
 
+use App\Domains\Subscriptions\Models\Plan;
 use Inertia\Testing\AssertableInertia as Assert;
 
 it('prices the landing page from the published plans', function () {
@@ -13,6 +14,27 @@ it('prices the landing page from the published plans', function () {
             ->where('plans.0.period', 'monthly')
             ->where('plans.0.trialDays', 14)
             ->has('hasScreens'));
+});
+
+it('uses current yearly pricing and configured contact details without an archived price fallback', function () {
+    Plan::query()->firstOrFail()->update([
+        'name' => 'Coastal',
+        'price' => 12345,
+        'currency' => 'EUR',
+        'billing_period' => 'yearly',
+        'trial_days' => 21,
+    ]);
+    config(['mail.from.address' => 'sales@example.test']);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('plans.0.name', 'Coastal')
+            ->where('plans.0.price', 12345)
+            ->where('plans.0.currency', 'EUR')
+            ->where('plans.0.period', 'yearly')
+            ->where('plans.0.trialDays', 21)
+            ->where('contactEmail', 'sales@example.test'));
 });
 
 it('ships matching feature previews in both themes', function (string $screen) {

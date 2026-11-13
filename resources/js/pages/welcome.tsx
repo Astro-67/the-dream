@@ -1,19 +1,14 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import {
-    BedDouble,
-    Check,
-    ConciergeBell,
-    Receipt,
-    ShieldCheck,
-    Users,
-} from 'lucide-react';
+import { ArrowRight, Check, Plus } from 'lucide-react';
 import { useState } from 'react';
-import BrandLogo from '@/components/brand-logo';
 import { AppearanceToggle } from '@/components/appearance-toggle';
+import BrandLogo from '@/components/brand-logo';
+import LandingHero from '@/components/public/landing-hero';
 import { Button } from '@/components/ui/button';
-import { useAppearance } from '@/hooks/use-appearance';
-import { cn, formatMoney } from '@/lib/utils';
+import { formatMoney } from '@/lib/utils';
 import { dashboard, login, register } from '@/routes';
+import '../../css/public-auth.css';
+import '../../css/landing.css';
 
 type Plan = {
     name: string;
@@ -23,624 +18,453 @@ type Plan = {
     trialDays: number;
 };
 
-// Only what the product does today; integrations awaiting certification are not advertised (PRD §13).
 const features = [
     {
-        screen: 'front-desk',
-        previewTitle: 'Arrivals and check-in',
-        icon: ConciergeBell,
-        title: 'Front desk that keeps up',
-        body: 'Arrivals, departures and in-house guests on one screen. Assign rooms, check guests in and out, and book walk-ins in seconds.',
+        label: 'Front desk',
+        photo: 'hero',
+        alt: 'An open hotel doorway facing the Indian Ocean',
+        title: 'From a reservation to a warm welcome.',
+        body: 'Arrivals, departures and in-house guests in one workspace. Keep the details close, so your attention stays with the guest.',
         points: [
-            'Arrivals and departures by business date',
-            'Room assignment with live availability',
-            'Guest profiles and booking history',
+            'Reservations and guest history',
+            'Room assignment and check-in',
+            'Walk-ins, departures and room moves',
         ],
     },
     {
-        screen: 'housekeeping',
-        previewTitle: 'Room status and readiness',
-        icon: BedDouble,
-        title: 'Rooms, rates and housekeeping',
-        body: 'Room types, rate plans and a rate calendar, with room status your housekeepers update as they work.',
+        label: 'Room readiness',
+        photo: 'feature-housekeeping',
+        alt: 'A prepared guest room with warm wood and coastal light',
+        title: 'Know the room before the guest arrives.',
+        body: 'Room status, housekeeping and availability stay connected. Your front desk and housekeepers work from the same picture.',
         points: [
-            'Dirty, clean and inspection status per room',
+            'Dirty, clean and inspection status',
             'Out-of-order periods kept out of availability',
-            'Rate calendar by room type and date',
+            'Room types, rates and a rate calendar',
         ],
     },
     {
-        screen: 'billing',
-        previewTitle: 'Guest folios and payments',
-        icon: Receipt,
-        title: 'Billing and night audit',
-        body: 'Folios, receipts, cashier shifts and a daily close that keeps your books traceable from the first night.',
+        label: 'Billing',
+        photo: 'feature-billing',
+        alt: 'A hotel reception desk prepared for the day',
+        title: 'Every charge. A clear account.',
+        body: 'Keep folios, payments, receipts and the daily close traceable, from the first night to the final receipt.',
         points: [
-            'Room charges posted at every night audit',
-            'Approvals for refunds, fees and write-offs',
+            'Room charges posted at night audit',
+            'Approvals for refunds and write-offs',
             'TZS, USD and EUR, never mixed in one total',
         ],
     },
-    {
-        screen: 'team',
-        previewTitle: 'Property-scoped team access',
-        icon: Users,
-        title: 'Your team, your permissions',
-        body: 'Invite staff with roles limited to the properties they work in. Every change is recorded in the audit trail.',
-        points: [
-            'Owner, manager, front desk, finance, housekeeping and auditor roles',
-            'Access scoped to one property or the whole group',
-            'Two-factor sign-in and passkeys',
-        ],
-    },
-];
-
-const screens = [
-    { key: 'dashboard', label: 'Dashboard' },
-    { key: 'reservations', label: 'Reservations' },
-    { key: 'rooms', label: 'Room status' },
 ];
 
 const faqs = [
-    {
-        q: 'Is there a free trial?',
-        a: 'Yes. Every new organization starts on a free trial with the full product. No card is needed to start.',
-    },
-    {
-        q: 'Can I run more than one property?',
-        a: 'Yes. One organization can hold several properties, and staff only see the properties you give them.',
-    },
-    {
-        q: 'Is Zanzibar compliance an extra?',
-        a: 'No. Legal compliance is included in every plan and is never sold as an upgrade.',
-    },
-    {
-        q: 'Who can see my data?',
-        a: 'Only members of your organization. Every hotel’s data is kept separate, and access is checked on every request.',
-    },
-    {
-        q: 'Can I cancel?',
-        a: 'Yes. Contact us to cancel; it takes effect at the end of the period you paid for, with no renewal invoice.',
-    },
+    [
+        'Can I try Karafuu first?',
+        'Yes. Every new organization starts on a free trial with the full product. No card is needed to start.',
+    ],
+    [
+        'Can I run more than one property?',
+        'Yes. One organization can hold several properties, and staff only see the properties you give them.',
+    ],
+    [
+        'Is Zanzibar compliance an extra?',
+        'No. Legal compliance is included in every plan and is never sold as an upgrade.',
+    ],
+    [
+        'Who can see my data?',
+        'Only members of your organization. Every property’s data is kept separate, and access is checked on every request.',
+    ],
+    [
+        'Can I cancel?',
+        'Yes. Contact us to cancel; it takes effect at the end of the period you paid for, with no renewal invoice.',
+    ],
 ];
-
-/** A marketing photo; until the file exists the slot shows a neutral panel (design.md, Marketing surfaces). */
-function Photo({
-    slot,
-    alt = '',
-    className,
-}: {
-    slot: string;
-    alt?: string;
-    className?: string;
-}) {
-    const [missing, setMissing] = useState(false);
-
-    return (
-        <div className={cn('overflow-hidden bg-muted', className)}>
-            {!missing && (
-                <img
-                    src={`/images/marketing/${slot}.webp`}
-                    alt={alt}
-                    loading="lazy"
-                    onError={() => setMissing(true)}
-                    className="size-full object-cover"
-                />
-            )}
-        </div>
-    );
-}
-
-function Screenshot({ name, label }: { name: string; label: string }) {
-    const { resolvedAppearance } = useAppearance();
-
-    return (
-        <Photo
-            key={`${name}-${resolvedAppearance}`}
-            slot={`screens/${name}-${resolvedAppearance}`}
-            className="aspect-[16/10] rounded-lg bg-background"
-            alt={label}
-        />
-    );
-}
-
-function PlanCard({ plan }: { plan: Plan }) {
-    return (
-        <li className="flex flex-col gap-6 rounded-xl border bg-card p-6">
-            <div className="space-y-2">
-                <h3 className="text-lg font-semibold">{plan.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                    For an independent property getting started.
-                </p>
-            </div>
-            <p>
-                <span className="text-3xl font-semibold tabular-nums">
-                    {formatMoney(plan.price, plan.currency)}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                    {' '}
-                    per room / {plan.period === 'monthly' ? 'month' : 'year'}
-                </span>
-            </p>
-            <ul className="space-y-2 text-sm">
-                {[
-                    'Pay only for the rooms you choose',
-                    'Front desk, rooms, rates and housekeeping',
-                    'Billing, night audit and basic reports',
-                    'Staff roles and permissions',
-                    'Zanzibar compliance included',
-                ].map((item) => (
-                    <li key={item} className="flex gap-2">
-                        <Check className="mt-0.5 size-4 shrink-0 text-status-success" />
-                        {item}
-                    </li>
-                ))}
-            </ul>
-            <Button asChild className="mt-auto">
-                <Link href={register()}>
-                    Start {plan.trialDays}-day free trial
-                </Link>
-            </Button>
-        </li>
-    );
-}
-
-function ContactPlanCard({
-    name,
-    audience,
-    items,
-    email,
-}: {
-    name: string;
-    audience: string;
-    items: string[];
-    email: string;
-}) {
-    return (
-        <li className="flex flex-col gap-6 rounded-xl border bg-card p-6">
-            <div className="space-y-2">
-                <h3 className="text-lg font-semibold">{name}</h3>
-                <p className="text-sm text-muted-foreground">{audience}</p>
-            </div>
-            <p className="text-3xl font-semibold">Talk to us</p>
-            <ul className="space-y-2 text-sm">
-                {items.map((item) => (
-                    <li key={item} className="flex gap-2">
-                        <Check className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                        {item}
-                    </li>
-                ))}
-            </ul>
-            <Button asChild variant="outline" className="mt-auto">
-                <a
-                    href={`mailto:${email}?subject=${encodeURIComponent(`${name} plan`)}`}
-                >
-                    Contact us
-                </a>
-            </Button>
-        </li>
-    );
-}
 
 export default function Welcome({
     plans,
     contactEmail,
-    hasScreens,
 }: {
     plans: Plan[];
     contactEmail: string;
-    hasScreens: boolean;
+    hasScreens?: boolean;
 }) {
     const { auth, name } = usePage().props;
-    const [screen, setScreen] = useState(screens[0].key);
-    const trialDays = plans[0]?.trialDays;
+    const [area, setArea] = useState(0);
+    const feature = features[area];
+    const signedIn = Boolean(auth.user);
+    const start = signedIn ? dashboard() : register();
+    const startLabel = signedIn ? 'Go to dashboard' : 'Start your free trial';
 
     return (
         <>
             <Head title="Property management for hotels, resorts and more" />
-            <div className="min-h-svh bg-background text-foreground">
-                <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-                    <nav
-                        aria-label="Main"
-                        className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 md:px-6"
-                    >
-                        <Link href="/" className="flex shrink-0 items-center">
-                            <BrandLogo className="h-auto w-32 sm:w-44" />
+            <div className="public-surface landing-site">
+                <a className="public-skip" href="#main-content">
+                    Skip to content
+                </a>
+                <div className="public-wrap">
+                    <header className="public-topbar">
+                        <Link href="/" aria-label="Karafuu PMS home">
+                            <BrandLogo className="public-brand" />
                         </Link>
-                        <div className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
-                            <a
-                                href="#features"
-                                className="hover:text-foreground"
-                            >
-                                Features
-                            </a>
-                            <a
-                                href="#pricing"
-                                className="hover:text-foreground"
-                            >
-                                Pricing
-                            </a>
-                            <a href="#faq" className="hover:text-foreground">
-                                FAQ
-                            </a>
-                        </div>
-                        <div className="flex items-center gap-2">
+                        <nav className="landing-nav" aria-label="Main">
+                            <a href="#product">Product</a>
+                            <a href="#team">Your team</a>
+                            <a href="#pricing">Pricing</a>
+                        </nav>
+                        <div className="flex items-center gap-3">
                             <AppearanceToggle />
-                            {auth.user ? (
-                                <Button asChild>
-                                    <Link href={dashboard()}>
-                                        Go to dashboard
-                                    </Link>
-                                </Button>
-                            ) : (
-                                <>
-                                    <Button
-                                        asChild
-                                        variant="ghost"
-                                        className="hidden sm:inline-flex"
-                                    >
-                                        <Link href={login()}>Log in</Link>
-                                    </Button>
-                                    <Button asChild>
-                                        <Link href={register()}>
-                                            Get started
-                                        </Link>
-                                    </Button>
-                                </>
-                            )}
-                        </div>
-                    </nav>
-                </header>
-
-                <main>
-                    <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 md:px-6 md:py-24 lg:grid-cols-[1fr_1.1fr]">
-                        <div className="space-y-6">
-                            <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">
-                                Your property. Every stay. One system.
-                            </h1>
-                            <p className="max-w-xl text-lg text-muted-foreground">
-                                A property management system for hotels,
-                                resorts, lodges and serviced apartments. Keep
-                                reservations, rooms, rates, housekeeping and
-                                billing connected, from one property to a
-                                growing group.
-                            </p>
-                            {!auth.user && (
-                                <div className="flex flex-col gap-3 sm:flex-row">
-                                    <Button asChild size="lg">
-                                        <Link href={register()}>
-                                            {trialDays
-                                                ? `Start ${trialDays}-day free trial`
-                                                : 'Create your account'}
-                                        </Link>
-                                    </Button>
-                                    <Button asChild size="lg" variant="outline">
-                                        <a href="#pricing">See pricing</a>
-                                    </Button>
-                                </div>
-                            )}
-                            <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                                {[
-                                    'No card to start',
-                                    'Compliance included',
-                                    'Light and dark themes',
-                                ].map((item) => (
-                                    <li
-                                        key={item}
-                                        className="flex items-center gap-2"
-                                    >
-                                        <Check className="size-4 text-status-success" />
-                                        {item}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div
-                            className={cn(
-                                'relative',
-                                hasScreens && 'pb-10 lg:pb-16',
-                            )}
-                        >
-                            <Photo
-                                slot="hero"
-                                alt="An open-air coastal property overlooking the ocean"
-                                className="aspect-[4/3] rounded-2xl lg:aspect-[16/11]"
-                            />
-                            {hasScreens && (
-                                <div className="absolute right-4 bottom-0 left-8 rounded-xl border bg-background p-1.5 lg:-left-12">
-                                    <Screenshot
-                                        name="dashboard"
-                                        label="Dashboard"
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    </section>
-
-                    <section
-                        id="features"
-                        aria-labelledby="features-title"
-                        className="scroll-mt-20 border-t bg-muted/40"
-                    >
-                        <div className="mx-auto max-w-6xl space-y-20 px-4 py-20 md:px-6">
-                            <div className="max-w-2xl space-y-4">
-                                <h2
-                                    id="features-title"
-                                    className="text-3xl font-semibold tracking-tight md:text-4xl"
+                            <Link
+                                href={signedIn ? dashboard() : login()}
+                                className="public-text-link"
+                            >
+                                {signedIn ? 'Dashboard' : 'Log in'}
+                            </Link>
+                            {!signedIn && (
+                                <Button
+                                    asChild
+                                    size="lg"
+                                    className="landing-start"
                                 >
-                                    Everything your property runs on
+                                    <Link href={register()}>Get started</Link>
+                                </Button>
+                            )}
+                            <details className="landing-mobile-menu">
+                                <summary>Menu</summary>
+                                <nav aria-label="Mobile navigation">
+                                    <a href="#product">Product</a>
+                                    <a href="#team">Your team</a>
+                                    <a href="#pricing">Pricing</a>
+                                    <a href="#faq">FAQ</a>
+                                </nav>
+                            </details>
+                        </div>
+                    </header>
+                    <main id="main-content">
+                        <LandingHero signedIn={signedIn} />
+                        <div
+                            className="landing-flow"
+                            aria-label="The connected guest journey"
+                        >
+                            {[
+                                'Reservations',
+                                'Front desk',
+                                'Housekeeping',
+                                'Billing',
+                            ].map((step, index) => (
+                                <span key={step}>
+                                    {index > 0 && <ArrowRight aria-hidden />}
+                                    {step}
+                                </span>
+                            ))}
+                        </div>
+                        <section
+                            className="landing-pad"
+                            id="product"
+                            aria-labelledby="product-title"
+                        >
+                            <div className="landing-intro">
+                                <h2 id="product-title">
+                                    A connected stay.
+                                    <br />
+                                    Not scattered work.
                                 </h2>
-                                <p className="text-lg text-muted-foreground">
-                                    A connected workflow, from the first
-                                    reservation to the final receipt. Explore
-                                    the actual tools for your front desk,
-                                    housekeeping, billing and team.
+                                <p>
+                                    Give each part of your property a place to
+                                    work, with the same reservation at the heart
+                                    of it.
                                 </p>
                             </div>
-                            {features.map((feature, index) => (
-                                <article
-                                    key={feature.screen}
-                                    className={cn(
-                                        'grid items-center gap-8 md:gap-10 lg:gap-16',
-                                        index % 2 === 0
-                                            ? 'md:grid-cols-[1.2fr_1fr]'
-                                            : 'md:grid-cols-[1fr_1.2fr]',
-                                    )}
-                                >
-                                    <figure
-                                        className={cn(
-                                            'min-w-0 space-y-4 rounded-xl border bg-card p-4 lg:p-5',
-                                            index % 2 === 1 && 'md:order-last',
-                                        )}
-                                    >
-                                        <figcaption className="flex items-center gap-3 text-sm font-medium">
-                                            <feature.icon
-                                                className="size-5 shrink-0"
-                                                aria-hidden="true"
+                            <fieldset className="landing-feature-picker">
+                                <legend className="sr-only">
+                                    Explore product areas
+                                </legend>
+                                <div className="landing-feature-options">
+                                    {features.map((item, index) => (
+                                        <label key={item.label}>
+                                            <input
+                                                type="radio"
+                                                name="product-area"
+                                                checked={area === index}
+                                                onChange={() => setArea(index)}
+                                                aria-controls="product-panel"
                                             />
-                                            {feature.previewTitle}
-                                        </figcaption>
-                                        <Screenshot
-                                            name={feature.screen}
-                                            label={`${feature.previewTitle} in Karafuu, using sample property data`}
-                                        />
-                                        <div className="flex flex-wrap justify-between gap-2 text-xs text-muted-foreground">
-                                            <span>Actual product screen</span>
-                                            <span>Sample data</span>
-                                        </div>
-                                    </figure>
-                                    <div className="space-y-5">
-                                        <h3 className="text-2xl font-semibold">
-                                            {feature.title}
-                                        </h3>
-                                        <p className="text-muted-foreground">
-                                            {feature.body}
-                                        </p>
-                                        <ul className="space-y-2 text-sm">
+                                            <span>{item.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <div
+                                    className="landing-feature"
+                                    id="product-panel"
+                                >
+                                    <img
+                                        src={`/images/marketing/${feature.photo}.webp`}
+                                        alt={feature.alt}
+                                        loading="lazy"
+                                        width="1536"
+                                        height="1024"
+                                    />
+                                    <div>
+                                        <h3>{feature.title}</h3>
+                                        <p>{feature.body}</p>
+                                        <ul>
                                             {feature.points.map((point) => (
-                                                <li
-                                                    key={point}
-                                                    className="flex gap-2"
-                                                >
-                                                    <Check className="mt-0.5 size-4 shrink-0 text-status-success" />
+                                                <li key={point}>
+                                                    <Check aria-hidden />
                                                     {point}
                                                 </li>
                                             ))}
                                         </ul>
                                     </div>
-                                </article>
-                            ))}
-                        </div>
-                    </section>
-
-                    {hasScreens && (
-                        <section
-                            aria-labelledby="showcase-title"
-                            className="mx-auto max-w-6xl space-y-8 px-4 py-20 md:px-6"
-                        >
-                            <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-                                <div className="max-w-2xl space-y-4">
-                                    <h2
-                                        id="showcase-title"
-                                        className="text-3xl font-semibold tracking-tight md:text-4xl"
-                                    >
-                                        See it before you sign up
-                                    </h2>
-                                    <p className="text-lg text-muted-foreground">
-                                        Real screens from the product. Switch
-                                        the theme at the top to see them in
-                                        light or dark.
-                                    </p>
                                 </div>
-                                <div
-                                    role="group"
-                                    aria-label="Screen"
-                                    className="inline-flex gap-1 self-start rounded-lg bg-muted p-1"
-                                >
-                                    {screens.map((item) => (
-                                        <button
-                                            key={item.key}
-                                            type="button"
-                                            aria-pressed={screen === item.key}
-                                            onClick={() => setScreen(item.key)}
-                                            className={cn(
-                                                'rounded-md px-3.5 py-1.5 text-sm transition-colors',
-                                                screen === item.key
-                                                    ? 'bg-card text-foreground'
-                                                    : 'text-muted-foreground hover:text-foreground',
-                                            )}
-                                        >
-                                            {item.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <Screenshot
-                                name={screen}
-                                label={
-                                    screens.find((s) => s.key === screen)!.label
-                                }
-                            />
+                            </fieldset>
                         </section>
-                    )}
-
-                    <section
-                        aria-labelledby="compliance-title"
-                        className="border-y bg-muted/40"
-                    >
-                        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 md:grid-cols-[auto_1fr] md:px-6">
-                            <span className="inline-flex size-12 items-center justify-center rounded-xl border bg-card text-foreground">
-                                <ShieldCheck className="size-6" />
-                            </span>
-                            <div className="max-w-3xl space-y-3">
-                                <h2
-                                    id="compliance-title"
-                                    className="text-2xl font-semibold"
-                                >
-                                    Built for East Africa, compliance included
+                        <section
+                            className="landing-team"
+                            id="team"
+                            aria-labelledby="team-title"
+                        >
+                            <img
+                                src="/images/marketing/feature-team.webp"
+                                alt="Hotel team members on a coastal veranda, seen from behind"
+                                loading="lazy"
+                                width="1536"
+                                height="1024"
+                            />
+                            <div>
+                                <h2 id="team-title">
+                                    One team.
+                                    <br />
+                                    The right access.
                                 </h2>
-                                <p className="text-muted-foreground">
-                                    Karafuu is built around how hotels in
-                                    Tanzania and Zanzibar work: TZS, USD and EUR
-                                    side by side, business dates and night
-                                    audit, and the reporting Zanzibar properties
-                                    need. Legal compliance is part of every
-                                    plan; it is never sold as an upgrade.
+                                <p>
+                                    The front desk, housekeeping and finance do
+                                    different work. Give each person access to
+                                    the properties and responsibilities they
+                                    need.
+                                </p>
+                                <ul>
+                                    {[
+                                        'Roles that match your team',
+                                        'Property-scoped staff access',
+                                        'An audit trail of changes',
+                                        'Two-factor sign-in and passkeys',
+                                    ].map((point) => (
+                                        <li key={point}>{point}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </section>
+                        <section
+                            className="landing-pad landing-pricing"
+                            id="pricing"
+                            aria-labelledby="pricing-title"
+                        >
+                            <div className="landing-intro">
+                                <h2 id="pricing-title">
+                                    A clear price.
+                                    <br />
+                                    Room to grow.
+                                </h2>
+                                <p>
+                                    Start with a free trial, then pay per
+                                    subscribed room. Know the currency, period
+                                    and room basis before you begin.
                                 </p>
                             </div>
-                        </div>
-                    </section>
-
-                    <section
-                        id="pricing"
-                        aria-labelledby="pricing-title"
-                        className="mx-auto max-w-6xl scroll-mt-20 space-y-10 px-4 py-20 md:px-6"
-                    >
-                        <div className="mx-auto max-w-2xl space-y-4 text-center">
-                            <h2
-                                id="pricing-title"
-                                className="text-3xl font-semibold tracking-tight md:text-4xl"
-                            >
-                                Simple pricing
-                            </h2>
-                            <p className="text-lg text-muted-foreground">
-                                Start free, then pay per month. Every plan
-                                includes compliance and product updates.
-                            </p>
-                        </div>
-                        <ul className="grid gap-6 lg:grid-cols-3">
-                            {plans.map((plan) => (
-                                <PlanCard key={plan.name} plan={plan} />
-                            ))}
-                            <ContactPlanCard
-                                name="Growth"
-                                audience="For properties that want more sales channels."
-                                email={contactEmail}
-                                items={[
-                                    'Everything in Essential',
-                                    'Richer reports',
-                                    'Help planning your sales channels',
-                                ]}
-                            />
-                            <ContactPlanCard
-                                name="Group / Enterprise"
-                                audience="For multi-property operators and chains."
-                                email={contactEmail}
-                                items={[
-                                    'Multiple properties in one organization',
-                                    'Group roles scoped by property',
-                                    'Onboarding support',
-                                    'Negotiated capacity and service terms',
-                                ]}
-                            />
-                        </ul>
-                    </section>
-
-                    <section
-                        id="faq"
-                        aria-labelledby="faq-title"
-                        className="mx-auto max-w-3xl scroll-mt-20 space-y-8 px-4 pb-20 md:px-6"
-                    >
-                        <h2
-                            id="faq-title"
-                            className="text-center text-3xl font-semibold tracking-tight"
-                        >
-                            Questions
-                        </h2>
-                        <div className="divide-y rounded-xl border bg-card">
-                            {faqs.map((faq) => (
-                                <details
-                                    key={faq.q}
-                                    className="group px-5 py-4"
-                                >
-                                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">
-                                        {faq.q}
-                                        <span
-                                            aria-hidden
-                                            className="text-muted-foreground transition-transform group-open:rotate-45"
+                            <ul className="landing-plans">
+                                {plans.map((plan, index) => (
+                                    <li
+                                        className="landing-plan"
+                                        key={`${plan.name}-${plan.currency}-${plan.period}-${index}`}
+                                    >
+                                        <h3>{plan.name}</h3>
+                                        <p className="landing-price">
+                                            {formatMoney(
+                                                plan.price,
+                                                plan.currency,
+                                            )}
+                                        </p>
+                                        <p className="landing-price-basis">
+                                            per subscribed room /{' '}
+                                            {plan.period === 'monthly'
+                                                ? 'month'
+                                                : 'year'}
+                                        </p>
+                                        <ul>
+                                            {[
+                                                'Pay only for the rooms you choose',
+                                                'Front desk, rooms, rates and housekeeping',
+                                                'Billing, night audit and basic reports',
+                                                'Staff roles and permissions',
+                                                'Zanzibar compliance included',
+                                            ].map((point) => (
+                                                <li key={point}>
+                                                    <Check aria-hidden />
+                                                    {point}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            size="lg"
                                         >
-                                            +
-                                        </span>
-                                    </summary>
-                                    <p className="pt-3 text-sm text-muted-foreground">
-                                        {faq.a}
-                                    </p>
-                                </details>
-                            ))}
-                        </div>
-                    </section>
-
-                    <section className="relative isolate overflow-hidden">
-                        <Photo
-                            slot="cta"
-                            className="absolute inset-0 -z-10 bg-foreground"
-                        />
-                        <div className="absolute inset-0 -z-10 bg-black/60" />
-                        <div className="mx-auto max-w-3xl space-y-6 px-4 py-24 text-center text-white md:px-6">
-                            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-                                Your property, ready by tonight’s audit.
-                            </h2>
-                            <p className="text-lg text-white/80">
-                                Create your account, add your rooms and rates,
-                                and go live when the checklist passes.
-                            </p>
+                                            <Link href={start}>
+                                                {signedIn
+                                                    ? 'Go to dashboard'
+                                                    : plan.trialDays > 0
+                                                      ? `Start ${plan.trialDays}-day free trial`
+                                                      : 'Get started'}
+                                            </Link>
+                                        </Button>
+                                    </li>
+                                ))}
+                                {[
+                                    {
+                                        name: 'Growth',
+                                        body: 'For properties that want more sales channels.',
+                                        points: [
+                                            'Everything in Essential',
+                                            'Richer reports',
+                                            'Help planning your sales channels',
+                                        ],
+                                    },
+                                    {
+                                        name: 'Group / Enterprise',
+                                        body: 'For multi-property operators and chains.',
+                                        points: [
+                                            'Multiple properties in one organization',
+                                            'Group roles scoped by property',
+                                            'Onboarding support',
+                                            'Negotiated capacity and service terms',
+                                        ],
+                                    },
+                                ]
+                                    .filter(
+                                        (offer) =>
+                                            !plans.some(
+                                                (plan) =>
+                                                    plan.name === offer.name,
+                                            ),
+                                    )
+                                    .map((offer) => (
+                                        <li
+                                            className="landing-plan"
+                                            key={offer.name}
+                                        >
+                                            <h3>{offer.name}</h3>
+                                            <p className="landing-price">
+                                                Talk to us
+                                            </p>
+                                            <p className="landing-price-basis">
+                                                {offer.body}
+                                            </p>
+                                            <ul>
+                                                {offer.points.map((point) => (
+                                                    <li key={point}>
+                                                        <Check aria-hidden />
+                                                        {point}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            <Button
+                                                asChild
+                                                variant="outline"
+                                                size="lg"
+                                            >
+                                                <a
+                                                    href={`mailto:${contactEmail}?subject=${encodeURIComponent(`${offer.name} plan`)}`}
+                                                >
+                                                    Contact us
+                                                </a>
+                                            </Button>
+                                        </li>
+                                    ))}
+                                {plans.length === 0 && (
+                                    <li className="landing-plan">
+                                        <h3>Plan pricing</h3>
+                                        <p className="landing-price">
+                                            Talk to us
+                                        </p>
+                                        <p>
+                                            No prices are published yet. Contact
+                                            us for a plan for your property.
+                                        </p>
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            size="lg"
+                                        >
+                                            <a href={`mailto:${contactEmail}`}>
+                                                Contact us
+                                            </a>
+                                        </Button>
+                                    </li>
+                                )}
+                            </ul>
+                        </section>
+                        <section
+                            className="landing-pad landing-faq"
+                            id="faq"
+                            aria-labelledby="faq-title"
+                        >
+                            <div>
+                                <h2 id="faq-title">
+                                    A few things
+                                    <br />
+                                    worth knowing.
+                                </h2>
+                                <p>Clear answers before you get started.</p>
+                            </div>
+                            <div>
+                                {faqs.map(([question, answer]) => (
+                                    <details key={question}>
+                                        <summary>
+                                            {question}
+                                            <Plus
+                                                className="size-4 shrink-0"
+                                                aria-hidden
+                                            />
+                                        </summary>
+                                        <p>{answer}</p>
+                                    </details>
+                                ))}
+                            </div>
+                        </section>
+                        <section
+                            className="landing-closing"
+                            aria-labelledby="start-title"
+                        >
+                            <div>
+                                <h2 id="start-title">
+                                    Make room for
+                                    <br />a better day.
+                                </h2>
+                                <p>
+                                    Bring reservations, rooms and billing
+                                    together in Karafuu.
+                                </p>
+                            </div>
                             <Button asChild size="lg">
-                                <Link
-                                    href={auth.user ? dashboard() : register()}
-                                >
-                                    {auth.user
-                                        ? 'Go to dashboard'
-                                        : 'Get started free'}
+                                <Link href={start}>
+                                    {startLabel}
+                                    <ArrowRight aria-hidden />
                                 </Link>
                             </Button>
-                        </div>
-                    </section>
-                </main>
-
-                <footer className="border-t">
-                    <div className="mx-auto flex max-w-6xl flex-col justify-between gap-4 px-4 py-8 text-sm text-muted-foreground sm:flex-row md:px-6">
+                        </section>
+                    </main>
+                    <footer className="public-footer">
                         <span>
                             © {new Date().getFullYear()} {name}
                         </span>
-                        <div className="flex gap-6">
-                            <a
-                                href="#pricing"
-                                className="hover:text-foreground"
-                            >
-                                Pricing
-                            </a>
-                            <a href="#faq" className="hover:text-foreground">
-                                FAQ
-                            </a>
-                            <a
-                                href={`mailto:${contactEmail}`}
-                                className="hover:text-foreground"
-                            >
-                                Contact
-                            </a>
-                        </div>
-                    </div>
-                </footer>
+                        <nav aria-label="Footer navigation">
+                            <a href="#pricing">Pricing</a>
+                            <a href="#faq">FAQ</a>
+                            <a href={`mailto:${contactEmail}`}>Contact</a>
+                        </nav>
+                    </footer>
+                </div>
             </div>
         </>
     );
