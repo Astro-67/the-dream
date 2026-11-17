@@ -165,6 +165,8 @@ export default function Create({
                 ],
                 preserveState: true,
                 preserveScroll: true,
+                // Keep line indexes so each room line stays together.
+                queryStringArrayFormat: 'indices',
             },
         );
     }
