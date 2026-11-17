@@ -35,8 +35,16 @@ class CreateReservation
         return Audit::validationRefusal($actor, new Reservation, 'Reservation booking refused', fn () => DB::transaction(function () use ($actor, $details) {
             $property = Tenancy::property() ?? throw MissingTenantContext::forProperty(Reservation::class);
             app(Entitlements::class)->lockForNewSales($property->demo);
-            $type = RoomType::query()->findOrFail($details['room_type_id']);
-            $plan = RatePlan::query()->whereNull('deactivated_at')->whereHas('roomTypes', fn ($query) => $query->whereKey($type->id))->findOrFail($details['rate_plan_id']);
+            // One entry per booked room: its type, plan and optional room assignment.
+            $booked = [];
+            foreach (BookingGroupOccupancy::lines($details) as $index => $line) {
+                $type = RoomType::query()->findOrFail($line['room_type_id']);
+                $plan = RatePlan::query()->whereNull('deactivated_at')->whereHas('roomTypes', fn ($query) => $query->whereKey($type->id))->find($line['rate_plan_id'])
+                    ?? throw ValidationException::withMessages([isset($details['lines']) ? "lines.{$index}.rate_plan_id" : 'rate_plan_id' => __('Choose an active rate plan that sells this room type.')]);
+                for ($room = 0; $room < $line['rooms']; $room++) {
+                    $booked[] = ['type' => $type, 'plan' => $plan, 'room_id' => $line['room_ids'][$room] ?? null];
+                }
+            }
             if (! empty($details['booker_id'])) {
                 Booker::query()->findOrFail($details['booker_id']);
             }
@@ -71,10 +79,13 @@ class CreateReservation
             }
             $nightlyRate = $details['nightly_rate'] ?? null;
             unset($details['nightly_rate']);
-            $occupancies = app(BookingGroupOccupancy::class)->forRooms($type, $details);
+            if ($nightlyRate !== null && count(array_unique(array_map(fn (array $item) => $item['plan']->currency->value, $booked))) > 1) {
+                throw ValidationException::withMessages(['nightly_rate' => __('An own nightly rate needs every room priced in one currency.')]);
+            }
+            $occupancies = app(BookingGroupOccupancy::class)->forRooms(array_column($booked, 'type'), $details);
             $quotes = [];
-            foreach ($occupancies as $occupancy) {
-                $quote = app(StayPricing::class)->quote($plan, $type, $details['arrival'], $details['departure'], $occupancy['adults'], $occupancy['children']);
+            foreach ($occupancies as $room => $occupancy) {
+                $quote = app(StayPricing::class)->quote($booked[$room]['plan'], $booked[$room]['type'], $details['arrival'], $details['departure'], $occupancy['adults'], $occupancy['children']);
                 if ($quote->unquotable !== null) {
                     throw ValidationException::withMessages(['rate_plan_id' => $quote->unquotable]);
                 }
@@ -82,11 +93,19 @@ class CreateReservation
             }
             $bookingWarnings = app(BookingRules::class)->warnings($property, $details['arrival'], $details['departure']);
             app(BookingRules::class)->authorizeOverride($actor, $bookingWarnings);
-            $warnings = [...$bookingWarnings, ...app(StayRestrictions::class)->warnings($plan, $type, $details['arrival'], $details['departure'])];
+            $warnings = $bookingWarnings;
+            foreach (array_unique(array_map(fn (array $item) => $item['plan']->id.'|'.$item['type']->id, $booked), SORT_STRING) as $room => $pair) {
+                $warnings = [...$warnings, ...app(StayRestrictions::class)->warnings($booked[$room]['plan'], $booked[$room]['type'], $details['arrival'], $details['departure'])];
+            }
+            $warnings = array_values(array_unique($warnings));
             $details['restriction_override_reason'] = app(StayRestrictions::class)->overrideReason($warnings, $details['restriction_override_reason'] ?? null);
             $rooms = count($occupancies);
-            unset($details['rooms'], $details['distribute_guests']);
-            app(TakeInventory::class)->handle($type, array_column($quotes[0]->nights, 'date'), $rooms);
+            unset($details['rooms'], $details['distribute_guests'], $details['lines']);
+            $perType = array_count_values(array_map(fn (array $item) => $item['type']->id, $booked));
+            ksort($perType); // a fixed lock order keeps concurrent mixed bookings from deadlocking
+            foreach ($perType as $typeId => $count) {
+                app(TakeInventory::class)->handle(RoomType::query()->findOrFail($typeId), array_column($quotes[0]->nights, 'date'), $count);
+            }
             $groupId = $rooms > 1 ? (string) Str::ulid() : null;
             // The property lock serializes initial sequence creation as well as allocation.
             $property = Property::query()->whereKey($property->id)->lockForUpdate()->firstOrFail();
@@ -101,12 +120,15 @@ class CreateReservation
                 $reservation = Reservation::query()->create([
                     ...array_diff_key($details, ['room_id' => true]),
                     ...$occupancies[$room],
+                    'room_type_id' => $booked[$room]['type']->id,
+                    'rate_plan_id' => $booked[$room]['plan']->id,
                     'booking_group_id' => $groupId,
                     'reservation_number' => $number,
                     'requires_reconciliation' => ($details['source'] ?? '') === 'outside-integration',
                     'payment_collector' => $details['payment_collector'] ?? 'property',
                     'status' => ReservationStatus::Confirmed,
                 ]);
+                $plan = $booked[$room]['plan'];
                 Folio::query()->create(['reservation_id' => $reservation->id, 'currency' => $plan->currency]);
                 foreach ($quote->nights as $night) {
                     $reservation->priceLines()->create(['date' => $night['date'], 'amount' => $nightlyRate ?? $night['total'], 'currency' => $quote->currency->value, 'rate_plan_id' => $plan->id]);
@@ -131,8 +153,8 @@ class CreateReservation
                         ]);
                     }
                 }
-                if ($room === 0 && ! empty($details['room_id'])) {
-                    $reservation = app(AssignRoom::class)->handle($actor, $reservation, $details['room_id'], recordEvent: false);
+                if ($booked[$room]['room_id'] !== null) {
+                    $reservation = app(AssignRoom::class)->handle($actor, $reservation, $booked[$room]['room_id'], recordEvent: false);
                 }
                 if (! $reservation->imported || ! JurisdictionRules::defersImportedReservationCreated($property)) {
                     app(RecordLifecycleEvent::class)->handle($reservation, 'created', $actor);

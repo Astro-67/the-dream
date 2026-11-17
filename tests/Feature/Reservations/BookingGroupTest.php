@@ -8,9 +8,12 @@ use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Housekeeping\Enums\HousekeepingStatus;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Inventory\Actions\CreateRoom;
+use App\Domains\Inventory\Actions\CreateRoomType;
 use App\Domains\Inventory\Models\InventoryRecord;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Rates\Actions\CreateRatePlan;
+use App\Domains\Rates\Actions\SetRatePrices;
 use App\Domains\Reservations\Actions\AssignRoom;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Models\Reservation;
@@ -435,4 +438,59 @@ test('a group can assign its first reservation without assigning the same room t
                 ->and($member->lifecycleEvents->sole()->snapshot['channel_reference'])->toBe('OTA-GROUP-123');
         }
     });
+});
+
+test('one booking group mixes room types and assigns a room to every member', function () {
+    $t = twoTenants();
+    [$details, $suite, $suitePlan, $rooms] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($details['room_type_id'], ['number' => '102']));
+        $suite = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType(['name' => 'Suite', 'code' => 'STE']));
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($suite->id, ['number' => '201']));
+        $suitePlan = app(CreateRatePlan::class)->handle($t->a->owner, ['name' => 'Suite rate', 'code' => 'STE', 'currency' => 'USD', 'room_type_ids' => [$suite->id]]);
+        app(SetRatePrices::class)->handle($t->a->owner, $suitePlan, ['room_type_id' => $suite->id, 'from' => '2026-12-10', 'to' => '2026-12-11', 'weekdays' => [1, 2, 3, 4, 5, 6, 7], 'base_price' => 30000, 'extra_adult' => 0, 'extra_child' => 0]);
+
+        return [$details, $suite, $suitePlan, Room::query()->orderBy('number')->pluck('id', 'number')];
+    });
+    $lines = [
+        ['room_type_id' => $details['room_type_id'], 'rate_plan_id' => $details['rate_plan_id'], 'rooms' => 2, 'room_ids' => [$rooms['102'], $rooms['101']]],
+        ['room_type_id' => $suite->id, 'rate_plan_id' => $suitePlan->id, 'rooms' => 1, 'room_ids' => [$rooms['201']]],
+    ];
+    $stay = ['arrival' => $details['arrival'], 'departure' => $details['departure'], 'adults' => 3, 'children' => 0, 'distribute_guests' => true];
+    $this->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id])->actingAs($t->a->owner)
+        ->get(route('reservations.create', [...$stay, 'lines' => $lines]))->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->has('guestAllocation', 3)->has('roomTypes', 2));
+    $this->post(route('reservations.store'), [...$stay, 'lines' => $lines, 'source' => 'phone', 'booker_id' => $details['booker_id'], '_property' => $t->a->property->id])
+        ->assertSessionHasNoErrors()->assertRedirect();
+    inTenant($t->a->property, function () use ($details, $suite, $suitePlan, $rooms) {
+        $members = Reservation::query()->orderBy('reservation_number')->get();
+        expect($members)->toHaveCount(3)
+            ->and($members->pluck('booking_group_id')->unique())->toHaveCount(1)
+            ->and($members->pluck('room_type_id')->all())->toBe([$details['room_type_id'], $details['room_type_id'], $suite->id])
+            ->and($members->pluck('rate_plan_id')->all())->toBe([$details['rate_plan_id'], $details['rate_plan_id'], $suitePlan->id])
+            ->and($members->pluck('room_id')->all())->toBe([$rooms['102'], $rooms['101'], $rooms['201']])
+            ->and((int) ReservationPriceLine::query()->where('reservation_id', $members[2]->id)->sum('amount'))->toBe(60000)
+            ->and((int) InventoryRecord::query()->where('room_type_id', $suite->id)->sum('sold_count'))->toBe(2);
+    });
+});
+
+test('a mixed booking refuses a rate plan that does not sell its room type and sells nothing', function () {
+    $t = twoTenants();
+    [$details, $suite] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        $suite = app(CreateRoomType::class)->handle($t->a->owner, InventoryForm::roomType(['name' => 'Suite', 'code' => 'STE']));
+        app(CreateRoom::class)->handle($t->a->owner, InventoryForm::room($suite->id, ['number' => '201']));
+
+        return [$details, $suite];
+    });
+    $this->actingAs($t->a->owner)->postJson(route('reservations.store'), [
+        'arrival' => $details['arrival'], 'departure' => $details['departure'], 'adults' => 2, 'children' => 0, 'distribute_guests' => true,
+        'source' => 'phone', 'booker_id' => $details['booker_id'], '_property' => $t->a->property->id,
+        'lines' => [
+            ['room_type_id' => $details['room_type_id'], 'rate_plan_id' => $details['rate_plan_id'], 'rooms' => 1],
+            ['room_type_id' => $suite->id, 'rate_plan_id' => $details['rate_plan_id'], 'rooms' => 1],
+        ],
+    ])->assertUnprocessable()->assertJsonValidationErrors('lines.1.rate_plan_id');
+    inTenant($t->a->property, fn () => expect(Reservation::query()->count())->toBe(0)
+        ->and((int) InventoryRecord::query()->sum('sold_count'))->toBe(0));
 });

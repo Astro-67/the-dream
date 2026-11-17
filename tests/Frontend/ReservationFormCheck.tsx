@@ -90,7 +90,7 @@ const edited = formAfter([
     ['departure', '2026-12-18'],
     ['adults', '3'],
     ['children', '1'],
-    ['rooms', '2'],
+    ['lines[0][rooms]', '2'],
     ['source', 'phone'],
     ['source', 'whatsapp'],
 ]);
@@ -99,7 +99,7 @@ for (const [name, value] of [
     ['departure', '2026-12-18'],
     ['adults', '3'],
     ['children', '1'],
-    ['rooms', '2'],
+    ['lines\\[0\\]\\[rooms\\]', '2'],
 ]) {
     assert.match(edited, new RegExp(`name="${name}"[^>]*value="${value}"`));
 }
