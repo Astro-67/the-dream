@@ -5,6 +5,8 @@ namespace App\Http\Requests\Reservations;
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Guests\Models\Booker;
 use App\Domains\Inventory\Models\Room;
+use App\Domains\Inventory\Models\RoomType;
+use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Enums\MealPlan;
 use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Models\Reservation;
@@ -48,6 +50,9 @@ class CreateReservationRequest extends FormRequest
     {
         $rules = $this->stayRules($this->isMethod('GET'));
         $rules['arrival'][] = 'after_or_equal:'.BusinessDate::current();
+        if (! $this->isMethod('GET')) {
+            $rules['room_type_id'][0] = $rules['rate_plan_id'][0] = 'required_without:lines';
+        }
 
         return [
             ...$rules,
@@ -75,6 +80,14 @@ class CreateReservationRequest extends FormRequest
             'tour_operator_pays_for' => ['exclude_unless:booked_through,tour-operator', 'required', Rule::enum(TourOperatorPaysFor::class)],
             ...$this->payingInstitutionRules(),
             'rooms' => ['sometimes', 'integer', 'between:1,20'],
+            // Several room types in one booking group; the action checks each plan sells its type.
+            'lines' => ['sometimes', 'array', 'between:1,20'],
+            'lines.*' => ['array:room_type_id,rate_plan_id,rooms,room_ids'],
+            'lines.*.room_type_id' => [$this->isMethod('GET') ? 'nullable' : 'required', 'string', Rule::in(RoomType::query()->pluck('id')->all())],
+            'lines.*.rate_plan_id' => [$this->isMethod('GET') ? 'nullable' : 'required', 'string', Rule::in(RatePlan::query()->whereNull('deactivated_at')->pluck('id')->all())],
+            'lines.*.rooms' => ['required', 'integer', 'between:1,20'],
+            'lines.*.room_ids' => ['sometimes', 'array', 'max:20'],
+            'lines.*.room_ids.*' => ['nullable', 'string', Rule::in(Room::query()->pluck('id')->all())],
             'distribute_guests' => ['sometimes', 'boolean'],
             'booker_id' => ['nullable', 'string', Rule::in(Booker::query()->pluck('id')->all())],
             'source' => [$this->isMethod('GET') ? 'nullable' : 'required', Rule::in(['direct', 'walk-in', 'phone', 'whatsapp', 'email', 'website', 'outside-integration'])],

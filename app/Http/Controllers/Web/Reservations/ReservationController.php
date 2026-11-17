@@ -52,21 +52,29 @@ class ReservationController extends Controller
     public function create(CreateReservationRequest $request, StayRestrictions $restrictions): Response
     {
         $stay = $request->validated();
-        $type = RoomType::query()->find($stay['room_type_id'] ?? null);
+        $types = RoomType::query()->orderBy('name')->get();
+        $type = $types->firstWhere('id', $stay['room_type_id'] ?? null);
         $plans = RatePlan::query()->whereNull('deactivated_at')->with('roomTypes:id,name')->orderBy('name')->orderBy('id')->get();
         $plan = isset($stay['rate_plan_id']) ? $plans->firstWhere('id', $stay['rate_plan_id']) : $plans->first(fn (RatePlan $plan) => $type === null || $plan->roomTypes->contains('id', $type->id));
         $stay['rate_plan_id'] = $plan?->id;
-        $occupancies = $type ? rescue(fn () => app(BookingGroupOccupancy::class)->forRooms($type, $stay), [], report: false) : [];
+        $lines = BookingGroupOccupancy::lines($stay);
+        $bookedTypes = collect($lines)->flatMap(fn (array $line) => array_fill(0, max(0, min($line['rooms'], 20)), $types->firstWhere('id', $line['room_type_id'])));
+        $occupancies = $bookedTypes->contains(null) ? [] : rescue(fn () => app(BookingGroupOccupancy::class)->forRooms($bookedTypes->all(), $stay), [], report: false);
+        // Plan and type pairs that can actually be sold, in booking order.
+        $pairs = collect($lines)->map(fn (array $line) => [$plans->firstWhere('id', $line['rate_plan_id']), $types->firstWhere('id', $line['room_type_id'])])
+            ->filter(fn (array $pair) => $pair[0] !== null && $pair[1] !== null && $pair[0]->roomTypes->contains('id', $pair[1]->id))->values();
+        $first = $pairs->first();
 
         return Inertia::render('reservations/create', [
             'stay' => $stay,
             'rooms' => app(AssignableRooms::class)->forStay(null, $stay['arrival'], $stay['departure']),
             'roomType' => $type?->only(['id', 'name']),
+            'roomTypes' => $types->map(fn (RoomType $type) => $type->only(['id', 'name'])),
             'guestAllocation' => $occupancies,
             'ratePlan' => $plan?->only(['id', 'name', 'currency']),
             'ratePlans' => $plans->map(fn (RatePlan $plan) => [...$plan->only(['id', 'name', 'currency']), 'room_type_ids' => $plan->roomTypes->modelKeys()]),
-            'restrictionWarnings' => [...app(BookingRules::class)->warnings(Tenancy::property(), $stay['arrival'], $stay['departure']), ...($plan && $type ? $restrictions->warnings($plan, $type, $stay['arrival'], $stay['departure']) : [])],
-            'nightlyRate' => $plan && $type && $occupancies !== [] ? (app(StayPricing::class)->quote($plan, $type, $stay['arrival'], $stay['departure'], $occupancies[0]['adults'], $occupancies[0]['children'])->nights[0]['total'] ?? null) : null,
+            'restrictionWarnings' => array_values(array_unique([...app(BookingRules::class)->warnings(Tenancy::property(), $stay['arrival'], $stay['departure']), ...$pairs->flatMap(fn (array $pair) => $restrictions->warnings($pair[0], $pair[1], $stay['arrival'], $stay['departure']))])),
+            'nightlyRate' => $first && $occupancies !== [] ? (app(StayPricing::class)->quote($first[0], $first[1], $stay['arrival'], $stay['departure'], $occupancies[0]['adults'], $occupancies[0]['children'])->nights[0]['total'] ?? null) : null,
             'businessDate' => BusinessDate::current(),
             'filesWithVfms' => PayingInstitutionType::offeredAt(Tenancy::property()),
         ]);

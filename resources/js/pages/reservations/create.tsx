@@ -22,13 +22,21 @@ type Stay = {
     adults: number;
     children: number;
     rooms?: number;
+    lines?: Line[];
     source?: string;
+};
+type Line = {
+    room_type_id: string;
+    rate_plan_id: string;
+    rooms: number | string;
+    room_ids?: (string | null)[];
 };
 type Named = { id: string; name: string };
 
 export default function Create({
     stay,
     roomType,
+    roomTypes = [],
     ratePlan,
     ratePlans,
     rooms,
@@ -40,6 +48,7 @@ export default function Create({
 }: {
     stay: Stay;
     roomType: Named | null;
+    roomTypes?: Named[];
     ratePlan: (Named & { currency: string }) | null;
     ratePlans: (Named & { currency: string; room_type_ids: string[] })[];
     rooms: {
@@ -60,36 +69,65 @@ export default function Create({
         departure: stay.departure,
         adults: stay.adults.toString(),
         children: stay.children.toString(),
-        rooms: (stay.rooms ?? 1).toString(),
     });
-    const [roomId, setRoomId] = useState(stay.room_id ?? '');
+    // One line per room type; each line books `rooms` rooms of that type.
+    const [lines, setLines] = useState<Line[]>(
+        () =>
+            stay.lines ?? [
+                {
+                    room_type_id:
+                        stay.room_type_id ??
+                        rooms.find((room) => room.id === stay.room_id)
+                            ?.room_type_id ??
+                        '',
+                    rate_plan_id: ratePlan?.id ?? '',
+                    rooms: stay.rooms ?? 1,
+                    room_ids: [stay.room_id ?? null],
+                },
+            ],
+    );
     const [ownRate, setOwnRate] = useState(false);
-    const selectedType =
-        rooms.find((room) => room.id === roomId)?.room_type_id ??
-        stay.room_type_id ??
-        '';
+    const plansFor = (typeId: string) =>
+        ratePlans.filter((plan) => plan.room_type_ids.includes(typeId));
+    function updateLine(
+        index: number,
+        change: Partial<Line>,
+        refresh?: HTMLInputElement | HTMLSelectElement,
+    ) {
+        const next = lines.map((line, other) =>
+            other === index ? { ...line, ...change } : line,
+        );
+        setLines(next);
+        if (refresh) refreshStay(refresh, next);
+    }
+    const totalRooms = lines.reduce(
+        (total, line) => total + (Number(line.rooms) || 0),
+        0,
+    );
     const [operator, setOperator] = useState(false);
     const [institution, setInstitution] = useState('');
     const [documentType, setDocumentType] = useState('');
     const [collector, setCollector] = useState('property');
-    const [planId, setPlanId] = useState(ratePlan?.id ?? '');
-    const [shownPlan, setShownPlan] = useState(ratePlan?.id);
-    if (shownPlan !== ratePlan?.id) {
-        // A refresh chose a different default plan (after a room change).
-        setShownPlan(ratePlan?.id);
-        setPlanId(ratePlan?.id ?? '');
-    }
-    // The money fields follow the plan selected now, not the one the last refresh returned.
-    const currency =
-        ratePlans.find((plan) => plan.id === planId)?.currency ??
-        ratePlan?.currency ??
-        'USD';
+    const currencies = [
+        ...new Set(
+            lines.flatMap(
+                (line) =>
+                    ratePlans.find((plan) => plan.id === line.rate_plan_id)
+                        ?.currency ?? [],
+            ),
+        ),
+    ];
+    // The money fields follow the first room's plan; the server refuses an own rate across currencies.
+    const currency = currencies[0] ?? ratePlan?.currency ?? 'USD';
     const nights =
         values.arrival && values.departure > values.arrival
             ? (Date.parse(values.departure) - Date.parse(values.arrival)) /
               86_400_000
             : null;
-    function refreshStay(input: HTMLInputElement | HTMLSelectElement) {
+    function refreshStay(
+        input: HTMLInputElement | HTMLSelectElement,
+        nextLines = lines,
+    ) {
         if (!input.form) return;
         const data = new FormData(input.form);
         const arrival = data.get('arrival');
@@ -108,21 +146,11 @@ export default function Create({
         router.get(
             create.url(),
             {
-                room_type_id:
-                    input.name === 'room_id'
-                        ? (rooms.find((room) => room.id === input.value)
-                              ?.room_type_id ?? stay.room_type_id)
-                        : data.get('room_type_id'),
-                room_id: data.get('room_id'),
-                rate_plan_id:
-                    input.name === 'room_id' && input.value
-                        ? undefined
-                        : data.get('rate_plan_id'),
+                lines: nextLines,
                 arrival,
                 departure,
                 adults,
                 children,
-                rooms: data.get('rooms'),
                 distribute_guests: 1,
             },
             {
@@ -147,9 +175,9 @@ export default function Create({
                 <header className="space-y-2">
                     <h1 className="text-2xl font-semibold">New reservation</h1>
                     <p className="text-sm text-muted-foreground">
-                        {roomType?.name ?? 'Choose a room'} ·{' '}
-                        {ratePlan?.name ?? 'No active rate plan'}. Prices and
-                        availability are checked again when you confirm.
+                        {totalRooms === 1 ? '1 room' : `${totalRooms} rooms`}.
+                        Prices and availability are checked again when you
+                        confirm.
                     </p>
                 </header>
                 <Form
@@ -163,11 +191,6 @@ export default function Create({
                                 type="hidden"
                                 name="distribute_guests"
                                 value="1"
-                            />
-                            <input
-                                type="hidden"
-                                name="room_type_id"
-                                value={selectedType}
                             />
                             {Object.entries(errors).map(([name, message]) => (
                                 <InputError key={name} message={message} />
@@ -379,32 +402,324 @@ export default function Create({
                                             </div>
                                         ))}
                                     </div>
-                                    <Label htmlFor="rooms">Rooms</Label>
-                                    <Input
-                                        id="rooms"
-                                        name="rooms"
-                                        type="number"
-                                        min={1}
-                                        max={20}
-                                        value={values.rooms}
-                                        onChange={(event) =>
-                                            setValues((values) => ({
-                                                ...values,
-                                                rooms: event.target.value,
-                                            }))
+                                    {lines.map((line, index) => {
+                                        const typeName =
+                                            roomTypes.find(
+                                                (type) =>
+                                                    type.id ===
+                                                    line.room_type_id,
+                                            )?.name ?? 'Room type';
+                                        // Rooms chosen anywhere on the form; each select still shows its own choice.
+                                        const picked = lines.flatMap(
+                                            (other) => other.room_ids ?? [],
+                                        );
+                                        const prefix = `lines[${index}]`;
+                                        return (
+                                            <fieldset
+                                                key={index}
+                                                className="space-y-3 rounded-lg border p-3"
+                                                aria-label={`Room line ${index + 1}`}
+                                            >
+                                                <div className="grid gap-3 sm:grid-cols-[1fr_6rem]">
+                                                    <div className="space-y-2">
+                                                        <Label
+                                                            htmlFor={`${prefix}-type`}
+                                                        >
+                                                            Room type
+                                                        </Label>
+                                                        <NativeSelect
+                                                            id={`${prefix}-type`}
+                                                            name={`${prefix}[room_type_id]`}
+                                                            value={
+                                                                line.room_type_id
+                                                            }
+                                                            required
+                                                            onChange={(event) =>
+                                                                updateLine(
+                                                                    index,
+                                                                    {
+                                                                        room_type_id:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                        rate_plan_id:
+                                                                            plansFor(
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                            )[0]
+                                                                                ?.id ??
+                                                                            '',
+                                                                        room_ids:
+                                                                            [],
+                                                                    },
+                                                                    event.currentTarget,
+                                                                )
+                                                            }
+                                                        >
+                                                            <option value="">
+                                                                Select room type
+                                                            </option>
+                                                            {roomTypes.map(
+                                                                (type) => (
+                                                                    <option
+                                                                        key={
+                                                                            type.id
+                                                                        }
+                                                                        value={
+                                                                            type.id
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            type.name
+                                                                        }
+                                                                    </option>
+                                                                ),
+                                                            )}
+                                                        </NativeSelect>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label
+                                                            htmlFor={`${prefix}-rooms`}
+                                                        >
+                                                            Rooms
+                                                        </Label>
+                                                        <Input
+                                                            id={`${prefix}-rooms`}
+                                                            name={`${prefix}[rooms]`}
+                                                            type="number"
+                                                            min={1}
+                                                            max={20}
+                                                            required
+                                                            value={line.rooms}
+                                                            onChange={(event) =>
+                                                                updateLine(
+                                                                    index,
+                                                                    {
+                                                                        rooms: event
+                                                                            .target
+                                                                            .value,
+                                                                        room_ids:
+                                                                            (
+                                                                                line.room_ids ??
+                                                                                []
+                                                                            ).slice(
+                                                                                0,
+                                                                                Number(
+                                                                                    event
+                                                                                        .target
+                                                                                        .value,
+                                                                                ) ||
+                                                                                    0,
+                                                                            ),
+                                                                    },
+                                                                )
+                                                            }
+                                                            onBlur={(event) =>
+                                                                refreshStay(
+                                                                    event.currentTarget,
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <Label
+                                                    htmlFor={`${prefix}-plan`}
+                                                >
+                                                    Rate plan
+                                                </Label>
+                                                <NativeSelect
+                                                    id={`${prefix}-plan`}
+                                                    name={`${prefix}[rate_plan_id]`}
+                                                    value={line.rate_plan_id}
+                                                    required
+                                                    onChange={(event) =>
+                                                        updateLine(
+                                                            index,
+                                                            {
+                                                                rate_plan_id:
+                                                                    event.target
+                                                                        .value,
+                                                            },
+                                                            event.currentTarget,
+                                                        )
+                                                    }
+                                                >
+                                                    <option value="">
+                                                        Select rate plan
+                                                    </option>
+                                                    {plansFor(
+                                                        line.room_type_id,
+                                                    ).map((plan) => (
+                                                        <option
+                                                            key={plan.id}
+                                                            value={plan.id}
+                                                        >
+                                                            {plan.name} (
+                                                            {plan.currency})
+                                                        </option>
+                                                    ))}
+                                                </NativeSelect>
+                                                <InputError
+                                                    message={
+                                                        errors[
+                                                            `lines.${index}.rate_plan_id`
+                                                        ]
+                                                    }
+                                                />
+                                                {line.room_type_id &&
+                                                    Array.from(
+                                                        {
+                                                            length: Math.min(
+                                                                Number(
+                                                                    line.rooms,
+                                                                ) || 0,
+                                                                20,
+                                                            ),
+                                                        },
+                                                        (_, room) => {
+                                                            const value =
+                                                                line.room_ids?.[
+                                                                    room
+                                                                ] ?? '';
+                                                            return (
+                                                                <div
+                                                                    key={room}
+                                                                    className="space-y-2"
+                                                                >
+                                                                    <Label
+                                                                        htmlFor={`${prefix}-room-${room}`}
+                                                                    >
+                                                                        {
+                                                                            typeName
+                                                                        }{' '}
+                                                                        {room +
+                                                                            1}{' '}
+                                                                        room
+                                                                        (optional)
+                                                                    </Label>
+                                                                    <NativeSelect
+                                                                        id={`${prefix}-room-${room}`}
+                                                                        name={`${prefix}[room_ids][${room}]`}
+                                                                        value={
+                                                                            value
+                                                                        }
+                                                                        onChange={(
+                                                                            event,
+                                                                        ) => {
+                                                                            const ids =
+                                                                                [
+                                                                                    ...(line.room_ids ??
+                                                                                        []),
+                                                                                ];
+                                                                            ids[
+                                                                                room
+                                                                            ] =
+                                                                                event
+                                                                                    .target
+                                                                                    .value ||
+                                                                                null;
+                                                                            updateLine(
+                                                                                index,
+                                                                                {
+                                                                                    room_ids:
+                                                                                        ids,
+                                                                                },
+                                                                            );
+                                                                        }}
+                                                                    >
+                                                                        <option value="">
+                                                                            Leave
+                                                                            unassigned
+                                                                        </option>
+                                                                        {rooms
+                                                                            .filter(
+                                                                                (
+                                                                                    option,
+                                                                                ) =>
+                                                                                    option.room_type_id ===
+                                                                                        line.room_type_id &&
+                                                                                    (option.id ===
+                                                                                        value ||
+                                                                                        !picked.includes(
+                                                                                            option.id,
+                                                                                        )),
+                                                                            )
+                                                                            .map(
+                                                                                (
+                                                                                    option,
+                                                                                ) => (
+                                                                                    <option
+                                                                                        key={
+                                                                                            option.id
+                                                                                        }
+                                                                                        value={
+                                                                                            option.id
+                                                                                        }
+                                                                                    >
+                                                                                        {
+                                                                                            option.number
+                                                                                        }{' '}
+                                                                                        —{' '}
+                                                                                        {option.isReady
+                                                                                            ? 'Ready'
+                                                                                            : 'Not ready'}
+                                                                                    </option>
+                                                                                ),
+                                                                            )}
+                                                                    </NativeSelect>
+                                                                </div>
+                                                            );
+                                                        },
+                                                    )}
+                                                {lines.length > 1 && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            setLines(
+                                                                lines.filter(
+                                                                    (
+                                                                        _,
+                                                                        other,
+                                                                    ) =>
+                                                                        other !==
+                                                                        index,
+                                                                ),
+                                                            )
+                                                        }
+                                                    >
+                                                        Remove {typeName}
+                                                    </Button>
+                                                )}
+                                            </fieldset>
+                                        );
+                                    })}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            setLines([
+                                                ...lines,
+                                                {
+                                                    room_type_id: '',
+                                                    rate_plan_id: '',
+                                                    rooms: 1,
+                                                    room_ids: [],
+                                                },
+                                            ])
                                         }
-                                        onBlur={(event) =>
-                                            refreshStay(event.currentTarget)
-                                        }
-                                        required
-                                    />
+                                    >
+                                        Add another room type
+                                    </Button>
                                     <p className="text-sm text-muted-foreground">
                                         Enter total adults and children for all
                                         rooms. Each room needs an adult and must
-                                        fit the room type's capacity. Several
+                                        fit its room type's capacity. Several
                                         rooms create a booking group, priced
-                                        separately. Assign the first room now or
-                                        leave rooms unassigned until check-in.
+                                        separately. Assign rooms now or leave
+                                        them unassigned until check-in.
                                     </p>
                                     <InputError message={errors.rooms} />
                                     {guestAllocation.length > 1 && (
@@ -425,83 +740,12 @@ export default function Create({
                                             )}
                                         </ul>
                                     )}
-                                    <Label htmlFor="room_id">
-                                        First room assignment (optional)
-                                    </Label>
-                                    <NativeSelect
-                                        id="room_id"
-                                        name="room_id"
-                                        value={
-                                            rooms.some(
-                                                (room) => room.id === roomId,
-                                            )
-                                                ? roomId
-                                                : ''
-                                        }
-                                        required={!selectedType}
-                                        onChange={(event) => {
-                                            setRoomId(event.target.value);
-                                            refreshStay(event.currentTarget);
-                                        }}
-                                    >
-                                        <option value="">
-                                            {roomType
-                                                ? 'Leave unassigned'
-                                                : 'Select a room'}
-                                        </option>
-                                        {rooms.map((room) => (
-                                            <option
-                                                key={room.id}
-                                                value={room.id}
-                                            >
-                                                {room.number} —{' '}
-                                                {room.isReady
-                                                    ? 'Ready'
-                                                    : 'Not ready'}
-                                            </option>
-                                        ))}
-                                    </NativeSelect>
                                     {rooms.length === 0 && (
                                         <p className="text-sm text-muted-foreground">
                                             No rooms are free for these dates.
                                             Change the stay dates.
                                         </p>
                                     )}
-                                    <Label htmlFor="rate_plan_id">
-                                        Rate plan
-                                    </Label>
-                                    <NativeSelect
-                                        id="rate_plan_id"
-                                        name="rate_plan_id"
-                                        key={ratePlan?.id ?? 'none'}
-                                        defaultValue={ratePlan?.id ?? ''}
-                                        required
-                                        onChange={(event) => {
-                                            setPlanId(event.target.value);
-                                            refreshStay(event.currentTarget);
-                                        }}
-                                    >
-                                        <option value="">
-                                            Select rate plan
-                                        </option>
-                                        {ratePlans
-                                            .filter(
-                                                (plan) =>
-                                                    !selectedType ||
-                                                    plan.room_type_ids.includes(
-                                                        selectedType,
-                                                    ),
-                                            )
-                                            .map((plan) => (
-                                                <option
-                                                    key={plan.id}
-                                                    value={plan.id}
-                                                >
-                                                    {plan.name} ({plan.currency}
-                                                    )
-                                                </option>
-                                            ))}
-                                    </NativeSelect>
                                     <div className="flex items-center gap-2">
                                         <input
                                             id="own-rate"
@@ -799,13 +1043,17 @@ export default function Create({
                                 <aside className="flex flex-col gap-4 self-start rounded-xl border bg-card p-4 @3xl:sticky @3xl:top-20 @3xl:col-start-2 @3xl:row-[1/span_3] @6xl:col-start-3 @6xl:row-[1/span_2]">
                                     <h2 className="font-medium">Summary</h2>
                                     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm [&_dd]:text-right [&_dt]:text-muted-foreground">
-                                        <dt>Room</dt>
+                                        <dt>Rooms</dt>
                                         <dd>
-                                            {rooms.find(
-                                                (room) => room.id === roomId,
-                                            )?.number ??
-                                                roomType?.name ??
-                                                'Not chosen'}
+                                            {lines
+                                                .filter(
+                                                    (line) => line.room_type_id,
+                                                )
+                                                .map(
+                                                    (line) =>
+                                                        `${line.rooms} × ${roomTypes.find((type) => type.id === line.room_type_id)?.name ?? roomType?.name ?? 'Room'}`,
+                                                )
+                                                .join(', ') || 'Not chosen'}
                                         </dd>
                                         <dt>Dates</dt>
                                         <dd className="tabular-nums">
@@ -819,9 +1067,18 @@ export default function Create({
                                         </dd>
                                         <dt>Rate plan</dt>
                                         <dd>
-                                            {ratePlans.find(
-                                                (plan) => plan.id === planId,
-                                            )?.name ?? 'Not chosen'}
+                                            {[
+                                                ...new Set(
+                                                    lines.flatMap(
+                                                        (line) =>
+                                                            ratePlans.find(
+                                                                (plan) =>
+                                                                    plan.id ===
+                                                                    line.rate_plan_id,
+                                                            )?.name ?? [],
+                                                    ),
+                                                ),
+                                            ].join(', ') || 'Not chosen'}
                                         </dd>
                                         <dt>First room, first night</dt>
                                         <dd className="tabular-nums">
