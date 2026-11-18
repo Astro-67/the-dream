@@ -127,7 +127,7 @@ test('dashboard keeps housekeeping payload limited and filters room board links 
     $response = $this->get(route('dashboard'))->assertOk();
     if ($role === OrganizationRole::Housekeeping) {
         $response->assertDontSee('Travel Booker')->assertInertia(fn (Assert $page) => $page
-            ->where('roomBoard', null)->where('today', null)->where('collections', null)
+            ->where('roomBoard', null)->where('today', null)->where('collections', null)->where('guestQueue', null)
             ->missing('guests')->missing('reservations')->missing('payments')->missing('folios'));
 
         return;
@@ -142,7 +142,7 @@ test('dashboard room board handles empty inventory without replacing onboarding'
     [$owner, , $property] = organizationWithOwner();
     $property->forceFill(['status' => PropertyStatus::Setup])->save();
     $this->actingAs($owner)->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
-        ->where('roomBoard', null)->has('onboarding'));
+        ->where('roomBoard', null)->where('guestQueue', null)->has('onboarding'));
     $property->forceFill(['status' => PropertyStatus::Live])->save();
     $this->get(route('dashboard'))->assertInertia(fn (Assert $page) => $page
         ->where('onboarding', null)->has('roomBoard.rooms.data', 0)->where('roomBoard.rooms.total', 0));

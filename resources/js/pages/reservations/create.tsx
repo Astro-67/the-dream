@@ -173,8 +173,8 @@ export default function Create({
     return (
         <>
             <Head title="New reservation" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="space-y-2">
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
                     <h1 className="text-2xl font-semibold">New reservation</h1>
                     <p className="text-sm text-muted-foreground">
                         {totalRooms === 1 ? '1 room' : `${totalRooms} rooms`}.
@@ -184,6 +184,7 @@ export default function Create({
                 </header>
                 <Form
                     {...store.form()}
+                    disableWhileProcessing
                     className="@container flex flex-col gap-6"
                 >
                     {({ errors, processing }) => (
@@ -317,7 +318,7 @@ export default function Create({
                                         (_, index) => (
                                             <fieldset
                                                 key={index}
-                                                className="space-y-4 rounded-xl border p-4"
+                                                className="space-y-4 border-y py-4"
                                             >
                                                 <legend className="px-1 text-sm font-medium">
                                                     Adult {index + 2} (optional
@@ -419,7 +420,7 @@ export default function Create({
                                         return (
                                             <fieldset
                                                 key={index}
-                                                className="space-y-3 rounded-lg border p-3"
+                                                className="space-y-3 border-y py-3"
                                                 aria-label={`Room line ${index + 1}`}
                                             >
                                                 <div className="grid gap-3 sm:grid-cols-[1fr_6rem]">
@@ -1042,7 +1043,7 @@ export default function Create({
                                         />
                                     </fieldset>
                                 )}
-                                <aside className="flex flex-col gap-4 self-start rounded-xl border bg-card p-4 @3xl:sticky @3xl:top-20 @3xl:col-start-2 @3xl:row-[1/span_3] @6xl:col-start-3 @6xl:row-[1/span_2]">
+                                <aside className="flex flex-col gap-4 self-start border-y bg-card p-4 @3xl:sticky @3xl:top-20 @3xl:col-start-2 @3xl:row-[1/span_3] @6xl:col-start-3 @6xl:row-[1/span_2]">
                                     <h2 className="font-medium">Summary</h2>
                                     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm [&_dd]:text-right [&_dt]:text-muted-foreground">
                                         <dt>Rooms</dt>

@@ -100,8 +100,8 @@ export default function Guests({
     return (
         <>
             <Head title={`Guests · ${reservationNumber}`} />
-            <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
-                <header className="space-y-2">
+            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
                     <h1 className="text-2xl font-semibold">
                         Guests · <Identifier value={reservationNumber} />
                     </h1>
@@ -294,7 +294,7 @@ export default function Guests({
                                 {matches.map((match) => (
                                     <li
                                         key={match.id}
-                                        className="space-y-2 rounded-xl border p-4"
+                                        className="space-y-2 border-y py-4"
                                     >
                                         <p>
                                             {match.name} ·{' '}

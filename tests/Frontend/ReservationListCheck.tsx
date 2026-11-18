@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { App } from '@inertiajs/react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import Index, { paymentState } from '@/pages/reservations/index';
+import Index from '@/pages/reservations/index';
+import { paymentState } from '@/features/reservations/reservation-list';
 import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
 
 function checkout(

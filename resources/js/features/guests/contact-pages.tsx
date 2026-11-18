@@ -49,8 +49,8 @@ export function ContactIndex({
     return (
         <>
             <Head title={title} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-6">
                     <h1 className="text-2xl font-semibold">{title}</h1>
                     {canManage && (
                         <Button asChild>
@@ -62,7 +62,11 @@ export function ContactIndex({
                 </header>
                 {records.data.length === 0 ? (
                     <EmptyState
-                        message={`No ${title.toLowerCase()} yet. Add a record for this property.`}
+                        message={
+                            canManage
+                                ? `No ${title.toLowerCase()} yet. Add a record for this property.`
+                                : `No ${title.toLowerCase()} recorded for this property.`
+                        }
                         action={
                             canManage && (
                                 <Button asChild>
@@ -81,7 +85,7 @@ export function ContactIndex({
                                     <TableHead>Name</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Phone</TableHead>
-                                    <TableHead>Nationality</TableHead>
+                                    <TableHead>Country</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -89,7 +93,7 @@ export function ContactIndex({
                                     <TableRow key={record.id}>
                                         <TableCell>
                                             <Link
-                                                className="text-primary underline underline-offset-4"
+                                                className="inline-flex min-h-11 items-center text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                                                 href={`${base}/${record.id}`}
                                             >
                                                 {record.name}
@@ -131,8 +135,10 @@ export function ContactForm({
     return (
         <>
             <Head title={title} />
-            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6 p-4 md:p-6">
-                <h1 className="text-2xl font-semibold">{title}</h1>
+            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6">
+                <h1 className="border-b pb-6 text-2xl font-semibold">
+                    {title}
+                </h1>
                 <Form
                     transform={(data) =>
                         identityEditable ? { documents: [], ...data } : data
@@ -146,75 +152,95 @@ export function ContactForm({
                         <>
                             <PropertyIntent />
                             <InputError message={errors._property} />
-                            {fields.map(([field, label]) => (
-                                <div key={field} className="space-y-2">
-                                    <Label htmlFor={field}>{label}</Label>
-                                    {field === 'nationality' ? (
-                                        <CountrySelect
-                                            id={field}
-                                            name={field}
-                                            defaultValue={record?.[field] ?? ''}
-                                            aria-invalid={Boolean(
-                                                errors[field],
-                                            )}
-                                            aria-describedby={
-                                                errors[field]
-                                                    ? `${field}-error`
-                                                    : undefined
-                                            }
+                            <fieldset className="grid gap-6 sm:grid-cols-2">
+                                <legend className="sr-only">
+                                    Contact details
+                                </legend>
+                                {fields.map(([field, label]) => (
+                                    <div
+                                        key={field}
+                                        className={
+                                            field === 'name' ||
+                                            field === 'preferences' ||
+                                            field === 'notes'
+                                                ? 'space-y-2 sm:col-span-2'
+                                                : 'space-y-2'
+                                        }
+                                    >
+                                        <Label htmlFor={field}>{label}</Label>
+                                        {field === 'nationality' ? (
+                                            <CountrySelect
+                                                id={field}
+                                                name={field}
+                                                defaultValue={
+                                                    record?.[field] ?? ''
+                                                }
+                                                aria-invalid={Boolean(
+                                                    errors[field],
+                                                )}
+                                                aria-describedby={
+                                                    errors[field]
+                                                        ? `${field}-error`
+                                                        : undefined
+                                                }
+                                            />
+                                        ) : field === 'preferences' ||
+                                          field === 'notes' ? (
+                                            <textarea
+                                                rows={3}
+                                                className="w-full border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-invalid:border-destructive"
+                                                id={field}
+                                                name={field}
+                                                defaultValue={
+                                                    record?.[field] ?? ''
+                                                }
+                                                maxLength={5000}
+                                                aria-invalid={Boolean(
+                                                    errors[field],
+                                                )}
+                                                aria-describedby={
+                                                    errors[field]
+                                                        ? `${field}-error`
+                                                        : undefined
+                                                }
+                                            />
+                                        ) : (
+                                            <Input
+                                                id={field}
+                                                name={field}
+                                                type={
+                                                    field === 'email'
+                                                        ? 'email'
+                                                        : field === 'phone'
+                                                          ? 'tel'
+                                                          : 'text'
+                                                }
+                                                defaultValue={
+                                                    record?.[field] ?? ''
+                                                }
+                                                required={field === 'name'}
+                                                maxLength={
+                                                    field === 'phone' ? 50 : 255
+                                                }
+                                                aria-invalid={Boolean(
+                                                    errors[field],
+                                                )}
+                                                aria-describedby={
+                                                    errors[field]
+                                                        ? `${field}-error`
+                                                        : undefined
+                                                }
+                                            />
+                                        )}
+                                        <InputError
+                                            id={`${field}-error`}
+                                            message={errors[field]}
                                         />
-                                    ) : field === 'preferences' ||
-                                      field === 'notes' ? (
-                                        <textarea
-                                            rows={3}
-                                            className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-invalid:border-destructive"
-                                            id={field}
-                                            name={field}
-                                            defaultValue={record?.[field] ?? ''}
-                                            maxLength={5000}
-                                            aria-invalid={Boolean(
-                                                errors[field],
-                                            )}
-                                            aria-describedby={
-                                                errors[field]
-                                                    ? `${field}-error`
-                                                    : undefined
-                                            }
-                                        />
-                                    ) : (
-                                        <Input
-                                            id={field}
-                                            name={field}
-                                            type={
-                                                field === 'email'
-                                                    ? 'email'
-                                                    : field === 'phone'
-                                                      ? 'tel'
-                                                      : 'text'
-                                            }
-                                            defaultValue={record?.[field] ?? ''}
-                                            required={field === 'name'}
-                                            maxLength={
-                                                field === 'phone' ? 50 : 255
-                                            }
-                                            aria-invalid={Boolean(
-                                                errors[field],
-                                            )}
-                                            aria-describedby={
-                                                errors[field]
-                                                    ? `${field}-error`
-                                                    : undefined
-                                            }
-                                        />
-                                    )}
-                                    <InputError
-                                        id={`${field}-error`}
-                                        message={errors[field]}
-                                    />
-                                </div>
-                            ))}
+                                    </div>
+                                ))}
+                            </fieldset>
                             {children?.(errors)}
-                            <div className="flex justify-end gap-3">
+                            <div className="flex flex-wrap justify-end gap-3 border-t pt-6">
                                 <Button variant="ghost" asChild>
                                     <Link href={base}>Cancel</Link>
                                 </Button>
@@ -248,8 +274,8 @@ export function ContactShow({
     return (
         <>
             <Head title={record.name} />
-            <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex w-full max-w-[720px] min-w-0 flex-col gap-6">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
                     <h1 className="min-w-0 text-2xl font-semibold wrap-anywhere">
                         {record.name}
                     </h1>
@@ -261,13 +287,20 @@ export function ContactShow({
                         </Button>
                     )}
                 </header>
-                <dl className="grid gap-4">
+                <dl className="grid min-w-0 gap-x-6 sm:grid-cols-2">
                     {fields.map(([field, label]) => (
-                        <div key={field}>
+                        <div
+                            key={field}
+                            className={
+                                field === 'preferences' || field === 'notes'
+                                    ? 'min-w-0 border-b py-4 sm:col-span-2'
+                                    : 'min-w-0 border-b py-4'
+                            }
+                        >
                             <dt className="text-sm text-muted-foreground">
                                 {label}
                             </dt>
-                            <dd className="break-words whitespace-pre-wrap">
+                            <dd className="wrap-anywhere whitespace-pre-wrap">
                                 {record[field] ?? '—'}
                             </dd>
                         </div>

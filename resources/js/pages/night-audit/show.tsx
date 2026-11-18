@@ -63,8 +63,8 @@ export default function Show({
     return (
         <>
             <Head title={`${labels.title} - ${close.business_date}`} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header>
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
                     <h1 className="text-2xl font-semibold">{labels.charges}</h1>
                     <p className="text-sm text-muted-foreground">
                         {labels.businessDate}:{' '}

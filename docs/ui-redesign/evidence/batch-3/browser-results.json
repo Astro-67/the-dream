@@ -1,0 +1,1278 @@
+{
+    "status": "passed",
+    "date": "2026-11-18",
+    "browser": "Installed headless Google Chrome via Playwright after repeated shared-preview evaluate timeout",
+    "distinctChecks": 186,
+    "surfaceChecks": 169,
+    "completedPages": 19,
+    "applicationErrors": [],
+    "results": [
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/edit",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/edit",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/merge",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/availability",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/guests",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/group-statement",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/merge",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/availability",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/guests",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/group-statement",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/index",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/create",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/show",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/edit",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/index",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/create",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/edit",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/merge",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/index",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/availability",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/show",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/guests",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/group-statement",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/index",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/show",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/show",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/edit",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/edit",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "guests/merge",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/availability",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/show",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/guests",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/group-statement",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/show",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/edit",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/edit",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/merge",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/availability",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/guests",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/group-statement",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/merge",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/availability",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/guests",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/group-statement",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/index",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/create",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/show",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/edit",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/index",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/create",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/edit",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/merge",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/index",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/availability",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/show",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/guests",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/group-statement",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/index",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/show",
+            "appearance": "system",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/show",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "bookers/edit",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/edit",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "guests/merge",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/availability",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/show",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/guests",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/group-statement",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "night-audit/show",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "light",
+            "device": "dark",
+            "width": 320
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 320
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 320
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "light",
+            "device": "dark",
+            "width": 320
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "dark",
+            "device": "light",
+            "width": 320
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 320
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 320
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "dark",
+            "device": "light",
+            "width": 320
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "light",
+            "device": "dark",
+            "width": 768
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 768
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 768
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "light",
+            "device": "dark",
+            "width": 768
+        },
+        {
+            "name": "surface",
+            "surface": "dashboard",
+            "appearance": "dark",
+            "device": "light",
+            "width": 768
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 768
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 768
+        },
+        {
+            "name": "surface",
+            "surface": "reservations/statement",
+            "appearance": "dark",
+            "device": "light",
+            "width": 768
+        },
+        {
+            "name": "surface",
+            "surface": "guests/show-long-content",
+            "appearance": "light",
+            "device": "light",
+            "width": 390
+        },
+        {
+            "name": "native and real returned contact validation, inert save, long names and guest create/edit"
+        },
+        {
+            "name": "legacy direct-entry booker create/edit retains real form behavior without restoring sidebar navigation"
+        },
+        {
+            "name": "merge requires explicit dialog, Escape restores focus and real merge preserves survivor notes"
+        },
+        {
+            "name": "actual browser A4 and 80mm PDFs keep unclipped tables, separate currencies and non-fiscal labels without private identity/notes"
+        },
+        {
+            "name": "night audit keeps real no-show resolution, posted charges and next property business date"
+        },
+        {
+            "name": "auditor sees masked identity and no merge/check-out/night-audit write actions"
+        },
+        {
+            "name": "empty guest/queue states, property-switch form reset and other-property record HTTP 404"
+        },
+        {
+            "name": "queue search clear, global priority, all three mobile cards and guest pagination"
+        },
+        {
+            "name": "real guest queue link opens reservation-number route instead of returning HTTP 404"
+        },
+        {
+            "name": "room occupancy and dirty readiness stay independently labelled"
+        },
+        {
+            "name": "dirty readiness refuses check-in; registered guest in a clean assigned room checks in through existing action"
+        },
+        {
+            "name": "real availability quote and reservation creation retain guest-first data and inert loading"
+        },
+        {
+            "name": "real browser offline cancels contact write, retains draft and recovers"
+        },
+        {
+            "name": "housekeeping has no guest queue payload and guest details return HTTP 403"
+        },
+        {
+            "name": "coarse-pointer form controls meet 44px; search tab order, keyboard-scrolling queue and reduced-motion interface remain usable"
+        },
+        {
+            "name": "front desk checkout remains blocked by independently labelled outstanding USD and EUR credit balances"
+        },
+        {
+            "name": "owner checkout keeps explicit balance dialog and required override reason without bypassing normal front-desk restriction"
+        }
+    ],
+    "notes": [
+        "The long-contact-name stress scan is an additional surface case beyond the 19 production pages.",
+        "The first confirmation pass needed test-only locator/fixture corrections: query parameter order, two Check in buttons in booking groups, actual Confirm reservation accessible name, reading current dashboard props after login, and checkout disabled at the trigger instead of in a dialog.",
+        "All corrected action paths passed targeted confirmations; no production changes followed the single browser-fix batch."
+    ],
+    "sources": [
+        {
+            "file": ".scratch/batch3-visuals/confirmation/browser-results.json",
+            "passedChecks": 176
+        },
+        {
+            "file": ".scratch/batch3-visuals/confirmation-targets/browser-results.json",
+            "passedChecks": 9
+        },
+        {
+            "file": ".scratch/batch3-visuals/confirmation-checkout/browser-results.json",
+            "passedChecks": 4
+        }
+    ],
+    "print": {
+        "folio-a4.pdf": {
+            "pages": 2,
+            "paper": "A4"
+        },
+        "folio-80mm.pdf": {
+            "pages": 5,
+            "paper": "80mm x 200mm"
+        },
+        "group-a4.pdf": {
+            "pages": 2,
+            "paper": "A4"
+        }
+    }
+}

@@ -46,8 +46,8 @@ export default function Availability({
     return (
         <>
             <Head title="Availability" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="space-y-2">
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
                     <h1 className="text-2xl font-semibold tracking-tight">
                         Search availability
                     </h1>

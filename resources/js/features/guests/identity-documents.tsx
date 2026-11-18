@@ -33,7 +33,10 @@ export function IdentityFields({
     );
     const [nextKey, setNextKey] = useState(documents.length);
     return (
-        <section className="space-y-4" aria-labelledby="identity-heading">
+        <section
+            className="space-y-4 border-t pt-6"
+            aria-labelledby="identity-heading"
+        >
             <h2 id="identity-heading" className="text-lg font-semibold">
                 Identity documents
             </h2>
@@ -42,7 +45,7 @@ export function IdentityFields({
             </p>
             <InputError message={errors.documents} />
             {rows.map(({ key, document }, index) => (
-                <fieldset key={key} className="space-y-4 rounded-xl border p-4">
+                <fieldset key={key} className="space-y-4 border-y py-4">
                     <legend className="px-1 text-sm font-medium">
                         Document {index + 1}
                     </legend>
@@ -136,7 +139,10 @@ export function IdentityDetails({
     canViewIdentity: boolean;
 }) {
     return (
-        <section className="space-y-4" aria-labelledby="identity-heading">
+        <section
+            className="space-y-4 border-t pt-6"
+            aria-labelledby="identity-heading"
+        >
             <h2 id="identity-heading" className="text-lg font-semibold">
                 Identity documents
             </h2>
@@ -152,7 +158,7 @@ export function IdentityDetails({
                 documents.map((document, index) => (
                     <dl
                         key={index}
-                        className="grid gap-4 rounded-xl border p-4 sm:grid-cols-2"
+                        className="grid gap-4 border-y py-4 sm:grid-cols-2"
                     >
                         {fields.map(([field, label]) => (
                             <div key={field}>

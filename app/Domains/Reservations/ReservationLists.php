@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ReservationLists
 {
+    public const FRONT_DESK = ['arrivals', 'departures', 'in-house'];
+
     public const FILTERS = ['upcoming', 'today', 'in_house', 'past', 'all', 'arrivals', 'departures', 'in-house', 'overstays', 'balance-owing', 'no-id-document'];
 
     /** @return Builder<Reservation> */

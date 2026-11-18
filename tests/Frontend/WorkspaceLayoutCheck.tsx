@@ -11,6 +11,7 @@ import BookerShow from '@/pages/bookers/show';
 import BookerEdit from '@/pages/bookers/edit';
 import BookerCreate from '@/pages/bookers/create';
 import Dashboard from '@/pages/dashboard';
+import { ContactIndex } from '@/features/guests/contact-pages';
 
 function dashboard(property: boolean) {
     const component = () => (
@@ -19,6 +20,7 @@ function dashboard(property: boolean) {
             today={null}
             collections={null}
             roomBoard={null}
+            guestQueue={null}
         />
     );
 
@@ -48,12 +50,12 @@ function dashboard(property: boolean) {
 }
 
 const operational = dashboard(true);
-assert.match(operational, /Welcome back, Front/);
-assert.match(operational, /New booking/);
+assert.match(operational, /Front desk/);
+assert.match(operational, /New reservation/);
 assert.match(operational, /Use the menu/);
 assert.doesNotMatch(
     operational,
-    /max-w-/,
+    /class="[^"]*\bmax-w-(?:\[|screen|7xl|6xl)/,
     'The operational dashboard must use the available workspace, even when sparse',
 );
 assert.match(
@@ -279,8 +281,59 @@ for (const sidebarOpen of [true, false]) {
             assert.match(markup, /<a[^>]*href="\/bookers"[^>]*>Cancel<\/a>/);
             assert.match(markup, /name="_property"[^>]*value="property-207"/);
             assert.match(markup, /<button[^>]*type="submit"/);
+            assert.match(markup, /<legend[^>]*>Contact details<\/legend>/);
+            assert.match(markup, /sm:grid-cols-2/);
         }
     }
 }
 assert.doesNotMatch(operational, /Back to /);
 console.log('Direct-entry Booker parents, breadcrumbs and form actions: PASS');
+
+for (const title of ['Guests', 'Bookers']) {
+    const content = () => (
+        <ContactIndex
+            title={title}
+            base={`/${title.toLowerCase()}`}
+            canManage={false}
+            records={{
+                data: [],
+                current_page: 1,
+                last_page: 1,
+                per_page: 50,
+                total: 0,
+                from: null,
+                to: null,
+                links: [],
+                prev_page_url: null,
+                next_page_url: null,
+            }}
+        />
+    );
+    const markup = renderToStaticMarkup(
+        <App
+            initialPage={{
+                component: 'contacts',
+                url: '/',
+                version: null,
+                clearHistory: false,
+                encryptHistory: false,
+                props: {},
+            }}
+            initialComponent={content}
+        />,
+    );
+    assert.match(
+        markup,
+        new RegExp(`No ${title.toLowerCase()} recorded for this property`),
+    );
+    assert.doesNotMatch(markup, /Add a record|href="[^"]+\/create"/);
+}
+for (const path of ['contact-pages', 'identity-documents']) {
+    assert.doesNotMatch(
+        readFileSync(`resources/js/features/guests/${path}.tsx`, 'utf8'),
+        /rounded-(?:xl|lg|md)/,
+    );
+}
+console.log(
+    'Shared guest/booker forms, read-only empty states and flat identity sections: PASS',
+);

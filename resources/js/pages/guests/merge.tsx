@@ -43,8 +43,8 @@ export default function Merge({
     return (
         <>
             <Head title={`Merge duplicate guests into ${guest.name}`} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="space-y-2">
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
                     <h1 className="text-2xl font-semibold">
                         Merge duplicate guests
                     </h1>
@@ -112,6 +112,7 @@ export default function Merge({
                                                     <Form
                                                         action={`/guests/${guest.id}/merge`}
                                                         method="post"
+                                                        disableWhileProcessing
                                                     >
                                                         {({
                                                             errors,

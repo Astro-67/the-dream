@@ -341,10 +341,7 @@ export function AmendmentHistory({
                 <EmptyState message="No amendments yet." />
             )}
             {amendments.data.map((amendment) => (
-                <article
-                    key={amendment.id}
-                    className="space-y-2 rounded-md border p-4"
-                >
+                <article key={amendment.id} className="space-y-2 border-y py-4">
                     <p>
                         {amendment.actor?.name ?? 'System'} ·{' '}
                         <time dateTime={amendment.occurred_at}>
