@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { preventOfflineWrite } from '@/hooks/use-online';
 
 const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+assert.match(
+    readFileSync('resources/js/pages/organizations/create.tsx', 'utf8'),
+    /router\.on\('before', preventOfflineWrite\)/,
+);
 
 try {
     for (const online of [true, false]) {

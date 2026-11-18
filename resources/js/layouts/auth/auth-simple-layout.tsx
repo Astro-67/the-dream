@@ -10,10 +10,13 @@ export default function AuthSimpleLayout({
     children,
     title,
     description,
-}: AuthLayoutProps) {
+    setupStep,
+}: AuthLayoutProps & { setupStep?: 2 | 3 }) {
     const { component, props } = usePage();
-    const isSignup = ['auth/register', 'auth/verify-email'].includes(component);
-    const signupStep = component === 'auth/verify-email' ? 1 : 0;
+    const isSignup =
+        setupStep !== undefined ||
+        ['auth/register', 'auth/verify-email'].includes(component);
+    const signupStep = setupStep ?? (component === 'auth/verify-email' ? 1 : 0);
 
     return (
         <div className="public-surface auth-site">
@@ -56,49 +59,60 @@ export default function AuthSimpleLayout({
                         )}
                     </ol>
                 )}
-                <main className="auth-layout" id="auth-content">
+                <main
+                    className="auth-layout"
+                    id="auth-content"
+                    data-setup={setupStep !== undefined || undefined}
+                >
                     <section
                         className="auth-panel"
                         aria-labelledby="auth-title"
                     >
                         <div className="auth-content">
                             <div className="auth-intro">
-                                <h1 id="auth-title">{title}</h1>
+                                <h1 id="auth-title" tabIndex={-1}>
+                                    {title}
+                                </h1>
                                 <p>{description}</p>
                             </div>
                             {children}
                         </div>
                     </section>
-                    <aside
-                        className="auth-photo"
-                        aria-label="Karafuu hospitality"
-                    >
-                        <img
-                            src="/images/marketing/coastal-doorway-ocean-portrait.webp"
-                            alt="Carved wooden doors opening onto a sunlit courtyard and ocean view"
-                            width="1024"
-                            height="1536"
-                        />
-                        <div>
-                            <h2>
-                                A warm welcome.
-                                <br />A well-run day.
-                            </h2>
-                            <p>From the first arrival to the final receipt.</p>
-                        </div>
-                        {isSignup ? (
-                            <div className="auth-signoff">
+                    {setupStep === undefined && (
+                        <aside
+                            className="auth-photo"
+                            aria-label="Karafuu hospitality"
+                        >
+                            <img
+                                src="/images/marketing/coastal-doorway-ocean-portrait.webp"
+                                alt="Carved wooden doors opening onto a sunlit courtyard and ocean view"
+                                width="1024"
+                                height="1536"
+                            />
+                            <div>
+                                <h2>
+                                    A warm welcome.
+                                    <br />A well-run day.
+                                </h2>
                                 <p>
-                                    Your account. Your business. Your property.
+                                    From the first arrival to the final receipt.
                                 </p>
-                                <p>One connected start.</p>
                             </div>
-                        ) : (
-                            <p className="auth-signoff">
-                                The heart of hospitality.
-                            </p>
-                        )}
-                    </aside>
+                            {isSignup ? (
+                                <div className="auth-signoff">
+                                    <p>
+                                        Your account. Your business. Your
+                                        property.
+                                    </p>
+                                    <p>One connected start.</p>
+                                </div>
+                            ) : (
+                                <p className="auth-signoff">
+                                    The heart of hospitality.
+                                </p>
+                            )}
+                        </aside>
+                    )}
                 </main>
                 <footer className="public-footer">
                     <span>

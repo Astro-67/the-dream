@@ -118,6 +118,33 @@
     margin-bottom: 28px;
 }
 
+.auth-layout[data-setup] {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.auth-layout[data-setup] .auth-content {
+    max-width: 720px;
+}
+
+.auth-layout[data-setup] .auth-intro p {
+    max-width: 65ch;
+}
+
+.auth-layout[data-setup] fieldset[hidden] {
+    display: none;
+}
+
+.auth-layout[data-setup] :is([data-slot='select-trigger'], select) {
+    min-height: 44px;
+    font-size: 16px;
+}
+
+@media (any-pointer: coarse) {
+    body:has(.auth-layout[data-setup]) [data-slot='select-item'] {
+        min-height: 44px;
+    }
+}
+
 .auth-intro h1 {
     font-size: clamp(34px, 5.1vw, 44px);
     line-height: 1.12;

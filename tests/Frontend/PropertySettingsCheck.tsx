@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { App, Form } from '@inertiajs/react';
 import { isValidElement, useState, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import EditProperty from '@/pages/properties/edit';
 import CreateProperty from '@/pages/properties/create';
 import ShowProperty from '@/pages/properties/show';
@@ -184,18 +185,23 @@ for (const component of [
     ),
 ]) {
     const page = renderToStaticMarkup(
-        <App
-            initialPage={{
-                component: 'setup',
-                url: '/setup',
-                version: null,
-                clearHistory: false,
-                encryptHistory: false,
-                props: { errors: {}, tenant: { property: { id: 'hotel' } } },
-            }}
-            initialComponent={component}
-            resolveComponent={async () => component}
-        />,
+        <TooltipProvider>
+            <App
+                initialPage={{
+                    component: 'setup',
+                    url: '/setup',
+                    version: null,
+                    clearHistory: false,
+                    encryptHistory: false,
+                    props: {
+                        errors: {},
+                        tenant: { property: { id: 'hotel' } },
+                    },
+                }}
+                initialComponent={component}
+                resolveComponent={async () => component}
+            />
+        </TooltipProvider>,
     );
     assert.match(page, /Tax &amp; regulatory information/);
     assert.doesNotMatch(page, /<details/);
@@ -247,6 +253,17 @@ const checklist = {
 const checklistHtml = renderToStaticMarkup(
     <OnboardingChecklist checklist={checklist} />,
 );
+const emptyChecklist = renderToStaticMarkup(
+    <OnboardingChecklist checklist={{ ...checklist, items: [] }} />,
+);
+assert.match(emptyChecklist, /0 of 0 completed/);
+assert.match(emptyChecklist, /aria-valuemax="1"/);
+assert.match(emptyChecklist, /width:0%/);
+assert.doesNotMatch(emptyChecklist, /NaN|Infinity|rounded-xl/);
+assert.doesNotMatch(
+    emptyChecklist.match(/role="progressbar"[^>]+/)?.[0] ?? '',
+    /rounded/,
+);
 const declinedChecklist = renderToStaticMarkup(
     <OnboardingChecklist
         checklist={{
@@ -259,6 +276,10 @@ assert.match(declinedChecklist, /Go-live request declined/);
 assert.match(declinedChecklist, /Correct the business address\./);
 assert.match(declinedChecklist, /request go-live again/);
 assert.doesNotMatch(checklistHtml, /Go-live request declined/);
+assert.doesNotMatch(
+    declinedChecklist.match(/data-slot="alert"[^>]+/g)?.join('') ?? '',
+    /rounded-lg/,
+);
 for (const [roomTypeDone, roomDone] of [
     [false, false],
     [true, false],

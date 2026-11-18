@@ -1,0 +1,560 @@
+{
+    "status": "passed",
+    "date": "2026-11-18",
+    "browser": "Installed headless Google Chrome through Playwright; shared T3 preview snapshot failed twice with no screenshot frames.",
+    "uniqueChecks": 97,
+    "applicationErrors": [],
+    "results": [
+        {
+            "name": "business responsive/theme",
+            "width": 1440,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 1440,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 1440,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 1440,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 768,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 768,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 768,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 768,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 390,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 390,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 390,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 390,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 320,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 320,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 320,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "business responsive/theme",
+            "width": 320,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 1440,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 1440,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 1440,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 1440,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 768,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 768,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 768,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 768,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 390,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 390,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 390,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 390,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 320,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 320,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 320,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "property responsive/theme",
+            "width": 320,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "native draft validation, no early POST, Back preserves all fields and jurisdiction"
+        },
+        {
+            "name": "real server business/property validation recovers correct stage and retains DOM values"
+        },
+        {
+            "name": "setup offline blocks button and programmatic write, announces recovery and retains values"
+        },
+        {
+            "name": "real atomic creation reaches readiness checklist; loading form is inert"
+        },
+        {
+            "name": "database confirms one organization and one property from final POST"
+        },
+        {
+            "name": "unverified user cannot access organization setup"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 1440,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 1440,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 1440,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 1440,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 768,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 768,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 768,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 768,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 390,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 390,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 390,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 390,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 320,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 320,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 320,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "checklist responsive/theme",
+            "width": 320,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "mainland go-live gated by taxes, real confirmation and request state"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 1440,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 1440,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 1440,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 1440,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 768,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 768,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 768,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 768,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 390,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 390,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 390,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 390,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 320,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 320,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 320,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "import-empty responsive/theme",
+            "width": 320,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "real invalid file server validation"
+        },
+        {
+            "name": "restricted member sees guidance without tax/go-live actions"
+        },
+        {
+            "name": "dry run preserves row errors and refuses invalid commit"
+        },
+        {
+            "name": "real server pagination retains all 55 rows"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 1440,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 1440,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 1440,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 1440,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 768,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 768,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 768,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 768,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 390,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 390,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 390,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 390,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 320,
+            "appearance": "light",
+            "device": "dark"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 320,
+            "appearance": "dark",
+            "device": "light"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 320,
+            "appearance": "system",
+            "device": "light"
+        },
+        {
+            "name": "import-results responsive/theme",
+            "width": 320,
+            "appearance": "system",
+            "device": "dark"
+        },
+        {
+            "name": "mobile results scroll horizontally with keyboard to reveal errors"
+        },
+        {
+            "name": "stored partial outcome presents Resume import without changing completed row"
+        },
+        {
+            "name": "operational offline write cancelled and chosen file retained"
+        },
+        {
+            "name": "real upload and commit use inert loading forms and produce immutable stored results"
+        },
+        {
+            "name": "real coarse-pointer setup targets and portal options are 44px; keyboard flow and focus restoration pass"
+        },
+        {
+            "name": "property switch redirects/remounts, clears unsaved file, preserves Zanzibar gates and refuses other-property import"
+        }
+    ],
+    "confirmationNotes": [
+        "Initial confirmation reused an already-imported CSV source reference; replacing it with a distinct synthetic reference restored the intended invalid-row scenario.",
+        "Property switching intentionally redirects to dashboard; the assertion was corrected to check that route, then a cleared import form in the new property.",
+        "Touch select checks use tap, wait for menu animation completion and asynchronous focus restoration.",
+        "These are harness/fixture corrections; no production UI changes followed the single browser-fix batch."
+    ],
+    "sources": [
+        {
+            "path": ".scratch/batch2-browser-evidence/confirmation/browser-results.json",
+            "passedRecords": 73
+        },
+        {
+            "path": ".scratch/batch2-browser-evidence/confirmation-remainder/browser-results.json",
+            "passedRecords": 56
+        },
+        {
+            "path": ".scratch/batch2-browser-evidence/confirmation-final/browser-results.json",
+            "passedRecords": 2
+        }
+    ]
+}

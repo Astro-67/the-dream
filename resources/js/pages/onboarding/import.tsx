@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { Download, Upload } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -58,22 +59,26 @@ export default function Import({
     return (
         <>
             <Head title={copy.title} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
                     <div className="space-y-2">
                         <h1 className="text-2xl font-semibold">{copy.title}</h1>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="max-w-prose text-sm text-muted-foreground">
                             {copy.description}
                         </p>
                     </div>
                     <Button asChild variant="outline">
-                        <a href={template().url}>{copy.template}</a>
+                        <a href={template().url}>
+                            <Download aria-hidden />
+                            {copy.template}
+                        </a>
                     </Button>
                 </header>
                 <Form
                     {...store.form()}
                     encType="multipart/form-data"
-                    className="max-w-2xl space-y-4"
+                    disableWhileProcessing
+                    className="w-full max-w-[720px] space-y-4"
                 >
                     {({ processing, errors }) => (
                         <>
@@ -83,7 +88,9 @@ export default function Import({
                                 {copy.instructions}
                             </p>
                             <div className="space-y-2">
-                                <Label htmlFor="file">{copy.file}</Label>
+                                <Label htmlFor="file" className="text-base">
+                                    {copy.file}
+                                </Label>
                                 <Input
                                     id="file"
                                     name="file"
@@ -105,9 +112,11 @@ export default function Import({
                                 />
                             </div>
                             <Button disabled={processing}>
-                                <span className="inline-flex size-4 items-center justify-center">
-                                    {processing && <Spinner />}
-                                </span>
+                                {processing ? (
+                                    <Spinner />
+                                ) : (
+                                    <Upload aria-hidden />
+                                )}
                                 {copy.run}
                             </Button>
                         </>
@@ -115,7 +124,7 @@ export default function Import({
                 </Form>
                 {importJob && rows ? (
                     <section
-                        className="space-y-4"
+                        className="min-w-0 space-y-4 border-t pt-6"
                         aria-labelledby="import-results"
                     >
                         <div className="space-y-2">
@@ -137,7 +146,7 @@ export default function Import({
                                       ? copy.partialNotice
                                       : copy.noChanges}
                             </p>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 tabular-nums">
                                 <StatusChip tone="success">
                                     {importJob.commit_results
                                         ? copy.created
@@ -164,6 +173,7 @@ export default function Import({
                         {importJob.status === 'dry_run' && (
                             <Form
                                 {...commit.form(importJob.id)}
+                                disableWhileProcessing
                                 className="max-w-2xl space-y-3"
                             >
                                 {({ processing, errors }) => (
@@ -316,7 +326,10 @@ export default function Import({
                         <Pagination page={rows} />
                     </section>
                 ) : (
-                    <EmptyState message={copy.empty} />
+                    <EmptyState
+                        message={copy.empty}
+                        className="items-start border-t px-0 text-left"
+                    />
                 )}
             </div>
         </>
