@@ -1,5 +1,4 @@
 import { ChevronDown } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import {
     Collapsible,
     CollapsibleContent,
@@ -204,7 +203,7 @@ export default function Show({
     return (
         <>
             <Head title={`Reservation ${reservation.reservation_number}`} />
-            <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-6">
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
                 <VfmsRefusalBanner refusal={vfmsRefusal} />
                 <header className="flex flex-wrap items-center gap-3 [&_button]:min-h-11">
                     <h1 className="text-2xl font-semibold">
@@ -255,8 +254,11 @@ export default function Show({
                         />
                     )}
                 </header>
-                <Card className="gap-4 py-4 md:py-6">
-                    <CardContent className="space-y-4 px-4 md:px-6">
+                <section
+                    className="border-y py-4 md:py-6"
+                    aria-label="Stay details"
+                >
+                    <div className="space-y-4">
                         <h2 className="sr-only">Stay details</h2>
                         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3 xl:grid-cols-5">
                             {[
@@ -413,8 +415,8 @@ export default function Show({
                                 </dl>
                             </CollapsibleContent>
                         </Collapsible>
-                    </CardContent>
-                </Card>
+                    </div>
+                </section>
                 {((canAssignRoom && reservation.status === 'confirmed') ||
                     can.moveRoom ||
                     canEditPayingInstitution ||
@@ -624,8 +626,11 @@ export default function Show({
                     </Collapsible>
                 )}
                 {zraDocuments && (
-                    <Card>
-                        <CardContent className="space-y-3">
+                    <section
+                        className="border-y py-6"
+                        aria-label="ZRA documents"
+                    >
+                        <div className="space-y-3">
                             <ZraDocumentsSummary documents={zraDocuments} />
                             <div className="flex flex-wrap items-center gap-3">
                                 <Link
@@ -638,8 +643,8 @@ export default function Show({
                                     preview={generalReceipt}
                                 />
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </section>
                 )}
                 <VfmsFilingsPanel
                     filings={vfmsFilings}

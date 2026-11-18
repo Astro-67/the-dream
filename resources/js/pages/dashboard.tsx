@@ -1,11 +1,5 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import {
-    ArrowRight,
-    LogIn,
-    LogOut,
-    Users,
-    type LucideIcon,
-} from 'lucide-react';
+import { ConciergeBell, LogOut, Users, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
@@ -23,6 +17,10 @@ import {
     OnboardingChecklist,
     type Checklist,
 } from '@/features/tenancy/onboarding-checklist';
+import {
+    GuestQueue,
+    type GuestQueue as GuestQueueData,
+} from '@/features/front-desk/guest-queue';
 import {
     CollectionsTable,
     periodLabels,
@@ -56,24 +54,18 @@ type RoomBoard = {
     }>;
 };
 
-const listCards: Record<
-    string,
-    { label: string; icon: LucideIcon; className: string }
-> = {
+const listCards: Record<string, { label: string; icon: LucideIcon }> = {
     arrivals: {
         label: 'Arrivals',
-        icon: LogIn,
-        className: 'bg-status-success-tint text-status-success',
+        icon: ConciergeBell,
     },
     departures: {
         label: 'Departures',
         icon: LogOut,
-        className: 'bg-status-warning-tint text-status-warning',
     },
     'in-house': {
         label: 'In house',
         icon: Users,
-        className: 'bg-status-occupied-tint text-status-occupied',
     },
 };
 
@@ -82,10 +74,12 @@ export default function Dashboard({
     today,
     collections,
     roomBoard,
+    guestQueue,
 }: {
     onboarding: Checklist | null;
     today: Today | null;
     roomBoard: RoomBoard | null;
+    guestQueue: GuestQueueData | null;
     collections: {
         period: string;
         from: string;
@@ -94,7 +88,7 @@ export default function Dashboard({
         href: string;
     } | null;
 }) {
-    const { auth, tenant } = usePage().props;
+    const { tenant } = usePage().props;
     const can = useCan();
 
     if (onboarding) {
@@ -114,7 +108,7 @@ export default function Dashboard({
                     <h1 className="text-2xl font-semibold tracking-tight">
                         {tenant.organization?.name ?? 'Dashboard'}
                     </h1>
-                    <div className="rounded-xl border">
+                    <div className="border-y">
                         <EmptyState
                             message={
                                 can('properties.manage')
@@ -140,11 +134,11 @@ export default function Dashboard({
     return (
         <>
             <Head title="Dashboard" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-end justify-between gap-4">
+            <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <header className="flex flex-wrap items-end justify-between gap-4 xl:col-span-2">
                     <div className="space-y-1">
                         <h1 className="text-2xl font-semibold tracking-tight">
-                            Welcome back, {auth.user.name.split(' ')[0]}
+                            Front desk
                         </h1>
                         <p className="text-sm text-muted-foreground">
                             {tenant.property.name}
@@ -154,17 +148,22 @@ export default function Dashboard({
                     </div>
                     {can('reservations.manage') && (
                         <Button asChild>
-                            <Link href={createReservation()}>New booking</Link>
+                            <Link href={createReservation()}>
+                                New reservation
+                            </Link>
                         </Button>
                     )}
                 </header>
 
                 {today ? (
-                    <section aria-labelledby="today" className="space-y-3">
+                    <section
+                        aria-labelledby="today"
+                        className="space-y-3 xl:col-span-2"
+                    >
                         <h2 id="today" className="text-lg font-semibold">
-                            Today
+                            Guest lists
                         </h2>
-                        <ul className="grid gap-4 sm:grid-cols-3">
+                        <ul className="grid grid-cols-3 gap-2 md:gap-4">
                             {today.lists.map((list) => {
                                 const card = listCards[list.key];
                                 const Icon = card?.icon ?? Users;
@@ -173,29 +172,33 @@ export default function Dashboard({
                                     <li key={list.key}>
                                         <Link
                                             href={list.href}
+                                            aria-current={
+                                                list.key ===
+                                                (guestQueue?.filters.list ??
+                                                    'arrivals')
+                                                    ? 'page'
+                                                    : undefined
+                                            }
                                             className={cn(
-                                                'flex flex-col gap-3 rounded-xl border bg-card p-4 transition-[translate,box-shadow] duration-200 ease-out hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none motion-safe:hover:-translate-y-0.5',
-                                                card?.className,
+                                                'flex h-full min-w-0 flex-col gap-3 border p-2 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none md:p-4',
+                                                list.key ===
+                                                    (guestQueue?.filters.list ??
+                                                        'arrivals')
+                                                    ? 'border-primary bg-primary-tint text-primary'
+                                                    : 'bg-card hover:bg-muted',
                                             )}
                                         >
-                                            <span className="flex items-center justify-between gap-2">
-                                                <span className="text-sm font-medium">
-                                                    {card?.label ?? list.key}
-                                                </span>
+                                            <span className="flex flex-wrap items-center justify-between gap-2">
                                                 <Icon
                                                     aria-hidden
                                                     className="size-5"
                                                 />
+                                                <span className="text-2xl font-semibold tabular-nums md:text-3xl">
+                                                    {list.count}
+                                                </span>
                                             </span>
-                                            <span className="text-3xl font-semibold tabular-nums">
-                                                {list.count}
-                                            </span>
-                                            <span className="flex items-center gap-2 text-sm font-medium">
-                                                View list
-                                                <ArrowRight
-                                                    aria-hidden
-                                                    className="size-4"
-                                                />
+                                            <span className="text-xs font-semibold md:text-sm">
+                                                {card?.label ?? list.key}
                                             </span>
                                         </Link>
                                     </li>
@@ -204,15 +207,21 @@ export default function Dashboard({
                         </ul>
                     </section>
                 ) : !roomBoard ? (
-                    <div className="rounded-xl border">
+                    <div className="border-y xl:col-span-2">
                         <EmptyState message="Use the menu to open the parts of the system you work in." />
                     </div>
                 ) : null}
 
+                {guestQueue && (
+                    <div className="min-w-0 xl:col-start-1 xl:row-start-3">
+                        <GuestQueue queue={guestQueue} />
+                    </div>
+                )}
+
                 {collections && (
                     <section
                         aria-labelledby="collections-title"
-                        className="grid gap-4 rounded-xl border p-4"
+                        className="grid min-w-0 gap-4 border-t pt-6 xl:col-span-2 xl:row-start-4"
                     >
                         <div className="flex flex-wrap items-center justify-between gap-4">
                             <h2
@@ -246,7 +255,10 @@ export default function Dashboard({
                                     >
                                         <Link
                                             href={dashboard({
-                                                query: { period },
+                                                query: {
+                                                    period,
+                                                    ...guestQueue?.filters,
+                                                },
                                             })}
                                             aria-current={
                                                 collections.period === period
@@ -273,7 +285,7 @@ export default function Dashboard({
                 {roomBoard && (
                     <section
                         aria-labelledby="room-status"
-                        className="space-y-3"
+                        className="min-w-0 space-y-3 xl:col-start-2 xl:row-start-3"
                     >
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
@@ -307,7 +319,7 @@ export default function Dashboard({
                             </nav>
                         </div>
                         {roomBoard.rooms.data.length === 0 ? (
-                            <div className="rounded-xl border">
+                            <div className="border-y">
                                 <EmptyState message="No active rooms. Ask a property manager to add rooms." />
                             </div>
                         ) : (

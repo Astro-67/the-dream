@@ -182,9 +182,9 @@ export default function Statement({
             </Head>
             <div
                 data-paper={paper}
-                className="receipt-print flex max-w-[960px] flex-col gap-6 p-4 md:p-6"
+                className="receipt-print flex max-w-[960px] min-w-0 flex-col gap-6 p-4 md:p-6"
             >
-                <header className="space-y-3">
+                <header className="space-y-3 border-b pb-4">
                     <p className="text-sm text-muted-foreground">
                         {property.name}, {property.address_line},{' '}
                         {property.city}. {property.phone}, {property.email}

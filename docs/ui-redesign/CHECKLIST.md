@@ -77,33 +77,36 @@ Implemented, browser-reviewed and validated on 18 November 2026; see the
 Reference: [front desk light](approved/front-desk-light.html) /
 [dark](approved/front-desk-dark.html).
 
-- [ ] Implement the direct-access guest-list cards, clear active state and distinct icons.
-- [ ] Supply the guest queue from existing scoped reservation-list logic; retain real search, pagination and permissions.
-- [ ] Preserve independent occupancy/readiness states, balance semantics and guarded check-in/out.
-- [ ] Reuse list/detail/form patterns for guest and booker pages; retain merge confirmations and identity privacy.
-- [ ] Preserve property business dates and night-audit behaviour.
+Implemented, browser-reviewed and validated on 18 November 2026. See the
+[Batch 3 handoff](BATCH-3.md) for all 19 surfaces, tests, evidence and limits.
+
+- [x] Implement the direct-access guest-list cards, clear active state and distinct icons.
+- [x] Supply the guest queue from existing scoped reservation-list logic; retain real search, pagination and permissions.
+- [x] Preserve independent occupancy/readiness states, balance semantics and guarded check-in/out.
+- [x] Reuse list/detail/form patterns for guest and booker pages; retain merge confirmations and identity privacy.
+- [x] Preserve property business dates and night-audit behaviour.
 
 19 page files:
 
-- [ ] `bookers/create.tsx`
-- [ ] `bookers/edit.tsx`
-- [ ] `bookers/index.tsx`
-- [ ] `bookers/show.tsx`
-- [ ] `dashboard.tsx`
-- [ ] `guests/create.tsx`
-- [ ] `guests/edit.tsx`
-- [ ] `guests/index.tsx`
-- [ ] `guests/merge.tsx`
-- [ ] `guests/show.tsx`
-- [ ] `night-audit/index.tsx`
-- [ ] `night-audit/show.tsx`
-- [ ] `reservations/availability.tsx`
-- [ ] `reservations/create.tsx`
-- [ ] `reservations/guests.tsx`
-- [ ] `reservations/group-statement.tsx`
-- [ ] `reservations/index.tsx`
-- [ ] `reservations/show.tsx`
-- [ ] `reservations/statement.tsx`
+- [x] `bookers/create.tsx`
+- [x] `bookers/edit.tsx`
+- [x] `bookers/index.tsx`
+- [x] `bookers/show.tsx`
+- [x] `dashboard.tsx`
+- [x] `guests/create.tsx`
+- [x] `guests/edit.tsx`
+- [x] `guests/index.tsx`
+- [x] `guests/merge.tsx`
+- [x] `guests/show.tsx`
+- [x] `night-audit/index.tsx`
+- [x] `night-audit/show.tsx`
+- [x] `reservations/availability.tsx`
+- [x] `reservations/create.tsx`
+- [x] `reservations/guests.tsx`
+- [x] `reservations/group-statement.tsx`
+- [x] `reservations/index.tsx`
+- [x] `reservations/show.tsx`
+- [x] `reservations/statement.tsx`
 
 ## Batch 4 - Rooms, housekeeping, maintenance and rates
 
@@ -195,6 +198,24 @@ Reference: [front desk light](approved/front-desk-light.html) /
 - [ ] The owner reviews representative completed flows across all screen families.
 
 ## Handoff record
+
+- Latest completed work: **Batch 3 - Front desk, reservations and guest records**,
+  implemented, browser-reviewed and validated on 18 November 2026.
+- Page migration: **30 of 81 pages complete**: nine in Batch 1, two in Batch 2
+  and all 19 in Batch 3. No later batch is checked off by shared styling.
+- Browser: 186 distinct cases, all 19 pages at desktop/mobile in
+  Light/Dark/System, extra 320/768px stress cases, real workflows/permissions,
+  offline/loading states and generated A4/80mm print output. No remaining
+  application JavaScript errors.
+- Automated: full fast checks pass with 2,853 Pest tests (26 skipped; 49,361
+  assertions), frontend checks, build, PHP/static/type/lint/format checks.
+  MySQL: 145 broad focused tests and 44 post-priority-fix dashboard/list tests.
+- Scope, fixes, screenshots, PDFs and limits: [Batch 3 handoff](BATCH-3.md).
+- Next bounded batch: **Batch 4 - Rooms, housekeeping, maintenance and rates**.
+  Batch 3 ships through `feat/ui-redesign-batch-3` and a PR against `main`;
+  CI, review, merge and deployment remain separate gates.
+
+### Preserved Batch 2 record
 
 - Latest completed work: **Batch 2 - Organization setup and onboarding**,
   implemented, browser-reviewed and validated on 18 November 2026.

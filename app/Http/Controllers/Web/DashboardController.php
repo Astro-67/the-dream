@@ -7,6 +7,7 @@ use App\Domains\Housekeeping\DashboardRooms;
 use App\Domains\Housekeeping\Models\RoomStatus;
 use App\Domains\Reports\Collections;
 use App\Domains\Reports\PropertyKpis;
+use App\Domains\Reservations\Actions\ListReservations;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Reservations\ReservationLists;
 use App\Domains\Tenancy\OnboardingChecklist;
@@ -20,18 +21,26 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, OnboardingChecklist $checklist, ReservationLists $lists): Response
+    public function __invoke(Request $request, OnboardingChecklist $checklist, ReservationLists $lists, ListReservations $reservations): Response
     {
         /** @var User $actor */
         $actor = $request->user();
         $property = Tenancy::property();
         $onboarding = $property === null ? null : $checklist->forProperty($property, $actor);
         $date = $property === null ? null : BusinessDate::of($property);
-        $period = $request->validate(['period' => ['sometimes', Rule::in(['today', 'this-month', 'this-year'])]])['period'] ?? 'today';
+        $filters = $request->validate([
+            'period' => ['sometimes', Rule::in(['today', 'this-month', 'this-year'])],
+            'list' => ['sometimes', Rule::in(ReservationLists::FRONT_DESK)],
+            'search' => ['nullable', 'string', 'max:255'],
+        ]);
+        $period = $filters['period'] ?? 'today';
+        $list = $filters['list'] ?? 'arrivals';
+        $search = $filters['search'] ?? '';
+        $canViewReservations = $date !== null && $onboarding === null && $actor->can('viewAny', Reservation::class);
 
         return Inertia::render('dashboard', [
             'onboarding' => $onboarding,
-            'roomBoard' => $date === null || $onboarding !== null || ! $actor->can('viewAny', Reservation::class) ? null : [
+            'roomBoard' => ! $canViewReservations ? null : [
                 'businessDate' => $date,
                 'rooms' => app(DashboardRooms::class)->forDate($date),
                 'calendarHref' => route('rate-calendar'),
@@ -40,13 +49,18 @@ class DashboardController extends Controller
             'collections' => $property === null || $property->isDemo() || $onboarding !== null || ! $actor->can('view', PropertyKpis::class)
                 ? null : app(Collections::class)->card($property, $period),
             // A live property's day at a glance, for members who may see reservations.
-            'today' => $date === null || $onboarding !== null || ! $actor->can('viewAny', Reservation::class) ? null : [
+            'today' => ! $canViewReservations ? null : [
                 'businessDate' => $date,
-                'lists' => collect(['arrivals', 'departures', 'in-house'])->map(fn (string $list) => [
-                    'key' => $list,
-                    'count' => $lists->query($list, $date, '')->count(),
-                    'href' => route('reservations.index', ['list' => $list, 'date' => $date]),
+                'lists' => collect(ReservationLists::FRONT_DESK)->map(fn (string $key) => [
+                    'key' => $key,
+                    'count' => $lists->query($key, $date, '')->count(),
+                    'href' => route('dashboard', ['period' => $period, 'list' => $key, 'search' => $search]),
                 ])->all(),
+            ],
+            'guestQueue' => ! $canViewReservations ? null : [
+                'filters' => ['list' => $list, 'search' => $search],
+                'period' => $period,
+                'reservations' => $reservations->frontDesk($list, $date, $search),
             ],
         ]);
     }

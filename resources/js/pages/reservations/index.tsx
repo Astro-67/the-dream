@@ -16,7 +16,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { CheckOutDialog } from '@/features/front-desk/check-out-dialog';
-import type { CheckoutBalance } from '@/features/front-desk/check-out-dialog';
+import {
+    paymentState,
+    type ReservationListItem as Reservation,
+} from '@/features/reservations/reservation-list';
 import { formatDate } from '@/features/platform/format';
 import { formatMoney } from '@/lib/utils';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -30,39 +33,6 @@ import {
 import { index as importsIndex } from '@/routes/imports';
 import type { Paginated } from '@/types';
 
-type Reservation = {
-    id: string;
-    reservation_number: string;
-    booking_group_id: string | null;
-    arrival: string;
-    departure: string;
-    status: string;
-    is_overstay: boolean;
-    channel_reference: string | null;
-    requires_reconciliation: boolean;
-    can_check_in: boolean;
-    can_check_out: boolean;
-    checkout_balances: CheckoutBalance[];
-    can_override_balance?: boolean;
-    guest_name: string | null;
-    room_number: string | null;
-    balances: { currency: string; balance: number; unposted: boolean }[];
-};
-
-/** One currency's payment state; a zero posted balance with nights still to charge is not paid. */
-export function paymentState({
-    balance,
-    unposted,
-}: Reservation['balances'][number]): {
-    label: string;
-    tone: 'error' | 'success' | 'info' | 'warning';
-} {
-    if (balance > 0) return { label: 'Due', tone: 'error' };
-    if (balance < 0) return { label: 'Credit', tone: 'info' };
-    return unposted
-        ? { label: 'Not yet charged', tone: 'warning' }
-        : { label: 'Settled', tone: 'success' };
-}
 type Filters = { date: string; list: string; search: string };
 
 export default function Index({
@@ -81,8 +51,8 @@ export default function Index({
     return (
         <>
             <Head title="Reservations" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="flex flex-wrap items-center justify-between gap-4 border-b pb-6">
                     <div>
                         <h1 className="text-2xl font-semibold">Reservations</h1>
                         <p className="text-sm text-muted-foreground">

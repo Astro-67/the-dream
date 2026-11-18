@@ -51,15 +51,19 @@ export default function Index({
     return (
         <>
             <Head title={labels.title} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header>
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
                     <h1 className="text-2xl font-semibold">{labels.title}</h1>
                     <p className="text-sm text-muted-foreground">
                         {labels.businessDate}: {formatDate(businessDate, 'UTC')}
                     </p>
                 </header>
                 {canClose && (
-                    <Form {...store.form()} key={businessDate}>
+                    <Form
+                        {...store.form()}
+                        key={businessDate}
+                        disableWhileProcessing
+                    >
                         {({ processing, errors }) => (
                             <div className="flex flex-col items-start gap-3">
                                 <PropertyIntent />
@@ -86,7 +90,10 @@ export default function Index({
                         )}
                     </Form>
                 )}
-                <section aria-labelledby="exception-list">
+                <section
+                    aria-labelledby="exception-list"
+                    className="space-y-4 border-t pt-6"
+                >
                     <h2
                         id="exception-list"
                         className="mb-3 text-lg font-semibold"
