@@ -59,15 +59,18 @@ Reference: [landing](approved/landing.html), [login](approved/login.html),
 
 Reference: [signup business/property/checklist steps](approved/signup.html).
 
-- [ ] Stage business/property draft fields while retaining the single existing creation action.
-- [ ] Preserve required property fields, optional registration details, jurisdiction rules and server validation.
-- [ ] Migrate the shared onboarding checklist, preserving real readiness and go-live gates.
-- [ ] Preserve the reservation-import workflow; consult `docs/imports.md` when changing its UI.
+Implemented, browser-reviewed and validated on 18 November 2026; see the
+[Batch 2 handoff](BATCH-2.md) for checks, evidence and remaining limits.
+
+- [x] Stage business/property draft fields while retaining the single existing creation action.
+- [x] Preserve required property fields, optional registration details, jurisdiction rules and server validation.
+- [x] Migrate the shared onboarding checklist, preserving real readiness and go-live gates.
+- [x] Preserve the reservation-import workflow; consult `docs/imports.md` when changing its UI.
 
 2 page files:
 
-- [ ] `onboarding/import.tsx`
-- [ ] `organizations/create.tsx`
+- [x] `onboarding/import.tsx`
+- [x] `organizations/create.tsx`
 
 ## Batch 3 - Front desk, reservations and guest records
 
@@ -193,14 +196,30 @@ Reference: [front desk light](approved/front-desk-light.html) /
 
 ## Handoff record
 
-- Latest completed work: **Batch 1 - Public site and authentication**, implemented
+- Latest completed work: **Batch 2 - Organization setup and onboarding**,
+  implemented, browser-reviewed and validated on 18 November 2026.
+- Page migration: **11 of the 81 pages are complete**: nine in Batch 1 and two
+  in Batch 2. The shared checklist migration does not complete the rest of
+  `dashboard.tsx`; that page remains in Batch 3.
+- Browser: 97 distinct checks cover 320/390/768/1440px, Light/Dark/System,
+  native and returned errors, keyboard/touch targets, loading/offline states,
+  atomic creation, real imports/pagination and property isolation. No
+  application JavaScript errors remain after the browser fixes.
+- Automated checks, representative captures, fixture/harness corrections and
+  remaining limits are recorded in [the Batch 2 handoff](BATCH-2.md).
+- Next bounded batch: **Batch 3 - Front desk, reservations and guest records**.
+  Keep its guest queue/cards and page-owned migration separate from Batch 2.
+
+### Preserved Batch 1 record
+
+- Previous completed work: **Batch 1 - Public site and authentication**, implemented
   and validated on 13 November 2026 after integrating Batch 0's finished
   `d9cf9ef9` foundation in `fc6a4fdd`. Merge/deployment status is tracked in
   [PR #257](https://github.com/Astro-67/the-dream/pull/257).
-- Page migration: **nine of the 81 pages are complete**, all in Batch 1. No other
-  batch's page checkboxes change. Shared styling alone is not page migration.
-- Next bounded batch: **Batch 2 - Organization setup and onboarding**. The
-  operational guest-list cards and queue remain Batch 3.
+- Page migration at that handoff: **nine of the 81 pages were complete**, all
+  in Batch 1. Shared styling alone is not page migration.
+- The next bounded batch at that handoff was Batch 2; guest-list cards and
+  the operational queue remained reserved for Batch 3.
 - Batch 1 checks: final serialized `composer check:fast` exits zero (2,843 Pest
   tests passed, 26 skipped; 49,165 assertions), with build, Pint, PHPStan,
   TypeScript and formatting/lint passing. All frontend checks pass. Only actual

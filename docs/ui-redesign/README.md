@@ -3,7 +3,9 @@
 The owner approved the direction below. **Batch 0 implements the shared
 operational foundation; Batch 1 implements the nine public/authentication pages.**
 Batch 1's integrated checks, evidence and remaining limits are recorded in
-[its validation record](BATCH-1.md). Later page families remain pending.
+[its validation record](BATCH-1.md). **Batch 2's organization setup and onboarding
+are also implemented, browser-reviewed and validated**; see
+[its handoff](BATCH-2.md). Batch 3 is next; later page families remain pending.
 Continue from this package rather than repeating the design conversation.
 The owner's later Batch 1 refinements (supplied photography, landing masthead,
 DM Sans hero, icon-only pause and reduced decorative ticks) are recorded in
@@ -115,7 +117,7 @@ visual review on representative pages, not another concept round for every page.
 
 ```text
 Read AGENTS.md and docs/ui-redesign/README.md.
-Start Batch 0 only from docs/ui-redesign/CHECKLIST.md after verifying the implementation base.
+Start Batch 3 only from docs/ui-redesign/CHECKLIST.md after verifying the implementation base.
 Preserve existing local work, use the approved references and existing shared components,
 validate the changed UI and required tests, and update the checklist and handoff record.
 Leave later batches for subsequent threads.

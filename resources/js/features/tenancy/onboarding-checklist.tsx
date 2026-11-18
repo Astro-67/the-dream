@@ -39,7 +39,7 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
     )?.key;
 
     return (
-        <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
+        <div className="flex w-full max-w-[720px] flex-col gap-8">
             <header className="space-y-2">
                 <h1 className="text-2xl font-semibold tracking-tight break-words">
                     Set up {checklist.propertyName}
@@ -56,14 +56,15 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                         role="progressbar"
                         aria-label="Setup progress"
                         aria-valuemin={0}
-                        aria-valuemax={checklist.items.length}
+                        aria-valuemax={checklist.items.length || 1}
                         aria-valuenow={completed}
-                        className="h-2 overflow-hidden rounded-full bg-muted"
+                        aria-valuetext={`${completed} of ${checklist.items.length} completed`}
+                        className="h-1 overflow-hidden bg-muted"
                     >
                         <div
-                            className="h-full rounded-full bg-primary transition-[width]"
+                            className="h-full bg-primary"
                             style={{
-                                width: `${(completed / checklist.items.length) * 100}%`,
+                                width: `${checklist.items.length ? (completed / checklist.items.length) * 100 : 0}%`,
                             }}
                         />
                     </div>
@@ -71,7 +72,7 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
             </header>
 
             {checklist.receiptNotice && (
-                <Alert>
+                <Alert className="rounded-none">
                     <AlertDescription>
                         {checklist.receiptNotice}
                     </AlertDescription>
@@ -82,7 +83,7 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                 <h2 id="setup-checklist" className="mb-3 text-lg font-semibold">
                     Onboarding checklist
                 </h2>
-                <ul className="divide-y rounded-xl border px-4">
+                <ul className="divide-y border-y">
                     {checklist.items.map((item) => (
                         <li key={item.key} className="space-y-3 py-4">
                             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -97,7 +98,7 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                                 ) : item.href ? (
                                     <Link
                                         href={item.href}
-                                        className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                        className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                                     >
                                         {item.label}
                                     </Link>
@@ -199,7 +200,10 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                 </ul>
             </section>
 
-            <section aria-labelledby="go-live-gates" className="space-y-4">
+            <section
+                aria-labelledby="go-live-gates"
+                className="space-y-4 border-t pt-6"
+            >
                 <div className="space-y-1">
                     <h2 id="go-live-gates" className="text-lg font-semibold">
                         Ready to go live?
@@ -209,16 +213,16 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                         The other checklist steps are guidance, not blockers.
                     </p>
                 </div>
-                <ul className="space-y-3">
+                <ul className="divide-y">
                     {checklist.gates.map((gate) => (
                         <li
                             key={gate.key}
-                            className="flex flex-wrap items-center justify-between gap-3"
+                            className="flex flex-wrap items-center justify-between gap-3 py-3"
                         >
                             {!gate.passed && gate.href ? (
                                 <Link
                                     href={gate.href}
-                                    className="inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                    className="inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                                 >
                                     {gate.label}
                                 </Link>
@@ -234,7 +238,7 @@ export function OnboardingChecklist({ checklist }: { checklist: Checklist }) {
                     ))}
                 </ul>
                 {checklist.goLiveDeclinedReason && (
-                    <Alert>
+                    <Alert className="rounded-none">
                         <AlertDescription>
                             <p className="font-medium">
                                 Go-live request declined
