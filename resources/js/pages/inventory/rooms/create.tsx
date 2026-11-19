@@ -16,8 +16,8 @@ export default function CreateRoom({
     return (
         <>
             <Head title="Add room" />
-            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6 p-4 md:p-6">
-                <header className="space-y-1">
+            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
                     <h1 className="text-2xl font-semibold tracking-tight">
                         Add room
                     </h1>

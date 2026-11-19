@@ -117,7 +117,10 @@ export default function GroupReport({
                 </fieldset>
             }
         >
-            <section aria-labelledby="properties-title" className="grid gap-4">
+            <section
+                aria-labelledby="properties-title"
+                className="grid min-w-0 gap-4"
+            >
                 <div>
                     <h2 id="properties-title" className="text-lg font-semibold">
                         Included properties
@@ -153,7 +156,10 @@ export default function GroupReport({
             </section>
             <KpiReport kpis={kpis} group />
             <PropertyOperations operations={operations} group />
-            <section aria-labelledby="balances-title" className="grid gap-4">
+            <section
+                aria-labelledby="balances-title"
+                className="grid min-w-0 gap-4 border-t pt-6"
+            >
                 <div>
                     <h2 id="balances-title" className="text-lg font-semibold">
                         Folio balances
@@ -190,7 +196,10 @@ export default function GroupReport({
                 )}
                 <FolioBalances folios={finance.folios} />
             </section>
-            <section aria-labelledby="payments-title" className="grid gap-4">
+            <section
+                aria-labelledby="payments-title"
+                className="grid min-w-0 gap-4 border-t pt-6"
+            >
                 <div>
                     <h2 id="payments-title" className="text-lg font-semibold">
                         Payments

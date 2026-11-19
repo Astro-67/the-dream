@@ -1,5 +1,4 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -30,11 +29,13 @@ export default function MyRooms({
     return (
         <>
             <Head title="My rooms" />
-            <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title="My rooms"
-                    description={`Cleaning assignments · business date ${formatDate(date)}`}
-                />
+            <div className="flex max-w-[720px] min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold">My rooms</h1>
+                    <p className="text-sm text-muted-foreground">
+                        Cleaning assignments · business date {formatDate(date)}
+                    </p>
+                </header>
                 <Form
                     {...myRooms.form()}
                     className="flex flex-wrap items-end gap-4"
@@ -56,15 +57,15 @@ export default function MyRooms({
                 {assignments.length === 0 ? (
                     <EmptyState message="No rooms assigned for this business date. Ask your supervisor for assignments." />
                 ) : (
-                    <ul className="grid gap-4">
+                    <ul className="divide-y border-y">
                         {assignments.map((assignment) => (
                             <li
                                 key={assignment.id}
-                                className="grid gap-4 rounded-xl border bg-card p-4"
+                                className="grid min-w-0 gap-4 py-6"
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                     <div>
-                                        <h2 className="text-lg tabular-nums">
+                                        <h2 className="text-lg break-words tabular-nums">
                                             Room {assignment.room.number}
                                         </h2>
                                         <p className="text-muted-foreground">

@@ -1,5 +1,4 @@
 import { Form, Head } from '@inertiajs/react';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -43,11 +42,15 @@ export default function Assignments({
     return (
         <>
             <Head title="Housekeeping assignments" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title="Housekeeping assignments"
-                    description="Assign rooms to housekeepers for a business date."
-                />
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold">
+                        Housekeeping assignments
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                        Assign rooms to housekeepers for a business date.
+                    </p>
+                </header>
                 <Form
                     {...assignmentsIndex.form()}
                     className="flex flex-wrap items-end gap-4"
@@ -68,8 +71,9 @@ export default function Assignments({
                 </Form>
                 <Form
                     {...store.form()}
+                    disableWhileProcessing
                     options={{ preserveScroll: true }}
-                    className="flex max-w-[720px] flex-wrap items-end gap-4"
+                    className="flex max-w-[720px] min-w-0 flex-wrap items-end gap-4 border-y py-6 [&>div]:max-w-full [&>div]:min-w-0"
                 >
                     {({ errors, processing }) => (
                         <>

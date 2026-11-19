@@ -15,8 +15,8 @@ export default function EditRoomType({
     return (
         <>
             <Head title={`Edit ${roomType.name}`} />
-            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6 p-4 md:p-6">
-                <header className="space-y-1">
+            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
                     <h1 className="text-2xl font-semibold tracking-tight break-words">
                         {roomType.name}
                     </h1>

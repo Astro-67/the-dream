@@ -24,6 +24,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
+import { EmptyState } from '@/components/ui/empty-state';
 import { ruleSize } from '@/lib/utils';
 import { change, end, preview, store } from '@/routes/tax-rules';
 import { Spinner } from '@/components/ui/spinner';
@@ -49,8 +51,6 @@ const appliesTo = {
     both: 'Rooms and extras',
 };
 const rounding = { half_up: 'Half up', up: 'Up', down: 'Down' };
-const selectClass =
-    'h-9 w-full rounded-md border border-input bg-background px-3';
 
 function Select({
     name,
@@ -70,12 +70,11 @@ function Select({
     return (
         <div className="space-y-2">
             <Label htmlFor={name}>{label}</Label>
-            <select
+            <NativeSelect
                 id={name}
                 name={name}
                 defaultValue={defaultValue}
-                onChange={(e) => onChange?.(e.target.value)}
-                className={selectClass}
+                onChange={(event) => onChange?.(event.target.value)}
                 aria-invalid={!!error}
             >
                 {Object.entries(options).map(([value, text]) => (
@@ -83,7 +82,7 @@ function Select({
                         {text}
                     </option>
                 ))}
-            </select>
+            </NativeSelect>
             <InputError message={error} />
         </div>
     );
@@ -254,7 +253,7 @@ function AddRule({ currencies }: { currencies: string[] }) {
             <DialogTrigger asChild>
                 <Button>Add tax rule</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-[720px]">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[720px]">
                 <DialogTitle>Add tax rule</DialogTitle>
                 <DialogDescription>
                     A tax or service charge in force from a date. Rules with the
@@ -306,7 +305,7 @@ function ChangeRule({
                     Change
                 </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-[720px]">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[720px]">
                 <DialogTitle>Change {rule.name}</DialogTitle>
                 <DialogDescription>
                     The current terms end the day before the new ones start.
@@ -420,8 +419,8 @@ export default function TaxRules({
     return (
         <>
             <Head title="Taxes and service charges" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
                     <h1 className="text-2xl font-semibold tracking-tight">
                         Taxes and service charges
                     </h1>
@@ -433,12 +432,13 @@ export default function TaxRules({
                     </div>
                 </header>
                 {taxRules.length === 0 ? (
-                    <p className="text-muted-foreground">
-                        No tax rules yet.{' '}
-                        {canManage
-                            ? 'Add a tax rule so charges carry their taxes.'
-                            : ''}
-                    </p>
+                    <EmptyState
+                        message={
+                            canManage
+                                ? 'No tax rules yet. Add a tax rule so charges carry their taxes.'
+                                : 'No tax rules yet.'
+                        }
+                    />
                 ) : (
                     <Table>
                         <TableHeader>

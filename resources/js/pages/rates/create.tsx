@@ -5,6 +5,7 @@ import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { AdjustmentFields } from '@/features/rates/adjustment-fields';
 import { CancellationPolicyFields } from '@/features/rates/cancellation-policy-fields';
@@ -27,8 +28,8 @@ export default function CreateRatePlan({
     return (
         <>
             <Head title="Add rate plan" />
-            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6 p-4 md:p-6">
-                <h1 className="text-2xl font-semibold tracking-tight">
+            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6">
+                <h1 className="border-b pb-6 text-2xl font-semibold tracking-tight">
                     Add rate plan
                 </h1>
                 <Form
@@ -67,12 +68,11 @@ export default function CreateRatePlan({
                                 <Label htmlFor="base_rate_plan_id">
                                     Prices
                                 </Label>
-                                <select
+                                <NativeSelect
                                     id="base_rate_plan_id"
                                     name="base_rate_plan_id"
                                     value={baseId}
                                     onChange={(e) => setBaseId(e.target.value)}
-                                    className="h-9 w-full rounded-md border border-input bg-background px-3"
                                     aria-invalid={!!errors.base_rate_plan_id}
                                 >
                                     <option value="">Own prices</option>
@@ -82,7 +82,7 @@ export default function CreateRatePlan({
                                             {plan.name}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                                 <InputError
                                     message={errors.base_rate_plan_id}
                                 />
@@ -106,10 +106,9 @@ export default function CreateRatePlan({
                                         <Label htmlFor="currency">
                                             Currency
                                         </Label>
-                                        <select
+                                        <NativeSelect
                                             id="currency"
                                             name="currency"
-                                            className="h-9 w-full rounded-md border border-input bg-background px-3"
                                             aria-invalid={!!errors.currency}
                                         >
                                             {currencies.map((currency) => (
@@ -117,7 +116,7 @@ export default function CreateRatePlan({
                                                     {currency}
                                                 </option>
                                             ))}
-                                        </select>
+                                        </NativeSelect>
                                         <InputError message={errors.currency} />
                                     </div>
                                     <fieldset className="space-y-3">

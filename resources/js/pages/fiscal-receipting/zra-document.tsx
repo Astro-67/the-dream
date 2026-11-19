@@ -1,6 +1,7 @@
 import { Head, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
@@ -84,7 +85,7 @@ function Sheet({
     return (
         <article
             id={`document-${document.type}-${document.number}`}
-            className="zra-sheet break-after-page space-y-4 last:break-after-auto"
+            className="zra-sheet break-after-page space-y-4 border-b pb-8 last:break-after-auto last:border-0 last:pb-0 print:border-0 print:pb-0"
         >
             <p className="text-center text-xs tracking-widest text-muted-foreground uppercase">
                 Start of a legal {isReport ? 'report' : 'receipt'}
@@ -297,7 +298,7 @@ export default function ZraDocument({
             </Head>
             <div
                 data-paper={paper}
-                className="receipt-print mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-8 p-4 text-sm [overflow-wrap:anywhere] md:p-6 print:gap-0 print:p-0"
+                className="receipt-print flex w-full max-w-[720px] min-w-0 flex-col gap-8 text-sm [overflow-wrap:anywhere] print:gap-0"
             >
                 <div className="flex flex-col gap-8 print:gap-0">
                     {documents.map((document) => (
@@ -311,11 +312,16 @@ export default function ZraDocument({
                     ))}
                 </div>
                 {documents.length === 0 && (
-                    <p className="text-muted-foreground">
-                        {property.name} has no issued ZRA documents to print.
-                    </p>
+                    <section className="space-y-4">
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            ZRA documents
+                        </h1>
+                        <EmptyState
+                            message={`${property.name} has no issued ZRA documents to print.`}
+                        />
+                    </section>
                 )}
-                <div className="flex flex-wrap items-end gap-3 print:hidden">
+                <div className="flex flex-wrap items-end gap-3 border-t pt-6 print:hidden">
                     <div className="space-y-2">
                         <Label htmlFor="zra-paper">Paper size</Label>
                         <NativeSelect

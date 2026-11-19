@@ -9,7 +9,7 @@ function render(canManage: boolean) {
         from: '2026-10-09',
         to: '2026-10-11',
         dates,
-        businessDate: '2026-10-08',
+        businessDate: '2026-10-09',
         allRoomTypes: [{ id: 'deluxe', code: 'DLX', name: 'Deluxe' }],
         roomTypes: [
             {
@@ -70,4 +70,20 @@ assert.match(
     /aria-label="Release stop-sell for Breakfast, Deluxe"[^>]*>Release stop-sell<\/button>/,
 );
 assert.doesNotMatch(render(false), /Release stop-sell/);
+assert.match(
+    render(false),
+    /role="region" aria-label="Room availability and rate calendar" tabindex="0"/,
+    'Read-only users can focus and scroll the calendar with a keyboard',
+);
+assert.match(
+    render(true),
+    /<caption[^>]*>Room availability, prices and restrictions/,
+);
+assert.doesNotMatch(render(true), /rounded-xl/);
+assert.match(render(true), /table-fixed/);
+assert.match(render(true), /style="width:31rem"/);
+assert.match(render(true), /<colgroup><col class="w-40"\/><col class="w-28"/);
+assert.match(render(true), /aria-current="date"/);
+assert.match(render(true), /<fieldset class="max-w-full min-w-0"/);
+assert.match(render(true), /<span class="min-w-0 break-words">Deluxe<\/span>/);
 console.log('Rate calendar release stop-sell action and permissions: PASS');

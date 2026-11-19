@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { formatMoney, ruleSize } from '@/lib/utils';
 import { index, preview } from '@/routes/tax-rules';
 
@@ -47,8 +49,8 @@ export default function TaxPreview({
     return (
         <>
             <Head title="Tax preview" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
                     <h1 className="text-2xl font-semibold tracking-tight">
                         Tax preview
                     </h1>
@@ -58,9 +60,10 @@ export default function TaxPreview({
                 </header>
                 <Form
                     {...preview.form()}
-                    className="flex max-w-[720px] flex-col gap-6"
+                    className="flex w-full max-w-[720px] min-w-0 flex-col gap-6 border-b pb-6"
+                    disableWhileProcessing
                 >
-                    {({ errors }) => (
+                    {({ errors, processing }) => (
                         <>
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="space-y-2">
@@ -81,21 +84,21 @@ export default function TaxPreview({
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="currency">Currency</Label>
-                                    <select
+                                    <NativeSelect
                                         id="currency"
                                         name="currency"
                                         defaultValue={charge.currency}
                                         onChange={(event) =>
                                             setCurrency(event.target.value)
                                         }
-                                        className="h-9 w-full rounded-md border border-input bg-background px-3"
+                                        aria-invalid={!!errors.currency}
                                     >
                                         {currencies.map((currency) => (
                                             <option key={currency}>
                                                 {currency}
                                             </option>
                                         ))}
-                                    </select>
+                                    </NativeSelect>
                                     <InputError message={errors.currency} />
                                 </div>
                                 <div className="space-y-2">
@@ -126,21 +129,28 @@ export default function TaxPreview({
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="charge">Charge</Label>
-                                    <select
+                                    <NativeSelect
                                         id="charge"
                                         name="charge"
                                         defaultValue={charge.charge}
-                                        className="h-9 w-full rounded-md border border-input bg-background px-3"
+                                        aria-invalid={!!errors.charge}
                                     >
                                         <option value="room">
                                             Room charge
                                         </option>
                                         <option value="extra">Extra</option>
-                                    </select>
+                                    </NativeSelect>
                                     <InputError message={errors.charge} />
                                 </div>
                             </div>
-                            <Button type="submit" className="self-end">
+                            <Button
+                                type="submit"
+                                className="self-end"
+                                disabled={processing}
+                            >
+                                <span className="size-4">
+                                    {processing && <Spinner />}
+                                </span>
                                 Show breakdown
                             </Button>
                         </>
@@ -152,7 +162,16 @@ export default function TaxPreview({
                     </p>
                 )}
                 {breakdown && (
-                    <div className="max-w-[720px]">
+                    <section
+                        className="w-full max-w-[720px] min-w-0 space-y-4"
+                        aria-labelledby="tax-breakdown"
+                    >
+                        <h2
+                            id="tax-breakdown"
+                            className="text-lg font-semibold tracking-tight"
+                        >
+                            Tax breakdown
+                        </h2>
                         <Table>
                             <TableBody>
                                 <TableRow>
@@ -212,7 +231,7 @@ export default function TaxPreview({
                                 </TableRow>
                             </tfoot>
                         </Table>
-                    </div>
+                    </section>
                 )}
             </div>
         </>

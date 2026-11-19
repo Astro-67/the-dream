@@ -337,3 +337,50 @@ for (const path of ['contact-pages', 'identity-documents']) {
 console.log(
     'Shared guest/booker forms, read-only empty states and flat identity sections: PASS',
 );
+
+const batch4Pages = [
+    'housekeeping/assignments',
+    'housekeeping/history',
+    'housekeeping/index',
+    'housekeeping/my-rooms',
+    'inventory/room-types/create',
+    'inventory/room-types/edit',
+    'inventory/room-types/index',
+    'inventory/rooms/create',
+    'inventory/rooms/edit',
+    'inventory/rooms/index',
+    'maintenance/index',
+    'maintenance/show',
+    'rates/calendar',
+    'rates/create',
+    'rates/edit',
+    'rates/index',
+    'rates/prices',
+    'rates/quote',
+    'rates/restrictions',
+];
+for (const page of batch4Pages) {
+    const source = readFileSync(`resources/js/pages/${page}.tsx`, 'utf8');
+    assert.match(source, /<h1\b/, `${page} has an explicit page title`);
+    assert.doesNotMatch(
+        source,
+        /p-4 md:(?:gap-8 md:)?p-6/,
+        `${page} uses shell-owned gutters`,
+    );
+    assert.doesNotMatch(
+        source,
+        /rounded-xl/,
+        `${page} uses flat operational sections`,
+    );
+}
+const rateCalendarSource = readFileSync(
+    'resources/js/pages/rates/calendar.tsx',
+    'utf8',
+);
+assert.match(rateCalendarSource, /grid gap-4 sm:grid-cols-2/);
+assert.match(rateCalendarSource, /grid gap-4 sm:grid-cols-3/);
+assert.match(rateCalendarSource, /sticky left-0/);
+assert.match(rateCalendarSource, /sticky top-0/);
+console.log(
+    'Batch 4 headings, flat sections, gutters and responsive calendar editing: PASS',
+);

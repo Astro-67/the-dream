@@ -157,9 +157,9 @@ export default function RoomsIndex({
     return (
         <>
             <Head title="Rooms" />
-            <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-6">
-                <header className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="space-y-1">
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
+                    <div className="min-w-0 space-y-2">
                         <h1 className="text-2xl font-semibold tracking-tight">
                             Rooms
                         </h1>
@@ -216,7 +216,7 @@ export default function RoomsIndex({
                 {deactivatedRooms.length > 0 && (
                     <section
                         aria-labelledby="deactivated-rooms"
-                        className="flex flex-col gap-3"
+                        className="flex min-w-0 flex-col gap-3 border-t pt-6"
                     >
                         <div className="space-y-1">
                             <h2

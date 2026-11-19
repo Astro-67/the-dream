@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
 import type { SelectOption } from '@/types';
-import Heading from '@/components/heading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
@@ -195,11 +194,14 @@ export default function HousekeepingBoard({
     return (
         <>
             <Head title="Housekeeping" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title="Housekeeping"
-                    description={`Room status across this property. Business date ${formatDate(businessDate)}.`}
-                />
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold">Housekeeping</h1>
+                    <p className="text-sm text-muted-foreground">
+                        Room status across this property. Business date{' '}
+                        {formatDate(businessDate)}.
+                    </p>
+                </header>
                 <Form
                     {...index.form()}
                     className="flex flex-wrap items-end gap-4"

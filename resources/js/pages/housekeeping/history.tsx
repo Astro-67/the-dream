@@ -1,6 +1,5 @@
 import { Head } from '@inertiajs/react';
 import { StatusChip, type StatusTone } from '@/components/ui/status-chip';
-import Heading from '@/components/heading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pagination } from '@/components/ui/pagination';
 import {
@@ -43,11 +42,17 @@ export default function RoomHistory({
     return (
         <>
             <Head title={`Room ${room.number} history`} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title={`Room ${room.number} history`}
-                    description={`Status changes and readiness overrides, newest first. Times in ${timezone}. Business date ${formatDate(businessDate)}.`}
-                />
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold break-words">
+                        Room {room.number} history
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                        Status changes and readiness overrides, newest first.
+                        Times in {timezone}. Business date{' '}
+                        {formatDate(businessDate)}.
+                    </p>
+                </header>
                 {changes.data.length === 0 ? (
                     <EmptyState message="No room history yet." />
                 ) : (

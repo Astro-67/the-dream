@@ -1,5 +1,4 @@
 import { Form, Head } from '@inertiajs/react';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -51,11 +50,16 @@ export default function MaintenanceTicket({
     return (
         <>
             <Head title={ticket.title} />
-            <div className="flex max-w-[720px] flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title={ticket.title}
-                    description={`${ticket.place ?? 'No room or area given'} · reported by ${ticket.reportedBy}`}
-                />
+            <div className="flex max-w-[720px] min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold break-words">
+                        {ticket.title}
+                    </h1>
+                    <p className="text-sm break-words text-muted-foreground">
+                        {ticket.place ?? 'No room or area given'} · reported by{' '}
+                        {ticket.reportedBy}
+                    </p>
+                </header>
                 <div className="flex flex-wrap items-center gap-2">
                     <StatusChip tone={ticket.done ? 'success' : 'info'}>
                         {ticket.done ? 'Done' : 'Open'}
@@ -66,7 +70,9 @@ export default function MaintenanceTicket({
                         Assigned to {ticket.assignee ?? 'nobody yet'}
                     </span>
                 </div>
-                <p className="whitespace-pre-line">{ticket.description}</p>
+                <p className="break-words whitespace-pre-line">
+                    {ticket.description}
+                </p>
                 <p className="text-sm text-muted-foreground">
                     Finishing a ticket does not change the room's status or
                     availability. Use an out-of-order period to block a room.
@@ -74,8 +80,9 @@ export default function MaintenanceTicket({
                 {canAssign && (
                     <Form
                         {...assign.form(ticket.id)}
+                        disableWhileProcessing
                         options={{ preserveScroll: true }}
-                        className="flex flex-wrap items-end gap-4"
+                        className="flex min-w-0 flex-wrap items-end gap-4 [&>div]:max-w-full [&>div]:min-w-0"
                     >
                         {({ errors, processing }) => (
                             <>
@@ -143,7 +150,7 @@ export default function MaintenanceTicket({
                         )}
                     </Form>
                 )}
-                <section className="grid gap-3">
+                <section className="grid min-w-0 gap-3 border-t pt-6">
                     <h2 className="text-lg">History</h2>
                     <Table>
                         <TableHeader>

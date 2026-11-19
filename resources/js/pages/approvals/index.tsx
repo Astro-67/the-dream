@@ -1,5 +1,4 @@
 import { Form, Head, Link } from '@inertiajs/react';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -102,11 +101,16 @@ export default function Approvals({
     return (
         <>
             <Head title="Approvals" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title="Approvals"
-                    description="Refunds, reversals and write-offs awaiting a second user. Pending requests do not change folio balances."
-                />
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        Approvals
+                    </h1>
+                    <p className="max-w-prose text-sm text-muted-foreground">
+                        Refunds, reversals and write-offs awaiting a second
+                        user. Pending requests do not change folio balances.
+                    </p>
+                </header>
                 {approvals.data.length === 0 ? (
                     <EmptyState message="No pending approvals. Requests above the property's currency threshold appear here." />
                 ) : (
@@ -134,7 +138,7 @@ export default function Approvals({
                                             />
                                         </Link>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="max-w-sm space-y-2 whitespace-normal">
                                         <p>{approval.type.replace('_', '-')}</p>
                                         <StatusChip tone="warning">
                                             Pending
@@ -161,7 +165,7 @@ export default function Approvals({
                     </Table>
                 )}
                 <Pagination page={approvals} />
-                <section className="max-w-[720px] space-y-4">
+                <section className="w-full max-w-[720px] space-y-4 border-t pt-6">
                     <h2 className="text-lg font-semibold">
                         Approval thresholds
                     </h2>

@@ -7,7 +7,11 @@ Batch 1's integrated checks, evidence and remaining limits are recorded in
 are also implemented, browser-reviewed and validated**; see
 [its handoff](BATCH-2.md). **Batch 3's 19 front-desk, reservation and guest/booker
 pages are implemented, browser-reviewed and validated**; see
-[its handoff](BATCH-3.md). Batch 4 is next; later page families remain pending.
+[its handoff](BATCH-3.md). **Batch 4's 19 rooms, housekeeping, maintenance and
+rates pages are implemented, browser-reviewed and validated**; see
+[its handoff](BATCH-4.md). **Batch 5's 14 finance, reporting and compliance
+pages are implemented and browser-reviewed**; see [its handoff](BATCH-5.md)
+for checks and print limitations. Batch 6 is next.
 Continue from this package rather than repeating the design conversation.
 The owner's later Batch 1 refinements (supplied photography, landing masthead,
 DM Sans hero, icon-only pause and reduced decorative ticks) are recorded in
@@ -119,7 +123,7 @@ visual review on representative pages, not another concept round for every page.
 
 ```text
 Read AGENTS.md and docs/ui-redesign/README.md.
-Start Batch 4 only from docs/ui-redesign/CHECKLIST.md after verifying the implementation base.
+Start Batch 6 only from docs/ui-redesign/CHECKLIST.md after verifying the implementation base.
 Preserve existing local work, use the approved references and existing shared components,
 validate the changed UI and required tests, and update the checklist and handoff record.
 Leave later batches for subsequent threads.

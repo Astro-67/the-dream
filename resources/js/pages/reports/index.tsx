@@ -62,12 +62,15 @@ export default function PropertyReport({
             }
         >
             {(filingsAvailable || filters.view === 'filings') && (
-                <nav aria-label="Report views" className="flex gap-2">
+                <nav
+                    aria-label="Report views"
+                    className="flex flex-wrap gap-2 border-b pb-4"
+                >
                     {Object.entries(views).map(([view, label]) => (
                         <Button
                             key={view}
                             variant={
-                                filters.view === view ? 'default' : 'outline'
+                                filters.view === view ? 'secondary' : 'outline'
                             }
                             asChild
                         >
@@ -95,7 +98,7 @@ export default function PropertyReport({
             {filings && <ZraFilings filings={filings} range={filters} />}
             {fiscalExceptions && (
                 <section
-                    className="space-y-4"
+                    className="min-w-0 space-y-4 border-t pt-6"
                     aria-labelledby="fiscal-exceptions-heading"
                 >
                     <h2

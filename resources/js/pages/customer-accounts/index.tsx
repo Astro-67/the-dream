@@ -1,6 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -64,12 +63,17 @@ export default function Index({
     return (
         <>
             <Head title="Day use & events" />
-            <div className="space-y-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="Day use & events"
-                        description="Sales without a room: add items, take payment, then close and issue the receipt."
-                    />
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
+                    <div className="min-w-0 space-y-2">
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            Day use & events
+                        </h1>
+                        <p className="max-w-prose text-sm text-muted-foreground">
+                            Sales without a room: add items, take payment, then
+                            close and issue the receipt.
+                        </p>
+                    </div>
                     {canCreate && (
                         <div className="flex flex-wrap gap-2">
                             <NewAccount
@@ -84,10 +88,10 @@ export default function Index({
                             />
                         </div>
                     )}
-                </div>
+                </header>
                 <Form
                     {...index.form()}
-                    className="flex flex-wrap items-end gap-3"
+                    className="flex flex-wrap items-end gap-4 border-b pb-6"
                 >
                     <div className="space-y-2">
                         <Label htmlFor="kind-filter">Kind</Label>

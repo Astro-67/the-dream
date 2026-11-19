@@ -1,6 +1,5 @@
 import { Form, Head, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,13 +34,20 @@ export default function ReportLayout({
     return (
         <>
             <Head title={title} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <Heading title={title} description={description} />
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        {title}
+                    </h1>
+                    <p className="max-w-prose text-sm text-muted-foreground">
+                        {description}
+                    </p>
+                </header>
                 <Form
                     action={action}
                     method="get"
                     options={{ preserveState: true }}
-                    className="flex flex-wrap items-end gap-4"
+                    className="flex min-w-0 flex-wrap items-end gap-4 border-b pb-6 [&>div]:max-w-full [&>div]:min-w-0 [&>fieldset]:min-w-0"
                 >
                     {({ errors, processing }) => (
                         <>
@@ -83,7 +89,6 @@ export default function ReportLayout({
                             {fields}
                             <Button
                                 type="submit"
-                                variant="secondary"
                                 className="min-h-11 md:min-h-9"
                                 disabled={processing}
                             >

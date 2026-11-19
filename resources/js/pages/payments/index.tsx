@@ -84,7 +84,10 @@ export default function Payments({
                     </Link>
                 </div>
             )}
-            <nav aria-label="Payment period" className="flex flex-wrap gap-2">
+            <nav
+                aria-label="Payment period"
+                className="flex flex-wrap gap-2 border-b pb-4"
+            >
                 {Object.entries(periodLabels)
                     .filter(([period]) => period !== 'custom')
                     .map(([period, label]) => (
@@ -92,7 +95,7 @@ export default function Payments({
                             key={period}
                             variant={
                                 filters.period === period
-                                    ? 'default'
+                                    ? 'secondary'
                                     : 'outline'
                             }
                             size="sm"
@@ -133,11 +136,16 @@ export default function Payments({
                     </Link>
                 </Button>
             )}
-            <nav aria-label="Payment views" className="flex gap-2">
+            <nav
+                aria-label="Payment views"
+                className="flex flex-wrap gap-2 border-b pb-4"
+            >
                 {['received', 'outstanding'].map((view) => (
                     <Button
                         key={view}
-                        variant={filters.view === view ? 'default' : 'outline'}
+                        variant={
+                            filters.view === view ? 'secondary' : 'outline'
+                        }
                         asChild
                     >
                         <Link
@@ -153,7 +161,7 @@ export default function Payments({
             </nav>
             <section
                 aria-labelledby="payment-view-title"
-                className="grid gap-4"
+                className="grid min-w-0 gap-4"
             >
                 <h2 id="payment-view-title" className="text-lg font-semibold">
                     {filters.view === 'received' ? 'Received' : 'Outstanding'}

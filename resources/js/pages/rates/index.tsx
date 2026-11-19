@@ -109,8 +109,8 @@ export default function RatePlans({
     return (
         <>
             <Head title="Rate plans" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
                     <h1 className="text-2xl font-semibold tracking-tight">
                         Rate plans
                     </h1>
@@ -121,7 +121,13 @@ export default function RatePlans({
                     )}
                 </header>
                 {ratePlans.length === 0 ? (
-                    <EmptyState message="No rate plans yet. Add a rate plan to set prices." />
+                    <EmptyState
+                        message={
+                            canManage
+                                ? 'No rate plans yet. Add a rate plan to set prices.'
+                                : 'No rate plans yet.'
+                        }
+                    />
                 ) : (
                     <Table>
                         <TableHeader>

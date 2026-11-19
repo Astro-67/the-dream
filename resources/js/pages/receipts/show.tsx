@@ -116,14 +116,14 @@ export default function Show({
             </Head>
             <div
                 data-paper={paper}
-                className="receipt-print flex max-w-[720px] flex-col gap-6 p-4 md:p-6"
+                className="receipt-print flex w-full max-w-[720px] min-w-0 flex-col gap-6 [overflow-wrap:anywhere]"
             >
-                <header className="space-y-3">
+                <header className="space-y-3 border-b pb-6 print:border-0 print:pb-0">
                     <p className="text-sm text-muted-foreground">
                         {property.name}, {property.address_line},{' '}
                         {property.city}. {property.phone}, {property.email}
                     </p>
-                    <h1 className="text-2xl font-semibold">
+                    <h1 className="text-2xl font-semibold tracking-tight">
                         {receipt.label.toUpperCase()}
                     </h1>
                     <p>
@@ -240,7 +240,7 @@ export default function Show({
                         </div>
                     ))}
                 </dl>
-                <section className="space-y-2">
+                <section className="space-y-3 border-t pt-6 print:border-0 print:pt-0">
                     <h2 className="font-semibold">
                         Folio summary at payment time
                     </h2>
@@ -288,7 +288,7 @@ export default function Show({
                 </section>
                 {advancePayment && <AdvanceReceipt advance={advancePayment} />}
                 {later.length > 0 && (
-                    <section className="space-y-1">
+                    <section className="space-y-2 border-t pt-6 print:border-0 print:pt-0">
                         <h2 className="font-semibold">Later corrections</h2>
                         {later.map((correction) => (
                             <p
@@ -324,7 +324,7 @@ export default function Show({
                             : 'Folio statement'}
                     </Link>
                 )}
-                <div className="flex flex-wrap items-end gap-3 print:hidden">
+                <div className="flex flex-wrap items-end gap-3 border-t pt-6 print:hidden">
                     <div className="space-y-2">
                         <Label htmlFor="receipt-paper">Paper size</Label>
                         <NativeSelect

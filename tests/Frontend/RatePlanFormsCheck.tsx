@@ -37,6 +37,9 @@ const create = render(() => (
     />
 ));
 assert.match(create, /Cancellation policy/);
+assert.match(create, /<select data-slot="select"[^>]*id="base_rate_plan_id"/);
+assert.match(create, /<select data-slot="select"[^>]*id="currency"/);
+assert.doesNotMatch(create, /p-4 md:p-6/);
 assert.match(create, /name="cancellation_free_days"[^>]*value=""/);
 assert.match(
     create,
@@ -72,6 +75,7 @@ function edit(kind: 'percent' | 'amount' | null, adjustment: number | null) {
 }
 
 const percent = edit('percent', 10);
+assert.match(percent, /<h1[^>]*break-words/);
 assert.match(
     percent,
     /name="adjustment_kind"[\s\S]*?<option value="percent" selected="">/,

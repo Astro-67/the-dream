@@ -103,7 +103,9 @@ export type ZraDocumentsOverview = {
     generalReceipts: (Pick<
         GeneralReceipt,
         'customer' | 'amount' | 'currency' | 'status'
-    > & { number: string })[];
+    > & {
+        number: string;
+    })[];
     guestReports: { number: string; room: string | null }[];
 };
 
@@ -247,7 +249,7 @@ function Section({
     children: React.ReactNode;
 }) {
     return (
-        <section className="min-w-0 space-y-3 print:break-inside-avoid">
+        <section className="min-w-0 space-y-3 border-t pt-6 print:break-inside-avoid print:border-0 print:pt-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">
                     {title} ({count})
@@ -354,14 +356,14 @@ export default function CheckoutReport({
                 className={
                     embedded
                         ? 'flex min-w-0 flex-col gap-6 text-sm'
-                        : 'receipt-print flex w-full min-w-0 flex-col gap-8 p-4 text-sm [overflow-wrap:anywhere] md:p-6'
+                        : 'receipt-print flex w-full min-w-0 flex-col gap-6 text-sm [overflow-wrap:anywhere] md:gap-8'
                 }
             >
                 {!embedded && (
-                    <header className="space-y-3">
+                    <header className="space-y-3 border-b pb-6 print:border-0 print:pb-0">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0 space-y-1">
-                                <h1 className="text-2xl font-semibold text-balance">
+                                <h1 className="text-2xl font-semibold tracking-tight text-balance">
                                     ZRA documents ·{' '}
                                     {reservationUrl ? (
                                         <Link

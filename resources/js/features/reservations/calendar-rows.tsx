@@ -136,7 +136,7 @@ export function CalendarRoomRows({
                         <a
                             key={reservation.reservation_number}
                             href={reservation.url}
-                            className="block rounded-md px-3 py-2 text-xs text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                            className="block px-3 py-2 text-xs break-words whitespace-normal text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                         >
                             Departure: {reservation.guest_name}{' '}
                             <Identifier
@@ -189,9 +189,11 @@ export function CalendarRoomRows({
                                 <a
                                     href={reservation.url}
                                     aria-label={description}
-                                    className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-primary-tint px-3 py-2 text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                    className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-3 gap-y-1 bg-primary-tint px-3 py-2 break-words whitespace-normal text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                                 >
-                                    <span>{reservation.guest_name}</span>
+                                    <span className="max-w-full min-w-0">
+                                        {reservation.guest_name}
+                                    </span>
                                     {reservation.is_overstay && (
                                         <StatusChip tone="warning">
                                             Overstay
@@ -237,14 +239,14 @@ export function CalendarRoomRows({
                         <TableHead
                             scope="row"
                             rowSpan={lanes.length}
-                            className="sticky left-0 z-10 border-b bg-card px-3 py-2 text-left font-normal whitespace-nowrap"
+                            className="sticky left-0 z-10 border-b bg-card px-3 py-2 text-left font-normal break-words whitespace-normal"
                         >
                             Room <Identifier value={room.number} />
                             {canManage && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="ml-2 min-h-11 md:min-h-8"
+                                    className="mt-2 flex min-h-11 md:min-h-8"
                                     aria-label={`Take room ${room.number} out of order`}
                                     onClick={() =>
                                         onOutOfOrder?.(

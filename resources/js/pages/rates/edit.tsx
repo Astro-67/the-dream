@@ -29,8 +29,8 @@ export default function EditRatePlan({
     return (
         <>
             <Head title={`Edit ${plan.name}`} />
-            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6 p-4 md:p-6">
-                <h1 className="text-2xl font-semibold tracking-tight">
+            <div className="mx-auto flex w-full max-w-[720px] min-w-0 flex-col gap-6">
+                <h1 className="border-b pb-6 text-2xl font-semibold tracking-tight break-words">
                     Edit {plan.name}
                 </h1>
                 <Form
