@@ -122,7 +122,7 @@ export function RoomTypeFields({
                     maxLength={2000}
                     aria-invalid={!!errors.description}
                     defaultValue={values?.description ?? ''}
-                    className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                    className="w-full min-w-0 border border-input bg-card px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none aria-invalid:border-destructive"
                 />
             </Field>
             <CountField

@@ -1,0 +1,148 @@
+{
+    "date": "2026-11-19",
+    "fixtureClock": "2026-12-10",
+    "results": [
+        {
+            "name": "customer-account",
+            "width": 1440,
+            "theme": "light",
+            "scroll": 1440,
+            "dark": false,
+            "h1": "Sample conference customer",
+            "fields": []
+        },
+        {
+            "name": "zra-document",
+            "width": 1440,
+            "theme": "light",
+            "scroll": 1440,
+            "dark": false,
+            "h1": "ZRA documents",
+            "fields": []
+        },
+        {
+            "name": "taxes",
+            "width": 1440,
+            "theme": "light",
+            "scroll": 1440,
+            "dark": false,
+            "h1": "Taxes and service charges",
+            "fields": []
+        },
+        {
+            "name": "property-report",
+            "width": 1440,
+            "theme": "light",
+            "scroll": 1440,
+            "dark": false,
+            "h1": "Property reports",
+            "fields": []
+        },
+        {
+            "name": "customer-account",
+            "width": 390,
+            "theme": "dark",
+            "scroll": 390,
+            "dark": true,
+            "h1": "Sample conference customer",
+            "fields": []
+        },
+        {
+            "name": "zra-document",
+            "width": 390,
+            "theme": "dark",
+            "scroll": 390,
+            "dark": true,
+            "h1": "ZRA documents",
+            "fields": []
+        },
+        {
+            "name": "taxes",
+            "width": 390,
+            "theme": "dark",
+            "scroll": 390,
+            "dark": true,
+            "h1": "Taxes and service charges",
+            "fields": []
+        },
+        {
+            "name": "property-report",
+            "width": 390,
+            "theme": "dark",
+            "scroll": 390,
+            "dark": true,
+            "h1": "Property reports",
+            "fields": []
+        },
+        {
+            "name": "system-appearance",
+            "scheme": "light"
+        },
+        {
+            "name": "system-appearance",
+            "scheme": "dark"
+        },
+        {
+            "name": "narrow-workspace",
+            "page": "customer-account",
+            "width": 320
+        },
+        {
+            "name": "narrow-workspace",
+            "page": "payments",
+            "width": 320
+        },
+        {
+            "name": "narrow-workspace",
+            "page": "tax-preview",
+            "width": 320
+        },
+        {
+            "name": "narrow-workspace",
+            "page": "receipts",
+            "width": 320
+        },
+        {
+            "name": "narrow-workspace",
+            "page": "group-report",
+            "width": 320
+        },
+        {
+            "name": "tax-preview-keyboard-order"
+        },
+        {
+            "name": "real-tax-breakdown"
+        },
+        {
+            "name": "offline-retains-report"
+        },
+        {
+            "name": "report-server-validation"
+        },
+        {
+            "name": "receipt-print",
+            "paper": "a4",
+            "label": "NON-FISCAL RECEIPT",
+            "color": "rgb(0, 0, 0)",
+            "controls": true,
+            "width": 320
+        },
+        {
+            "name": "receipt-print",
+            "paper": "thermal",
+            "label": "NON-FISCAL RECEIPT",
+            "color": "rgb(0, 0, 0)",
+            "controls": true,
+            "width": 272.125
+        },
+        {
+            "name": "synthetic-zra-print",
+            "paper": "a4"
+        },
+        {
+            "name": "synthetic-zra-print",
+            "paper": "thermal"
+        }
+    ],
+    "errors": []
+}

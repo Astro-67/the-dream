@@ -33,9 +33,9 @@ export default function RoomTypesIndex({
     return (
         <>
             <Head title="Room types" />
-            <div className="flex flex-col gap-6 p-4 md:gap-8 md:p-6">
-                <header className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="space-y-1">
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
+                    <div className="min-w-0 space-y-2">
                         <h1 className="text-2xl font-semibold tracking-tight">
                             Room types
                         </h1>

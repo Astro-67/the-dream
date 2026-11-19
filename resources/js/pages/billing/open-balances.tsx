@@ -1,5 +1,4 @@
 import { Head, Link } from '@inertiajs/react';
-import Heading from '@/components/heading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
@@ -32,11 +31,16 @@ export default function OpenBalances({
     return (
         <>
             <Head title="Open balances after departure" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title="Open balances after departure"
-                    description="Guests checked out with a balance left on a folio. Each stays here until its balance is zero."
-                />
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        Open balances after departure
+                    </h1>
+                    <p className="max-w-prose text-sm text-muted-foreground">
+                        Guests checked out with a balance left on a folio. Each
+                        stays here until its balance is zero.
+                    </p>
+                </header>
                 {folios.data.length === 0 ? (
                     <EmptyState message="No open balances after departure." />
                 ) : (

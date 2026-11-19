@@ -12,6 +12,8 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import { formatMoney } from '@/lib/utils';
 import { index, prices, quote as quoteRoute } from '@/routes/rate-plans';
 
@@ -51,9 +53,9 @@ export default function QuotePreview({
     return (
         <>
             <Head title={`${plan.name} quote`} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-center justify-between gap-4">
-                    <h1 className="text-2xl font-semibold tracking-tight">
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
+                    <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">
                         Quote preview: {plan.name}
                     </h1>
                     <Button variant="outline" asChild>
@@ -62,24 +64,24 @@ export default function QuotePreview({
                 </header>
                 <Form
                     {...quoteRoute.form(plan.id)}
-                    className="flex max-w-[720px] flex-col gap-6"
+                    disableWhileProcessing
+                    className="flex max-w-[720px] min-w-0 flex-col gap-6 border-b pb-6"
                 >
-                    {({ errors }) => (
+                    {({ errors, processing }) => (
                         <>
                             <div className="space-y-2">
                                 <Label htmlFor="room_type_id">Room type</Label>
-                                <select
+                                <NativeSelect
                                     id="room_type_id"
                                     name="room_type_id"
                                     defaultValue={stay.room_type_id}
-                                    className="h-9 w-full rounded-md border border-input bg-background px-3"
                                 >
                                     {roomTypes.map((room) => (
                                         <option key={room.id} value={room.id}>
                                             {room.name}
                                         </option>
                                     ))}
-                                </select>
+                                </NativeSelect>
                                 <InputError message={errors.room_type_id} />
                             </div>
                             <div className="grid gap-4 sm:grid-cols-2">
@@ -120,6 +122,7 @@ export default function QuotePreview({
                                 ))}
                             </div>
                             <Button type="submit" className="self-end">
+                                {processing && <Spinner />}
                                 Show prices
                             </Button>
                         </>

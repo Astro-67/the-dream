@@ -110,55 +110,55 @@ Implemented, browser-reviewed and validated on 18 November 2026. See the
 
 ## Batch 4 - Rooms, housekeeping, maintenance and rates
 
-- [ ] Apply the operational visual family to the existing list/detail/form patterns.
-- [ ] Keep room readiness, assignments and out-of-service periods distinct.
-- [ ] Keep calendar/date-range navigation, horizontal scrolling and sticky labels usable.
-- [ ] Preserve real room/rate validation, currency labels and permissions.
+- [x] Apply the operational visual family to the existing list/detail/form patterns.
+- [x] Keep room readiness, assignments and out-of-service periods distinct.
+- [x] Keep calendar/date-range navigation, horizontal scrolling and sticky labels usable.
+- [x] Preserve real room/rate validation, currency labels and permissions.
 
 19 page files:
 
-- [ ] `housekeeping/assignments.tsx`
-- [ ] `housekeeping/history.tsx`
-- [ ] `housekeeping/index.tsx`
-- [ ] `housekeeping/my-rooms.tsx`
-- [ ] `inventory/room-types/create.tsx`
-- [ ] `inventory/room-types/edit.tsx`
-- [ ] `inventory/room-types/index.tsx`
-- [ ] `inventory/rooms/create.tsx`
-- [ ] `inventory/rooms/edit.tsx`
-- [ ] `inventory/rooms/index.tsx`
-- [ ] `maintenance/index.tsx`
-- [ ] `maintenance/show.tsx`
-- [ ] `rates/calendar.tsx`
-- [ ] `rates/create.tsx`
-- [ ] `rates/edit.tsx`
-- [ ] `rates/index.tsx`
-- [ ] `rates/prices.tsx`
-- [ ] `rates/quote.tsx`
-- [ ] `rates/restrictions.tsx`
+- [x] `housekeeping/assignments.tsx`
+- [x] `housekeeping/history.tsx`
+- [x] `housekeeping/index.tsx`
+- [x] `housekeeping/my-rooms.tsx`
+- [x] `inventory/room-types/create.tsx`
+- [x] `inventory/room-types/edit.tsx`
+- [x] `inventory/room-types/index.tsx`
+- [x] `inventory/rooms/create.tsx`
+- [x] `inventory/rooms/edit.tsx`
+- [x] `inventory/rooms/index.tsx`
+- [x] `maintenance/index.tsx`
+- [x] `maintenance/show.tsx`
+- [x] `rates/calendar.tsx`
+- [x] `rates/create.tsx`
+- [x] `rates/edit.tsx`
+- [x] `rates/index.tsx`
+- [x] `rates/prices.tsx`
+- [x] `rates/quote.tsx`
+- [x] `rates/restrictions.tsx`
 
 ## Batch 5 - Finance, reporting and compliance
 
-- [ ] Keep money, balances and mixed currencies precise; retain approval/override and receipt rules.
-- [ ] Keep reporting periods, authorized exports and jurisdiction-specific controls intact.
-- [ ] Recheck A4/80mm print views and fiscal/non-fiscal information after shared-style changes.
+- [x] Keep money, balances and mixed currencies precise; retain approval/override and receipt rules.
+- [x] Keep reporting periods, authorized exports and jurisdiction-specific controls intact.
+- [x] Recheck A4/80mm print views and fiscal/non-fiscal information after shared-style changes.
 
 14 page files:
 
-- [ ] `approvals/index.tsx`
-- [ ] `billing/open-balances.tsx`
-- [ ] `cashier-shifts/index.tsx`
-- [ ] `customer-accounts/index.tsx`
-- [ ] `customer-accounts/show.tsx`
-- [ ] `fiscal-receipting/checkout-report.tsx`
-- [ ] `fiscal-receipting/zra-document.tsx`
-- [ ] `payments/index.tsx`
-- [ ] `rates/tax-preview.tsx`
-- [ ] `rates/taxes.tsx`
-- [ ] `receipts/show.tsx`
-- [ ] `receipts/index.tsx`
-- [ ] `reports/group.tsx`
-- [ ] `reports/index.tsx`
+- [x] `approvals/index.tsx`
+- [x] `billing/open-balances.tsx`
+- [x] `cashier-shifts/index.tsx`
+- [x] `customer-accounts/index.tsx`
+- [x] `customer-accounts/show.tsx`
+- [x] `fiscal-receipting/checkout-report.tsx`
+- [x] `fiscal-receipting/zra-document.tsx`
+- [x] `payments/index.tsx`
+- [x] `rates/tax-preview.tsx`
+- [x] `rates/taxes.tsx`
+- [x] `receipts/show.tsx`
+- [x] `receipts/index.tsx`
+- [x] `reports/group.tsx`
+- [x] `reports/index.tsx`
 
 ## Batch 6 - Settings, teams, subscriptions and platform
 
@@ -198,6 +198,47 @@ Implemented, browser-reviewed and validated on 18 November 2026. See the
 - [ ] The owner reviews representative completed flows across all screen families.
 
 ## Handoff record
+
+- Latest completed implementation: **Batch 5 - Finance, reporting and
+  compliance**, browser-reviewed on 19 November 2026.
+- Page migration: **63 of 81 pages complete**, including all 14 Batch 5 entries.
+  The next bounded batch is **Batch 6 - Settings, teams, subscriptions and platform**.
+- Existing Batch 4 work remains preserved on `feat/ui-redesign-batch-4`.
+  Neither batch had been committed, pushed or deployed at the implementation
+  handoff; the owner subsequently requested combined delivery.
+- Browser: all 14 entries at desktop Light/mobile Dark, representative 320px,
+  System, keyboard, tax preview, returned report validation and offline report
+  retention. A4/80mm non-fiscal and synthetic sandbox fiscal print emulation
+  pass; physical printers and live fiscal acceptance remain unverified.
+- Automated: 2,853 Pest tests passed (26 skipped; 49,361 assertions), Pint,
+  PHPStan, final build, TypeScript and all frontend checks. Combined release
+  validation reran the complete `composer check:fast` successfully, superseding
+  the earlier evidence-JSON formatting interruption; both reservation calendar
+  row tests also pass.
+- Actual scope, checks, evidence and remaining limits: [Batch 5 handoff](BATCH-5.md).
+
+### Preserved Batch 4 record
+
+- Latest completed implementation: **Batch 4 - Rooms, housekeeping, maintenance
+  and rates**, browser-reviewed on 18 November 2026.
+- Page migration: **49 of 81 pages complete**: nine in Batch 1, two in Batch 2,
+  19 in Batch 3 and all 19 in Batch 4. Batch 5 remains untouched.
+- Batch 3 PR [#261](https://github.com/Astro-67/the-dream/pull/261) passed both
+  checks and merged as `0fc8fb08`; main CI and deployment then succeeded.
+- Batch 4 uses `feat/ui-redesign-batch-4` from that merged base. It remains
+  local/uncommitted; no Batch 4 PR, merge or deployment.
+- Browser: 210 distinct passing cases cover all 19 pages, desktop/mobile,
+  Light/Dark/System, 320/768px, long content, real room/rate/assignment/maintenance
+  writes, loading/offline states, keyboard scrolling, touch and property isolation.
+  No remaining application JavaScript errors.
+- Final automated checks pass: build, 2,853 Pest tests (26 skipped; 49,361
+  assertions), Pint, PHPStan, TypeScript, all frontend checks and repository
+  formatting/lint. Calendar row unit tests pass (2/2); the design scan,
+  evidence links and 49/81 inventory pass. No backend/query changes; no MySQL rerun.
+- Scope, final automated results, screenshots and limits: [Batch 4 handoff](BATCH-4.md).
+- Next bounded batch: **Batch 5 - Finance, reporting and compliance**.
+
+### Preserved Batch 3 record
 
 - Latest completed work: **Batch 3 - Front desk, reservations and guest records**,
   implemented, browser-reviewed and validated on 18 November 2026.

@@ -15,6 +15,7 @@ import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { index, prices } from '@/routes/rate-plans';
 import { update } from '@/routes/rate-plans/restrictions';
@@ -51,9 +52,9 @@ export default function Restrictions({
     return (
         <>
             <Head title={`${plan.name} restrictions`} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-center justify-between gap-4">
-                    <h1 className="text-2xl font-semibold tracking-tight">
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
+                    <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">
                         {plan.name} restrictions
                     </h1>
                     <Button variant="outline" asChild>
@@ -68,7 +69,7 @@ export default function Restrictions({
                     <Form
                         {...update.form(plan.id)}
                         disableWhileProcessing
-                        className="flex max-w-[720px] flex-col gap-6"
+                        className="flex max-w-[720px] min-w-0 flex-col gap-6 border-b pb-6"
                     >
                         {({ errors, processing }) => (
                             <>
@@ -78,10 +79,9 @@ export default function Restrictions({
                                     <Label htmlFor="room_type_id">
                                         Room type
                                     </Label>
-                                    <select
+                                    <NativeSelect
                                         id="room_type_id"
                                         name="room_type_id"
-                                        className="h-9 w-full rounded-md border border-input bg-background px-3"
                                     >
                                         {roomTypes.map((room) => (
                                             <option
@@ -91,7 +91,7 @@ export default function Restrictions({
                                                 {room.name}
                                             </option>
                                         ))}
-                                    </select>
+                                    </NativeSelect>
                                     <InputError message={errors.room_type_id} />
                                 </div>
                                 <div className="grid gap-4 sm:grid-cols-2">

@@ -1,0 +1,2012 @@
+{
+    "date": "2026-11-18",
+    "branch": "feat/ui-redesign-batch-4",
+    "base": "0fc8fb083af24f46a396bc1b0dd4fa1ae88e21ca",
+    "browser": "Installed Google Chrome via Playwright after two shared-preview evaluate timeouts",
+    "cases": 210,
+    "results": [
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-history",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-edit",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-edit",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-quote",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-restrictions",
+            "appearance": "light",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-history",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-quote",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-restrictions",
+            "appearance": "dark",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-history",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-edit",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-edit",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-quote",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-restrictions",
+            "appearance": "system",
+            "device": "dark",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-history",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-index",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-create",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-edit",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-index",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-create",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-index",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-index",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-create",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-edit",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-index",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-quote",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-restrictions",
+            "appearance": "system",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-history",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-edit",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-create",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-edit",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-index",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-quote",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-restrictions",
+            "appearance": "light",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-history",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-create",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-index",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-quote",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-restrictions",
+            "appearance": "dark",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-history",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-edit",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-create",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-edit",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-index",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-quote",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-restrictions",
+            "appearance": "system",
+            "device": "dark",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-history",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-index",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-create",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-edit",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-types-index",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-create",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-index",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-index",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-create",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-edit",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-index",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-quote",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-restrictions",
+            "appearance": "system",
+            "device": "light",
+            "width": 390,
+            "scrollWidth": 390,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "light",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "light",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "light",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "light",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "light",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "light",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "dark",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "dark",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "dark",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "dark",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "light",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "light",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "light",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "light",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "light",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "light",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": false,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-my-rooms",
+            "appearance": "dark",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "housekeeping-assignments",
+            "appearance": "dark",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rooms-edit",
+            "appearance": "dark",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "maintenance-show",
+            "appearance": "dark",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-calendar",
+            "appearance": "dark",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "rates-prices",
+            "appearance": "dark",
+            "device": "light",
+            "width": 768,
+            "scrollWidth": 768,
+            "dark": true,
+            "unlabelled": [],
+            "source": "confirmation"
+        },
+        {
+            "name": "room-edit-real-save",
+            "source": "actions-targets"
+        },
+        {
+            "name": "room-type-native-required-errors",
+            "source": "actions-targets"
+        },
+        {
+            "name": "room-type-server-errors-and-real-create",
+            "source": "actions-targets"
+        },
+        {
+            "name": "assign-and-unassign-real-housekeeper",
+            "source": "actions-targets"
+        },
+        {
+            "name": "out-of-order-real-period-and-overlap-validation",
+            "source": "actions-targets"
+        },
+        {
+            "name": "rate-price-real-save-and-per-currency-breakdown",
+            "source": "actions-targets"
+        },
+        {
+            "name": "real-quote-prices-and-currency",
+            "source": "actions-targets"
+        },
+        {
+            "name": "rate-restrictions-real-save",
+            "source": "actions-targets"
+        },
+        {
+            "name": "maintenance-dialog-focus-escape-restoration",
+            "source": "actions-remainder"
+        },
+        {
+            "name": "maintenance-real-report",
+            "source": "actions-remainder"
+        },
+        {
+            "name": "maintenance-assign-complete-status-stays-separate",
+            "source": "actions-remainder"
+        },
+        {
+            "name": "calendar-keyboard-scroll-and-sticky-date-room-labels",
+            "source": "actions-remainder"
+        },
+        {
+            "name": "calendar-mobile-bulk-price-real-save",
+            "source": "actions-remainder"
+        },
+        {
+            "name": "calendar-release-stop-sell-preserves-minimum-stay-and-arrival-rule",
+            "source": "actions-remainder"
+        },
+        {
+            "name": "derived-rate-plan-real-create",
+            "source": "final-targets"
+        },
+        {
+            "name": "offline-write-cancelled-with-entered-values-retained",
+            "source": "final-targets"
+        },
+        {
+            "name": "housekeeping-refuses-invalid-clean-to-clean-transition",
+            "source": "worker-targets"
+        },
+        {
+            "name": "housekeeper-touch-completion-and-reduced-motion",
+            "source": "worker-targets"
+        },
+        {
+            "name": "housekeeper-cannot-manage-rate-plans",
+            "source": "worker-targets"
+        },
+        {
+            "name": "property-switch-empty-board-and-cross-property-ticket-refusal",
+            "source": "worker-targets"
+        },
+        {
+            "name": "long-maintenance",
+            "appearance": "light",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": false,
+            "unlabelled": [],
+            "source": "extra-confirmation"
+        },
+        {
+            "name": "long-room-type",
+            "appearance": "light",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": false,
+            "unlabelled": [],
+            "source": "extra-confirmation"
+        },
+        {
+            "name": "long-rate-calendar",
+            "appearance": "light",
+            "device": "light",
+            "width": 320,
+            "scrollWidth": 320,
+            "dark": false,
+            "unlabelled": [],
+            "source": "extra-confirmation"
+        },
+        {
+            "name": "long-maintenance",
+            "appearance": "light",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "extra-confirmation"
+        },
+        {
+            "name": "long-room-type",
+            "appearance": "light",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "extra-confirmation"
+        },
+        {
+            "name": "long-rate-calendar",
+            "appearance": "light",
+            "device": "light",
+            "width": 1440,
+            "scrollWidth": 1440,
+            "dark": false,
+            "unlabelled": [],
+            "source": "extra-confirmation"
+        },
+        {
+            "name": "room-save-inert-loading",
+            "source": "extra-confirmation"
+        },
+        {
+            "name": "calendar-date-range-and-search-roundtrip",
+            "source": "extra-confirmation"
+        },
+        {
+            "name": "empty-state-/housekeeping/my-rooms",
+            "source": "empty-confirmation"
+        },
+        {
+            "name": "empty-state-/maintenance",
+            "source": "empty-confirmation"
+        },
+        {
+            "name": "empty-state-/housekeeping",
+            "source": "empty-confirmation"
+        },
+        {
+            "name": "empty-state-/rate-plans",
+            "source": "empty-confirmation"
+        },
+        {
+            "name": "empty-state-/room-types",
+            "source": "empty-confirmation"
+        },
+        {
+            "name": "empty-state-/rooms",
+            "source": "empty-confirmation"
+        }
+    ],
+    "remainingIssues": [],
+    "applicationJavaScriptErrors": [],
+    "provenance": [
+        {
+            "path": ".scratch/batch4-visuals/confirmation/browser-results.json",
+            "passed": 176,
+            "recordedHarnessFailures": []
+        },
+        {
+            "path": ".scratch/batch4-visuals/actions-targets/browser-results.json",
+            "passed": 8,
+            "recordedHarnessFailures": [
+                {
+                    "name": "actions-or-harness",
+                    "message": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n1 !== 0\n\n    at file:///home/astro/Documents/Invited-Project/the-dream/.scratch/batch4-browser.mjs:265:16"
+                }
+            ]
+        },
+        {
+            "path": ".scratch/batch4-visuals/actions-remainder/browser-results.json",
+            "passed": 6,
+            "recordedHarnessFailures": [
+                {
+                    "name": "actions-or-harness",
+                    "message": "page.waitForURL: Timeout 20000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/rate-plans\" until \"load\"\n  navigated to \"http://127.0.0.1:8184/rate-plans/create\"\n  navigated to \"http://127.0.0.1:8184/rate-plans/01m7qd2cqs0kvkv3t3mcnt8m64/prices\"\n  navigated to \"http://127.0.0.1:8184/rate-plans/01m7qd2cqs0kvkv3t3mcnt8m64/prices\"\n============================================================\n    at /home/astro/Documents/Invited-Project/the-dream/.scratch/batch4-browser.mjs:330:20"
+                }
+            ]
+        },
+        {
+            "path": ".scratch/batch4-visuals/final-targets/browser-results.json",
+            "passed": 2,
+            "recordedHarnessFailures": [
+                {
+                    "name": "actions-or-harness",
+                    "message": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Done/. Input:\n\n'Toggle sidebar\\n' +\n  'Karafuu Rooms and Rates Preview\\n' +\n  'Business date\\n' +\n  'Business date\\n' +\n  '10 Dec 2026\\n' +\n  '\\n' +\n  'Online\\n' +\n  '\\n' +\n  'PH\\n' +\n  'My rooms\\n' +\n  'My rooms\\n' +\n  '\\n' +\n  'Cleaning assignments · business date 10 Dec 2026\\n' +\n  '\\n' +\n  'Business date\\n' +\n  'View date\\n' +\n  'Room 267\\n' +\n  '\\n' +\n  'Floor 1\\n' +\n  '\\n' +\n  'Assigned\\n' +\n  'Report a problem\\n' +\n  'Mark done\\n' +\n  '\\n' +\n  'Changing housekeeping status from Clean to Clean is not allowed.'\n\n    at file:///home/astro/Documents/Invited-Project/the-dream/.scratch/batch4-browser.mjs:361:16"
+                }
+            ]
+        },
+        {
+            "path": ".scratch/batch4-visuals/worker-targets/browser-results.json",
+            "passed": 4,
+            "recordedHarnessFailures": []
+        },
+        {
+            "path": ".scratch/batch4-visuals/extra-confirmation/browser-results.json",
+            "passed": 10,
+            "recordedHarnessFailures": [
+                {
+                    "name": "actions-or-harness",
+                    "message": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /No rate plans yet/. Input:\n\n'Business date\\n' +\n  'Business date\\n' +\n  '11 Dec 2026\\n' +\n  '\\n' +\n  'Online\\n' +\n  '\\n' +\n  'AO\\n' +\n  'Rate plans\\n' +\n  'Add rate plan\\n' +\n  'Code\\tName\\tCurrency\\tRoom types\\tPrices\\t\\n' +\n  'Status\\n' +\n  '\\n' +\n  '\\n' +\n  'BB\\n' +\n  '\\tBreakfast\\tUSD\\tDeluxe Double\\tOwn prices\\tEditDeactivate'\n\n    at file:///home/astro/Documents/Invited-Project/the-dream/.scratch/batch4-browser.mjs:177:20"
+                }
+            ]
+        },
+        {
+            "path": ".scratch/batch4-visuals/empty-confirmation/browser-results.json",
+            "passed": 8,
+            "recordedHarnessFailures": []
+        }
+    ],
+    "corrections": [
+        "Explicitly select the fixture property after login; wrong-property 404s are expected isolation behavior.",
+        "Wait for returned validation props, dialog animations and actual redirect destinations rather than asserting intermediate states.",
+        "Rate-plan creation redirects to prices; room updates redirect to the room list.",
+        "Assignment completion refuses Clean-to-Clean; use a dirty fixture to verify the valid transition.",
+        "Audit Preview House contains rate/inventory fixtures; create a separate empty synthetic property for empty-state checks."
+    ],
+    "limits": [
+        "Chromium emulation only; no physical devices, Safari, Firefox or screen reader.",
+        "No external fiscal/email service or physical-printer checks; no print page changed.",
+        "Synthetic scratch SQLite database only; development MySQL untouched."
+    ]
+}

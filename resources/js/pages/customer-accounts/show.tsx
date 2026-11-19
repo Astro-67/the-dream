@@ -1,6 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -104,13 +103,13 @@ export default function Show({
     return (
         <>
             <Head title={`${account.number} - ${account.customer_name}`} />
-            <div className="space-y-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="space-y-2">
-                        <Heading
-                            title={account.customer_name}
-                            description={account.number}
-                        />
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
+                    <div className="min-w-0 space-y-2 [overflow-wrap:anywhere]">
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            {account.customer_name}
+                        </h1>
+                        <Identifier value={account.number} copyable />
                         <div className="flex flex-wrap gap-2">
                             <Tag>{accountKinds[account.kind]}</Tag>
                             <StatusChip
@@ -148,7 +147,7 @@ export default function Show({
                             fiscalEnabled={fiscalEnabled}
                         />
                     )}
-                </div>
+                </header>
                 {folios.map((folio) => (
                     <AccountFolio
                         key={folio.id}
@@ -158,7 +157,7 @@ export default function Show({
                         acceptedPaymentMethods={acceptedPaymentMethods}
                     />
                 ))}
-                <section className="space-y-4">
+                <section className="min-w-0 space-y-4">
                     <h2 className="text-lg font-semibold">ZRA receipt</h2>
                     {!fiscalEnabled ? (
                         <p className="text-sm text-muted-foreground">
@@ -187,7 +186,7 @@ function AccountFolio({
     const [itemOpen, setItemOpen] = useState(false);
     const [paymentOpen, setPaymentOpen] = useState(false);
     return (
-        <section className="space-y-4">
+        <section className="min-w-0 space-y-4 border-b pb-6">
             <h2 className="text-lg font-semibold">
                 {folio.currency} balance:{' '}
                 <span className="tabular-nums">

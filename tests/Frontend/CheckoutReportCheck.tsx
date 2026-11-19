@@ -385,6 +385,10 @@ const printed = (documents: PrintedDocument[], sandbox = true) =>
         />,
     );
 const one = printed([sheet()]);
+const noDocuments = printed([], false);
+assert.match(noDocuments, /<h1[^>]*>ZRA documents<\/h1>/);
+assert.match(noDocuments, /Sea Inn has no issued ZRA documents to print/);
+assert.match(noDocuments, /<button[^>]*disabled/);
 assert.match(one, /Start of a legal receipt/);
 assert.match(one, /End of a legal receipt/);
 assert.match(one, /THE DREAM OF SAU INN BEACH HOTEL/);

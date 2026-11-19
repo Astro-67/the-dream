@@ -1,5 +1,4 @@
 import { Form, Head, usePage } from '@inertiajs/react';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -186,18 +185,20 @@ export default function CashierShifts({
     return (
         <>
             <Head title="Cashier shifts" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title="Cashier shifts"
-                    description={
-                        usesCashierShifts
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        Cashier shifts
+                    </h1>
+                    <p className="max-w-prose text-sm text-muted-foreground">
+                        {usesCashierShifts
                             ? `Cash taken and paid out is counted against the cashier's open shift. Times in ${timezone}.`
-                            : `Cashier shifts are turned off. Previous shifts and their counts are retained. Times in ${timezone}.`
-                    }
-                />
+                            : `Cashier shifts are turned off. Previous shifts and their counts are retained. Times in ${timezone}.`}
+                    </p>
+                </header>
                 {(canOpenShift || (canCloseShift && openShift !== null)) &&
                     (openShift ? (
-                        <section className="flex flex-col gap-4">
+                        <section className="flex min-w-0 flex-col gap-4 border-b pb-6">
                             <h2 className="font-semibold">
                                 Your open shift, since{' '}
                                 <When
@@ -231,7 +232,16 @@ export default function CashierShifts({
                             <EmptyState message="No cashier shifts yet." />
                         ) : null
                     ) : (
-                        <div>
+                        <section
+                            className="min-w-0 space-y-4"
+                            aria-labelledby="shift-history"
+                        >
+                            <h2
+                                id="shift-history"
+                                className="text-lg font-semibold tracking-tight"
+                            >
+                                Shift history
+                            </h2>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -343,7 +353,7 @@ export default function CashierShifts({
                                 </TableBody>
                             </Table>
                             <Pagination page={shifts} />
-                        </div>
+                        </section>
                     ))}
             </div>
         </>

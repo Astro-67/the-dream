@@ -62,7 +62,7 @@ type Editing = {
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const cell = 'border-b border-l px-2 py-1.5 text-right tabular-nums';
 const label =
-    'sticky left-0 z-10 border-b bg-card px-3 py-1.5 text-left font-normal whitespace-nowrap';
+    'sticky left-0 z-10 border-b bg-card px-3 py-1.5 text-left font-normal break-words whitespace-normal';
 
 function restrictionText(restriction: Restriction): string {
     if (restriction === null) {
@@ -139,13 +139,15 @@ export default function RateCalendar({
     return (
         <>
             <Head title="Rate calendar" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <h1 className="text-2xl font-semibold tracking-tight">
-                    Rate calendar
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                    Business date: {day(businessDate)}
-                </p>
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        Rate calendar
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                        Business date: {day(businessDate)}
+                    </p>
+                </header>
                 <Form
                     {...rateCalendar.form()}
                     className="flex flex-wrap items-end gap-4"
@@ -255,7 +257,7 @@ export default function RateCalendar({
                                 />
                                 <InputError message={errors.search} />
                             </div>
-                            <fieldset>
+                            <fieldset className="max-w-full min-w-0">
                                 <legend className="mb-2 text-sm font-medium">
                                     Room types
                                 </legend>
@@ -263,7 +265,7 @@ export default function RateCalendar({
                                     {allRoomTypes.map((room) => (
                                         <label
                                             key={room.id}
-                                            className="flex min-h-11 items-center gap-2 text-sm"
+                                            className="flex min-h-11 max-w-full min-w-0 items-center gap-2 text-sm"
                                         >
                                             <input
                                                 type="checkbox"
@@ -272,9 +274,11 @@ export default function RateCalendar({
                                                 defaultChecked={selected.has(
                                                     room.id,
                                                 )}
-                                                className="size-4 accent-primary"
+                                                className="size-4 shrink-0 accent-primary"
                                             />
-                                            {room.name}
+                                            <span className="min-w-0 break-words">
+                                                {room.name}
+                                            </span>
                                         </label>
                                     ))}
                                 </div>
@@ -290,8 +294,26 @@ export default function RateCalendar({
                         No room types selected. Choose at least one above.
                     </p>
                 ) : (
-                    <div className="max-h-[calc(100svh-9rem)] overflow-auto rounded-xl border bg-card">
-                        <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
+                    <div
+                        role="region"
+                        aria-label="Room availability and rate calendar"
+                        tabIndex={0}
+                        className="max-h-[calc(100svh-9rem)] min-w-0 overflow-auto border bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                    >
+                        <table
+                            className="min-w-full table-fixed border-separate border-spacing-0 text-sm"
+                            style={{ width: `${10 + dates.length * 7}rem` }}
+                        >
+                            <caption className="sr-only">
+                                Room availability, prices and restrictions.
+                                Scroll to view all dates and rooms.
+                            </caption>
+                            <colgroup>
+                                <col className="w-40" />
+                                {dates.map((date) => (
+                                    <col key={date} className="w-28" />
+                                ))}
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th
@@ -303,7 +325,12 @@ export default function RateCalendar({
                                         <th
                                             key={date}
                                             scope="col"
-                                            className="sticky top-0 z-20 min-w-24 border-b border-l bg-card px-2 py-2 text-right font-medium whitespace-nowrap"
+                                            aria-current={
+                                                date === businessDate
+                                                    ? 'date'
+                                                    : undefined
+                                            }
+                                            className={`sticky top-0 z-20 border-b border-l px-2 py-2 text-right font-medium whitespace-nowrap ${date === businessDate ? 'bg-primary-tint' : 'bg-card'}`}
                                         >
                                             {day(date)}
                                         </th>
@@ -318,7 +345,7 @@ export default function RateCalendar({
                                             colSpan={dates.length + 1}
                                             className="border-b bg-muted px-3 py-2 text-left font-medium"
                                         >
-                                            <span className="sticky left-3">
+                                            <span className="sticky left-3 inline-block max-w-[calc(100vw-4rem)] break-words whitespace-normal md:max-w-none">
                                                 {room.name}{' '}
                                                 <span className="font-mono text-muted-foreground">
                                                     {room.code}
@@ -567,7 +594,7 @@ function BulkEdit({
                             value={roomType.id}
                         />
                         <InputError message={errors.room_type_id} />
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
                             {(
                                 [
                                     ['from', 'From (inclusive)', from],
@@ -614,7 +641,7 @@ function BulkEdit({
                             <InputError message={errors.weekdays} />
                         </fieldset>
                         {kind === 'prices' ? (
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid gap-4 sm:grid-cols-3">
                                 {(
                                     [
                                         ['base_price', 'Base price'],

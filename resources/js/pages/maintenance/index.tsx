@@ -1,6 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -73,12 +72,15 @@ export default function MaintenanceIndex({
     return (
         <>
             <Head title="Maintenance" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="Maintenance"
-                        description="Report problems and follow repair work in this property."
-                    />
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
+                    <div className="min-w-0 space-y-2">
+                        <h1 className="text-2xl font-semibold">Maintenance</h1>
+                        <p className="text-sm text-muted-foreground">
+                            Report problems and follow repair work in this
+                            property.
+                        </p>
+                    </div>
                     <Dialog open={reporting} onOpenChange={setReporting}>
                         <DialogTrigger asChild>
                             <Button>Report a problem</Button>
@@ -91,6 +93,7 @@ export default function MaintenanceIndex({
                             </DialogDescription>
                             <Form
                                 {...store.form()}
+                                disableWhileProcessing
                                 options={{ preserveScroll: true }}
                                 onSuccess={() => setReporting(false)}
                                 className="grid gap-4 sm:grid-cols-2"
@@ -123,7 +126,7 @@ export default function MaintenanceIndex({
                                                 aria-invalid={
                                                     !!errors.description
                                                 }
-                                                className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                                                className="w-full min-w-0 border border-input bg-card px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none aria-invalid:border-destructive"
                                             />
                                             <InputError
                                                 message={errors.description}
@@ -240,7 +243,7 @@ export default function MaintenanceIndex({
                             </Form>
                         </DialogContent>
                     </Dialog>
-                </div>
+                </header>
                 <nav aria-label="Ticket views" className="flex gap-2">
                     {views.map((option) => (
                         <Link

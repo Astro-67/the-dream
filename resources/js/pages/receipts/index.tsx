@@ -1,5 +1,4 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -101,14 +100,18 @@ export default function Receipts({
     return (
         <>
             <Head title="Receipts" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title="Receipts"
-                    description="Issued documents for the selected property."
-                />
+            <div className="flex min-w-0 flex-col gap-6 md:gap-8">
+                <header className="space-y-2 border-b pb-6">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        Receipts
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                        Issued documents for the selected property.
+                    </p>
+                </header>
                 <nav
                     aria-label="Receipt types"
-                    className="flex flex-wrap gap-2"
+                    className="flex flex-wrap gap-2 border-b pb-4"
                 >
                     {Object.entries(tabs).map(([tab, { label }]) => (
                         <Button
@@ -136,7 +139,7 @@ export default function Receipts({
                     action={index.url()}
                     method="get"
                     options={{ preserveState: true }}
-                    className="flex flex-wrap items-end gap-4"
+                    className="flex min-w-0 flex-wrap items-end gap-4 border-b pb-6 [&>div]:max-w-full [&>div]:min-w-0"
                 >
                     {({ errors, processing }) => (
                         <>

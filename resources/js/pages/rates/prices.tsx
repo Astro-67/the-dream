@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput, toMinorUnits } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { formatMoney, ruleSize } from '@/lib/utils';
 import { useState } from 'react';
@@ -102,12 +103,12 @@ export default function Prices({
     return (
         <>
             <Head title={`${plan.name} prices`} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <header className="flex flex-wrap items-center justify-between gap-4">
-                    <h1 className="text-2xl font-semibold tracking-tight">
+            <div className="flex min-w-0 flex-col gap-6">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
+                    <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">
                         {plan.name} prices
                     </h1>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <Button variant="outline" asChild>
                             <Link href={restrictions(plan.id)}>
                                 Restrictions
@@ -134,7 +135,7 @@ export default function Prices({
                     <Form
                         {...update.form(plan.id)}
                         disableWhileProcessing
-                        className="flex max-w-[720px] flex-col gap-6"
+                        className="flex max-w-[720px] min-w-0 flex-col gap-6 border-b pb-6"
                     >
                         {({ errors, processing }) => (
                             <>
@@ -144,14 +145,13 @@ export default function Prices({
                                     <Label htmlFor="room_type_id">
                                         Room type
                                     </Label>
-                                    <select
+                                    <NativeSelect
                                         id="room_type_id"
                                         name="room_type_id"
                                         value={roomTypeId}
                                         onChange={(event) =>
                                             setRoomTypeId(event.target.value)
                                         }
-                                        className="h-9 w-full rounded-md border border-input bg-background px-3"
                                     >
                                         {roomTypes.map((room) => (
                                             <option
@@ -161,7 +161,7 @@ export default function Prices({
                                                 {room.name}
                                             </option>
                                         ))}
-                                    </select>
+                                    </NativeSelect>
                                     <InputError message={errors.room_type_id} />
                                 </div>
                                 <div className="grid gap-4 sm:grid-cols-2">
@@ -363,13 +363,13 @@ function PriceBreakdown({
         <section
             aria-live="polite"
             aria-label="What the guest pays"
-            className="space-y-2 rounded-xl border p-4"
+            className="min-w-0 space-y-2 border-y py-4"
         >
             <h2 className="font-semibold">
                 What the guest pays per night, {guests}{' '}
                 {guests === 1 ? 'guest' : 'guests'}
             </h2>
-            <dl className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-sm">
+            <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 text-sm">
                 <dt>Room price you entered</dt>
                 <dd className="text-right tabular-nums">{money(price)}</dd>
                 {night.lines.map((line) => (
