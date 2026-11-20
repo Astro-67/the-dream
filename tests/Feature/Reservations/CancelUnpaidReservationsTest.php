@@ -56,6 +56,7 @@ test('automatic cancellation skips deposits channel payments and in-house stays 
 
         return $reservation;
     });
+    $property->update(['front_desk_settings' => ['auto_cancel_unpaid_hours' => 24]]);
     $this->travel(24)->hours();
     $this->artisan('reservations:cancel-unpaid')->assertSuccessful();
     inTenant($property, function () use ($reservation, $cancelled) {
@@ -64,7 +65,7 @@ test('automatic cancellation skips deposits channel payments and in-house stays 
     });
 })->with([['deposit', false], ['refunded', true], ['reversed', true], ['channel', false], ['checked-in', false]]);
 
-test('automatic cancellation is off at zero hours and never touches channel or imported reservations', function () {
+test('automatic cancellation is off by default and never touches channel or imported reservations', function () {
     $this->travelTo(new DateTimeImmutable('2026-12-01 10:00:00 UTC'));
     [$owner, , $property] = organizationWithOwner();
     [$staff, $channel, $imported] = inTenant($property, function () use ($owner) {
@@ -76,7 +77,6 @@ test('automatic cancellation is off at zero hours and never touches channel or i
 
         return [$make(), tap($make(), fn ($r) => $r->forceFill(['channel_reference' => 'BDC-1'])->save()), tap($make(), fn ($r) => $r->forceFill(['imported' => true])->save())];
     });
-    $property->update(['front_desk_settings' => ['auto_cancel_unpaid_hours' => 0]]);
     $this->travel(48)->hours();
     $this->artisan('reservations:cancel-unpaid')->assertSuccessful();
     expect(inTenant($property, fn () => $staff->fresh()->status))->toBe(ReservationStatus::Confirmed);
