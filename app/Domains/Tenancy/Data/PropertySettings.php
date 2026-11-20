@@ -11,7 +11,7 @@ final class PropertySettings
     public const array DEFAULTS = [
         'front_desk_settings' => [
             'book_ahead_days' => 365, 'minimum_notice_hours' => 0, 'same_day_cutoff_time' => null,
-            'auto_cancel_unpaid_hours' => 24, 'free_cancellation_hours' => 72,
+            'auto_cancel_unpaid_hours' => 0, 'free_cancellation_hours' => 72,
             'default_check_in_time' => '14:00', 'default_check_out_time' => '11:00',
             'walk_ins_enabled' => true, 'walk_in_requires_id' => true, 'maximum_overbooking_percentage' => 0,
             'minimum_stay' => 1, 'maximum_stay' => 90, 'passport_required_for_foreign_guests' => true,
