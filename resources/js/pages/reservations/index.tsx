@@ -83,6 +83,8 @@ export default function Index({
                         ['upcoming', 'Upcoming'],
                         ['today', 'Today'],
                         ['in_house', 'In house'],
+                        ['active', 'Active'],
+                        ['cancelled', 'Cancelled'],
                         ['past', 'Past'],
                         ['all', 'All'],
                     ].map(([list, label]) => (
@@ -307,6 +309,25 @@ export default function Index({
                                             )}
                                         </TableCell>
                                         <TableCell>
+                                            {canCreate &&
+                                                reservation.status ===
+                                                    'cancelled' && (
+                                                    <Button
+                                                        asChild
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        <Link
+                                                            href={create({
+                                                                query: {
+                                                                    from: reservation.reservation_number,
+                                                                },
+                                                            })}
+                                                        >
+                                                            Book again
+                                                        </Link>
+                                                    </Button>
+                                                )}
                                             {reservation.can_check_in && (
                                                 <Form
                                                     {...checkIn.form(

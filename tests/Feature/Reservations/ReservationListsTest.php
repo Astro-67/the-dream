@@ -136,6 +136,8 @@ test('booking tabs use the selected business date and preserve search and proper
         'upcoming' => ['UPCOMING'],
         'today' => ['TODAY', 'IN-HOUSE'],
         'in_house' => ['OVERSTAY', 'IN-HOUSE'],
+        'active' => ['UPCOMING', 'TODAY', 'IN-HOUSE', 'OVERSTAY', 'MISSED'],
+        'cancelled' => ['CANCELLED'],
         'past' => ['CHECKED-OUT', 'CANCELLED', 'NO-SHOW', 'VOID'],
         'all' => array_keys($records),
     ] as $list => $keys) {

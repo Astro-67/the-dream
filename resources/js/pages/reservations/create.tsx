@@ -24,6 +24,13 @@ type Stay = {
     rooms?: number;
     lines?: Line[];
     source?: string;
+    meal_plan?: string;
+    lead_guest?: Partial<
+        Record<
+            'first_name' | 'last_name' | 'email' | 'phone' | 'nationality',
+            string
+        >
+    >;
 };
 type Line = {
     room_type_id: string;
@@ -228,6 +235,9 @@ export default function Create({
                                                 <Input
                                                     id={`guest-${name}`}
                                                     name={`lead_guest[${name}]`}
+                                                    defaultValue={
+                                                        stay.lead_guest?.[name]
+                                                    }
                                                     type={
                                                         name === 'email'
                                                             ? 'email'
@@ -261,6 +271,9 @@ export default function Create({
                                         <CountrySelect
                                             id="guest-nationality"
                                             name="lead_guest[nationality]"
+                                            defaultValue={
+                                                stay.lead_guest?.nationality
+                                            }
                                             aria-invalid={
                                                 !!errors[
                                                     'lead_guest.nationality'
@@ -912,6 +925,7 @@ export default function Create({
                                     <NativeSelect
                                         id="meal_plan"
                                         name="meal_plan"
+                                        defaultValue={stay.meal_plan}
                                     >
                                         <option value="room-only">
                                             Room only
