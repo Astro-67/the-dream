@@ -15,7 +15,7 @@ class ReservationLists
 {
     public const FRONT_DESK = ['arrivals', 'departures', 'in-house'];
 
-    public const FILTERS = ['upcoming', 'today', 'in_house', 'past', 'all', 'arrivals', 'departures', 'in-house', 'overstays', 'balance-owing', 'no-id-document'];
+    public const FILTERS = ['upcoming', 'today', 'in_house', 'active', 'cancelled', 'past', 'all', 'arrivals', 'departures', 'in-house', 'overstays', 'balance-owing', 'no-id-document'];
 
     /** @return Builder<Reservation> */
     public function query(string $list, string $date, string $search): Builder
@@ -23,6 +23,8 @@ class ReservationLists
         $query = Reservation::query();
         match ($list) {
             'upcoming' => $query->where('status', 'confirmed')->whereDate('arrival', '>', $date),
+            'active' => $query->whereIn('status', ['confirmed', 'checked_in']),
+            'cancelled' => $query->where('status', 'cancelled'),
             'past' => $query->whereIn('status', ['checked_out', 'cancelled', 'no_show', 'void']),
             'today', 'arrivals' => $query->whereDate('arrival', $date)->whereIn('status', ['confirmed', 'checked_in']),
             'departures' => $query->whereDate('departure', $date)->whereIn('status', ['confirmed', 'checked_in', 'checked_out']),

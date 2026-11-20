@@ -4,10 +4,13 @@ namespace App\Http\Requests\Reservations;
 
 use App\Domains\FrontDesk\BusinessDate;
 use App\Domains\Guests\Models\Booker;
+use App\Domains\Guests\Models\Guest;
+use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Enums\MealPlan;
+use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Enums\TourOperatorPaysFor;
 use App\Domains\Reservations\Models\Reservation;
 use App\Http\Requests\AuditsRefusals;
@@ -20,6 +23,8 @@ class CreateReservationRequest extends FormRequest
 {
     use AuditsRefusals, PayingInstitutionRules, StayRules;
 
+    private const array SOURCES = ['direct', 'walk-in', 'phone', 'whatsapp', 'email', 'website', 'outside-integration'];
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', Reservation::class) ?? false;
@@ -27,6 +32,9 @@ class CreateReservationRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        if ($this->isMethod('GET') && is_string($this->query('from'))) {
+            $this->mergeIfMissing($this->rebookingOf($this->query('from')));
+        }
         if ($this->isMethod('GET')) {
             $this->mergeIfMissing([
                 'arrival' => BusinessDate::current(),
@@ -43,6 +51,33 @@ class CreateReservationRequest extends FormRequest
                 $this->merge(['room_type_id' => $room->room_type_id]);
             }
         }
+    }
+
+    /**
+     * Prefills the booking form from a cancelled reservation so staff can re-enter it in one step.
+     *
+     * @return array<string, mixed>
+     */
+    private function rebookingOf(string $number): array
+    {
+        $old = Reservation::query()->where('reservation_number', $number)->where('status', ReservationStatus::Cancelled)->first();
+        if ($old === null) {
+            return [];
+        }
+        $guest = Guest::query()->whereKey(ReservationGuest::query()->where('reservation_id', $old->id)->orderBy('id')->value('guest_id'))->first();
+        [$first, $last] = array_pad(explode(' ', (string) $guest?->name, 2), 2, null);
+
+        return [
+            // A stay that already started can't be booked again as it was; staff pick new dates.
+            ...($old->arrival->toDateString() >= BusinessDate::current() ? ['arrival' => $old->arrival->toDateString(), 'departure' => $old->departure->toDateString()] : []),
+            'adults' => $old->adults, 'children' => $old->children,
+            'room_type_id' => $old->getAttribute('room_type_id'),
+            // A deactivated plan or a channel source would fail validation and bounce the form, so those are left for staff to choose.
+            ...(RatePlan::query()->whereKey($old->getAttribute('rate_plan_id'))->whereNull('deactivated_at')->exists() ? ['rate_plan_id' => $old->getAttribute('rate_plan_id')] : []),
+            ...(in_array($old->getAttribute('source'), self::SOURCES, true) ? ['source' => $old->getAttribute('source')] : []),
+            'meal_plan' => $old->meal_plan->value,
+            ...($guest === null ? [] : ['lead_guest' => array_filter(['first_name' => $first, 'last_name' => $last, 'email' => $guest->email, 'phone' => $guest->phone, 'nationality' => $guest->getAttribute('nationality')])]),
+        ];
     }
 
     /** @return array<string, mixed> */
@@ -90,7 +125,7 @@ class CreateReservationRequest extends FormRequest
             'lines.*.room_ids.*' => ['nullable', 'string', Rule::in(Room::query()->pluck('id')->all())],
             'distribute_guests' => ['sometimes', 'boolean'],
             'booker_id' => ['nullable', 'string', Rule::in(Booker::query()->pluck('id')->all())],
-            'source' => [$this->isMethod('GET') ? 'nullable' : 'required', Rule::in(['direct', 'walk-in', 'phone', 'whatsapp', 'email', 'website', 'outside-integration'])],
+            'source' => [$this->isMethod('GET') ? 'nullable' : 'required', Rule::in(self::SOURCES)],
             'channel_reference' => ['exclude_unless:source,outside-integration', $this->isMethod('GET') ? 'nullable' : 'required', 'string', 'max:255'],
             'outside_integration_reason' => ['exclude_unless:source,outside-integration', $this->isMethod('GET') ? 'nullable' : 'required', 'string', 'max:2000'],
             'payment_collector' => ['sometimes', Rule::in(['property', 'channel'])],

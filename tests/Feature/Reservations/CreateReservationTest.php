@@ -208,3 +208,31 @@ test('the booking form offers a paying institution only where the property files
     'Mainland' => ['Mainland', false],
     'demo' => ['demo', false],
 ]);
+
+test('book again prefills the booking form from a cancelled reservation only', function () {
+    $t = twoTenants();
+    [$cancelled, $active, $details] = inTenant($t->a->property, function () use ($t) {
+        $details = BookingForm::details($t->a->owner);
+        app(CreateRoom::class)->handle($t->a->owner, [...InventoryForm::room($details['room_type_id']), 'number' => '102']);
+        $make = fn () => app(CreateReservation::class)->handle($t->a->owner, [...$details, 'booker_id' => null, 'meal_plan' => 'half-board', 'lead_guest' => ['first_name' => 'Amina', 'last_name' => 'Said Ali', 'phone' => '+255700000001', 'nationality' => 'TZ']]);
+        $cancelled = $make();
+        $cancelled->update(['status' => ReservationStatus::Cancelled]);
+
+        return [$cancelled, $make(), $details];
+    });
+    $t->a->property->update(['business_date' => '2026-12-01']);
+    $as = $this->actingAs($t->a->member(OrganizationRole::FrontDesk))
+        ->withSession(['tenancy.organization_id' => $t->a->organization->id, 'tenancy.property_id' => $t->a->property->id]);
+    $as->get(route('reservations.create', ['from' => $cancelled->reservation_number]))->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->where('stay.arrival', '2026-12-10')->where('stay.departure', '2026-12-12')->where('stay.adults', 2)->where('stay.children', 1)
+        ->where('stay.room_type_id', $details['room_type_id'])->where('stay.rate_plan_id', $details['rate_plan_id'])
+        ->where('stay.source', 'phone')->where('stay.meal_plan', 'half-board')
+        ->where('stay.lead_guest', ['first_name' => 'Amina', 'last_name' => 'Said Ali', 'phone' => '+255700000001', 'nationality' => 'TZ']));
+    $as->get(route('reservations.create', ['from' => $active->reservation_number]))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('stay.arrival', '2026-12-01')->missing('stay.lead_guest'));
+
+    // Another tenant's reservation number never leaks into the form.
+    $this->actingAs($t->b->owner)->withSession(['tenancy.organization_id' => $t->b->organization->id, 'tenancy.property_id' => $t->b->property->id])
+        ->get(route('reservations.create', ['from' => $cancelled->reservation_number]))->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->missing('stay.lead_guest'));
+});
