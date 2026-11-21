@@ -27,7 +27,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
-            AddLinkHeadersForPreloadedAssets::class,
+            // LiteSpeed in production returns 500 once the Link header passes ~4 KB; the HTML still preloads every asset.
+            AddLinkHeadersForPreloadedAssets::using(20),
             ThrottleAccountForms::class,
         ]);
 
