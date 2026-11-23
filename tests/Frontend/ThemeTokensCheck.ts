@@ -187,11 +187,11 @@ assert.equal(
 );
 assert.match(
     css,
-    /body:has\(\.operational-ui\)\s*\{[^}]*--elevation-panel: 0 0 transparent/,
+    /body:has\(\.operational-ui\),\s*\.operational-ui\s*\{[^}]*--elevation-panel:\s*0 1px 3px/,
 );
 assert.match(
     css,
-    /body:has\(\.operational-ui\)\s+:is\([^}]*\[data-slot='select-trigger'\][^}]*border-radius: 0/,
+    /body:has\(\.operational-ui\)\s+:is\([^}]*\[data-slot='select-trigger'\][^}]*border-radius: 0\.25rem/,
 );
 assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 assert.match(
@@ -200,7 +200,7 @@ assert.match(
 );
 assert.match(
     css,
-    /body:has\(\.operational-ui\)\s+:is\([^}]*\[data-slot='tooltip-trigger'\][^}]*border-radius: 0/,
+    /body:has\(\.operational-ui\)\s+:is\([^}]*\[data-slot='tooltip-trigger'\][^}]*border-radius: 0\.25rem/,
 );
 assert.doesNotMatch(
     css,

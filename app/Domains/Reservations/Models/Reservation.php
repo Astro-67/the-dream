@@ -61,12 +61,30 @@ class Reservation extends Model
      */
     public static function guestNames(Collection $reservations): Collection
     {
-        $links = ReservationGuest::query()->whereIn('reservation_id', $reservations->pluck('id'))->orderBy('id')->get(['reservation_id', 'guest_id'])->unique('reservation_id');
-        $names = Guest::query()->whereIn('id', $links->pluck('guest_id'))->pluck('name', 'id');
-        $bookers = Booker::query()->whereIn('id', $reservations->pluck('booker_id')->filter())->pluck('name', 'id');
-        $leads = $links->mapWithKeys(fn (ReservationGuest $link) => [$link->getAttribute('reservation_id') => $names->get($link->getAttribute('guest_id'))]);
+        return self::leadGuests($reservations)->map(fn (array $lead): ?string => $lead['name']);
+    }
 
-        return $reservations->mapWithKeys(fn (Reservation $reservation) => [$reservation->id => $leads->get($reservation->id) ?? $bookers->get($reservation->getAttribute('booker_id'))]);
+    /**
+     * @param  Collection<int, covariant self>  $reservations
+     * @return Collection<string, array{id: string|null, name: string|null}>
+     */
+    public static function leadGuests(Collection $reservations): Collection
+    {
+        $links = ReservationGuest::query()->whereIn('reservation_id', $reservations->pluck('id'))->orderBy('id')->get(['reservation_id', 'guest_id'])->unique('reservation_id');
+        $guests = Guest::query()->whereIn('id', $links->pluck('guest_id'))->get(['id', 'name'])->keyBy('id');
+        $bookers = Booker::query()->whereIn('id', $reservations->pluck('booker_id')->filter())->get(['id', 'name'])
+            ->mapWithKeys(fn (Booker $booker): array => [$booker->id => $booker->name]);
+
+        return $reservations->mapWithKeys(function (Reservation $reservation) use ($links, $guests, $bookers): array {
+            $link = $links->firstWhere('reservation_id', $reservation->id);
+            $guest = $link === null ? null : $guests->get($link->getAttribute('guest_id'));
+            $guestName = $guest === null ? null : $guest->name;
+
+            return [$reservation->id => [
+                'id' => $guest === null ? null : $guest->id,
+                'name' => $guestName ?? $bookers->get($reservation->getAttribute('booker_id')),
+            ]];
+        });
     }
 
     /**

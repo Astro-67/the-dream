@@ -23,6 +23,7 @@ import {
     SheetTrigger,
 } from '@/components/ui/sheet';
 import { UserMenuContent } from '@/components/user-menu-content';
+import { useAppearance } from '@/hooks/use-appearance';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
@@ -47,12 +48,13 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
     const page = usePage();
     const { auth } = page.props;
     const getInitials = useInitials();
+    const { resolvedAppearance } = useAppearance();
     const { isCurrentUrl, whenCurrentUrl } = useCurrentUrl();
 
     return (
         <>
-            <div className="border-b border-sidebar-border/80">
-                <div className="flex min-h-28 items-center px-4 py-3 md:px-6">
+            <div className="workspace-masthead border-b border-border shadow-sm">
+                <div className="flex min-h-16 items-center px-4 py-3 md:px-6">
                     {/* Mobile Menu */}
                     <div className="lg:hidden">
                         <Sheet>
@@ -102,7 +104,7 @@ export function AppHeader({ breadcrumbs = [] }: Props) {
                         prefetch
                         className="flex items-center space-x-2"
                     >
-                        <AppLogo />
+                        <AppLogo inverted={resolvedAppearance === 'dark'} />
                     </Link>
 
                     {/* Desktop Navigation */}

@@ -39,7 +39,7 @@ export default function KpiReport({
     return (
         <>
             <section aria-labelledby="occupancy-title" className="grid gap-4">
-                <div>
+                <div className="border-b border-border pb-3">
                     <h2 id="occupancy-title" className="text-lg font-semibold">
                         Occupancy
                     </h2>
@@ -48,8 +48,8 @@ export default function KpiReport({
                         inventory records.
                     </p>
                 </div>
-                <dl className="flex flex-wrap gap-x-12 gap-y-4 rounded-xl border bg-card p-4">
-                    <div>
+                <dl className="grid gap-px border border-border bg-border sm:grid-cols-3">
+                    <div className="border-t-2 border-t-primary bg-card p-4">
                         <dt className="text-sm text-muted-foreground">
                             Occupancy
                         </dt>
@@ -62,7 +62,7 @@ export default function KpiReport({
                                   }).format(kpis.occupancy)}
                         </dd>
                     </div>
-                    <div>
+                    <div className="border-t-2 border-t-status-info bg-card p-4">
                         <dt className="text-sm text-muted-foreground">
                             Sold room-nights
                         </dt>
@@ -70,7 +70,7 @@ export default function KpiReport({
                             {kpis.soldRoomNights}
                         </dd>
                     </div>
-                    <div>
+                    <div className="border-t-2 border-t-brand-accent bg-card p-4">
                         <dt className="text-sm text-muted-foreground">
                             Sellable room-nights
                         </dt>
@@ -81,7 +81,7 @@ export default function KpiReport({
                 </dl>
             </section>
             <section aria-labelledby="booked-title" className="grid gap-4">
-                <div>
+                <div className="border-b border-border pb-3">
                     <h2 id="booked-title" className="text-lg font-semibold">
                         Booked room value
                     </h2>

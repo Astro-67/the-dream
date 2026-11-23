@@ -16,7 +16,9 @@ use App\Domains\FiscalReceipting\DocumentCorrections;
 use App\Domains\FiscalReceipting\VfmsFilings;
 use App\Domains\FiscalReceipting\VfmsRefusal;
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\FrontDesk\Registration;
 use App\Domains\Guests\Models\Booker;
+use App\Domains\Guests\Models\Guest;
 use App\Domains\Guests\Models\ReservationGuest;
 use App\Domains\Inventory\Models\Room;
 use App\Domains\Inventory\Models\RoomType;
@@ -92,6 +94,25 @@ class ReservationController extends Controller
         Gate::authorize('view', $reservation);
         $property = Property::query()->findOrFail($reservation->property_id);
         $canMove = $reservation->status === ReservationStatus::CheckedIn && Gate::allows('moveRoom', $reservation);
+        $canCheckIn = $reservation->isEligibleForCheckIn(BusinessDate::current()) && Gate::allows('checkIn', $reservation);
+        $canViewIdentity = Access::allows($request->user(), OrganizationPermission::GuestIdentityView, $property);
+        $guestCount = ReservationGuest::query()->where('reservation_id', $reservation->id)->count();
+        $missingGuests = $reservation->status === ReservationStatus::Confirmed ? max(0, $reservation->adults - $guestCount) : 0;
+        $incompleteGuests = $canCheckIn
+            ? Registration::incompleteGuests($property, Guest::query()->whereIn('id', ReservationGuest::query()->select('guest_id')->where('reservation_id', $reservation->id))->get())
+            : collect();
+        $registrationGuests = $canViewIdentity ? $incompleteGuests->map(function (Guest $guest): array {
+            $canView = Gate::allows('view', $guest);
+            $canEdit = Gate::allows('update', $guest);
+
+            return [
+                'id' => $guest->id,
+                'name' => $canView ? $guest->name : __('Guest details incomplete'),
+                'canView' => $canView,
+                'canEdit' => $canEdit,
+            ];
+        })->filter(fn (array $guest) => $guest['canView'] || $guest['canEdit'])->values() : collect();
+        $leadGuest = $reservation->leadGuest();
         $folios = Folio::query()->where('reservation_id', $reservation->id)->withSum('postings as balance_amount', 'amount')
             ->orderBy('created_at')->orderBy('id')->paginate(50, ['*'], 'folios_page')->withQueryString();
         $folioPage = clone $folios;
@@ -165,14 +186,17 @@ class ReservationController extends Controller
             'showsPayingInstitution' => $showsPayingInstitution = PayingInstitutionType::offeredAt($property),
             'canEditPayingInstitution' => $showsPayingInstitution && Gate::allows('amend', $reservation) && CorrectPayingInstitution::editable($reservation),
             'canAssignRoom' => Gate::allows('assignRoom', $reservation),
-            'can' => ['checkIn' => $reservation->isEligibleForCheckIn(BusinessDate::current()) && Gate::allows('checkIn', $reservation),
+            'can' => ['checkIn' => $canCheckIn,
                 'cancel' => Gate::allows('cancel', $reservation), 'void' => Gate::allows('void', $reservation), 'moveRoom' => $canMove, 'changeStay' => Gate::allows('changeStay', $reservation),
                 'checkOut' => Gate::allows('checkOut', $reservation), 'overrideBalance' => Gate::allows('checkOutWithBalance', $reservation)],
             'moveRooms' => $canMove ? app(AssignableRooms::class)->forMove($reservation) : [],
-            'leadGuest' => $reservation->leadGuest()?->only(['id', 'name', 'email', 'phone', 'nationality']),
-            'missingGuests' => $reservation->status === ReservationStatus::Confirmed ? max(0, $reservation->adults - ReservationGuest::query()->where('reservation_id', $reservation->id)->count()) : 0,
+            'leadGuest' => $leadGuest?->only(['id', 'name', 'email', 'phone', 'nationality']),
+            'canViewLeadGuest' => $leadGuest !== null && Gate::allows('view', $leadGuest),
+            'missingGuests' => $missingGuests,
+            'registrationBlocked' => $missingGuests > 0 || $incompleteGuests->isNotEmpty(),
+            'registrationGuests' => $registrationGuests,
             'canAttachGuest' => Gate::allows('attachGuest', $reservation),
-            'canViewIdentity' => Access::allows($request->user(), OrganizationPermission::GuestIdentityView, $property),
+            'canViewIdentity' => $canViewIdentity,
             'booker' => Booker::query()->find($reservation->getAttribute('booker_id'))?->only(['id', 'name']),
             'roomType' => RoomType::query()->findOrFail($reservation->getAttribute('room_type_id'))->only(['id', 'name']),
             'assignedRoom' => Room::query()->find($reservation->room_id)?->number,

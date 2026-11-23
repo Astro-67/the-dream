@@ -1,11 +1,12 @@
 import { Form, Head, usePage } from '@inertiajs/react';
 import type { ReactNode } from 'react';
+import { ChartNoAxesCombined, Clock3 } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { formatDate, formatTime } from '@/lib/utils';
+import { cn, formatDate, formatTime } from '@/lib/utils';
 
 export type ReportFilters = { from: string; to: string };
 
@@ -14,6 +15,7 @@ export default function ReportLayout({
     filters,
     refreshedAt,
     action,
+    filterStyle = 'panel',
     description = 'Read-only reports for the current property. Dates include both the first and last night.',
     fields,
     children,
@@ -22,6 +24,7 @@ export default function ReportLayout({
     filters: ReportFilters;
     refreshedAt: string;
     action: string;
+    filterStyle?: 'plain' | 'panel';
     description?: string;
     /** Extra filter fields, placed before the submit button. */
     fields?: ReactNode;
@@ -35,19 +38,48 @@ export default function ReportLayout({
         <>
             <Head title={title} />
             <div className="flex min-w-0 flex-col gap-6 md:gap-8">
-                <header className="space-y-2 border-b pb-6">
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        {title}
-                    </h1>
-                    <p className="max-w-prose text-sm text-muted-foreground">
-                        {description}
+                <header className="flex flex-wrap items-start justify-between gap-4 border border-l-4 border-border border-l-primary bg-card p-4 shadow-panel md:p-5">
+                    <div className="flex min-w-0 items-start gap-3">
+                        <span className="grid size-10 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary">
+                            <ChartNoAxesCombined
+                                aria-hidden="true"
+                                className="size-5"
+                            />
+                        </span>
+                        <div className="space-y-1">
+                            <h1 className="text-2xl font-semibold tracking-tight">
+                                {title}
+                            </h1>
+                            <p className="max-w-prose text-sm text-muted-foreground">
+                                {description}
+                            </p>
+                        </div>
+                    </div>
+                    <p className="inline-flex items-center gap-2 border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                        <Clock3
+                            aria-hidden="true"
+                            className="size-4 text-primary"
+                        />
+                        <span>
+                            Refreshed{' '}
+                            <time dateTime={refreshedAt}>
+                                {refreshDate} at{' '}
+                                {formatTime(refreshedAt, timezone)}
+                            </time>{' '}
+                            ({timezone})
+                        </span>
                     </p>
                 </header>
                 <Form
                     action={action}
                     method="get"
                     options={{ preserveState: true }}
-                    className="flex min-w-0 flex-wrap items-end gap-4 border-b pb-6 [&>div]:max-w-full [&>div]:min-w-0 [&>fieldset]:min-w-0"
+                    className={cn(
+                        'flex min-w-0 flex-wrap items-end [&>div]:max-w-full [&>div]:min-w-0 [&>fieldset]:min-w-0',
+                        filterStyle === 'panel'
+                            ? 'gap-4 border border-border bg-card p-4 shadow-panel md:p-5'
+                            : 'gap-4 border-b pb-6',
+                    )}
                 >
                     {({ errors, processing }) => (
                         <>
@@ -100,12 +132,8 @@ export default function ReportLayout({
                         </>
                     )}
                 </Form>
-                <p className="text-sm text-muted-foreground">
-                    Refreshed{' '}
-                    <time dateTime={refreshedAt}>
-                        {refreshDate} at {formatTime(refreshedAt, timezone)}
-                    </time>{' '}
-                    ({timezone}). Computed on request.
+                <p className="-mt-4 text-xs text-muted-foreground">
+                    Report data is computed when you open or refresh this page.
                 </p>
                 {children}
             </div>

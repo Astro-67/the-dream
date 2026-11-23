@@ -1,5 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
+import { BedDouble, CheckCircle2, DoorOpen, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { NativeSelect } from '@/components/ui/select';
@@ -30,6 +31,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/ui/spinner';
+import { HousekeepingMetricCards } from '@/features/housekeeping/metric-cards';
 
 type RoomRow = {
     id: string;
@@ -190,21 +192,60 @@ export default function HousekeepingBoard({
     canOverrideReady: boolean;
 }) {
     const can = useCan();
+    const metrics = [
+        {
+            label: 'Rooms in view',
+            value: rooms.length,
+            icon: DoorOpen,
+            tone: 'primary',
+        },
+        {
+            label: 'Ready for guests',
+            value: rooms.filter((room) => room.isReady).length,
+            icon: CheckCircle2,
+            tone: 'success',
+        },
+        {
+            label: 'Needs service',
+            value: rooms.filter((room) =>
+                ['dirty', 'inspection_required'].includes(room.status),
+            ).length,
+            icon: Sparkles,
+            tone: 'warning',
+        },
+        {
+            label: 'Occupied',
+            value: rooms.filter((room) => room.status === 'occupied').length,
+            icon: BedDouble,
+            tone: 'occupied',
+        },
+    ] as const;
 
     return (
         <>
             <Head title="Housekeeping" />
             <div className="flex min-w-0 flex-col gap-6">
-                <header className="space-y-2 border-b pb-6">
-                    <h1 className="text-2xl font-semibold">Housekeeping</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Room status across this property. Business date{' '}
-                        {formatDate(businessDate)}.
-                    </p>
+                <header className="flex items-center gap-4 border-b border-border pb-6">
+                    <span className="grid size-12 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary shadow-panel">
+                        <DoorOpen aria-hidden="true" className="size-6" />
+                    </span>
+                    <div className="space-y-1">
+                        <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                            Rooms and service
+                        </p>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            Housekeeping
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Room status across this property. Business date{' '}
+                            {formatDate(businessDate)}.
+                        </p>
+                    </div>
                 </header>
+                <HousekeepingMetricCards metrics={[...metrics]} />
                 <Form
                     {...index.form()}
-                    className="flex flex-wrap items-end gap-4"
+                    className="grid min-w-0 items-end gap-3 border border-border bg-card p-3 shadow-panel sm:grid-cols-[minmax(180px,240px)_minmax(180px,240px)_auto] md:p-4"
                 >
                     <div className="grid gap-2">
                         <Label htmlFor="status">Status</Label>
@@ -236,7 +277,9 @@ export default function HousekeepingBoard({
                             ))}
                         </NativeSelect>
                     </div>
-                    <Button type="submit">Filter</Button>
+                    <Button type="submit" className="min-h-10">
+                        Filter rooms
+                    </Button>
                 </Form>
                 {rooms.length === 0 ? (
                     <EmptyState message="No rooms." />
@@ -257,7 +300,7 @@ export default function HousekeepingBoard({
                         <TableBody>
                             {rooms.map((room) => (
                                 <TableRow key={room.id}>
-                                    <TableCell className="font-medium tabular-nums">
+                                    <TableCell className="font-semibold text-primary tabular-nums">
                                         {room.number}
                                     </TableCell>
                                     <TableCell>
@@ -315,7 +358,7 @@ export default function HousekeepingBoard({
                                     </TableCell>
                                     <TableCell>{room.floor ?? '—'}</TableCell>
                                     <TableCell>
-                                        <div className="flex justify-end gap-2">
+                                        <div className="flex flex-wrap justify-end gap-2">
                                             <Button
                                                 variant="ghost"
                                                 asChild

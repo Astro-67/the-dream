@@ -13,8 +13,8 @@ export default function Appearance() {
             <div className="space-y-6">
                 <Heading
                     variant="small"
-                    title="Appearance settings"
-                    description="Update the appearance settings for your account"
+                    title="Make yourself comfortable"
+                    description="Choose the look that works best for you. Your preference is saved automatically on this device."
                 />
                 <AppearanceTabs />
             </div>

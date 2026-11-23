@@ -151,7 +151,7 @@ export default function SaasInvoiceShow({
                             {billing.accounts.map((account) => (
                                 <li
                                     key={`${account.type}-${account.account_number}`}
-                                    className="space-y-1 rounded-md border p-3 text-sm"
+                                    className="space-y-1 border p-3 text-sm"
                                 >
                                     {account.type === 'bank' ? (
                                         <>

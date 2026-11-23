@@ -293,7 +293,7 @@ export default function PlatformPlans({
                     .map((plan) => (
                         <section
                             key={plan.id}
-                            className="max-w-[720px] space-y-4 rounded-xl border bg-card p-5"
+                            className="max-w-[720px] space-y-4 border bg-card p-5"
                         >
                             <h2 className="text-lg font-semibold tracking-tight">
                                 Edit {plan.name}
@@ -307,7 +307,7 @@ export default function PlatformPlans({
                         </section>
                     ))}
 
-                <section className="max-w-[720px] space-y-4 rounded-xl border bg-card p-5">
+                <section className="max-w-[720px] space-y-4 border bg-card p-5">
                     <h2 className="text-lg font-semibold tracking-tight">
                         Add a plan
                     </h2>

@@ -162,6 +162,26 @@ Implemented, browser-reviewed and validated on 18 November 2026. See the
 
 ## Batch 6 - Settings, teams, subscriptions and platform
 
+Visual refinement in progress on 23 November 2026: shared brand-rule page
+headings, clearer table-header hierarchy, stronger active navigation and a
+thin masthead accent; square, flat settings and platform panels; and clearer
+profile/security form grouping. Existing forms and actions are unchanged. The
+batch remains unchecked pending full screen-by-screen and browser review.
+The available browser control stopped because URL policy enforcement is
+unsupported for this Windows browser session.
+
+Account-settings polish on 22 November 2026 preserves the approved brand:
+navigation icons and selected-page indication, friendlier introductory copy,
+and responsive Light/Dark/System choices with descriptions and accessible
+pressed states. This is a scoped refinement, not completion of Batch 6.
+Production build, TypeScript, changed-file lint and formatting pass. The
+standard `composer check:fast` is blocked by the local broken Bun executable;
+browser review and the full frontend suite remain outstanding. No page below
+is marked complete by this change.
+With SQLite enabled for the test process, the 11 settings feature tests yield
+8 passes and 3 failures: page renders attempt an unfaked request to the local
+Vite SSR endpoint. These environment-related failures remain unresolved.
+
 - [ ] Reuse the settings/form/list family with bounded reading widths.
 - [ ] Keep organization, property, team-role and platform-admin boundaries visible and enforced.
 - [ ] Keep subscription billing, payment-slip privacy, confirmation and configuration behaviour.

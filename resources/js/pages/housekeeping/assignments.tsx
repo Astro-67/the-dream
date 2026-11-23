@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { CheckCircle2, ClipboardList, Clock3, DoorOpen } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ import {
     store,
 } from '@/routes/housekeeping/assignments';
 import { Spinner } from '@/components/ui/spinner';
+import { HousekeepingMetricCards } from '@/features/housekeeping/metric-cards';
 
 export default function Assignments({
     date,
@@ -39,21 +41,56 @@ export default function Assignments({
         completed: boolean;
     }[];
 }) {
+    const completedCount = assignments.filter(
+        (assignment) => assignment.completed,
+    ).length;
+
     return (
         <>
             <Head title="Housekeeping assignments" />
             <div className="flex min-w-0 flex-col gap-6">
-                <header className="space-y-2 border-b pb-6">
-                    <h1 className="text-2xl font-semibold">
-                        Housekeeping assignments
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Assign rooms to housekeepers for a business date.
-                    </p>
+                <header className="flex items-center gap-4 border-b border-border pb-6">
+                    <span className="grid size-12 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary shadow-panel">
+                        <DoorOpen aria-hidden="true" className="size-6" />
+                    </span>
+                    <div className="space-y-1">
+                        <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                            Rooms and service
+                        </p>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            Housekeeping assignments
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Assign rooms to housekeepers for a business date.
+                        </p>
+                    </div>
                 </header>
+                <HousekeepingMetricCards
+                    columns="three"
+                    metrics={[
+                        {
+                            label: 'Rooms assigned',
+                            value: assignments.length,
+                            icon: ClipboardList,
+                            tone: 'primary',
+                        },
+                        {
+                            label: 'Completed',
+                            value: completedCount,
+                            icon: CheckCircle2,
+                            tone: 'success',
+                        },
+                        {
+                            label: 'Still to clean',
+                            value: assignments.length - completedCount,
+                            icon: Clock3,
+                            tone: 'warning',
+                        },
+                    ]}
+                />
                 <Form
                     {...assignmentsIndex.form()}
-                    className="flex flex-wrap items-end gap-4"
+                    className="grid min-w-0 items-end gap-3 border border-border bg-card p-3 shadow-panel sm:grid-cols-[minmax(200px,260px)_auto] md:p-4"
                 >
                     <div className="grid gap-2">
                         <Label htmlFor="date">Business date</Label>
@@ -73,11 +110,14 @@ export default function Assignments({
                     {...store.form()}
                     disableWhileProcessing
                     options={{ preserveScroll: true }}
-                    className="flex max-w-[720px] min-w-0 flex-wrap items-end gap-4 border-y py-6 [&>div]:max-w-full [&>div]:min-w-0"
+                    className="grid max-w-5xl min-w-0 items-end gap-3 border border-l-4 border-border border-l-primary bg-card p-4 shadow-panel md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:p-5 [&>div]:max-w-full [&>div]:min-w-0"
                 >
                     {({ errors, processing }) => (
                         <>
                             <PropertyIntent />
+                            <h2 className="text-base font-semibold md:col-span-3">
+                                Create a room assignment
+                            </h2>
                             <input
                                 type="hidden"
                                 name="business_date"
@@ -124,6 +164,7 @@ export default function Assignments({
                                 message={
                                     errors.business_date ?? errors._property
                                 }
+                                className="md:col-span-3"
                             />
                         </>
                     )}

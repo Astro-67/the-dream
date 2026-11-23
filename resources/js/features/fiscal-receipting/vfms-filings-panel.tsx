@@ -1,6 +1,6 @@
 import { Form } from '@inertiajs/react';
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ShieldCheck } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -67,19 +67,26 @@ export function VfmsFilingsPanel({
     return (
         <Collapsible
             defaultOpen={filings.some((filing) => filing.status !== 'filed')}
+            className="border border-border bg-card p-4 shadow-panel md:p-5"
         >
             <h2>
                 <CollapsibleTrigger asChild>
                     <Button
                         variant="ghost"
-                        className="group -mx-3 h-auto min-h-11 max-w-full justify-start text-left text-lg font-semibold whitespace-normal"
+                        className="group h-auto min-h-11 w-full max-w-full justify-between text-left text-lg font-semibold whitespace-normal"
                     >
-                        ZRA filings ({filings.length})
+                        <span className="inline-flex items-center gap-2">
+                            <ShieldCheck
+                                aria-hidden="true"
+                                className="size-5 text-primary"
+                            />
+                            ZRA filings ({filings.length})
+                        </span>
                         <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
                     </Button>
                 </CollapsibleTrigger>
             </h2>
-            <CollapsibleContent className="pt-4">
+            <CollapsibleContent className="border-t border-border pt-4">
                 <Table>
                     <TableHeader>
                         <TableRow>

@@ -4,6 +4,14 @@ import { Identifier } from '@/components/ui/identifier';
 import { StatusChip } from '@/components/ui/status-chip';
 import { formatDate } from '@/features/platform/format';
 import { edit, index, show } from '@/routes/properties';
+import {
+    ArrowLeft,
+    Building2,
+    MapPin,
+    Palette,
+    ReceiptText,
+    Settings2,
+} from 'lucide-react';
 
 type Props = {
     property: {
@@ -39,6 +47,7 @@ export default function ShowProperty({ property, branding, canUpdate }: Props) {
     const sections = [
         {
             title: 'Contact and location',
+            icon: MapPin,
             fields: [
                 ['Property type', property.propertyType],
                 ['Address', property.address_line],
@@ -51,6 +60,7 @@ export default function ShowProperty({ property, branding, canUpdate }: Props) {
         },
         {
             title: 'Local settings',
+            icon: Settings2,
             fields: [
                 ['Jurisdiction profile', property.jurisdictionLabel],
                 ['Currency', property.currency],
@@ -62,6 +72,7 @@ export default function ShowProperty({ property, branding, canUpdate }: Props) {
         },
         {
             title: 'Tax registration',
+            icon: ReceiptText,
             fields: [
                 ['Star rating', property.star_rating ?? 'Not yet classified'],
                 ['TIN', property.tin],
@@ -77,30 +88,55 @@ export default function ShowProperty({ property, branding, canUpdate }: Props) {
     return (
         <>
             <Head title={property.name} />
-            <div className="flex max-w-[720px] min-w-0 flex-col gap-8 p-4 md:p-6">
-                <header className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1 space-y-3">
-                        <h1 className="text-2xl font-semibold wrap-anywhere">
-                            {property.name}
-                        </h1>
-                        <div className="flex flex-wrap gap-2">
-                            <StatusChip
-                                tone={
-                                    property.status === 'live'
-                                        ? 'success'
-                                        : 'warning'
-                                }
-                            >
-                                {property.status === 'live' ? 'Live' : 'Setup'}
-                            </StatusChip>
-                            {property.demo && (
-                                <StatusChip tone="info">Demo</StatusChip>
-                            )}
-                            {property.archivedAt && (
-                                <StatusChip tone="unavailable">
-                                    Archived
+            <div className="flex min-w-0 flex-col gap-5 p-4 md:gap-6 md:p-6">
+                <Link
+                    href={index()}
+                    className="inline-flex min-h-9 w-fit items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                    <ArrowLeft aria-hidden className="size-4" />
+                    Back to properties
+                </Link>
+                <header className="flex flex-wrap items-center justify-between gap-5 border border-l-4 border-border border-l-primary bg-card p-4 shadow-panel md:p-6">
+                    <div className="flex min-w-0 items-center gap-4">
+                        <span className="grid size-14 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary">
+                            <Building2 aria-hidden className="size-7" />
+                        </span>
+                        <div className="min-w-0 space-y-2">
+                            <p className="text-xs font-semibold tracking-[0.12em] text-primary uppercase">
+                                Property profile
+                            </p>
+                            <h1 className="text-2xl font-semibold tracking-tight wrap-anywhere md:text-3xl">
+                                {property.name}
+                            </h1>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <MapPin aria-hidden className="size-4" />
+                                    {property.city},{' '}
+                                    {property.jurisdictionLabel}
+                                </span>
+                                <span>{property.currency}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <StatusChip
+                                    tone={
+                                        property.status === 'live'
+                                            ? 'success'
+                                            : 'warning'
+                                    }
+                                >
+                                    {property.status === 'live'
+                                        ? 'Live'
+                                        : 'Setup'}
                                 </StatusChip>
-                            )}
+                                {property.demo && (
+                                    <StatusChip tone="info">Demo</StatusChip>
+                                )}
+                                {property.archivedAt && (
+                                    <StatusChip tone="unavailable">
+                                        Archived
+                                    </StatusChip>
+                                )}
+                            </div>
                         </div>
                     </div>
                     {canUpdate && (
@@ -109,55 +145,80 @@ export default function ShowProperty({ property, branding, canUpdate }: Props) {
                         </Button>
                     )}
                 </header>
-                {sections.map(({ title, fields }) => (
-                    <section key={title} className="space-y-4 border-t pt-6">
-                        <h2 className="text-lg font-semibold">{title}</h2>
-                        <dl className="grid gap-4 sm:grid-cols-2">
-                            {fields.map(([label, value]) => (
-                                <div key={label}>
-                                    <dt className="text-sm text-muted-foreground">
-                                        {label}
-                                    </dt>
-                                    <dd className="wrap-anywhere whitespace-pre-wrap">
-                                        {value ?? 'Not set'}
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
+                <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+                    {sections.map(({ title, fields, icon: SectionIcon }) => (
+                        <section
+                            key={title}
+                            className="min-w-0 overflow-hidden border border-border bg-card shadow-panel"
+                        >
+                            <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-3 md:px-5">
+                                <span className="grid size-9 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary">
+                                    <SectionIcon
+                                        aria-hidden
+                                        className="size-4"
+                                    />
+                                </span>
+                                <h2 className="font-semibold">{title}</h2>
+                            </div>
+                            <dl className="grid gap-x-6 gap-y-4 p-4 sm:grid-cols-2 md:p-5">
+                                {fields.map(([label, value]) => (
+                                    <div key={label} className="min-w-0">
+                                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                            {label}
+                                        </dt>
+                                        <dd className="mt-1 text-sm font-medium wrap-anywhere whitespace-pre-wrap">
+                                            {value ?? 'Not set'}
+                                        </dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </section>
+                    ))}
+                    <section className="min-w-0 overflow-hidden border border-border bg-card shadow-panel xl:col-span-2">
+                        <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-4 py-3 md:px-5">
+                            <span className="grid size-9 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary">
+                                <Palette aria-hidden className="size-4" />
+                            </span>
+                            <div>
+                                <h2 className="font-semibold">Branding</h2>
+                                <p className="text-xs text-muted-foreground">
+                                    Used on this property&apos;s receipts and
+                                    reports.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="grid gap-5 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.5fr)] md:p-5">
+                            <div className="flex min-h-24 items-center border border-border bg-muted/20 p-4">
+                                {branding.logo_url ? (
+                                    <img
+                                        src={branding.logo_url}
+                                        alt={`Logo of ${property.name}`}
+                                        className="max-h-24 max-w-full object-contain object-left"
+                                    />
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No logo uploaded. Reports use the
+                                        property name.
+                                    </p>
+                                )}
+                            </div>
+                            <dl className="grid content-center gap-1">
+                                <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                    Accent colour
+                                </dt>
+                                <dd>
+                                    {branding.accent_colour ? (
+                                        <Identifier
+                                            value={branding.accent_colour}
+                                        />
+                                    ) : (
+                                        <span className="text-sm">Not set</span>
+                                    )}
+                                </dd>
+                            </dl>
+                        </div>
                     </section>
-                ))}
-                <section className="space-y-4 border-t pt-6">
-                    <div className="space-y-1">
-                        <h2 className="text-lg font-semibold">Branding</h2>
-                        <p className="text-sm text-muted-foreground">
-                            Used on this property&apos;s fiscal check-out
-                            reports.
-                        </p>
-                    </div>
-                    {branding.logo_url ? (
-                        <img
-                            src={branding.logo_url}
-                            alt={`Logo of ${property.name}`}
-                            className="max-h-24 max-w-full object-contain object-left"
-                        />
-                    ) : (
-                        <p className="text-sm text-muted-foreground">
-                            No logo uploaded. Reports use the property name.
-                        </p>
-                    )}
-                    <dl>
-                        <dt className="text-sm text-muted-foreground">
-                            Accent colour
-                        </dt>
-                        <dd>
-                            {branding.accent_colour ? (
-                                <Identifier value={branding.accent_colour} />
-                            ) : (
-                                'Not set'
-                            )}
-                        </dd>
-                    </dl>
-                </section>
+                </div>
             </div>
         </>
     );

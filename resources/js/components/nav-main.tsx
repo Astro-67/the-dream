@@ -42,6 +42,7 @@ export function NavMain({
                         asChild
                         isActive={isCurrentUrl(item.href)}
                         tooltip={{ children: item.title }}
+                        className="min-h-10 border-l-2 border-transparent data-[active=true]:border-sidebar-primary data-[active=true]:bg-sidebar-accent/70"
                     >
                         <Link
                             href={item.href}
@@ -64,7 +65,10 @@ export function NavMain({
         <Collapsible defaultOpen={false} className="group/more" asChild>
             <SidebarGroup className="px-2 py-0">
                 <CollapsibleTrigger asChild>
-                    <SidebarMenuButton tooltip={label}>
+                    <SidebarMenuButton
+                        tooltip={label}
+                        className="min-h-10 text-sidebar-foreground/70"
+                    >
                         <Ellipsis className="hidden group-data-[collapsible=icon]:block" />
                         <span>{label}</span>
                         <ChevronDown className="ml-auto size-4 transition-transform group-data-[state=open]/more:rotate-180" />
@@ -78,7 +82,7 @@ export function NavMain({
             {labelHref ? (
                 <SidebarGroupLabel
                     asChild
-                    className="group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground any-pointer-coarse:min-h-11 any-pointer-coarse:min-w-11"
+                    className="text-[11px] font-semibold tracking-[0.08em] uppercase group-data-[collapsible=icon]:hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground any-pointer-coarse:min-h-11 any-pointer-coarse:min-w-11"
                 >
                     <Link href={labelHref} onClick={() => setOpenMobile(false)}>
                         {label}

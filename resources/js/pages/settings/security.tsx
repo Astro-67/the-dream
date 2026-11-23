@@ -56,7 +56,7 @@ export default function Security(props: Props) {
                             currentPasswordInput.current?.focus();
                         }
                     }}
-                    className="space-y-6"
+                    className="space-y-6 border bg-card p-5 sm:p-6"
                 >
                     {({ errors, processing }) => (
                         <>

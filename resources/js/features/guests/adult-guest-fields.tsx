@@ -12,11 +12,15 @@ export function AdultGuestFields({
     names,
     errors,
     required = false,
+    contactNames,
+    contactErrors = {},
 }: {
     id: string;
     names: Record<Field, string>;
     errors: Record<string, string | undefined>;
     required?: boolean;
+    contactNames?: Partial<Record<'email' | 'phone', string>>;
+    contactErrors?: Partial<Record<'email' | 'phone', string | undefined>>;
 }) {
     const field = (key: Field) => ({
         id: `${id}-${key}`,
@@ -61,6 +65,50 @@ export function AdultGuestFields({
                 />
                 {error('document_number')}
             </div>
+            {contactNames?.phone && (
+                <div className="space-y-2">
+                    <Label htmlFor={`${id}-phone`}>Phone (optional)</Label>
+                    <Input
+                        id={`${id}-phone`}
+                        name={contactNames.phone}
+                        type="tel"
+                        autoComplete="tel"
+                        maxLength={50}
+                        aria-invalid={Boolean(contactErrors.phone)}
+                        aria-describedby={
+                            contactErrors.phone
+                                ? `${id}-phone-error`
+                                : undefined
+                        }
+                    />
+                    <InputError
+                        id={`${id}-phone-error`}
+                        message={contactErrors.phone}
+                    />
+                </div>
+            )}
+            {contactNames?.email && (
+                <div className="space-y-2">
+                    <Label htmlFor={`${id}-email`}>Email (optional)</Label>
+                    <Input
+                        id={`${id}-email`}
+                        name={contactNames.email}
+                        type="email"
+                        autoComplete="email"
+                        maxLength={255}
+                        aria-invalid={Boolean(contactErrors.email)}
+                        aria-describedby={
+                            contactErrors.email
+                                ? `${id}-email-error`
+                                : undefined
+                        }
+                    />
+                    <InputError
+                        id={`${id}-email-error`}
+                        message={contactErrors.email}
+                    />
+                </div>
+            )}
         </div>
     );
 }

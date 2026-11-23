@@ -2,13 +2,20 @@
 
 ## Overview
 
-A precise, calm interface for people running hotels: front desk, reservations, housekeeping, finance and compliance staff, working long shifts on desktops and tablets, often on slow connections. The approved operational direction is a flat, straight-edged hospitality workspace: navy-led like the Karafuu logo, warm ivory surroundings, deliberate typography, alignment and separators instead of generic rounded containers. The logo's gloss stays in the logo, never in operational controls. Information density is high where staff scan and act (calendars, tables, folios) and relaxed where they read or decide (onboarding, settings, confirmations). Every status is readable at a glance and never depends on colour alone.
+A clear, professional interface for hotel teams working long shifts on desktops and tablets. The operational PMS now follows an AdminLTE-inspired admin dashboard: a dark persistent sidebar, light neutral work area, white panels with restrained elevation, compact KPI tiles, and familiar rounded controls. Keep Karafuu's navy brand, logo, typography and status colors. Use the existing Laravel React, Tailwind and shadcn components; do not load Bootstrap or AdminLTE JavaScript. Public, marketing and authentication pages keep their separately approved visual direction. Information density stays high where staff scan and act (calendars, tables, folios) and relaxed where they read or decide (onboarding, settings, confirmations). Every status is readable at a glance and never depends on colour alone.
 
 The interface is built on the Laravel React starter kit: Tailwind CSS 4, shadcn/ui and Radix. This document sets the values; the starter kit's components implement them. Interfaces ship in English only for this version; Kiswahili and translation infrastructure are deferred.
 
 ## Colors
 
 All text colours below meet WCAG AA (4.5:1) on the surface they're used on, and border and focus colours used for controls meet 3:1. Ratios were checked for both themes.
+
+The base palettes below remain for public and authentication surfaces. The
+operational PMS applies a scoped AdminLTE-inspired neutral skin in
+`resources/css/app.css`: light work area `#F4F6F9`, white panels, charcoal text
+and sidebar, and the Karafuu navy as the primary color; dark mode uses deep
+slate work and sidebar surfaces with the existing light navy primary. Status
+tokens remain separate from interface accents.
 
 ### Light theme
 
@@ -67,6 +74,14 @@ Status is always shown as a **label (and, where useful, an icon) plus colour**, 
 
 The bright shades (#10B981, #F59E0B, #EF4444) are allowed only for status dots and chart marks, never for text.
 
+**Reservation source (calendar):** use separate origin tokens so reservation
+origin does not replace its status styling: direct/onsite (`reservation-origin-direct`),
+external channel (`reservation-origin-external`) and tour operator
+(`reservation-origin-operator`). Each reservation keeps a visible text source
+label alongside its source colour; its status remains a separate labelled chip.
+The current reservation fields identify external bookings generically, not a
+specific OTA brand such as Booking.com.
+
 **Room status (OPS-01):** clean = Success, dirty = Warning, occupied = Occupied, inspection required = Inspection, unavailable = Unavailable.
 
 **Compliance and delivery status (RPT-04, ZAN-08):** delivered = Success, pending = Info, late = Warning, failed, rejected and blocked = Error, not applicable (mainland) = Unavailable.
@@ -96,16 +111,16 @@ Headings use General Sans with letter spacing of -0.02em. Body and interface tex
 
 ## Elevation
 
-Operational static surfaces and buttons are flat: use 1px borders, spacing and alignment, not shadows or hover lifts. `.operational-ui` scopes this treatment to the app shell and navigation; operational overlays are scoped through `body:has(.operational-ui)` because Radix portals live outside the shell. Public/auth keep their existing radius and restrained elevation. Later page batches replace remaining page-owned containers; receiving shared styles does not mark a page migrated.
+Operational screens use AdminLTE's clear panel hierarchy: white or dark-surface panels with a restrained theme shadow, a subtle 4px radius and a thin border. `.operational-ui` scopes the skin to authenticated PMS and platform screens; overlays are scoped through `body:has(.operational-ui)` because Radix portals live outside the shell. Public/auth keep their existing visual direction.
 
 Outside operational surfaces, elevation comes only from the theme tokens, never ad-hoc `shadow-[…]` values:
 
-- **Panels** (`shadow-panel`): `Card`, the `Table` frame and other static content panels get a soft, low shadow (two layers, at most 5% navy in light, stronger in dark so it still reads). Never nest one elevated panel inside another; an inner section uses a border or a subtle fill.
+- **Panels** (`shadow-panel`): `Card`, the `Table` frame and other static content panels get a soft, low shadow appropriate to the AdminLTE reference. Never nest one elevated panel inside another; an inner section uses a border or a subtle fill.
 - **Primary buttons** (`shadow-primary`): a faint inset top highlight and a 1px drop give the navy fill a tonal edge. It flattens when pressed. No other button variant gets depth.
 - Dropdowns, popovers, the command palette and toasts use shadow-lg.
 - Dialogs and sheets use shadow-xl over a 40% black overlay.
-- Clickable cards gain a hover shadow (0 8px 30px rgba(0,0,0,0.08)) and lift 2px. Buttons, static cards and table rows never move.
-- The operational masthead and breadcrumb bar use opaque theme surfaces, not blur or shadows.
+- Clickable cards change border or surface color on hover; they do not move. Buttons and table rows never move.
+- The operational masthead and breadcrumb bar use opaque theme surfaces.
 - Focus is shown by the solid focus ring, never by a shadow.
 - Print output drops every shadow (see Receipts and print).
 
@@ -115,13 +130,13 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 
 ## Components
 
-- **Buttons:** primary (Primary fill and Primary Foreground text), secondary (surface fill, 1px Input Border), ghost (text only, tinted background on hover), destructive (Destructive fill). Operational controls are square and flat, DM Sans 500, at least 36px high; text can wrap without clipping. Public/auth retain 6px radius and `shadow-primary`. Fine-pointer sizes outside the operational scope remain 32px (dense toolbars and table rows), 36px (default), 44px (large). When any pointer is coarse, shared buttons, dropdown actions and navigation (including linked section labels) have a minimum 44px height and width, including icon actions. Buttons don't move on hover; they change colour only. Loading buttons keep their width and show a spinner.
-- **Cards:** Operational shared cards are square, Surface and 1px Border, with no shadow. Prefer flat sections over adding containers. Intentional direct-access navigation cards are allowed; the Arrivals / Departures / In house cards belong to Batch 3, remain simultaneously visible on mobile and never become a dropdown. Arrival uses a concierge bell, departure an exit symbol and in-house a people symbol. Public/auth retain 12px radius and `shadow-panel`.
-- **Inputs and selects:** Surface fill, 1px Input Border, square operational edges (public/auth 6px radius), 8px × 12px padding, 14px text. Focus: Focus Ring. Error: Error border, plus an error message below the field (Error text, 13px, with an icon). The label always sits above the field, and placeholders are never used as labels.
+- **Buttons:** primary (Primary fill and Primary Foreground text), secondary (surface fill, 1px Input Border), ghost (text only, tinted background on hover), destructive (Destructive fill). Operational controls use a restrained 4px radius, DM Sans 500 and at least 36px high; text can wrap without clipping. Fine-pointer sizes remain 32px (dense toolbars and table rows), 36px (default), 44px (large). When any pointer is coarse, shared buttons, dropdown actions and navigation (including linked section labels) have a minimum 44px height and width, including icon actions. Buttons don't move on hover; they change colour only. Loading buttons keep their width and show a spinner.
+- **Cards:** Operational cards use a white/dark Surface, thin Border, subtle panel shadow and restrained 4px radius. Use AdminLTE-style metric tiles for direct-access summaries and preserve the Arrivals / Departures / In house links on mobile. Arrival uses a concierge bell, departure an exit symbol and in-house a people symbol. Public/auth retain their separate radius and elevation.
+- **Inputs and selects:** Surface fill, 1px Input Border, 4px operational edges (public/auth 6px radius), 8px × 12px padding, 14px text. Focus: Focus Ring. Error: Error border, plus an error message below the field (Error text, 13px, with an icon). The label always sits above the field, and placeholders are never used as labels.
 - **Checkboxes and switches:** square checkboxes (4px radius, 16px box inside a 24px hit area) for choosing items. Switches for settings that take effect immediately. Radios for one-of-many. Never round checkboxes.
 - **Chips:**
-    - **Status chips** have square operational edges (pill-shaped elsewhere), 12px text, 2px × 8px padding, with a 6px dot and a label, in the status colours above. Dots remain round; status meanings and labels do not change.
-    - **Tags and filters** have square operational edges (4px radius elsewhere), Background fill and Text Secondary text. Active filters use Primary Tint with Primary text.
+    - **Status chips** have 4px operational edges (pill-shaped elsewhere), 12px text, 2px × 8px padding, with a 6px dot and a label, in the status colours above. Dots remain round; status meanings and labels do not change.
+    - **Tags and filters** have 4px operational edges (4px radius elsewhere), Background fill and Text Secondary text. Active filters use Primary Tint with Primary text.
 - **Tooltips:** the shadcn/Radix Tooltip, which works with a keyboard and on touch. Never put essential information only in a tooltip, and never use native `title` tooltips.
 - **Dialogs and confirmations:** shadcn Dialog. Destructive confirmations name the object ("Cancel reservation R-1042?"), explain the consequence, and put the destructive button last. Any action that reports to ZRA says so ("This sends a cancellation to ZAN Gateway").
 - **Toasts:** bottom-right on desktop, top on mobile. Success, info and default toasts disappear after 4 seconds; error and warning toasts after 8 seconds. Hovering pauses dismissal. Every toast has a close button and is announced to assistive technology.
@@ -130,7 +145,7 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 - **Property selection:** one organization/property switcher in the sidebar, including its mobile drawer. The masthead keeps the business date and connection status; on mobile it also shows the active property as read-only text, never a second switcher.
     - **Branding:** the full logo (`BrandLogo`) at a readable size on public and authentication surfaces, never cropped, recoloured or redrawn. The app shell uses `AppLogo`, which shows the same full artwork at 160px wide. No approved compact mark exists yet; until the owner supplies one, constrained navigation keeps the full logo or the product name in text, never an invented or cropped mark.
     - **Organization and property switcher:** real organization/property context stays visible in the masthead and is also available inside the menu. Long names wrap; the existing authorized switcher endpoints and property-keyed page remount remain unchanged.
-    - **Masthead:** full inverse logo, menu trigger, organization/property switcher, the property's current **business date**, live connection status and user menu. Use `--masthead` / `--masthead-foreground`: deep navy / ivory in Light, Card / Foreground in Dark.
+    - **Masthead:** full logo, menu trigger, organization/property switcher, the property's current **business date**, live connection status and user menu. Use `--masthead` / `--masthead-foreground`: white / charcoal in Light, dark Surface / Foreground in Dark.
     - **Sticky context:** breadcrumb and the existing Light/Dark/System `AppearanceToggle` sit beneath the masthead. System follows device changes; explicit themes remain explicit. Do not derive the app theme from a preview or chat theme.
     - **Menu sections:** preserve the existing Front desk, Money, Setup, More and role-gated Platform administration definitions and every permission/feature condition. No prototype navigation destinations or synthetic data.
 - **Page header:** title (Page title style), an optional one-line description below it, and page actions aligned to the right of the title on wide screens, wrapping beneath it on narrow ones. At most one primary action per section; existing permission checks decide which actions show.
@@ -169,7 +184,7 @@ Motion lasts 150–200ms with an ease-out curve. Respect `prefers-reduced-motion
 
 ## Border Radius
 
-Keep the starter kit's global `--radius` at 8px for public/auth and unmigrated standalone surfaces. Operational shared controls, cards, tables, chips/tags and overlays use 0px through scoped selectors, not a global radius reset. Avatars and status dots retain their shape. The public/auth scale remains:
+Keep the starter kit's global `--radius` for public/auth and standalone surfaces. Operational PMS controls, cards, tables, chips/tags and overlays use a restrained 4px radius through scoped selectors; avatar and status-dot shapes are retained. The public/auth scale remains:
 
 - 4px (`rounded-sm`): tags, badges, inline code, checkboxes
 - 6px (`rounded-md`): buttons, inputs, selects
@@ -178,6 +193,10 @@ Keep the starter kit's global `--radius` at 8px for public/auth and unmigrated s
 - 9999px (`rounded-full`): avatars, status chips, status dots
 
 ## Implementation: shadcn tokens
+
+The values below are the base tokens for public/auth surfaces. Authenticated
+PMS screens rebind these color aliases in the scoped `body:has(.operational-ui)`
+rules described under Colors.
 
 Map this document onto the variables in `resources/css/app.css` (`:root` for light, `.dark` for dark):
 
@@ -244,9 +263,9 @@ Public pages that sell Karafuu (the landing page at `/`) follow every rule above
 - Do use General Sans for headings and DM Sans for everything else; never swap them.
 - Do show the current organization, property and business date on every operational screen.
 - Do test every screen in light and dark themes, in English, and with the keyboard only.
-- Do keep operational shared surfaces square and flat; preserve the separate public/auth radius and elevation scale.
+- Do use the AdminLTE-inspired dark sidebar, neutral work area, white panels and restrained elevation on operational screens; preserve the separate public/auth visual direction.
 - Don't use the bright status shades (#10B981, #F59E0B, #EF4444) for text.
-- Do reserve elevation for overlays in operational screens and use the elevation tokens elsewhere; don't add ad-hoc shadows, nest elevated panels, or move buttons on hover.
+- Do use the elevation tokens for operational panels and overlays; don't add ad-hoc shadows, nest elevated panels, or move buttons on hover.
 - Don't use the brand accent green for text, controls or anything that could read as a status.
 - Don't use more than three font weights (400, 500, 600) on a screen.
 - Don't place more than one primary button in the same section.
