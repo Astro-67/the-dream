@@ -14,6 +14,7 @@ use App\Domains\Inventory\Models\Room;
 use App\Domains\Reservations\Actions\RecordLifecycleEvent;
 use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
+use App\Domains\Tenancy\LocalPractice;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
 use App\Support\Audit\Audit;
@@ -32,7 +33,7 @@ class CheckIn
             $locked = Reservation::query()->whereKey($reservation->id)->lockForUpdate()->firstOrFail();
             $property = Property::query()->findOrFail($locked->property_id);
             $readiness = app(RoomReadiness::class);
-            if (! $property->isLive()) {
+            if (! $property->isLive() && ! LocalPractice::allows($property)) {
                 throw ValidationException::withMessages(['reservation' => __('This property is still in setup. Guests can be checked in once it goes live.')]);
             }
             if ($locked->status !== ReservationStatus::Confirmed) {

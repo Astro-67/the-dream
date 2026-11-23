@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Domains\Platform\Enums\PlatformRole;
 use App\Domains\Tenancy\Jurisdiction\JurisdictionRules;
+use App\Domains\Tenancy\LocalPractice;
 use App\Domains\Tenancy\Models\Organization;
 use App\Domains\Tenancy\Models\Property;
 use App\Models\User;
@@ -56,6 +57,7 @@ class HandleInertiaRequests extends Middleware
                 'platformRoles' => fn () => $this->platformRoles($request),
             ],
             'tenant' => fn () => $this->tenant($request),
+            'localPractice' => fn () => Tenancy::property() !== null && LocalPractice::allows(Tenancy::property()),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

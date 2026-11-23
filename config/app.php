@@ -28,6 +28,9 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    // Explicit local-only practice; never changes property or VFMS go-live state.
+    'local_practice' => (bool) env('LOCAL_PRACTICE', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

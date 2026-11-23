@@ -14,6 +14,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             tenant: Tenant;
             sidebarOpen: boolean;
+            localPractice?: boolean;
             [key: string]: unknown;
         };
     }
