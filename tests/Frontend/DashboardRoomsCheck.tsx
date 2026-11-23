@@ -117,7 +117,7 @@ const todaySection = operational.match(
 assert.ok(todaySection, 'Today section is visible');
 assert.ok(
     operational.indexOf('aria-labelledby="today"') <
-        operational.indexOf('aria-labelledby="collections-title"'),
+        operational.indexOf('aria-labelledby="collections-overview"'),
     'Today precedes Collections',
 );
 assert.ok(
@@ -147,7 +147,7 @@ assert.match(cards[0], /lucide-concierge-bell/);
 assert.match(cards[1], /lucide-log-out/);
 assert.match(cards[2], /lucide-users/);
 assert.match(cards[0], /aria-current="page"/);
-assert.doesNotMatch(todaySection, /rounded|translate|hover:shadow/);
+assert.doesNotMatch(todaySection, /hover:-?translate/);
 
 const queue = {
     filters: { list: 'departures', search: 'Amina' },

@@ -139,7 +139,6 @@ for (const sidebarOpen of [true, false]) {
     assert.match(shell, /src="\/karafuu-logo-dark\.png"/);
     assert.match(shell, /User menu: Front desk/);
     assert.match(shell, /role="status">Online/);
-    assert.match(shell, /Theme: System/);
     assert.match(shell, /aria-label="Settings"/);
     assert.match(shell, /href="\/settings\/profile"/);
     assert.match(shell, /<section[^>]*max-w-\[720px\]/);

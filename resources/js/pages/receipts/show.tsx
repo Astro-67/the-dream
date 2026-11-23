@@ -229,7 +229,7 @@ export default function Show({
                         </p>
                         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
                             <h1 className="font-heading text-xl font-semibold tracking-tight">
-                                {receipt.label}
+                                {receipt.label.toUpperCase()}
                             </h1>
                             <StatusChip tone="warning">Non-fiscal</StatusChip>
                         </div>

@@ -115,11 +115,11 @@ assert.match(html, /NON-FISCAL RECEIPT/);
 assert.match(html, /Folio summary at payment time/);
 assert.match(html, /USD 30\.00/);
 assert.match(html, /Neema Cashier/);
-assert.match(html, /101, Deluxe Double/);
+assert.match(html, /101 · Deluxe Double/);
 assert.match(html, /Later corrections/);
 assert.match(html, /reservations\/R-1042\/statement/);
 assert.doesNotMatch(html, /Historical folio summary unavailable/);
-assert.doesNotMatch(html, /Room charges \(estimated/);
+assert.doesNotMatch(html, /Room charges estimated/);
 const estimated = render({
     ...base,
     summary: {
@@ -127,7 +127,7 @@ const estimated = render({
         estimate: { nights: 3, amount: 30000, currency: 'USD' },
     },
 });
-assert.match(estimated, /Room charges \(estimated, 3 nights\)/);
+assert.match(estimated, /Room charges estimated for 3 nights/);
 assert.match(estimated, /USD 300\.00/);
 assert.match(estimated, /USD 30\.00/);
 assert.match(estimated, /Estimate recorded at payment time/);
@@ -139,7 +139,7 @@ assert.match(
             estimate: { nights: 1, amount: 0, currency: 'USD' },
         },
     }),
-    /Room charges \(estimated, 1 night\)/,
+    /Room charges estimated for 1 night</,
 );
 assert.doesNotMatch(
     render({ ...base, summary: { ...base.summary, estimate: null } }),

@@ -248,6 +248,7 @@ export default function RateCalendar({
     return (
         <>
             <Head title="Calendar" />
+            <h1 className="sr-only">Calendar</h1>
             <div className="flex min-w-0 flex-col">
                 <section className="min-w-0 overflow-hidden border border-border bg-card shadow-panel">
                     <Form

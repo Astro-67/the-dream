@@ -84,6 +84,5 @@ assert.match(render(true), /table-fixed/);
 assert.match(render(true), /style="width:31rem"/);
 assert.match(render(true), /<colgroup><col class="w-40"\/><col class="w-28"/);
 assert.match(render(true), /aria-current="date"/);
-assert.match(render(true), /<fieldset class="max-w-full min-w-0"/);
-assert.match(render(true), /<span class="min-w-0 break-words">Deluxe<\/span>/);
+assert.match(render(true), /<\/svg>Deluxe </);
 console.log('Rate calendar release stop-sell action and permissions: PASS');

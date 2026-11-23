@@ -186,10 +186,7 @@ export function CalendarRoomRows({
                         <TableCell
                             key={date}
                             colSpan={end - index}
-                            className={cn(
-                                'border-b border-l bg-status-unavailable-tint p-1',
-                                date === businessDate && 'bg-primary-tint/30',
-                            )}
+                            className="border-b border-l bg-status-unavailable-tint p-1"
                             style={{
                                 backgroundImage:
                                     'repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--status-unavailable) 15%, transparent) 6px 8px)',
