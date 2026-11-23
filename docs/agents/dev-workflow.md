@@ -21,19 +21,6 @@ Local Pest runs on SQLite; CI runs it on MySQL. They differ, for example in JSON
 
 Run `php artisan migrate` after pulling. Wayfinder reads the **live** schema when it generates route types, so a stale database makes `bun run build` emit wrong parameter types and `types:check` fails.
 
-## Local practice stays
-
-For manual front-desk testing without ZRA credentials, set `LOCAL_PRACTICE=true`
-with `APP_ENV=local`, then run `php artisan config:clear`. Keep the property in
-Setup and VFMS in Sandbox. A workspace banner confirms practice is available.
-Normal authorization, guest registration, room readiness and checkout balance
-rules still apply. Setup lifecycle events remain test events: no integration
-translator runs, so these stays produce no ZRA production or test-viewer receipt.
-This does not pass the go-live checklist or approve a property. The flag is
-ignored outside the local environment and does not allow practice for archived
-properties or properties with Live VFMS. Set it to false to restore normal setup
-restrictions. Use a disposable local property for practice stays.
-
 ## Worktrees
 
 A fresh worktree has no `vendor/`, `node_modules/`, `.env` or build output. Run `scripts/worktree-setup.sh` from its root once: it creates its own `.env`, copies dependencies from the main checkout, and builds against a disposable `.scratch/build.sqlite`, never the shared dev database.

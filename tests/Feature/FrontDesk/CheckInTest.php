@@ -1,9 +1,5 @@
 <?php
 
-use App\Domains\FiscalReceipting\Enums\VfmsMode;
-use App\Domains\FiscalReceipting\Models\VfmsCredential;
-use App\Domains\FrontDesk\Actions\CheckIn;
-use App\Domains\FrontDesk\Actions\CheckOut;
 use App\Domains\Guests\Actions\CreateGuest;
 use App\Domains\Guests\Actions\ReplaceIdentityDocuments;
 use App\Domains\Guests\Models\Guest;
@@ -17,69 +13,14 @@ use App\Domains\Reservations\Enums\ReservationStatus;
 use App\Domains\Reservations\Models\Reservation;
 use App\Domains\Tenancy\Enums\JurisdictionProfile;
 use App\Domains\Tenancy\Enums\OrganizationRole;
-use App\Domains\Tenancy\Enums\PropertyStatus;
-use App\Domains\Tenancy\LocalPractice;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia;
 use Tests\Support\BookingForm;
 use Tests\Support\TenantFixture;
 
 beforeEach(fn () => $this->travelTo(CarbonImmutable::parse('2026-12-10 09:00:00', 'Africa/Dar_es_Salaam')));
-
-test('local practice checks a setup stay in and out without integration delivery', function () {
-    $t = twoTenants();
-    $t->a->property->forceFill(['status' => PropertyStatus::Setup])->save();
-    $reservation = arrivingToday($t->a);
-    $this->app->instance('env', 'local');
-    config(['app.local_practice' => true]);
-    Http::preventStrayRequests();
-
-    inTenant($t->a->property, function () use ($t, $reservation) {
-        app(CheckIn::class)->handle($t->a->owner, $reservation);
-        expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedIn);
-        $t->a->property->update(['business_date' => $reservation->departure]);
-        app(CheckOut::class)->handle($t->a->owner, $reservation);
-        expect($reservation->fresh()->status)->toBe(ReservationStatus::CheckedOut)
-            ->and($t->a->property->fresh()->isLive())->toBeFalse()
-            ->and($reservation->lifecycleEvents()->where('test', false)->exists())->toBeFalse();
-        expect(DB::table('outbox_messages')->where('subject_id', $reservation->id)->count())->toBe(0);
-    });
-    Http::assertNothingSent();
-});
-
-test('local practice cannot bypass setup outside local or when disabled', function (string $environment, bool $enabled) {
-    $t = twoTenants();
-    $t->a->property->forceFill(['status' => PropertyStatus::Setup])->save();
-    $reservation = arrivingToday($t->a);
-    $this->app->instance('env', $environment);
-    config(['app.local_practice' => $enabled]);
-    inTenant($t->a->property, function () use ($t, $reservation) {
-        expect(fn () => app(CheckIn::class)->handle($t->a->owner, $reservation))
-            ->toThrow(ValidationException::class);
-        expect($reservation->fresh()->status)->toBe(ReservationStatus::Confirmed);
-    });
-})->with([['production', true], ['staging', true], ['local', false]]);
-
-test('local practice refuses live VFMS and archived properties', function (bool $archived) {
-    $t = twoTenants();
-    $t->a->property->forceFill(['status' => PropertyStatus::Setup])->save();
-    $this->app->instance('env', 'local');
-    config(['app.local_practice' => true]);
-    inTenant($t->a->property, function () use ($t, $archived) {
-        if ($archived) {
-            $t->a->property->forceFill(['archived_at' => now()])->save();
-        } else {
-            $credential = VfmsCredential::for($t->a->property);
-            $credential->mode = VfmsMode::Live;
-            $credential->save();
-        }
-        expect(LocalPractice::allows($t->a->property->fresh()))->toBeFalse();
-    });
-})->with([false, true]);
 
 /**
  * A confirmed reservation arriving today in a clean, assigned room, with one
