@@ -20,6 +20,17 @@ DM Sans hero, icon-only pause and reduced decorative ticks) are recorded in
 invented offers and uses only current administrator-configured plans and terms.
 Approved auth and operational typography remain unchanged.
 
+## Current owner direction: AdminLTE-inspired PMS skin
+
+On 23 November 2026, the owner requested an AdminLTE-inspired visual direction
+across the PMS. This supersedes the earlier operational surface, radius and
+elevation choices below; it does not change public marketing/auth screens or
+any application data, route, permission or workflow behavior. Use AdminLTE 4's
+dark sidebar, light work area, compact metric tiles, white panels and restrained
+shadows as visual references, implemented with the existing React, Tailwind and
+shadcn components. Do not load Bootstrap or AdminLTE JavaScript into the PMS.
+The project palette and full Karafuu logo remain in use.
+
 ## Start a batch
 
 1. Check current main, the preceding implementation's checks/deployment and

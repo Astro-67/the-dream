@@ -87,7 +87,7 @@ export default function BillingDetailsEdit({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <section className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2">
+                            <section className="grid gap-4 border bg-card p-5 sm:grid-cols-2">
                                 <h2 className="text-lg font-semibold tracking-tight sm:col-span-2">
                                     Business
                                 </h2>
@@ -114,7 +114,7 @@ export default function BillingDetailsEdit({
                                 ))}
                             </section>
 
-                            <section className="space-y-4 rounded-xl border bg-card p-5">
+                            <section className="space-y-4 border bg-card p-5">
                                 <h2 className="text-lg font-semibold tracking-tight">
                                     Payment accounts
                                 </h2>
@@ -125,7 +125,7 @@ export default function BillingDetailsEdit({
                                 {accounts.map(({ key, account }, index) => (
                                     <fieldset
                                         key={key}
-                                        className="grid gap-4 rounded-md border p-4 sm:grid-cols-2"
+                                        className="grid gap-4 border border-border p-4 sm:grid-cols-2"
                                     >
                                         <legend className="px-1 text-sm font-medium">
                                             {account.type === 'bank'

@@ -1,5 +1,16 @@
 import { CountrySelect } from '@/components/shared/country-select';
 import { Form, Head, Link } from '@inertiajs/react';
+import {
+    FileText,
+    Globe,
+    Heart,
+    Mail,
+    Pencil,
+    Phone,
+    UserRound,
+    UsersRound,
+    type LucideIcon,
+} from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -8,6 +19,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
 import { Spinner } from '@/components/ui/spinner';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useInitials } from '@/hooks/use-initials';
 import {
     Table,
     TableHeader,
@@ -35,6 +48,14 @@ const fields = [
     ['preferences', 'Preferences'],
     ['notes', 'Notes'],
 ] as const;
+const fieldIcons: Record<(typeof fields)[number][0], LucideIcon> = {
+    name: UserRound,
+    email: Mail,
+    phone: Phone,
+    nationality: Globe,
+    preferences: Heart,
+    notes: FileText,
+};
 export function ContactIndex({
     records,
     canManage,
@@ -264,48 +285,129 @@ export function ContactShow({
     base,
     title,
     children,
+    extraActions,
 }: {
     record: Contact;
     canManage: boolean;
     base: string;
     title: string;
     children?: React.ReactNode;
+    extraActions?: React.ReactNode;
 }) {
+    const getInitials = useInitials();
+
     return (
         <>
             <Head title={record.name} />
-            <div className="flex w-full max-w-[720px] min-w-0 flex-col gap-6">
-                <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-6">
-                    <h1 className="min-w-0 text-2xl font-semibold wrap-anywhere">
-                        {record.name}
-                    </h1>
-                    {canManage && (
-                        <Button asChild>
-                            <Link href={`${base}/${record.id}/edit`}>
-                                Edit {title}
-                            </Link>
-                        </Button>
-                    )}
-                </header>
-                <dl className="grid min-w-0 gap-x-6 sm:grid-cols-2">
-                    {fields.map(([field, label]) => (
-                        <div
-                            key={field}
-                            className={
-                                field === 'preferences' || field === 'notes'
-                                    ? 'min-w-0 border-b py-4 sm:col-span-2'
-                                    : 'min-w-0 border-b py-4'
-                            }
-                        >
-                            <dt className="text-sm text-muted-foreground">
-                                {label}
-                            </dt>
-                            <dd className="wrap-anywhere whitespace-pre-wrap">
-                                {record[field] ?? '—'}
-                            </dd>
+            <div className="flex w-full min-w-0 flex-col gap-6">
+                <header className="flex flex-wrap items-center justify-between gap-5 border border-border bg-card p-4 shadow-panel md:p-6">
+                    <div className="flex min-w-0 items-center gap-4">
+                        <Avatar className="size-16 border border-primary/20 bg-primary-tint">
+                            <AvatarFallback className="bg-primary-tint font-heading text-xl font-semibold text-primary">
+                                {getInitials(record.name)}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 space-y-1">
+                            <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                                {title === 'guest'
+                                    ? 'Guest profile'
+                                    : 'Booker profile'}
+                            </p>
+                            <h1 className="text-2xl font-semibold tracking-tight wrap-anywhere md:text-3xl">
+                                {record.name}
+                            </h1>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                {record.email && (
+                                    <span className="inline-flex min-w-0 items-center gap-1.5 wrap-anywhere">
+                                        <Mail
+                                            aria-hidden="true"
+                                            className="size-4 shrink-0"
+                                        />
+                                        {record.email}
+                                    </span>
+                                )}
+                                {record.phone && (
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <Phone
+                                            aria-hidden="true"
+                                            className="size-4 shrink-0"
+                                        />
+                                        {record.phone}
+                                    </span>
+                                )}
+                                {!record.email && !record.phone && (
+                                    <span>No contact details recorded</span>
+                                )}
+                            </div>
                         </div>
-                    ))}
-                </dl>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {extraActions}
+                        {canManage && (
+                            <Button variant="outline" asChild>
+                                <Link href={`${base}/${record.id}/edit`}>
+                                    <Pencil aria-hidden="true" />
+                                    Edit {title}
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
+                </header>
+                <section
+                    aria-labelledby="contact-details-title"
+                    className="overflow-hidden border border-border bg-card shadow-panel"
+                >
+                    <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-4 md:px-5">
+                        <span className="grid size-10 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary">
+                            <UsersRound aria-hidden="true" className="size-5" />
+                        </span>
+                        <div>
+                            <h2
+                                id="contact-details-title"
+                                className="text-base font-semibold"
+                            >
+                                Contact details
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                {title === 'guest'
+                                    ? 'Guest information and preferences'
+                                    : 'Booker contact information'}
+                            </p>
+                        </div>
+                    </div>
+                    <dl className="grid min-w-0 gap-px bg-border sm:grid-cols-2">
+                        {fields
+                            .filter(([field]) => field !== 'name')
+                            .map(([field, label]) => {
+                                const Icon = fieldIcons[field];
+                                const longField =
+                                    field === 'preferences' ||
+                                    field === 'notes';
+
+                                return (
+                                    <div
+                                        key={field}
+                                        className={`flex min-w-0 gap-3 bg-card p-4 md:p-5 ${longField ? 'sm:col-span-2' : ''}`}
+                                    >
+                                        <span className="grid size-9 shrink-0 place-items-center border border-primary/10 bg-primary-tint text-primary">
+                                            <Icon
+                                                aria-hidden="true"
+                                                className="size-4"
+                                            />
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                            <dt className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                                                {label}
+                                            </dt>
+                                            <dd className="mt-1 leading-relaxed wrap-anywhere whitespace-pre-wrap">
+                                                {record[field] ?? '\u2014'}
+                                            </dd>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                    </dl>
+                </section>
                 {children}
             </div>
         </>

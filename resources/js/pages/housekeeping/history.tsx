@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { DoorOpen } from 'lucide-react';
 import { StatusChip, type StatusTone } from '@/components/ui/status-chip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Pagination } from '@/components/ui/pagination';
@@ -43,15 +44,23 @@ export default function RoomHistory({
         <>
             <Head title={`Room ${room.number} history`} />
             <div className="flex min-w-0 flex-col gap-6">
-                <header className="space-y-2 border-b pb-6">
-                    <h1 className="text-2xl font-semibold break-words">
-                        Room {room.number} history
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Status changes and readiness overrides, newest first.
-                        Times in {timezone}. Business date{' '}
-                        {formatDate(businessDate)}.
-                    </p>
+                <header className="flex items-center gap-4 border-b border-border pb-6">
+                    <span className="grid size-12 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary shadow-panel">
+                        <DoorOpen aria-hidden="true" className="size-6" />
+                    </span>
+                    <div className="min-w-0 space-y-1">
+                        <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                            Rooms and service
+                        </p>
+                        <h1 className="text-2xl font-semibold tracking-tight break-words">
+                            Room {room.number} history
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Status changes and readiness overrides, newest
+                            first. Times in {timezone}. Business date{' '}
+                            {formatDate(businessDate)}.
+                        </p>
+                    </div>
                 </header>
                 {changes.data.length === 0 ? (
                     <EmptyState message="No room history yet." />

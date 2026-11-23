@@ -1,5 +1,13 @@
 import { useState } from 'react';
 import { Form, Head, router } from '@inertiajs/react';
+import {
+    Building2,
+    CalendarDays,
+    ClipboardList,
+    Landmark,
+    ReceiptText,
+    UsersRound,
+} from 'lucide-react';
 import { CountrySelect } from '@/components/shared/country-select';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
@@ -181,13 +189,25 @@ export default function Create({
         <>
             <Head title="New reservation" />
             <div className="flex min-w-0 flex-col gap-6">
-                <header className="space-y-2 border-b pb-6">
-                    <h1 className="text-2xl font-semibold">New reservation</h1>
-                    <p className="text-sm text-muted-foreground">
-                        {totalRooms === 1 ? '1 room' : `${totalRooms} rooms`}.
-                        Prices and availability are checked again when you
-                        confirm.
-                    </p>
+                <header className="flex items-center gap-4 border-b border-border pb-6">
+                    <span className="grid size-12 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary shadow-panel">
+                        <CalendarDays aria-hidden="true" className="size-6" />
+                    </span>
+                    <div className="space-y-1">
+                        <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                            Front desk
+                        </p>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            New reservation
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            {totalRooms === 1
+                                ? '1 room'
+                                : `${totalRooms} rooms`}
+                            . Prices and availability are checked again when you
+                            confirm.
+                        </p>
+                    </div>
                 </header>
                 <Form
                     {...store.form()}
@@ -207,9 +227,15 @@ export default function Create({
                             ))}
                             {/* Sections sit side by side on wide screens; each stays at most 720px. */}
                             <div className="grid max-w-[720px] gap-6 @3xl:max-w-none @3xl:grid-cols-[minmax(0,720px)_288px] @6xl:grid-cols-[minmax(0,720px)_minmax(0,720px)_320px]">
-                                <fieldset className="space-y-4">
-                                    <legend className="font-medium">
-                                        Guests
+                                <fieldset className="space-y-4 border border-border bg-card p-4 shadow-panel md:p-5">
+                                    <legend className="px-2 font-semibold">
+                                        <span className="inline-flex items-center gap-2">
+                                            <UsersRound
+                                                aria-hidden="true"
+                                                className="size-4 text-primary"
+                                            />
+                                            Guests
+                                        </span>
                                     </legend>
                                     <h3 className="text-sm font-medium">
                                         Lead guest (required)
@@ -374,9 +400,15 @@ export default function Create({
                                         ),
                                     )}
                                 </fieldset>
-                                <fieldset className="space-y-4 @6xl:col-start-2 @6xl:row-[1/span_2]">
-                                    <legend className="font-medium">
-                                        Stay
+                                <fieldset className="space-y-4 border border-border bg-card p-4 shadow-panel md:p-5 @6xl:col-start-2 @6xl:row-[1/span_2]">
+                                    <legend className="px-2 font-semibold">
+                                        <span className="inline-flex items-center gap-2">
+                                            <CalendarDays
+                                                aria-hidden="true"
+                                                className="size-4 text-primary"
+                                            />
+                                            Stay
+                                        </span>
                                     </legend>
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         {(
@@ -851,9 +883,15 @@ export default function Create({
                                         )}
                                     </div>
                                 </fieldset>
-                                <fieldset className="space-y-4">
-                                    <legend className="font-medium">
-                                        Booked through
+                                <fieldset className="space-y-4 border border-border bg-card p-4 shadow-panel md:p-5">
+                                    <legend className="px-2 font-semibold">
+                                        <span className="inline-flex items-center gap-2">
+                                            <Building2
+                                                aria-hidden="true"
+                                                className="size-4 text-primary"
+                                            />
+                                            Booked through
+                                        </span>
                                     </legend>
                                     <Label htmlFor="booked_through">
                                         Who books and pays
@@ -982,9 +1020,15 @@ export default function Create({
                                     />
                                 </fieldset>
                                 {filesWithVfms && (
-                                    <fieldset className="space-y-4">
-                                        <legend className="font-medium">
-                                            Paid by an institution
+                                    <fieldset className="space-y-4 border border-border bg-card p-4 shadow-panel md:p-5">
+                                        <legend className="px-2 font-semibold">
+                                            <span className="inline-flex items-center gap-2">
+                                                <Landmark
+                                                    aria-hidden="true"
+                                                    className="size-4 text-primary"
+                                                />
+                                                Paid by an institution
+                                            </span>
                                         </legend>
                                         <Label htmlFor="paying_institution_type">
                                             Paying institution
@@ -1033,9 +1077,15 @@ export default function Create({
                                     </fieldset>
                                 )}
                                 {source === 'outside-integration' && (
-                                    <fieldset className="space-y-4">
-                                        <legend className="font-medium">
-                                            Reconciliation details
+                                    <fieldset className="space-y-4 border border-border bg-card p-4 shadow-panel md:p-5">
+                                        <legend className="px-2 font-semibold">
+                                            <span className="inline-flex items-center gap-2">
+                                                <ReceiptText
+                                                    aria-hidden="true"
+                                                    className="size-4 text-primary"
+                                                />
+                                                Reconciliation details
+                                            </span>
                                         </legend>
                                         <Label htmlFor="channel_reference">
                                             Channel reference
@@ -1057,8 +1107,14 @@ export default function Create({
                                         />
                                     </fieldset>
                                 )}
-                                <aside className="flex flex-col gap-4 self-start border-y bg-card p-4 @3xl:sticky @3xl:top-20 @3xl:col-start-2 @3xl:row-[1/span_3] @6xl:col-start-3 @6xl:row-[1/span_2]">
-                                    <h2 className="font-medium">Summary</h2>
+                                <aside className="flex flex-col gap-4 self-start border border-l-4 border-border border-l-primary bg-card p-4 shadow-panel @3xl:sticky @3xl:top-20 @3xl:col-start-2 @3xl:row-[1/span_3] @6xl:col-start-3 @6xl:row-[1/span_2]">
+                                    <h2 className="flex items-center gap-2 border-b border-border pb-3 text-base font-semibold">
+                                        <ClipboardList
+                                            aria-hidden="true"
+                                            className="size-4 text-primary"
+                                        />
+                                        Booking summary
+                                    </h2>
                                     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm [&_dd]:text-right [&_dt]:text-muted-foreground">
                                         <dt>Rooms</dt>
                                         <dd>

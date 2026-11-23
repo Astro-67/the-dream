@@ -9,10 +9,26 @@ import {
     type CalendarRoom,
 } from '@/features/reservations/calendar-rows';
 import { Form, Head } from '@inertiajs/react';
-import { useState } from 'react';
+import {
+    BedDouble,
+    CalendarCheck,
+    ChevronDown,
+    LogOut,
+    Search,
+    TriangleAlert,
+    UserX,
+    Wrench,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Dialog,
     DialogContent,
@@ -23,7 +39,8 @@ import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { formatMoney } from '@/lib/utils';
+import { StatusChip } from '@/components/ui/status-chip';
+import { cn, formatMoney } from '@/lib/utils';
 import { rateCalendar } from '@/routes';
 import {
     prices as pricesRoute,
@@ -63,6 +80,19 @@ const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const cell = 'border-b border-l px-2 py-1.5 text-right tabular-nums';
 const label =
     'sticky left-0 z-10 border-b bg-card px-3 py-1.5 text-left font-normal break-words whitespace-normal';
+const reservationLegend = [
+    { label: 'Confirmed', icon: CalendarCheck, tone: 'info' },
+    { label: 'Checked in', icon: BedDouble, tone: 'occupied' },
+    { label: 'Checked out', icon: LogOut, tone: 'success' },
+    { label: 'No-show', icon: UserX, tone: 'warning' },
+    { label: 'Overstay', icon: TriangleAlert, tone: 'warning' },
+    { label: 'Out of order', icon: Wrench, tone: 'unavailable' },
+] as const;
+const reservationOriginLegend = [
+    { label: 'Direct', swatch: 'bg-reservation-origin-direct' },
+    { label: 'External / OTA', swatch: 'bg-reservation-origin-external' },
+    { label: 'Tour operator', swatch: 'bg-reservation-origin-operator' },
+] as const;
 
 function restrictionText(restriction: Restriction): string {
     if (restriction === null) {
@@ -108,14 +138,93 @@ export default function RateCalendar({
     const rangeDays =
         Math.round((Date.parse(rangeTo) - Date.parse(rangeFrom)) / 86400000) +
         1;
-    const selected = new Set(roomTypes.map((room) => room.id));
-    const day = (date: string) =>
-        new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short',
-            timeZone: 'UTC',
-        });
+    const selectedIdsFromProps = roomTypes
+        .map((room) => room.id)
+        .join('\u0000');
+    const [selectedRoomTypeIds, setSelectedRoomTypeIds] = useState(() =>
+        roomTypes.map((room) => room.id),
+    );
+    useEffect(() => {
+        setSelectedRoomTypeIds(
+            selectedIdsFromProps.split('\u0000').filter(Boolean),
+        );
+    }, [selectedIdsFromProps]);
+    const selected = new Set(selectedRoomTypeIds);
+    const selectedRoomTypeLabel =
+        allRoomTypes.length === 0
+            ? 'No room types available'
+            : selected.size === allRoomTypes.length
+              ? 'All room types'
+              : selected.size === 0
+                ? 'No room types selected'
+                : selected.size === 1
+                  ? (allRoomTypes.find((room) => selected.has(room.id))?.name ??
+                    '1 room type selected')
+                  : `${selected.size} room types selected`;
+    const roomTypeFilter = (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    aria-label={`Filter by room type: ${selectedRoomTypeLabel}`}
+                    className="min-h-11 w-full min-w-0 justify-between gap-2 px-2 text-left text-xs"
+                >
+                    <span className="flex min-w-0 flex-col items-start">
+                        <span className="text-[10px] font-semibold tracking-[0.06em] text-muted-foreground uppercase">
+                            Room type
+                        </span>
+                        <span className="w-full truncate font-semibold">
+                            {selectedRoomTypeLabel}
+                        </span>
+                    </span>
+                    <ChevronDown
+                        aria-hidden="true"
+                        className="size-4 shrink-0"
+                    />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+                align="start"
+                className="max-h-72 w-64 overflow-y-auto"
+            >
+                {allRoomTypes.map((room) => (
+                    <DropdownMenuCheckboxItem
+                        key={room.id}
+                        checked={selected.has(room.id)}
+                        className="min-h-11 whitespace-normal"
+                        onSelect={(event) => event.preventDefault()}
+                        onCheckedChange={(checked) =>
+                            setSelectedRoomTypeIds((ids) =>
+                                checked
+                                    ? [...new Set([...ids, room.id])]
+                                    : ids.filter((id) => id !== room.id),
+                            )
+                        }
+                    >
+                        {room.name}
+                    </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+    const dayHeading = (date: string) => {
+        const value = new Date(`${date}T00:00:00Z`);
+
+        return {
+            weekday: value.toLocaleDateString('en-GB', {
+                weekday: 'short',
+                timeZone: 'UTC',
+            }),
+            date: value.toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                timeZone: 'UTC',
+            }),
+        };
+    };
+    const dateCell = (date: string, extraClass = '') =>
+        cn(cell, date === businessDate && 'bg-primary-tint/60', extraClass);
     const editButton = (editing: Editing, name: string) =>
         canManage && (
             <Button
@@ -138,319 +247,478 @@ export default function RateCalendar({
 
     return (
         <>
-            <Head title="Rate calendar" />
-            <div className="flex min-w-0 flex-col gap-6">
-                <header className="space-y-2 border-b pb-6">
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        Rate calendar
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Business date: {day(businessDate)}
-                    </p>
-                </header>
-                <Form
-                    {...rateCalendar.form()}
-                    className="flex flex-wrap items-end gap-4"
-                >
-                    {({ errors }) => (
-                        <>
-                            {(
-                                [
-                                    ['from', 'From'],
-                                    ['to', 'To'],
-                                ] as const
-                            ).map(([name, text]) => (
-                                <div key={name} className="space-y-2">
-                                    <Label htmlFor={`range-${name}`}>
-                                        {text}
+            <Head title="Calendar" />
+            <div className="flex min-w-0 flex-col">
+                <section className="min-w-0 overflow-hidden border border-border bg-card shadow-panel">
+                    <Form
+                        {...rateCalendar.form()}
+                        className="grid min-w-0 items-end gap-2 border-b border-border bg-muted/20 p-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1.7fr)_repeat(2,minmax(140px,1fr))_minmax(125px,.8fr)_minmax(160px,1.1fr)_auto]"
+                    >
+                        {({ errors }) => (
+                            <>
+                                {selectedRoomTypeIds.map((roomTypeId) => (
+                                    <input
+                                        key={roomTypeId}
+                                        type="hidden"
+                                        name="room_type_ids[]"
+                                        value={roomTypeId}
+                                    />
+                                ))}
+                                <div className="min-w-0 space-y-1.5 sm:col-span-2 xl:col-span-1">
+                                    <Label
+                                        htmlFor="calendar-search"
+                                        className="inline-flex items-center gap-1.5 text-xs"
+                                    >
+                                        <Search
+                                            aria-hidden="true"
+                                            className="size-4 text-primary"
+                                        />
+                                        Search reservations and rooms
                                     </Label>
                                     <Input
-                                        id={`range-${name}`}
-                                        name={name}
-                                        type="date"
-                                        value={
-                                            name === 'from'
-                                                ? rangeFrom
-                                                : rangeTo
-                                        }
-                                        onChange={(event) =>
-                                            name === 'from'
-                                                ? setRangeFrom(
-                                                      event.target.value,
-                                                  )
-                                                : setRangeTo(event.target.value)
-                                        }
-                                        required
-                                        aria-invalid={!!errors[name]}
+                                        id="calendar-search"
+                                        name="search"
+                                        defaultValue={filters.search ?? ''}
+                                        maxLength={255}
+                                        placeholder="Guest name, room, phone, reservation or channel reference"
+                                        className="h-10"
+                                        aria-invalid={!!errors.search}
                                     />
-                                    <InputError message={errors[name]} />
+                                    <InputError message={errors.search} />
                                 </div>
-                            ))}
-                            <div className="space-y-2">
-                                <Label htmlFor="calendar-view">View</Label>
-                                <NativeSelect
-                                    id="calendar-view"
-                                    value={
-                                        [7, 15, 30, 60].includes(rangeDays)
-                                            ? String(rangeDays)
-                                            : ''
-                                    }
-                                    onChange={(event) => {
-                                        const end = new Date(
-                                            `${rangeFrom}T00:00:00Z`,
-                                        );
-                                        if (!Number.isNaN(end.getTime())) {
-                                            end.setUTCDate(
-                                                end.getUTCDate() +
-                                                    Number(event.target.value) -
-                                                    1,
-                                            );
-                                            setRangeTo(
-                                                end.toISOString().slice(0, 10),
-                                            );
+
+                                {(
+                                    [
+                                        ['from', 'From'],
+                                        ['to', 'To'],
+                                    ] as const
+                                ).map(([name, text]) => (
+                                    <div
+                                        key={name}
+                                        className="min-w-0 space-y-1.5"
+                                    >
+                                        <Label
+                                            htmlFor={`range-${name}`}
+                                            className="text-xs"
+                                        >
+                                            {text}
+                                        </Label>
+                                        <Input
+                                            id={`range-${name}`}
+                                            name={name}
+                                            type="date"
+                                            value={
+                                                name === 'from'
+                                                    ? rangeFrom
+                                                    : rangeTo
+                                            }
+                                            onChange={(event) =>
+                                                name === 'from'
+                                                    ? setRangeFrom(
+                                                          event.target.value,
+                                                      )
+                                                    : setRangeTo(
+                                                          event.target.value,
+                                                      )
+                                            }
+                                            className="h-10"
+                                            required
+                                            aria-invalid={!!errors[name]}
+                                        />
+                                        <InputError message={errors[name]} />
+                                    </div>
+                                ))}
+                                <div className="min-w-0 space-y-1.5">
+                                    <Label
+                                        htmlFor="calendar-view"
+                                        className="text-xs"
+                                    >
+                                        View
+                                    </Label>
+                                    <NativeSelect
+                                        id="calendar-view"
+                                        value={
+                                            [7, 15, 30, 60].includes(rangeDays)
+                                                ? String(rangeDays)
+                                                : ''
                                         }
+                                        onChange={(event) => {
+                                            const end = new Date(
+                                                `${rangeFrom}T00:00:00Z`,
+                                            );
+                                            if (!Number.isNaN(end.getTime())) {
+                                                end.setUTCDate(
+                                                    end.getUTCDate() +
+                                                        Number(
+                                                            event.target.value,
+                                                        ) -
+                                                        1,
+                                                );
+                                                setRangeTo(
+                                                    end
+                                                        .toISOString()
+                                                        .slice(0, 10),
+                                                );
+                                            }
+                                        }}
+                                    >
+                                        <option value="" hidden>
+                                            Custom range
+                                        </option>
+                                        {[7, 15, 30, 60].map((days) => (
+                                            <option key={days} value={days}>
+                                                {days} days
+                                            </option>
+                                        ))}
+                                    </NativeSelect>
+                                </div>
+                                <div className="min-w-0 space-y-1.5">
+                                    <Label
+                                        htmlFor="calendar-list"
+                                        className="text-xs"
+                                    >
+                                        Stays
+                                    </Label>
+                                    <NativeSelect
+                                        id="calendar-list"
+                                        name="list"
+                                        defaultValue={filters.list}
+                                    >
+                                        <option value="all">
+                                            All reservations
+                                        </option>
+                                        <option value="arrivals">
+                                            Arrivals
+                                        </option>
+                                        <option value="departures">
+                                            Departures
+                                        </option>
+                                        <option value="in-house">
+                                            In-house
+                                        </option>
+                                        <option value="overstays">
+                                            Overstays
+                                        </option>
+                                        <option value="balance-owing">
+                                            Balance owing
+                                        </option>
+                                        <option value="no-id-document">
+                                            No ID document
+                                        </option>
+                                    </NativeSelect>
+                                    <InputError message={errors.list} />
+                                </div>
+                                <Button
+                                    type="submit"
+                                    className="min-h-10 sm:col-span-2 xl:col-span-1"
+                                >
+                                    <Search aria-hidden="true" />
+                                    Update
+                                </Button>
+                            </>
+                        )}
+                    </Form>
+                    {roomTypes.length === 0 ? (
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+                            <p className="text-sm text-muted-foreground">
+                                {allRoomTypes.length === 0
+                                    ? 'No room types are available for this property.'
+                                    : 'No room types selected. Choose one from the filter.'}
+                            </p>
+                            <div className="w-full min-w-0 sm:max-w-64">
+                                {roomTypeFilter}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="min-w-0">
+                            <nav
+                                aria-label="Calendar reservation status and source legend"
+                                className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border bg-muted/20 px-3 py-2"
+                            >
+                                <span className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                                    Key
+                                </span>
+                                {reservationLegend.map(
+                                    ({ label, icon: Icon, tone }) => (
+                                        <span
+                                            key={label}
+                                            className="inline-flex items-center gap-1.5"
+                                        >
+                                            <Icon
+                                                aria-hidden="true"
+                                                className="size-4 text-muted-foreground"
+                                            />
+                                            <StatusChip tone={tone}>
+                                                {label}
+                                            </StatusChip>
+                                        </span>
+                                    ),
+                                )}
+                                <span
+                                    aria-hidden="true"
+                                    className="mx-1 h-4 border-l border-border"
+                                />
+                                {reservationOriginLegend.map(
+                                    ({ label, swatch }) => (
+                                        <span
+                                            key={label}
+                                            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+                                        >
+                                            <span
+                                                aria-hidden="true"
+                                                className={cn(
+                                                    'size-3 rounded-sm',
+                                                    swatch,
+                                                )}
+                                            />
+                                            {label}
+                                        </span>
+                                    ),
+                                )}
+                            </nav>
+                            <div
+                                role="region"
+                                aria-label="Room availability and rate calendar"
+                                tabIndex={0}
+                                className="max-h-[calc(100svh-9rem)] min-w-0 overflow-auto bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                            >
+                                <table
+                                    className="min-w-full table-fixed border-separate border-spacing-0 text-sm"
+                                    style={{
+                                        width: `${10 + dates.length * 7}rem`,
                                     }}
                                 >
-                                    <option value="" hidden>
-                                        Custom range
-                                    </option>
-                                    {[7, 15, 30, 60].map((days) => (
-                                        <option key={days} value={days}>
-                                            {days} days
-                                        </option>
-                                    ))}
-                                </NativeSelect>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="calendar-list">Stays</Label>
-                                <NativeSelect
-                                    id="calendar-list"
-                                    name="list"
-                                    defaultValue={filters.list}
-                                >
-                                    <option value="all">
-                                        All reservations
-                                    </option>
-                                    <option value="arrivals">Arrivals</option>
-                                    <option value="departures">
-                                        Departures
-                                    </option>
-                                    <option value="in-house">In-house</option>
-                                    <option value="overstays">Overstays</option>
-                                    <option value="balance-owing">
-                                        Balance owing
-                                    </option>
-                                    <option value="no-id-document">
-                                        No ID document
-                                    </option>
-                                </NativeSelect>
-                                <InputError message={errors.list} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="calendar-search">Search</Label>
-                                <Input
-                                    id="calendar-search"
-                                    name="search"
-                                    defaultValue={filters.search ?? ''}
-                                    maxLength={255}
-                                    placeholder="Room, guest, phone, reservation or channel reference"
-                                />
-                                <InputError message={errors.search} />
-                            </div>
-                            <fieldset className="max-w-full min-w-0">
-                                <legend className="mb-2 text-sm font-medium">
-                                    Room types
-                                </legend>
-                                <div className="flex flex-wrap gap-x-4">
-                                    {allRoomTypes.map((room) => (
-                                        <label
-                                            key={room.id}
-                                            className="flex min-h-11 max-w-full min-w-0 items-center gap-2 text-sm"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                name="room_type_ids[]"
-                                                value={room.id}
-                                                defaultChecked={selected.has(
-                                                    room.id,
-                                                )}
-                                                className="size-4 shrink-0 accent-primary"
-                                            />
-                                            <span className="min-w-0 break-words">
-                                                {room.name}
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </fieldset>
-                            <Button type="submit" variant="outline">
-                                Show
-                            </Button>
-                        </>
-                    )}
-                </Form>
-                {roomTypes.length === 0 ? (
-                    <p className="text-muted-foreground">
-                        No room types selected. Choose at least one above.
-                    </p>
-                ) : (
-                    <div
-                        role="region"
-                        aria-label="Room availability and rate calendar"
-                        tabIndex={0}
-                        className="max-h-[calc(100svh-9rem)] min-w-0 overflow-auto border bg-card focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                    >
-                        <table
-                            className="min-w-full table-fixed border-separate border-spacing-0 text-sm"
-                            style={{ width: `${10 + dates.length * 7}rem` }}
-                        >
-                            <caption className="sr-only">
-                                Room availability, prices and restrictions.
-                                Scroll to view all dates and rooms.
-                            </caption>
-                            <colgroup>
-                                <col className="w-40" />
-                                {dates.map((date) => (
-                                    <col key={date} className="w-28" />
-                                ))}
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th
-                                        className={`${label} top-0 z-30 font-medium`}
-                                    >
-                                        <span className="sr-only">Row</span>
-                                    </th>
-                                    {dates.map((date) => (
-                                        <th
-                                            key={date}
-                                            scope="col"
-                                            aria-current={
-                                                date === businessDate
-                                                    ? 'date'
-                                                    : undefined
-                                            }
-                                            className={`sticky top-0 z-20 border-b border-l px-2 py-2 text-right font-medium whitespace-nowrap ${date === businessDate ? 'bg-primary-tint' : 'bg-card'}`}
-                                        >
-                                            {day(date)}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            {roomTypes.map((room) => (
-                                <tbody key={room.id}>
-                                    <tr>
-                                        <th
-                                            scope="rowgroup"
-                                            colSpan={dates.length + 1}
-                                            className="border-b bg-muted px-3 py-2 text-left font-medium"
-                                        >
-                                            <span className="sticky left-3 inline-block max-w-[calc(100vw-4rem)] break-words whitespace-normal md:max-w-none">
-                                                {room.name}{' '}
-                                                <span className="font-mono text-muted-foreground">
-                                                    {room.code}
-                                                </span>
-                                            </span>
-                                        </th>
-                                    </tr>
-                                    <CalendarRoomRows
-                                        rooms={room.rooms}
-                                        dates={dates}
-                                        businessDate={businessDate}
-                                        onOutOfOrder={(room, date, period) =>
-                                            setOutOfOrder({
-                                                room,
-                                                date,
-                                                period,
-                                            })
-                                        }
-                                    />
-                                    <tr>
-                                        <th scope="row" className={label}>
-                                            Unassigned reservations
-                                        </th>
+                                    <caption className="sr-only">
+                                        Room availability, prices and
+                                        restrictions. Scroll to view all dates
+                                        and rooms.
+                                    </caption>
+                                    <colgroup>
+                                        <col className="w-40" />
                                         {dates.map((date) => (
-                                            <td key={date} className={cell}>
-                                                {room.unassigned[date]}
-                                            </td>
+                                            <col key={date} className="w-28" />
                                         ))}
-                                    </tr>
-                                    <tr>
-                                        <th scope="row" className={label}>
-                                            Sellable
-                                        </th>
-                                        {dates.map((date) => (
-                                            <td key={date} className={cell}>
-                                                {room.sellable[date]}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                    <tr>
-                                        <th scope="row" className={label}>
-                                            Available rooms
-                                        </th>
-                                        {dates.map((date) => (
-                                            <td key={date} className={cell}>
-                                                {room.available[date]}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                    <tr>
-                                        <th scope="row" className={label}>
-                                            Out of order
-                                        </th>
-                                        {dates.map((date) => (
-                                            <td
-                                                key={date}
-                                                className={`${cell} text-muted-foreground`}
+                                    </colgroup>
+                                    <thead>
+                                        <tr>
+                                            <th
+                                                scope="col"
+                                                className={`${label} top-0 z-30 font-medium`}
                                             >
-                                                {room.outOfService[date]}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                    {room.plans.map((plan) => (
-                                        <PlanRows
-                                            key={plan.id}
-                                            plan={plan}
-                                            dates={dates}
-                                            priceEdit={
-                                                !plan.derived &&
-                                                editButton(
-                                                    {
-                                                        kind: 'prices',
-                                                        plan,
-                                                        roomType: room,
-                                                    },
-                                                    `${plan.name} prices for ${room.name}`,
-                                                )
-                                            }
-                                            restrictionEdit={
-                                                <>
-                                                    {editButton(
-                                                        {
-                                                            kind: 'restrictions',
-                                                            plan,
-                                                            roomType: room,
-                                                        },
-                                                        `${plan.name} restrictions for ${room.name}`,
+                                                {roomTypeFilter}
+                                            </th>
+                                            {dates.map((date) => {
+                                                const heading =
+                                                    dayHeading(date);
+
+                                                return (
+                                                    <th
+                                                        key={date}
+                                                        scope="col"
+                                                        aria-current={
+                                                            date ===
+                                                            businessDate
+                                                                ? 'date'
+                                                                : undefined
+                                                        }
+                                                        className={cn(
+                                                            'sticky top-0 z-20 border-b border-l px-2 py-2 text-center whitespace-nowrap',
+                                                            date ===
+                                                                businessDate
+                                                                ? 'bg-primary-tint'
+                                                                : 'bg-card',
+                                                        )}
+                                                    >
+                                                        <span className="flex min-h-12 flex-col items-center justify-center gap-0.5">
+                                                            <span className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                                                                {
+                                                                    heading.weekday
+                                                                }
+                                                            </span>
+                                                            <span className="text-sm font-semibold tabular-nums">
+                                                                {heading.date}
+                                                            </span>
+                                                            {date ===
+                                                                businessDate && (
+                                                                <span className="text-[10px] font-semibold text-primary">
+                                                                    Business
+                                                                    date
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </th>
+                                                );
+                                            })}
+                                        </tr>
+                                    </thead>
+                                    {roomTypes.map((room) => (
+                                        <tbody key={room.id}>
+                                            <tr>
+                                                <th
+                                                    scope="rowgroup"
+                                                    colSpan={dates.length + 1}
+                                                    className="border-t-2 border-b border-t-border bg-muted/70 px-3 py-2.5 text-left text-sm font-semibold"
+                                                >
+                                                    <span className="sticky left-3 inline-flex max-w-[calc(100vw-4rem)] items-center gap-2 break-words whitespace-normal md:max-w-none">
+                                                        <BedDouble
+                                                            aria-hidden="true"
+                                                            className="size-4 shrink-0 text-primary"
+                                                        />
+                                                        {room.name}{' '}
+                                                        <span className="border border-border bg-card px-1.5 py-0.5 font-mono text-xs font-medium text-muted-foreground">
+                                                            {room.code}
+                                                        </span>
+                                                    </span>
+                                                </th>
+                                            </tr>
+                                            <CalendarRoomRows
+                                                rooms={room.rooms}
+                                                dates={dates}
+                                                businessDate={businessDate}
+                                                onOutOfOrder={(
+                                                    room,
+                                                    date,
+                                                    period,
+                                                ) =>
+                                                    setOutOfOrder({
+                                                        room,
+                                                        date,
+                                                        period,
+                                                    })
+                                                }
+                                            />
+                                            <tr>
+                                                <th
+                                                    scope="row"
+                                                    className={label}
+                                                >
+                                                    Unassigned reservations
+                                                </th>
+                                                {dates.map((date) => (
+                                                    <td
+                                                        key={date}
+                                                        className={dateCell(
+                                                            date,
+                                                        )}
+                                                    >
+                                                        {room.unassigned[date]}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                            <tr>
+                                                <th
+                                                    scope="row"
+                                                    className={cn(
+                                                        label,
+                                                        'text-muted-foreground',
                                                     )}
-                                                    {editButton(
-                                                        {
-                                                            kind: 'release-stop-sell',
-                                                            plan,
-                                                            roomType: room,
-                                                        },
-                                                        `${plan.name}, ${room.name}`,
+                                                >
+                                                    Sellable
+                                                </th>
+                                                {dates.map((date) => (
+                                                    <td
+                                                        key={date}
+                                                        className={dateCell(
+                                                            date,
+                                                        )}
+                                                    >
+                                                        {room.sellable[date]}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                            <tr>
+                                                <th
+                                                    scope="row"
+                                                    className={cn(
+                                                        label,
+                                                        'font-semibold text-status-success',
                                                     )}
-                                                </>
-                                            }
-                                        />
+                                                >
+                                                    Available rooms
+                                                </th>
+                                                {dates.map((date) => (
+                                                    <td
+                                                        key={date}
+                                                        className={dateCell(
+                                                            date,
+                                                            'font-semibold text-status-success',
+                                                        )}
+                                                    >
+                                                        {room.available[date]}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                            <tr>
+                                                <th
+                                                    scope="row"
+                                                    className={label}
+                                                >
+                                                    Out of order
+                                                </th>
+                                                {dates.map((date) => (
+                                                    <td
+                                                        key={date}
+                                                        className={dateCell(
+                                                            date,
+                                                            'text-status-unavailable',
+                                                        )}
+                                                    >
+                                                        {
+                                                            room.outOfService[
+                                                                date
+                                                            ]
+                                                        }
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                            {room.plans.map((plan) => (
+                                                <PlanRows
+                                                    key={plan.id}
+                                                    plan={plan}
+                                                    dates={dates}
+                                                    businessDate={businessDate}
+                                                    priceEdit={
+                                                        !plan.derived &&
+                                                        editButton(
+                                                            {
+                                                                kind: 'prices',
+                                                                plan,
+                                                                roomType: room,
+                                                            },
+                                                            `${plan.name} prices for ${room.name}`,
+                                                        )
+                                                    }
+                                                    restrictionEdit={
+                                                        <>
+                                                            {editButton(
+                                                                {
+                                                                    kind: 'restrictions',
+                                                                    plan,
+                                                                    roomType:
+                                                                        room,
+                                                                },
+                                                                `${plan.name} restrictions for ${room.name}`,
+                                                            )}
+                                                            {editButton(
+                                                                {
+                                                                    kind: 'release-stop-sell',
+                                                                    plan,
+                                                                    roomType:
+                                                                        room,
+                                                                },
+                                                                `${plan.name}, ${room.name}`,
+                                                            )}
+                                                        </>
+                                                    }
+                                                />
+                                            ))}
+                                        </tbody>
                                     ))}
-                                </tbody>
-                            ))}
-                        </table>
-                    </div>
-                )}
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </section>
             </div>
             <Dialog
                 open={editing !== null}
@@ -488,11 +756,13 @@ export default function RateCalendar({
 function PlanRows({
     plan,
     dates,
+    businessDate,
     priceEdit,
     restrictionEdit,
 }: {
     plan: Plan;
     dates: string[];
+    businessDate: string;
     priceEdit: React.ReactNode;
     restrictionEdit: React.ReactNode;
 }) {
@@ -512,7 +782,13 @@ function PlanRows({
                     const price = plan.prices[date];
 
                     return (
-                        <td key={date} className={cell}>
+                        <td
+                            key={date}
+                            className={cn(
+                                cell,
+                                date === businessDate && 'bg-primary-tint/60',
+                            )}
+                        >
                             {price === null ? (
                                 <span className="text-muted-foreground">
                                     No price
@@ -535,7 +811,13 @@ function PlanRows({
                 {dates.map((date) => (
                     <td
                         key={date}
-                        className={`${cell} text-xs ${plan.restrictions[date] === null ? 'text-muted-foreground' : ''}`}
+                        className={cn(
+                            cell,
+                            date === businessDate && 'bg-primary-tint/60',
+                            'text-xs',
+                            plan.restrictions[date] === null &&
+                                'text-muted-foreground',
+                        )}
                     >
                         {restrictionText(plan.restrictions[date])}
                     </td>

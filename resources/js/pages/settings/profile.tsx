@@ -43,7 +43,7 @@ export default function Profile({
                     options={{
                         preserveScroll: true,
                     }}
-                    className="space-y-6"
+                    className="space-y-6 border bg-card p-5 sm:p-6"
                 >
                     {({ processing, errors }) => (
                         <>
@@ -94,7 +94,7 @@ export default function Profile({
                                             <Link
                                                 href={send()}
                                                 as="button"
-                                                className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                                className="text-foreground underline decoration-border underline-offset-4 transition-colors duration-200 ease-out hover:decoration-current!"
                                             >
                                                 Click here to re-send the
                                                 verification email.

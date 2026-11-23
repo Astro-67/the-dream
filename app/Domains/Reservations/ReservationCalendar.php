@@ -41,6 +41,8 @@ class ReservationCalendar
                     'arrival' => $reservation->arrival->toDateString(), 'departure' => $reservation->departure->toDateString(),
                     'guest_name' => $guests->get($reservation->id, __('Guest not recorded')),
                     'source' => $reservation->getAttribute('source'), 'status' => $reservation->status->value,
+                    'booked_through' => $reservation->getAttribute('booked_through'),
+                    'tour_operator_name' => $reservation->getAttribute('tour_operator_name'),
                     'url' => route('reservations.show', $reservation),
                 ])->values(),
             ])->values());

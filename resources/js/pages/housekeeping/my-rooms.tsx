@@ -1,4 +1,5 @@
 import { Form, Head, Link } from '@inertiajs/react';
+import { CheckCircle2, DoorOpen, Sparkles } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { PropertyIntent } from '@/components/shared/property-intent';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,8 @@ import { complete } from '@/routes/housekeeping/assignments';
 import { index as maintenance } from '@/routes/maintenance';
 import { useCan } from '@/hooks/use-can';
 import { Spinner } from '@/components/ui/spinner';
+import { HousekeepingMetricCards } from '@/features/housekeeping/metric-cards';
+import { cn } from '@/lib/utils';
 
 export default function MyRooms({
     date,
@@ -25,20 +28,57 @@ export default function MyRooms({
     }[];
 }) {
     const can = useCan();
+    const completedCount = assignments.filter(
+        (assignment) => assignment.completed,
+    ).length;
 
     return (
         <>
             <Head title="My rooms" />
-            <div className="flex max-w-[720px] min-w-0 flex-col gap-6">
-                <header className="space-y-2 border-b pb-6">
-                    <h1 className="text-2xl font-semibold">My rooms</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Cleaning assignments · business date {formatDate(date)}
-                    </p>
+            <div className="flex w-full min-w-0 flex-col gap-6">
+                <header className="flex items-center gap-4 border-b border-border pb-6">
+                    <span className="grid size-12 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary shadow-panel">
+                        <DoorOpen aria-hidden="true" className="size-6" />
+                    </span>
+                    <div className="space-y-1">
+                        <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                            Rooms and service
+                        </p>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            My rooms
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Cleaning assignments · business date{' '}
+                            {formatDate(date)}
+                        </p>
+                    </div>
                 </header>
+                <HousekeepingMetricCards
+                    columns="three"
+                    metrics={[
+                        {
+                            label: 'Assigned to you',
+                            value: assignments.length,
+                            icon: DoorOpen,
+                            tone: 'primary',
+                        },
+                        {
+                            label: 'Completed',
+                            value: completedCount,
+                            icon: CheckCircle2,
+                            tone: 'success',
+                        },
+                        {
+                            label: 'Still to clean',
+                            value: assignments.length - completedCount,
+                            icon: Sparkles,
+                            tone: 'warning',
+                        },
+                    ]}
+                />
                 <Form
                     {...myRooms.form()}
-                    className="flex flex-wrap items-end gap-4"
+                    className="grid min-w-0 items-end gap-3 border border-border bg-card p-3 shadow-panel sm:grid-cols-[minmax(200px,260px)_auto] md:p-4"
                 >
                     <div className="grid gap-2">
                         <Label htmlFor="date">Business date</Label>
@@ -57,18 +97,23 @@ export default function MyRooms({
                 {assignments.length === 0 ? (
                     <EmptyState message="No rooms assigned for this business date. Ask your supervisor for assignments." />
                 ) : (
-                    <ul className="divide-y border-y">
+                    <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {assignments.map((assignment) => (
                             <li
                                 key={assignment.id}
-                                className="grid min-w-0 gap-4 py-6"
+                                className={cn(
+                                    'grid min-w-0 content-start gap-4 border border-t-4 border-border bg-card p-4 shadow-panel md:p-5',
+                                    assignment.completed
+                                        ? 'border-t-status-success'
+                                        : 'border-t-status-warning',
+                                )}
                             >
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                     <div>
-                                        <h2 className="text-lg break-words tabular-nums">
+                                        <h2 className="text-xl font-semibold break-words tabular-nums">
                                             Room {assignment.room.number}
                                         </h2>
-                                        <p className="text-muted-foreground">
+                                        <p className="mt-1 text-sm text-muted-foreground">
                                             {assignment.room.floor === null
                                                 ? 'No floor'
                                                 : `Floor ${assignment.room.floor}`}

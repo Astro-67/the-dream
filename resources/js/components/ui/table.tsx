@@ -28,7 +28,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
         <thead
             data-slot="table-header"
             className={cn(
-                'sticky top-0 z-10 bg-card text-left text-muted-foreground shadow-[inset_0_-1px_0_var(--border)]',
+                'sticky top-0 z-10 bg-muted/60 text-left text-muted-foreground shadow-[inset_0_-1px_0_var(--border)]',
                 className,
             )}
             {...props}
@@ -70,7 +70,7 @@ function TableHead({
         <th
             data-slot="table-head"
             className={cn(
-                'h-10 px-4 font-medium whitespace-nowrap',
+                'h-10 px-4 text-xs font-medium tracking-[0.04em] whitespace-nowrap',
                 numeric && 'text-right',
                 className,
             )}

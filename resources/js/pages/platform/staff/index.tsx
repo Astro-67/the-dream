@@ -118,7 +118,7 @@ export default function PlatformStaff({ staff, roles }: Props) {
                     </p>
                 </header>
 
-                <section className="max-w-[720px] space-y-4 rounded-xl border bg-card p-5">
+                <section className="max-w-[720px] space-y-4 border bg-card p-5">
                     <div className="space-y-1">
                         <h2 className="text-lg font-semibold tracking-tight">
                             Give a platform role

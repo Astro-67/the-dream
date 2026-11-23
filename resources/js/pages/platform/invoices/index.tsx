@@ -236,7 +236,7 @@ export default function PlatformInvoices({
                     .map((invoice) => (
                         <section
                             key={invoice.id}
-                            className="max-w-[720px] space-y-4 rounded-xl border bg-card p-5"
+                            className="max-w-[720px] space-y-4 border bg-card p-5"
                         >
                             <h2 className="text-lg font-semibold tracking-tight">
                                 Payment for {invoice.number} ·{' '}
@@ -250,7 +250,7 @@ export default function PlatformInvoices({
                         </section>
                     ))}
 
-                <section className="max-w-[720px] space-y-4 rounded-xl border bg-card p-5">
+                <section className="max-w-[720px] space-y-4 border bg-card p-5">
                     <h2 className="text-lg font-semibold tracking-tight">
                         Issue the next invoice
                     </h2>

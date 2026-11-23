@@ -54,7 +54,15 @@ class DashboardController extends Controller
                 'lists' => collect(ReservationLists::FRONT_DESK)->map(fn (string $key) => [
                     'key' => $key,
                     'count' => $lists->query($key, $date, '')->count(),
-                    'href' => route('dashboard', ['period' => $period, 'list' => $key, 'search' => $search]),
+                    'href' => route('reservations.index', [
+                        'date' => $date,
+                        'list' => match ($key) {
+                            'arrivals' => 'today',
+                            'in-house' => 'in_house',
+                            default => $key,
+                        },
+                        'search' => $search !== '' ? $search : null,
+                    ]),
                 ])->all(),
             ],
             'guestQueue' => ! $canViewReservations ? null : [

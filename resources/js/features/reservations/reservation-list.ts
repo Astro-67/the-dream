@@ -15,14 +15,12 @@ export type ReservationListItem = {
     checkout_balances: CheckoutBalance[];
     can_override_balance?: boolean;
     guest_name: string | null;
+    guest_id: string | null;
     room_number: string | null;
     balances: { currency: string; balance: number; unposted: boolean }[];
 };
 
-export function paymentState({
-    balance,
-    unposted,
-}: ReservationListItem['balances'][number]): {
+export function paymentState({ balance, unposted }: ReservationListItem['balances'][number]): {
     label: string;
     tone: 'error' | 'success' | 'info' | 'warning';
 } {

@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { Palette, ShieldCheck, UserRound } from 'lucide-react';
 import type { PropsWithChildren } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
@@ -14,17 +15,17 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
         href: edit(),
-        icon: null,
+        icon: UserRound,
     },
     {
         title: 'Security',
         href: editSecurity(),
-        icon: null,
+        icon: ShieldCheck,
     },
     {
         title: 'Appearance',
         href: editAppearance(),
-        icon: null,
+        icon: Palette,
     },
 ];
 
@@ -34,29 +35,40 @@ export default function SettingsLayout({ children }: PropsWithChildren) {
     return (
         <div className="p-4 md:p-6">
             <Heading
-                title="Settings"
-                description="Manage your profile and account settings"
+                title="Your settings"
+                description="Keep your details up to date and make Karafuu comfortable to work in."
             />
 
             <div className="flex min-w-0 flex-col lg:flex-row lg:gap-8">
-                <aside className="w-full shrink-0 lg:w-48 lg:border-r lg:pr-4">
-                    <nav
-                        className="flex flex-col space-y-1 space-x-0"
-                        aria-label="Settings"
-                    >
+                <aside className="w-full shrink-0 lg:w-48 lg:border-r lg:border-border lg:pr-4">
+                    <nav className="flex flex-col gap-1" aria-label="Settings">
                         {sidebarNavItems.map((item, index) => (
                             <Button
                                 key={`${toUrl(item.href)}-${index}`}
                                 size="sm"
                                 variant="ghost"
                                 asChild
-                                className={cn('w-full justify-start', {
-                                    'bg-muted': isCurrentOrParentUrl(item.href),
-                                })}
+                                className={cn(
+                                    'min-h-11 w-full justify-start border-l-2 border-transparent',
+                                    {
+                                        'border-primary bg-primary-tint text-primary':
+                                            isCurrentOrParentUrl(item.href),
+                                    },
+                                )}
                             >
-                                <Link href={item.href}>
+                                <Link
+                                    href={item.href}
+                                    aria-current={
+                                        isCurrentOrParentUrl(item.href)
+                                            ? 'page'
+                                            : undefined
+                                    }
+                                >
                                     {item.icon && (
-                                        <item.icon className="h-4 w-4" />
+                                        <item.icon
+                                            className="h-4 w-4"
+                                            aria-hidden="true"
+                                        />
                                     )}
                                     {item.title}
                                 </Link>

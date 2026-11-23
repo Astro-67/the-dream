@@ -49,12 +49,16 @@ class ListReservations
         $page = $reservations->getCollection();
         $balances = FolioSummary::balances($page);
         $checkoutBalances = FolioSummary::checkoutBalances($page);
-        $guests = Reservation::guestNames($page);
+        $leads = Reservation::leadGuests($page);
         $rooms = Room::query()->whereIn('id', $page->pluck('room_id')->filter())->pluck('number', 'id');
-        $page->each(fn (Reservation $reservation) => $reservation->setAttribute('balances', $balances[$reservation->id])
-            ->setAttribute('checkout_balances', $checkoutBalances[$reservation->id] ?? [])
-            ->setAttribute('guest_name', $guests->get($reservation->id))
-            ->setAttribute('room_number', $rooms->get($reservation->room_id)));
+        $page->each(function (Reservation $reservation) use ($balances, $checkoutBalances, $leads, $rooms): void {
+            $lead = $leads->get($reservation->id, ['id' => null, 'name' => null]);
+            $reservation->setAttribute('balances', $balances[$reservation->id])
+                ->setAttribute('checkout_balances', $checkoutBalances[$reservation->id] ?? [])
+                ->setAttribute('guest_id', $lead['id'])
+                ->setAttribute('guest_name', $lead['name'])
+                ->setAttribute('room_number', $rooms->get($reservation->room_id));
+        });
         $page->filter(fn (Reservation $reservation) => $reservation->getAttribute('can_check_out'))
             ->each(fn (Reservation $reservation) => $reservation->setAttribute('can_override_balance', Gate::allows('checkOutWithBalance', $reservation)));
 

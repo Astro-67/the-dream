@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import type { HTMLAttributes } from 'react';
+import { Button } from '@/components/ui/button';
 import type { Appearance } from '@/hooks/use-appearance';
 import { useAppearance } from '@/hooks/use-appearance';
 import { cn } from '@/lib/utils';
@@ -11,34 +12,68 @@ export default function AppearanceToggleTab({
 }: HTMLAttributes<HTMLDivElement>) {
     const { appearance, updateAppearance } = useAppearance();
 
-    const tabs: { value: Appearance; icon: LucideIcon; label: string }[] = [
-        { value: 'light', icon: Sun, label: 'Light' },
-        { value: 'dark', icon: Moon, label: 'Dark' },
-        { value: 'system', icon: Monitor, label: 'System' },
+    const tabs: {
+        value: Appearance;
+        icon: LucideIcon;
+        label: string;
+        description: string;
+    }[] = [
+        {
+            value: 'light',
+            icon: Sun,
+            label: 'Light',
+            description: 'Warm, bright surfaces for your day.',
+        },
+        {
+            value: 'dark',
+            icon: Moon,
+            label: 'Dark',
+            description: 'A darker workspace for lower light.',
+        },
+        {
+            value: 'system',
+            icon: Monitor,
+            label: 'System',
+            description: "Follow your device's light or dark setting.",
+        },
     ];
 
     return (
         <div
-            className={cn(
-                'inline-flex gap-1 rounded-lg bg-muted p-1',
-                className,
-            )}
+            role="group"
+            aria-label="Appearance"
+            className={cn('grid gap-3 sm:grid-cols-3', className)}
             {...props}
         >
-            {tabs.map(({ value, icon: Icon, label }) => (
-                <button
+            {tabs.map(({ value, icon: Icon, label, description }) => (
+                <Button
                     key={value}
+                    type="button"
+                    variant="outline"
+                    aria-pressed={appearance === value}
                     onClick={() => updateAppearance(value)}
                     className={cn(
-                        'flex items-center rounded-md px-3.5 py-1.5 transition-colors',
+                        'h-auto min-h-32 flex-col items-start justify-start gap-3 p-4 text-left whitespace-normal',
                         appearance === value
-                            ? 'bg-card text-foreground'
-                            : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                            ? 'border-primary bg-primary-tint text-primary'
+                            : 'bg-card text-foreground',
                     )}
                 >
-                    <Icon className="-ml-1 h-4 w-4" />
-                    <span className="ml-1.5 text-sm">{label}</span>
-                </button>
+                    <span className="flex w-full items-center justify-between gap-2">
+                        <Icon className="size-5" aria-hidden="true" />
+                        {appearance === value && (
+                            <Check className="size-4" aria-hidden="true" />
+                        )}
+                    </span>
+                    <span className="space-y-1">
+                        <span className="block text-sm font-medium">
+                            {label}
+                        </span>
+                        <span className="block text-xs leading-5 font-normal text-muted-foreground">
+                            {description}
+                        </span>
+                    </span>
+                </Button>
             ))}
         </div>
     );

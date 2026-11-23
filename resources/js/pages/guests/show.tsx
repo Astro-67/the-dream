@@ -1,9 +1,10 @@
 import { Link } from '@inertiajs/react';
+import { CalendarDays, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Identifier } from '@/components/ui/identifier';
 import { Pagination } from '@/components/ui/pagination';
-import { StatusChip } from '@/components/ui/status-chip';
+import { StatusChip, type StatusTone } from '@/components/ui/status-chip';
 import {
     Table,
     TableBody,
@@ -27,6 +28,22 @@ type Stay = {
     departure: string;
     status: string;
 };
+const stayTones: Record<string, StatusTone> = {
+    confirmed: 'info',
+    checked_in: 'occupied',
+    checked_out: 'success',
+    cancelled: 'unavailable',
+    no_show: 'warning',
+    void: 'unavailable',
+};
+const stayLabels: Record<string, string> = {
+    confirmed: 'Confirmed',
+    checked_in: 'Checked in',
+    checked_out: 'Checked out',
+    cancelled: 'Cancelled',
+    no_show: 'No show',
+    void: 'Void',
+};
 export default function Show({
     record,
     canManage,
@@ -48,15 +65,53 @@ export default function Show({
             canManage={canManage}
             base="/guests"
             title="guest"
+            extraActions={
+                canMerge && (
+                    <Button variant="outline" asChild>
+                        <Link href={`/guests/${record.id}/merge`}>
+                            <UsersRound aria-hidden="true" />
+                            Merge duplicate
+                        </Link>
+                    </Button>
+                )
+            }
         >
             <IdentityDetails
                 documents={documents}
                 canViewIdentity={canViewIdentity}
             />
-            <section className="space-y-3">
-                <h2 className="text-lg font-semibold">Stay history</h2>
+            <section
+                aria-labelledby="stay-history-title"
+                className="overflow-hidden border border-border bg-card shadow-panel"
+            >
+                <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-4 md:px-5">
+                    <div className="flex items-center gap-3">
+                        <span className="grid size-10 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary">
+                            <CalendarDays
+                                aria-hidden="true"
+                                className="size-5"
+                            />
+                        </span>
+                        <div>
+                            <h2
+                                id="stay-history-title"
+                                className="text-base font-semibold"
+                            >
+                                Stay history
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Reservations linked to this guest
+                            </p>
+                        </div>
+                    </div>
+                    <span className="border border-border bg-card px-2.5 py-1 text-xs font-semibold text-muted-foreground tabular-nums">
+                        {stays.total}
+                    </span>
+                </div>
                 {stays.data.length === 0 ? (
-                    <EmptyState message="No reservations linked to this guest. Attach them from a reservation." />
+                    <div className="p-4 md:p-5">
+                        <EmptyState message="No reservations linked to this guest. Attach them from a reservation." />
+                    </div>
                 ) : (
                     <>
                         <Table>
@@ -92,34 +147,24 @@ export default function Show({
                                         <TableCell>
                                             <StatusChip
                                                 tone={
-                                                    stay.status ===
-                                                        'confirmed' ||
-                                                    stay.status === 'checked_in'
-                                                        ? 'success'
-                                                        : 'unavailable'
+                                                    stayTones[stay.status] ??
+                                                    'unavailable'
                                                 }
                                             >
-                                                {stay.status.replaceAll(
-                                                    '_',
-                                                    ' ',
-                                                )}
+                                                {stayLabels[stay.status] ??
+                                                    stay.status}
                                             </StatusChip>
                                         </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
-                        <Pagination page={stays} />
+                        <div className="border-t border-border px-4 py-3 md:px-5">
+                            <Pagination page={stays} />
+                        </div>
                     </>
                 )}
             </section>
-            {canMerge && (
-                <Button variant="outline" asChild>
-                    <Link href={`/guests/${record.id}/merge`}>
-                        Merge duplicate guest
-                    </Link>
-                </Button>
-            )}
         </ContactShow>
     );
 }

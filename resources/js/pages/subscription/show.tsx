@@ -59,7 +59,7 @@ function Usage({
     limit: number | null;
 }) {
     return (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="border bg-card p-4">
             <div className="text-sm text-muted-foreground">{label}</div>
             <div className="text-2xl font-semibold tabular-nums">
                 {used}{' '}

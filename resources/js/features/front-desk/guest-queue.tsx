@@ -1,4 +1,5 @@
 import { Form, Link } from '@inertiajs/react';
+import { Search, Users } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -26,85 +27,136 @@ export type GuestQueue = {
 };
 
 const priorities = [
-    'Overdue departures',
-    'Needs attention',
-    'In progress',
-    'Completed',
+    {
+        label: 'Overdue departures',
+        className: 'border-t-status-error bg-status-error-tint/15',
+        labelClassName: 'text-status-error',
+        dotClassName: 'bg-status-error',
+    },
+    {
+        label: 'Needs attention',
+        className: 'border-t-status-warning bg-status-warning-tint/15',
+        labelClassName: 'text-status-warning',
+        dotClassName: 'bg-status-warning',
+    },
+    {
+        label: 'In progress',
+        className: 'border-t-status-info bg-status-info-tint/15',
+        labelClassName: 'text-status-info',
+        dotClassName: 'bg-status-info',
+    },
+    {
+        label: 'Completed',
+        className: 'border-t-status-success bg-status-success-tint/15',
+        labelClassName: 'text-status-success',
+        dotClassName: 'bg-status-success',
+    },
 ];
 
-export function GuestQueue({ queue }: { queue: GuestQueue }) {
+export function GuestQueueSearch({ queue }: { queue: GuestQueue }) {
+    return (
+        <Form
+            {...dashboard.form()}
+            className="grid min-w-0 gap-3 border border-l-4 border-border border-l-primary bg-muted/20 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:p-4"
+        >
+            {({ errors, processing }) => (
+                <>
+                    <input
+                        type="hidden"
+                        name="list"
+                        value={queue.filters.list}
+                    />
+                    <input type="hidden" name="period" value={queue.period} />
+                    <div className="min-w-0 space-y-2">
+                        <Label htmlFor="guest-search">
+                            Search guests and reservations
+                        </Label>
+                        <div className="relative">
+                            <Search
+                                aria-hidden="true"
+                                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                            />
+                            <Input
+                                id="guest-search"
+                                name="search"
+                                type="search"
+                                maxLength={255}
+                                defaultValue={queue.filters.search}
+                                placeholder="Name, room, phone, or reservation number"
+                                className="pl-10"
+                                aria-describedby={
+                                    errors.search
+                                        ? 'guest-search-error'
+                                        : undefined
+                                }
+                                aria-invalid={Boolean(errors.search)}
+                            />
+                        </div>
+                        <InputError
+                            id="guest-search-error"
+                            message={errors.search}
+                        />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            type="submit"
+                            disabled={processing}
+                            className="min-w-28"
+                        >
+                            {processing ? (
+                                <Spinner />
+                            ) : (
+                                <Search aria-hidden="true" />
+                            )}
+                            Search
+                        </Button>
+                        {queue.filters.search && (
+                            <Button variant="outline" asChild>
+                                <Link
+                                    href={dashboard({
+                                        query: {
+                                            list: queue.filters.list,
+                                            period: queue.period,
+                                        },
+                                    })}
+                                >
+                                    Clear search
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
+                </>
+            )}
+        </Form>
+    );
+}
+
+export function GuestQueue({
+    queue,
+    showSearch = true,
+}: {
+    queue: GuestQueue;
+    showSearch?: boolean;
+}) {
     return (
         <section aria-labelledby="guest-queue-title" className="space-y-4">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-                <h2 id="guest-queue-title" className="text-lg font-semibold">
-                    Guest queue
-                </h2>
-                <Form
-                    {...dashboard.form()}
-                    className="flex w-full flex-wrap items-end gap-3 sm:w-auto"
-                >
-                    {({ errors, processing }) => (
-                        <>
-                            <input
-                                type="hidden"
-                                name="list"
-                                value={queue.filters.list}
-                            />
-                            <input
-                                type="hidden"
-                                name="period"
-                                value={queue.period}
-                            />
-                            <div className="min-w-0 flex-1 space-y-2">
-                                <Label htmlFor="guest-search">
-                                    Search guests and reservations
-                                </Label>
-                                <Input
-                                    id="guest-search"
-                                    name="search"
-                                    type="search"
-                                    maxLength={255}
-                                    defaultValue={queue.filters.search}
-                                    aria-describedby={
-                                        errors.search
-                                            ? 'guest-search-error'
-                                            : undefined
-                                    }
-                                    aria-invalid={Boolean(errors.search)}
-                                />
-                                <InputError
-                                    id="guest-search-error"
-                                    message={errors.search}
-                                />
-                            </div>
-                            <Button
-                                type="submit"
-                                variant="outline"
-                                disabled={processing}
-                            >
-                                <span className="inline-flex size-4 items-center justify-center">
-                                    {processing && <Spinner />}
-                                </span>
-                                Search
-                            </Button>
-                            {queue.filters.search && (
-                                <Button variant="ghost" asChild>
-                                    <Link
-                                        href={dashboard({
-                                            query: {
-                                                list: queue.filters.list,
-                                                period: queue.period,
-                                            },
-                                        })}
-                                    >
-                                        Clear search
-                                    </Link>
-                                </Button>
-                            )}
-                        </>
-                    )}
-                </Form>
+            <div className="flex items-center gap-3 border-b border-border pb-3">
+                <span className="grid size-10 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary">
+                    <Users aria-hidden="true" className="size-5" />
+                </span>
+                <div>
+                    <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                        Front desk actions
+                    </p>
+                    <h2
+                        id="guest-queue-title"
+                        className="text-lg font-semibold"
+                    >
+                        Guest queue
+                    </h2>
+                </div>
             </div>
+            {showSearch && <GuestQueueSearch queue={queue} />}
             {queue.reservations.data.length === 0 ? (
                 <EmptyState
                     message={
@@ -121,28 +173,34 @@ export function GuestQueue({ queue }: { queue: GuestQueue }) {
                     role="region"
                     aria-label="Scrollable guest queue"
                 >
-                    {priorities.map((label, priority) => {
+                    {priorities.map((priority, index) => {
                         const reservations = queue.reservations.data.filter(
                             (reservation) =>
-                                reservation.front_desk_priority === priority,
+                                reservation.front_desk_priority === index,
                         );
                         if (reservations.length === 0) return null;
                         return (
                             <section
-                                key={priority}
-                                aria-labelledby={`guest-priority-${priority}`}
-                                className="space-y-2"
+                                key={index}
+                                aria-labelledby={`guest-priority-${index}`}
+                                className={`space-y-2 border border-t-4 border-border p-3 ${priority.className}`}
                             >
                                 <h3
-                                    id={`guest-priority-${priority}`}
-                                    className="flex flex-wrap items-center justify-between gap-2 text-sm font-semibold"
+                                    id={`guest-priority-${index}`}
+                                    className={`flex flex-wrap items-center justify-between gap-2 text-sm font-semibold ${priority.labelClassName}`}
                                 >
-                                    {label}
+                                    <span className="inline-flex items-center gap-2">
+                                        <span
+                                            aria-hidden="true"
+                                            className={`size-2 rounded-full ${priority.dotClassName}`}
+                                        />
+                                        {priority.label}
+                                    </span>
                                     <span className="font-normal text-muted-foreground">
                                         {reservations.length} on this page
                                     </span>
                                 </h3>
-                                <ul className="divide-y border-y">
+                                <ul className="divide-y divide-border">
                                     {reservations.map((reservation) => (
                                         <li
                                             key={reservation.id}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web\Reservations;
 
 use App\Domains\FrontDesk\BusinessDate;
+use App\Domains\Guests\Models\Guest;
 use App\Domains\Onboarding\Models\ImportJob;
 use App\Domains\Reservations\Actions\ListReservations;
 use App\Domains\Reservations\Models\Reservation;
@@ -20,6 +21,10 @@ class ReservationListController extends Controller
         $date = $request->validated('date', BusinessDate::current());
         $list = $request->validated('list', 'upcoming');
         $reservations = $lists->handle($list, $date, (string) $request->validated('search', ''));
+        $canViewGuestProfiles = Gate::allows('viewAny', Guest::class);
+        if (! $canViewGuestProfiles) {
+            $reservations->getCollection()->each(fn (Reservation $reservation) => $reservation->setAttribute('guest_id', null));
+        }
 
         return Inertia::render('reservations/index', [
             'filters' => ['date' => $date, 'list' => $list, 'search' => $request->validated('search', '')],
@@ -27,6 +32,7 @@ class ReservationListController extends Controller
             'blockCheckoutIfUnpaid' => Tenancy::property()?->settings()['payment_settings']['block_checkout_if_unpaid'] ?? true,
             'canCreate' => Gate::allows('create', Reservation::class),
             'canImport' => Gate::allows('create', ImportJob::class),
+            'canViewGuestProfiles' => $canViewGuestProfiles,
             'importLabel' => __('Import future reservations'),
         ]);
     }
