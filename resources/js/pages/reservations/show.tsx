@@ -18,7 +18,11 @@ import {
     UsersRound,
     type LucideIcon,
 } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
     Dialog,
     DialogContent,
@@ -38,7 +42,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { roomAssignment } from '@/routes/reservations';
 import { CheckInForm } from '@/features/front-desk/check-in-form';
-import { GroupMemberActions, type GroupMember } from '@/features/reservations/group-member-actions';
+import {
+    GroupMemberActions,
+    type GroupMember,
+} from '@/features/reservations/group-member-actions';
 import { Identifier } from '@/components/ui/identifier';
 import { StatusChip, type StatusTone } from '@/components/ui/status-chip';
 import {
@@ -72,7 +79,10 @@ import {
 import { groupStatement, index, show } from '@/routes/reservations';
 import { show as showGuest } from '@/routes/guests';
 import { formatMoney } from '@/lib/utils';
-import { RoomMoveForm, type MoveRoom } from '@/features/front-desk/room-move-form';
+import {
+    RoomMoveForm,
+    type MoveRoom,
+} from '@/features/front-desk/room-move-form';
 import {
     FolioPanel,
     type Folio,
@@ -85,7 +95,10 @@ import {
     VfmsRefusalBanner,
     type VfmsRefusal,
 } from '@/features/fiscal-receipting/vfms-refusal-banner';
-import { VfmsFilingsPanel, type VfmsFiling } from '@/features/fiscal-receipting/vfms-filings-panel';
+import {
+    VfmsFilingsPanel,
+    type VfmsFiling,
+} from '@/features/fiscal-receipting/vfms-filings-panel';
 
 type Named = { id: string; name: string };
 type Reservation = {
@@ -254,7 +267,12 @@ export default function Show({
     const [amendmentOpen, setAmendmentOpen] = useState(false);
     return (
         <>
-            <Head title={leadGuest?.name ?? `Reservation ${reservation.reservation_number}`} />
+            <Head
+                title={
+                    leadGuest?.name ??
+                    `Reservation ${reservation.reservation_number}`
+                }
+            />
             <div className="flex min-w-0 flex-col gap-6 md:gap-8">
                 <VfmsRefusalBanner refusal={vfmsRefusal} />
                 <header className="overflow-hidden border border-border bg-card shadow-panel">
@@ -281,14 +299,20 @@ export default function Show({
                                 </h1>
                                 <StatusChip
                                     tone={
-                                        reservationStatusTones[reservation.status] ?? 'unavailable'
+                                        reservationStatusTones[
+                                            reservation.status
+                                        ] ?? 'unavailable'
                                     }
                                 >
-                                    {reservationStatusLabels[reservation.status] ??
+                                    {reservationStatusLabels[
+                                        reservation.status
+                                    ] ??
                                         reservation.status.replaceAll('_', ' ')}
                                 </StatusChip>
                                 {reservation.requires_reconciliation && (
-                                    <StatusChip tone="warning">Requires reconciliation</StatusChip>
+                                    <StatusChip tone="warning">
+                                        Requires reconciliation
+                                    </StatusChip>
                                 )}
                             </div>
                             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -304,7 +328,10 @@ export default function Show({
                                 </span>
                                 <span aria-hidden="true">·</span>
                                 <span className="inline-flex items-center gap-1.5">
-                                    <CalendarDays aria-hidden="true" className="size-4" />
+                                    <CalendarDays
+                                        aria-hidden="true"
+                                        className="size-4"
+                                    />
                                     {formatDate(reservation.arrival, 'UTC')} –{' '}
                                     {formatDate(reservation.departure, 'UTC')}
                                 </span>
@@ -334,21 +361,26 @@ export default function Show({
                             />
                         )}
                         {reservation.status === 'confirmed' && (
-                            <TerminationActions number={reservation.reservation_number} can={can} />
-                        )}
-                        {reservation.status === 'checked_in' && can.checkOut && (
-                            <CheckOutDialog
+                            <TerminationActions
                                 number={reservation.reservation_number}
-                                balances={checkoutBalances}
-                                canOverride={can.overrideBalance}
+                                can={can}
                             />
                         )}
-                        {reservation.status === 'checked_in' && can.changeStay && (
-                            <StayLengthActions
-                                number={reservation.reservation_number}
-                                departure={reservation.departure}
-                            />
-                        )}
+                        {reservation.status === 'checked_in' &&
+                            can.checkOut && (
+                                <CheckOutDialog
+                                    number={reservation.reservation_number}
+                                    balances={checkoutBalances}
+                                    canOverride={can.overrideBalance}
+                                />
+                            )}
+                        {reservation.status === 'checked_in' &&
+                            can.changeStay && (
+                                <StayLengthActions
+                                    number={reservation.reservation_number}
+                                    departure={reservation.departure}
+                                />
+                            )}
                     </div>
                 </header>
                 <section
@@ -360,7 +392,10 @@ export default function Show({
                             <BedDouble aria-hidden="true" className="size-5" />
                         </span>
                         <div>
-                            <h2 id="stay-details-heading" className="text-base font-semibold">
+                            <h2
+                                id="stay-details-heading"
+                                className="text-base font-semibold"
+                            >
                                 Stay overview
                             </h2>
                             <p className="text-xs text-muted-foreground">
@@ -374,14 +409,22 @@ export default function Show({
                                 ['Room', assignedRoom ?? 'Not assigned'],
                                 ['Room type', roomType.name],
                                 ['Rate plan', ratePlan.name],
-                                ['Arrival', formatDate(reservation.arrival, 'UTC')],
-                                ['Departure', formatDate(reservation.departure, 'UTC')],
+                                [
+                                    'Arrival',
+                                    formatDate(reservation.arrival, 'UTC'),
+                                ],
+                                [
+                                    'Departure',
+                                    formatDate(reservation.departure, 'UTC'),
+                                ],
                                 [
                                     'Scheduled nights',
                                     String(
                                         Math.round(
                                             (Date.parse(reservation.departure) -
-                                                Date.parse(reservation.arrival)) /
+                                                Date.parse(
+                                                    reservation.arrival,
+                                                )) /
                                                 86_400_000,
                                         ),
                                     ),
@@ -391,18 +434,25 @@ export default function Show({
                                     `${reservation.adults} adults, ${reservation.children} children`,
                                 ],
                                 ['Lead guest', leadGuest?.name ?? 'Not added'],
-                                ['Payment collector', reservation.payment_collector],
-                                ...(showsPayingInstitution && reservation.paying_institution_type
+                                [
+                                    'Payment collector',
+                                    reservation.payment_collector,
+                                ],
+                                ...(showsPayingInstitution &&
+                                reservation.paying_institution_type
                                     ? [
                                           [
-                                              reservation.paying_institution_type === 'government'
+                                              reservation.paying_institution_type ===
+                                              'government'
                                                   ? 'Paid by government institution (withholding)'
                                                   : 'Paid by registered business (B2B)',
-                                              reservation.paying_institution_name ?? '',
+                                              reservation.paying_institution_name ??
+                                                  '',
                                           ],
                                           [
                                               'Paying institution ZRB number',
-                                              reservation.paying_institution_zrb_number ?? '',
+                                              reservation.paying_institution_zrb_number ??
+                                                  '',
                                           ],
                                       ]
                                     : []),
@@ -415,7 +465,10 @@ export default function Show({
                                         className="flex min-w-0 items-start gap-3 bg-card p-3 md:p-4"
                                     >
                                         <span className="grid size-8 shrink-0 place-items-center border border-primary/10 bg-primary-tint text-primary">
-                                            <Icon aria-hidden="true" className="size-4" />
+                                            <Icon
+                                                aria-hidden="true"
+                                                className="size-4"
+                                            />
                                         </span>
                                         <div className="min-w-0">
                                             <dt className="text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase">
@@ -431,7 +484,10 @@ export default function Show({
                         </dl>
                         <Collapsible className="border-t border-border pt-3">
                             <CollapsibleTrigger asChild>
-                                <Button variant="ghost" className="group -ml-3 min-h-11">
+                                <Button
+                                    variant="ghost"
+                                    className="group -ml-3 min-h-11"
+                                >
                                     <FileText aria-hidden="true" />
                                     More details
                                     <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
@@ -440,11 +496,20 @@ export default function Show({
                             <CollapsibleContent className="mt-2 border border-border bg-muted/20 p-4">
                                 <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                     {[
-                                        ...(booker ? [['Booker', booker.name]] : []),
-                                        ['Meal plan', reservation.meal_plan.replaceAll('-', ' ')],
+                                        ...(booker
+                                            ? [['Booker', booker.name]]
+                                            : []),
+                                        [
+                                            'Meal plan',
+                                            reservation.meal_plan.replaceAll(
+                                                '-',
+                                                ' ',
+                                            ),
+                                        ],
                                         [
                                             'Booked through',
-                                            reservation.tour_operator_name ?? 'Guest directly',
+                                            reservation.tour_operator_name ??
+                                                'Guest directly',
                                         ],
                                         ...(reservation.tour_operator_registration
                                             ? [
@@ -463,11 +528,13 @@ export default function Show({
                                             : []),
                                         [
                                             'Special requests',
-                                            reservation.special_requests ?? 'None',
+                                            reservation.special_requests ??
+                                                'None',
                                         ],
                                         [
                                             'Source',
-                                            reservation.source === 'outside-integration'
+                                            reservation.source ===
+                                            'outside-integration'
                                                 ? 'Booking received outside integration'
                                                 : reservation.source,
                                         ],
@@ -475,22 +542,26 @@ export default function Show({
                                             ? [
                                                   [
                                                       'Channel reference',
-                                                      reservation.channel_reference ?? '',
+                                                      reservation.channel_reference ??
+                                                          '',
                                                   ],
                                                   [
                                                       'Reason received outside integration',
-                                                      reservation.outside_integration_reason ?? '',
+                                                      reservation.outside_integration_reason ??
+                                                          '',
                                                   ],
                                               ]
                                             : []),
-                                        ...(reservation.channel_collected_amount !== null
+                                        ...(reservation.channel_collected_amount !==
+                                        null
                                             ? [
                                                   [
                                                       'Channel-collected amount',
                                                       formatMoney(
                                                           reservation.channel_collected_amount,
-                                                          reservation.price_lines[0]?.currency ??
-                                                              '',
+                                                          reservation
+                                                              .price_lines[0]
+                                                              ?.currency ?? '',
                                                       ),
                                                   ],
                                               ]
@@ -516,14 +587,19 @@ export default function Show({
                 {((canAssignRoom && reservation.status === 'confirmed') ||
                     can.moveRoom ||
                     canEditPayingInstitution ||
-                    (canAmend && amendmentOptions && reservation.status === 'confirmed')) && (
+                    (canAmend &&
+                        amendmentOptions &&
+                        reservation.status === 'confirmed')) && (
                     <section
                         aria-labelledby="reservation-options-title"
                         className="overflow-hidden border border-border bg-card shadow-panel"
                     >
                         <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-4 md:px-5">
                             <span className="grid size-10 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary">
-                                <Settings2 aria-hidden="true" className="size-5" />
+                                <Settings2
+                                    aria-hidden="true"
+                                    className="size-5"
+                                />
                             </span>
                             <div>
                                 <h2
@@ -538,65 +614,113 @@ export default function Show({
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-2 p-4 md:p-5">
-                            {canAssignRoom && reservation.status === 'confirmed' && (
-                                <Dialog open={assignmentOpen} onOpenChange={setAssignmentOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="secondary" className="min-h-11">
-                                            <DoorOpen aria-hidden="true" />
-                                            Room assignment
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent
-                                        className="max-h-[90dvh] overflow-y-auto"
-                                        aria-describedby={undefined}
+                            {canAssignRoom &&
+                                reservation.status === 'confirmed' && (
+                                    <Dialog
+                                        open={assignmentOpen}
+                                        onOpenChange={setAssignmentOpen}
                                     >
-                                        <DialogHeader>
-                                            <DialogTitle>Room assignment</DialogTitle>
-                                        </DialogHeader>
-                                        <Form
-                                            {...roomAssignment.form(reservation.reservation_number)}
-                                            onSuccess={() => setAssignmentOpen(false)}
-                                            className="max-w-[720px] space-y-3"
+                                        <DialogTrigger asChild>
+                                            <Button
+                                                variant="secondary"
+                                                className="min-h-11"
+                                            >
+                                                <DoorOpen aria-hidden="true" />
+                                                Room assignment
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent
+                                            className="max-h-[90dvh] overflow-y-auto"
+                                            aria-describedby={undefined}
                                         >
-                                            {({ errors, processing }) => (
-                                                <>
-                                                    <PropertyIntent />
-                                                    <Label htmlFor="room_id">Room assignment</Label>
-                                                    <NativeSelect
-                                                        id="room_id"
-                                                        name="room_id"
-                                                        defaultValue={reservation.room_id ?? ''}
-                                                        aria-describedby="room-error"
-                                                    >
-                                                        <option value="">Unassigned</option>
-                                                        {rooms.map((room) => (
-                                                            <option key={room.id} value={room.id}>
-                                                                {room.number} —{' '}
-                                                                {room.isReady
-                                                                    ? 'Ready'
-                                                                    : 'Not ready'}
+                                            <DialogHeader>
+                                                <DialogTitle>
+                                                    Room assignment
+                                                </DialogTitle>
+                                            </DialogHeader>
+                                            <Form
+                                                {...roomAssignment.form(
+                                                    reservation.reservation_number,
+                                                )}
+                                                onSuccess={() =>
+                                                    setAssignmentOpen(false)
+                                                }
+                                                className="max-w-[720px] space-y-3"
+                                            >
+                                                {({ errors, processing }) => (
+                                                    <>
+                                                        <PropertyIntent />
+                                                        <Label htmlFor="room_id">
+                                                            Room assignment
+                                                        </Label>
+                                                        <NativeSelect
+                                                            id="room_id"
+                                                            name="room_id"
+                                                            defaultValue={
+                                                                reservation.room_id ??
+                                                                ''
+                                                            }
+                                                            aria-describedby="room-error"
+                                                        >
+                                                            <option value="">
+                                                                Unassigned
                                                             </option>
-                                                        ))}
-                                                    </NativeSelect>
-                                                    <div id="room-error">
-                                                        <InputError message={errors.room_id} />
-                                                    </div>
-                                                    <Button disabled={processing}>
-                                                        <span className="size-4">
-                                                            {processing && <Spinner />}
-                                                        </span>
-                                                        Save room assignment
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </Form>
-                                    </DialogContent>
-                                </Dialog>
-                            )}
+                                                            {rooms.map(
+                                                                (room) => (
+                                                                    <option
+                                                                        key={
+                                                                            room.id
+                                                                        }
+                                                                        value={
+                                                                            room.id
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            room.number
+                                                                        }{' '}
+                                                                        —{' '}
+                                                                        {room.isReady
+                                                                            ? 'Ready'
+                                                                            : 'Not ready'}
+                                                                    </option>
+                                                                ),
+                                                            )}
+                                                        </NativeSelect>
+                                                        <div id="room-error">
+                                                            <InputError
+                                                                message={
+                                                                    errors.room_id
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <Button
+                                                            disabled={
+                                                                processing
+                                                            }
+                                                        >
+                                                            <span className="size-4">
+                                                                {processing && (
+                                                                    <Spinner />
+                                                                )}
+                                                            </span>
+                                                            Save room assignment
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </Form>
+                                        </DialogContent>
+                                    </Dialog>
+                                )}
                             {can.moveRoom && (
-                                <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
+                                <Dialog
+                                    open={moveOpen}
+                                    onOpenChange={setMoveOpen}
+                                >
                                     <DialogTrigger asChild>
-                                        <Button variant="secondary" className="min-h-11">
+                                        <Button
+                                            variant="secondary"
+                                            className="min-h-11"
+                                        >
                                             <MoveRight aria-hidden="true" />
                                             Move room
                                         </Button>
@@ -609,38 +733,54 @@ export default function Show({
                                             <DialogTitle>Move room</DialogTitle>
                                         </DialogHeader>
                                         <RoomMoveForm
-                                            number={reservation.reservation_number}
+                                            number={
+                                                reservation.reservation_number
+                                            }
                                             rooms={moveRooms}
                                             onSuccess={() => setMoveOpen(false)}
                                         />
                                     </DialogContent>
                                 </Dialog>
                             )}
-                            {canAmend && amendmentOptions && reservation.status === 'confirmed' && (
-                                <Dialog open={amendmentOpen} onOpenChange={setAmendmentOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="secondary" className="min-h-11">
-                                            <PencilLine aria-hidden="true" />
-                                            Amend reservation
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent
-                                        className="max-h-[90dvh] overflow-y-auto sm:max-w-[720px]"
-                                        aria-describedby={undefined}
+                            {canAmend &&
+                                amendmentOptions &&
+                                reservation.status === 'confirmed' && (
+                                    <Dialog
+                                        open={amendmentOpen}
+                                        onOpenChange={setAmendmentOpen}
                                     >
-                                        <DialogHeader>
-                                            <DialogTitle>Amend reservation</DialogTitle>
-                                        </DialogHeader>
-                                        <AmendmentForm
-                                            reservation={reservation}
-                                            options={amendmentOptions}
-                                            onSuccess={() => setAmendmentOpen(false)}
-                                        />
-                                    </DialogContent>
-                                </Dialog>
-                            )}
+                                        <DialogTrigger asChild>
+                                            <Button
+                                                variant="secondary"
+                                                className="min-h-11"
+                                            >
+                                                <PencilLine aria-hidden="true" />
+                                                Amend reservation
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent
+                                            className="max-h-[90dvh] overflow-y-auto sm:max-w-[720px]"
+                                            aria-describedby={undefined}
+                                        >
+                                            <DialogHeader>
+                                                <DialogTitle>
+                                                    Amend reservation
+                                                </DialogTitle>
+                                            </DialogHeader>
+                                            <AmendmentForm
+                                                reservation={reservation}
+                                                options={amendmentOptions}
+                                                onSuccess={() =>
+                                                    setAmendmentOpen(false)
+                                                }
+                                            />
+                                        </DialogContent>
+                                    </Dialog>
+                                )}
                             {canEditPayingInstitution && (
-                                <PayingInstitutionDialog reservation={reservation} />
+                                <PayingInstitutionDialog
+                                    reservation={reservation}
+                                />
                             )}
                         </div>
                     </section>
@@ -649,7 +789,9 @@ export default function Show({
                     groupStatementLink={
                         !zraDocuments && (
                             <Link
-                                href={groupStatement(reservation.reservation_number)}
+                                href={groupStatement(
+                                    reservation.reservation_number,
+                                )}
                                 className="text-primary underline underline-offset-4"
                             >
                                 Group statement
@@ -673,7 +815,9 @@ export default function Show({
                 />
                 {feeProposals.length > 0 && (
                     <Collapsible
-                        defaultOpen={feeProposals.some((fee) => fee.can_resolve)}
+                        defaultOpen={feeProposals.some(
+                            (fee) => fee.can_resolve,
+                        )}
                         className="border border-border bg-card p-4 shadow-panel md:p-5"
                     >
                         <h2>
@@ -705,10 +849,15 @@ export default function Show({
                     >
                         <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-4 md:px-5">
                             <span className="grid size-10 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary">
-                                <ShieldCheck aria-hidden="true" className="size-5" />
+                                <ShieldCheck
+                                    aria-hidden="true"
+                                    className="size-5"
+                                />
                             </span>
                             <div>
-                                <h2 className="text-base font-semibold">ZRA documents</h2>
+                                <h2 className="text-base font-semibold">
+                                    ZRA documents
+                                </h2>
                                 <p className="text-xs text-muted-foreground">
                                     Fiscal receipts and statements
                                 </p>
@@ -723,7 +872,9 @@ export default function Show({
                                         Group statement
                                     </Link>
                                 </Button>
-                                <GeneralReceiptDialog preview={generalReceipt} />
+                                <GeneralReceiptDialog
+                                    preview={generalReceipt}
+                                />
                             </div>
                         </div>
                     </section>
@@ -741,7 +892,10 @@ export default function Show({
                                 className="group h-auto min-h-11 w-full max-w-full justify-between text-left text-lg font-semibold whitespace-normal"
                             >
                                 <span className="inline-flex items-center gap-2">
-                                    <FileText aria-hidden="true" className="size-5 text-primary" />
+                                    <FileText
+                                        aria-hidden="true"
+                                        className="size-5 text-primary"
+                                    />
                                     Amendment history ({amendments.total})
                                 </span>
                                 <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
@@ -768,8 +922,8 @@ export default function Show({
                                             aria-hidden="true"
                                             className="size-5 text-primary"
                                         />
-                                        Other reservations in this booking group (
-                                        {groupMembers.length})
+                                        Other reservations in this booking group
+                                        ({groupMembers.length})
                                     </span>
                                     <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
                                 </Button>
@@ -779,7 +933,9 @@ export default function Show({
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Reservation number</TableHead>
+                                        <TableHead>
+                                            Reservation number
+                                        </TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Arrival</TableHead>
                                         <TableHead>Departure</TableHead>
@@ -788,36 +944,58 @@ export default function Show({
                                 </TableHeader>
                                 <TableBody>
                                     {groupMembers.map((member) => (
-                                        <TableRow key={member.reservation_number}>
+                                        <TableRow
+                                            key={member.reservation_number}
+                                        >
                                             <TableCell>
                                                 <Link
                                                     className="text-primary underline underline-offset-4"
-                                                    href={show(member.reservation_number)}
+                                                    href={show(
+                                                        member.reservation_number,
+                                                    )}
                                                 >
-                                                    <Identifier value={member.reservation_number} />
+                                                    <Identifier
+                                                        value={
+                                                            member.reservation_number
+                                                        }
+                                                    />
                                                 </Link>
                                             </TableCell>
                                             <TableCell>
                                                 <StatusChip
                                                     tone={
-                                                        reservationStatusTones[member.status] ??
-                                                        'unavailable'
+                                                        reservationStatusTones[
+                                                            member.status
+                                                        ] ?? 'unavailable'
                                                     }
                                                 >
-                                                    {reservationStatusLabels[member.status] ??
-                                                        member.status.replaceAll('_', ' ')}
+                                                    {reservationStatusLabels[
+                                                        member.status
+                                                    ] ??
+                                                        member.status.replaceAll(
+                                                            '_',
+                                                            ' ',
+                                                        )}
                                                 </StatusChip>
                                             </TableCell>
                                             <TableCell>
-                                                {formatDate(member.arrival, 'UTC')}
+                                                {formatDate(
+                                                    member.arrival,
+                                                    'UTC',
+                                                )}
                                             </TableCell>
                                             <TableCell>
-                                                {formatDate(member.departure, 'UTC')}
+                                                {formatDate(
+                                                    member.departure,
+                                                    'UTC',
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <GroupMemberActions
                                                     member={member}
-                                                    acceptedPaymentMethods={acceptedPaymentMethods}
+                                                    acceptedPaymentMethods={
+                                                        acceptedPaymentMethods
+                                                    }
                                                 />
                                             </TableCell>
                                         </TableRow>
@@ -839,7 +1017,8 @@ export default function Show({
                                         aria-hidden="true"
                                         className="size-5 text-primary"
                                     />
-                                    Fixed nightly prices ({reservation.price_lines.length})
+                                    Fixed nightly prices (
+                                    {reservation.price_lines.length})
                                 </span>
                                 <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
                             </Button>
@@ -856,9 +1035,14 @@ export default function Show({
                             <TableBody>
                                 {reservation.price_lines.map((line) => (
                                     <TableRow key={line.id}>
-                                        <TableCell>{formatDate(line.date, 'UTC')}</TableCell>
+                                        <TableCell>
+                                            {formatDate(line.date, 'UTC')}
+                                        </TableCell>
                                         <TableCell numeric>
-                                            {formatMoney(line.amount, line.currency)}{' '}
+                                            {formatMoney(
+                                                line.amount,
+                                                line.currency,
+                                            )}{' '}
                                             {line.currency}
                                         </TableCell>
                                     </TableRow>

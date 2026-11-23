@@ -1,18 +1,31 @@
-import { Head, Link, usePage } from "@inertiajs/react";
-import { useState } from "react";
-import { Building2, ExternalLink, Printer, ReceiptText } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Identifier } from "@/components/ui/identifier";
-import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/select";
-import { StatusChip } from "@/components/ui/status-chip";
-import { paymentMethods } from "@/features/billing/payment-form";
-import { AdvanceReceipt, type AdvancePayment } from "@/features/billing/advance-receipt";
-import { formatDate } from "@/features/platform/format";
-import { cn, formatMoney, formatTime } from "@/lib/utils";
-import { FolioSummaryList, type FolioSummary } from "@/features/billing/folio-summary";
-import { index, show as showReservation, statement } from "@/routes/reservations";
-import { index as accounts, show as showAccount } from "@/routes/customer-accounts";
+import { Head, Link, usePage } from '@inertiajs/react';
+import { useState } from 'react';
+import { Building2, ExternalLink, Printer, ReceiptText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Identifier } from '@/components/ui/identifier';
+import { Label } from '@/components/ui/label';
+import { NativeSelect } from '@/components/ui/select';
+import { StatusChip } from '@/components/ui/status-chip';
+import { paymentMethods } from '@/features/billing/payment-form';
+import {
+    AdvanceReceipt,
+    type AdvancePayment,
+} from '@/features/billing/advance-receipt';
+import { formatDate } from '@/features/platform/format';
+import { cn, formatMoney, formatTime } from '@/lib/utils';
+import {
+    FolioSummaryList,
+    type FolioSummary,
+} from '@/features/billing/folio-summary';
+import {
+    index,
+    show as showReservation,
+    statement,
+} from '@/routes/reservations';
+import {
+    index as accounts,
+    show as showAccount,
+} from '@/routes/customer-accounts';
 
 type Receipt = {
     id: string;
@@ -43,8 +56,8 @@ type CustomerAccount = {
     kind: string;
 };
 const corrections: Record<string, string> = {
-    reversal: "Reversed",
-    refund: "Refunded",
+    reversal: 'Reversed',
+    refund: 'Refunded',
 };
 
 export default function Show({
@@ -93,20 +106,22 @@ export default function Show({
     };
 }) {
     const { tenant } = usePage().props;
-    const timezone = tenant.property?.timezone ?? "UTC";
-    const [paper, setPaper] = useState("a4");
-    const method = paymentMethods[receipt.method as keyof typeof paymentMethods] ?? receipt.method;
+    const timezone = tenant.property?.timezone ?? 'UTC';
+    const [paper, setPaper] = useState('a4');
+    const method =
+        paymentMethods[receipt.method as keyof typeof paymentMethods] ??
+        receipt.method;
     const details: [string, React.ReactNode][] = [
         [
-            "Issued",
+            'Issued',
             `${formatDate(receipt.issued_at, timezone)} ${formatTime(receipt.issued_at, timezone)}`,
         ],
-        ["Received from", booker.name],
-        ...(stay ? [["Guest", stay.guest] as [string, string]] : []),
+        ['Received from', booker.name],
+        ...(stay ? [['Guest', stay.guest] as [string, string]] : []),
         ...(reservation
             ? [
                   [
-                      "Reservation",
+                      'Reservation',
                       <Link
                           key="reservation"
                           href={showReservation(reservation.reservation_number)}
@@ -120,7 +135,7 @@ export default function Show({
         ...(customerAccount
             ? [
                   [
-                      "Customer account",
+                      'Customer account',
                       <Link
                           key="account"
                           href={showAccount(customerAccount.id)}
@@ -131,40 +146,45 @@ export default function Show({
                   ] as [string, React.ReactNode],
               ]
             : []),
-        ["Method", method],
-        ...(receipt.cashier ? [["Processed by", receipt.cashier] as [string, string]] : []),
+        ['Method', method],
+        ...(receipt.cashier
+            ? [['Processed by', receipt.cashier] as [string, string]]
+            : []),
         ...(stay
             ? [
                   [
-                      "Room",
-                      `${stay.room ?? "Not assigned"}${stay.room_type ? ` · ${stay.room_type}` : ""}`,
+                      'Room',
+                      `${stay.room ?? 'Not assigned'}${stay.room_type ? ` · ${stay.room_type}` : ''}`,
                   ] as [string, string],
                   [
-                      "Stay",
-                      `${formatDate(stay.arrival, "UTC")} – ${formatDate(stay.departure, "UTC")}`,
+                      'Stay',
+                      `${formatDate(stay.arrival, 'UTC')} – ${formatDate(stay.departure, 'UTC')}`,
                   ] as [string, string],
               ]
             : []),
-        ...(receipt.reference ? [["Reference", receipt.reference] as [string, string]] : []),
+        ...(receipt.reference
+            ? [['Reference', receipt.reference] as [string, string]]
+            : []),
         ...(receipt.card_last_four || receipt.card_brand
             ? [
                   [
-                      "Card",
+                      'Card',
                       [
                           receipt.card_brand,
-                          receipt.card_last_four && `ending ${receipt.card_last_four}`,
+                          receipt.card_last_four &&
+                              `ending ${receipt.card_last_four}`,
                       ]
                           .filter(Boolean)
-                          .join(" "),
+                          .join(' '),
                   ] as [string, string],
               ]
             : []),
-        ...(receipt.method === "channel_collected"
+        ...(receipt.method === 'channel_collected'
             ? [
-                  ["Payment collector", reservation?.payment_collector ?? "Not recorded"] as [
-                      string,
-                      string,
-                  ],
+                  [
+                      'Payment collector',
+                      reservation?.payment_collector ?? 'Not recorded',
+                  ] as [string, string],
               ]
             : []),
     ];
@@ -172,14 +192,14 @@ export default function Show({
     return (
         <>
             <Head title={`${receipt.label} ${receipt.number}`}>
-                <style media="print">{`@page { size: ${paper === "thermal" ? "80mm 200mm" : "A4"}; margin: ${paper === "thermal" ? "4mm" : "12mm"}; }`}</style>
+                <style media="print">{`@page { size: ${paper === 'thermal' ? '80mm 200mm' : 'A4'}; margin: ${paper === 'thermal' ? '4mm' : '12mm'}; }`}</style>
             </Head>
             <div className="mx-auto flex w-full max-w-[840px] min-w-0 flex-col gap-4">
                 <div
                     data-paper={paper}
                     className={cn(
-                        "receipt-print overflow-wrap-anywhere flex w-full min-w-0 flex-col rounded-sm border border-border bg-card shadow-panel",
-                        paper === "thermal" ? "max-w-[344px]" : "max-w-[800px]",
+                        'receipt-print overflow-wrap-anywhere flex w-full min-w-0 flex-col rounded-sm border border-border bg-card shadow-panel',
+                        paper === 'thermal' ? 'max-w-[344px]' : 'max-w-[800px]',
                     )}
                 >
                     <header className="border-b border-border bg-muted/20 px-5 py-5 text-center sm:px-8 sm:py-7 print:bg-white print:px-0 print:py-0 print:pb-4">
@@ -191,10 +211,15 @@ export default function Show({
                             />
                         ) : (
                             <span className="mx-auto mb-3 grid size-11 place-items-center border border-primary/20 bg-primary-tint text-primary print:hidden">
-                                <Building2 aria-hidden="true" className="size-5" />
+                                <Building2
+                                    aria-hidden="true"
+                                    className="size-5"
+                                />
                             </span>
                         )}
-                        <p className="text-base font-semibold">{property.name}</p>
+                        <p className="text-base font-semibold">
+                            {property.name}
+                        </p>
                         <p className="mt-1 text-sm text-muted-foreground">
                             {property.address_line}, {property.city}
                         </p>
@@ -209,7 +234,8 @@ export default function Show({
                             <StatusChip tone="warning">Non-fiscal</StatusChip>
                         </div>
                         <p className="mt-2 text-sm text-muted-foreground">
-                            Receipt number <Identifier value={receipt.number} copyable />
+                            Receipt number{' '}
+                            <Identifier value={receipt.number} copyable />
                         </p>
                         <p className="mt-2 text-xs font-medium text-status-warning">
                             This is not a fiscal receipt.
@@ -218,13 +244,15 @@ export default function Show({
 
                     <section className="border-b border-border bg-primary px-5 py-5 text-center text-primary-foreground sm:py-6 print:border-b-2 print:border-black print:bg-white print:px-0 print:py-4 print:text-black">
                         <p className="text-xs font-semibold tracking-[0.12em] uppercase opacity-85">
-                            {receipt.deposit ? "Deposit received" : "Payment received"}
+                            {receipt.deposit
+                                ? 'Deposit received'
+                                : 'Payment received'}
                         </p>
                         <p className="mt-1 font-heading text-3xl leading-tight font-semibold tabular-nums sm:text-4xl">
                             {formatMoney(receipt.amount, receipt.currency)}
                         </p>
                         <p className="mt-2 text-sm">
-                            {method} <span aria-hidden="true">·</span>{" "}
+                            {method} <span aria-hidden="true">·</span>{' '}
                             {formatDate(receipt.issued_at, timezone)}
                         </p>
                     </section>
@@ -256,12 +284,18 @@ export default function Show({
                     <section className="space-y-4 border-t border-border bg-muted/10 px-5 py-5 sm:px-8 print:border-black print:bg-white print:px-0 print:py-4">
                         <div className="flex items-start gap-3">
                             <span className="grid size-9 shrink-0 place-items-center border border-primary/15 bg-primary-tint text-primary print:hidden">
-                                <ReceiptText aria-hidden="true" className="size-4" />
+                                <ReceiptText
+                                    aria-hidden="true"
+                                    className="size-4"
+                                />
                             </span>
                             <div>
-                                <h2 className="font-semibold">Folio summary at payment time</h2>
+                                <h2 className="font-semibold">
+                                    Folio summary at payment time
+                                </h2>
                                 <p className="text-sm text-muted-foreground">
-                                    Snapshot of the folio immediately after the payment was taken.
+                                    Snapshot of the folio immediately after the
+                                    payment was taken.
                                 </p>
                             </div>
                         </div>
@@ -277,8 +311,11 @@ export default function Show({
                                     <div className="border border-status-info/20 bg-status-info-tint p-3 print:border-black print:bg-white print:p-2">
                                         <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm">
                                             <dt className="text-muted-foreground">
-                                                Room charges estimated for {summary.estimate.nights}{" "}
-                                                {summary.estimate.nights === 1 ? "night" : "nights"}
+                                                Room charges estimated for{' '}
+                                                {summary.estimate.nights}{' '}
+                                                {summary.estimate.nights === 1
+                                                    ? 'night'
+                                                    : 'nights'}
                                             </dt>
                                             <dd className="text-right font-semibold tabular-nums">
                                                 {formatMoney(
@@ -288,8 +325,8 @@ export default function Show({
                                             </dd>
                                         </dl>
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            Estimate recorded at payment time; not included in
-                                            posted totals.
+                                            Estimate recorded at payment time;
+                                            not included in posted totals.
                                         </p>
                                     </div>
                                 )}
@@ -300,16 +337,20 @@ export default function Show({
                             </p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                            The folio snapshot is informational. This receipt is not a receipt of
-                            tax or a further payment.
+                            The folio snapshot is informational. This receipt is
+                            not a receipt of tax or a further payment.
                         </p>
                     </section>
 
                     {later.length > 0 && (
                         <section className="space-y-3 border-t border-status-warning bg-status-warning-tint px-5 py-4 sm:px-8 print:border-black print:bg-white print:px-0">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <h2 className="font-semibold">Later corrections</h2>
-                                <StatusChip tone="warning">Receipt unchanged</StatusChip>
+                                <h2 className="font-semibold">
+                                    Later corrections
+                                </h2>
+                                <StatusChip tone="warning">
+                                    Receipt unchanged
+                                </StatusChip>
                             </div>
                             <div className="grid gap-2">
                                 {later.map((correction) => (
@@ -318,11 +359,18 @@ export default function Show({
                                         className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-status-warning/20 pt-2 text-sm print:border-black"
                                     >
                                         <span>
-                                            {corrections[correction.type] ?? correction.type}{" "}
-                                            {formatDate(correction.business_date, "UTC")}
+                                            {corrections[correction.type] ??
+                                                correction.type}{' '}
+                                            {formatDate(
+                                                correction.business_date,
+                                                'UTC',
+                                            )}
                                         </span>
                                         <span className="font-medium tabular-nums">
-                                            {formatMoney(correction.amount, receipt.currency)}
+                                            {formatMoney(
+                                                correction.amount,
+                                                receipt.currency,
+                                            )}
                                         </span>
                                     </div>
                                 ))}
@@ -356,11 +404,15 @@ export default function Show({
                                     href={
                                         customerAccount
                                             ? showAccount(customerAccount.id)
-                                            : statement(stay!.reservation_number)
+                                            : statement(
+                                                  stay!.reservation_number,
+                                              )
                                     }
                                 >
                                     <ExternalLink aria-hidden="true" />
-                                    {customerAccount ? "Customer account" : "Folio statement"}
+                                    {customerAccount
+                                        ? 'Customer account'
+                                        : 'Folio statement'}
                                 </Link>
                             </Button>
                         )}
@@ -384,21 +436,21 @@ Show.layout = ({
 }) => ({
     breadcrumbs: customerAccount
         ? [
-              { title: "Day use & events", href: accounts() },
+              { title: 'Day use & events', href: accounts() },
               {
                   title: customerAccount.number,
                   href: showAccount(customerAccount.id),
               },
-              { title: "Receipt", href: "#" },
+              { title: 'Receipt', href: '#' },
           ]
         : stay
           ? [
-                { title: "Reservations", href: index() },
+                { title: 'Reservations', href: index() },
                 {
                     title: stay.reservation_number,
                     href: showReservation(stay.reservation_number),
                 },
-                { title: "Receipt", href: "#" },
+                { title: 'Receipt', href: '#' },
             ]
-          : [{ title: "Receipts", href: "#" }],
+          : [{ title: 'Receipts', href: '#' }],
 });

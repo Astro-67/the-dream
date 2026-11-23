@@ -20,7 +20,10 @@ export type ReservationListItem = {
     balances: { currency: string; balance: number; unposted: boolean }[];
 };
 
-export function paymentState({ balance, unposted }: ReservationListItem['balances'][number]): {
+export function paymentState({
+    balance,
+    unposted,
+}: ReservationListItem['balances'][number]): {
     label: string;
     tone: 'error' | 'success' | 'info' | 'warning';
 } {

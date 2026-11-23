@@ -167,7 +167,7 @@ export default function Index({
                         </div>
                     </div>
                 </header>
-                <div className="space-y-3 border border-border border-l-4 border-l-primary bg-card p-3 shadow-panel md:p-4">
+                <div className="space-y-3 border border-l-4 border-border border-l-primary bg-card p-3 shadow-panel md:p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                             <CalendarDays
@@ -178,7 +178,7 @@ export default function Index({
                                 Reservation lists
                             </p>
                         </div>
-                        <p className="border border-border bg-muted/30 px-2.5 py-1 text-xs font-medium tabular-nums text-muted-foreground">
+                        <p className="border border-border bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground tabular-nums">
                             {reservations.total} matching reservations
                         </p>
                     </div>

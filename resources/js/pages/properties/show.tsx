@@ -166,7 +166,7 @@ export default function ShowProperty({ property, branding, canUpdate }: Props) {
                                         <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                             {label}
                                         </dt>
-                                        <dd className="mt-1 wrap-anywhere whitespace-pre-wrap text-sm font-medium">
+                                        <dd className="mt-1 text-sm font-medium wrap-anywhere whitespace-pre-wrap">
                                             {value ?? 'Not set'}
                                         </dd>
                                     </div>

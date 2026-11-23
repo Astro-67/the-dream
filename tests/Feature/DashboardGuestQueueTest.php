@@ -50,7 +50,7 @@ test('dashboard guest lists use the property business date and existing reservat
         ->where('guestQueue.reservations.data.0.guest_name', 'Nuru Queue Guest')
         ->where('guestQueue.reservations.data.0.can_check_in', true)
         ->where('guestQueue.reservations.per_page', 50)
-        ->where('today.lists.1.href', route('dashboard', ['period' => 'today', 'list' => 'departures', 'search' => 'Nuru'])));
+        ->where('today.lists.1.href', route('reservations.index', ['date' => '2026-12-10', 'list' => 'departures', 'search' => 'Nuru'])));
 });
 
 test('dashboard guest search and pagination exclude other properties and organizations and do not page rooms', function () {

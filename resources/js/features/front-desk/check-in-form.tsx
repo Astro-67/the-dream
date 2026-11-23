@@ -30,12 +30,18 @@ function IncompleteGuestList({ guests }: { guests: IncompleteGuest[] }) {
     return (
         <section className="space-y-3 border border-status-warning/25 bg-status-warning-tint/50 p-4">
             <div className="flex items-start gap-2">
-                <IdCard aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-status-warning" />
+                <IdCard
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0 text-status-warning"
+                />
                 <div>
-                    <h3 className="text-sm font-semibold">Guest details need attention</h3>
+                    <h3 className="text-sm font-semibold">
+                        Guest details need attention
+                    </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Complete the identity details required by this hotel before check-in. You
-                        can also update phone and email on each guest profile.
+                        Complete the identity details required by this hotel
+                        before check-in. You can also update phone and email on
+                        each guest profile.
                     </p>
                 </div>
             </div>
@@ -48,7 +54,7 @@ function IncompleteGuestList({ guests }: { guests: IncompleteGuest[] }) {
                         {guest.canView ? (
                             <Link
                                 href={showGuest(guest.id)}
-                                className="min-h-11 inline-flex items-center font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                                className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                             >
                                 {guest.name}
                             </Link>
@@ -103,13 +109,16 @@ export function CheckInForm({
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
                         <DialogHeader>
-                            <DialogTitle>Complete guest registration</DialogTitle>
+                            <DialogTitle>
+                                Complete guest registration
+                            </DialogTitle>
                             <DialogDescription>
                                 {missingGuests === 1
                                     ? 'One adult on this booking still needs a guest profile.'
                                     : `${missingGuests} adults on this booking still need guest profiles.`}{' '}
-                                Every adult must have the ID details required by this hotel before
-                                check-in. Children do not need to be registered.
+                                Every adult must have the ID details required by
+                                this hotel before check-in. Children do not need
+                                to be registered.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
@@ -120,7 +129,11 @@ export function CheckInForm({
                                 resetOnSuccess
                                 disableWhileProcessing
                                 onSuccess={() => {
-                                    if (missingGuests > 1 || incompleteGuests.length > 0) return;
+                                    if (
+                                        missingGuests > 1 ||
+                                        incompleteGuests.length > 0
+                                    )
+                                        return;
                                     router.post(
                                         checkIn.url(number),
                                         {},
@@ -129,7 +142,9 @@ export function CheckInForm({
                                             preserveScroll: true,
                                             onSuccess: () => setOpen(false),
                                             onError: (errors) =>
-                                                setCheckInErrors(Object.values(errors)),
+                                                setCheckInErrors(
+                                                    Object.values(errors),
+                                                ),
                                         },
                                     );
                                 }}
@@ -142,8 +157,8 @@ export function CheckInForm({
                                                 Register the next adult
                                             </h3>
                                             <p className="mt-1 text-sm text-muted-foreground">
-                                                Phone and email are optional and can also be added
-                                                later.
+                                                Phone and email are optional and
+                                                can also be added later.
                                             </p>
                                         </div>
                                         <PropertyIntent />
@@ -152,15 +167,25 @@ export function CheckInForm({
                                             required
                                             names={{
                                                 name: 'name',
-                                                nationality: 'documents[0][nationality]',
-                                                document_type: 'documents[0][type]',
-                                                document_number: 'documents[0][number]',
+                                                nationality:
+                                                    'documents[0][nationality]',
+                                                document_type:
+                                                    'documents[0][type]',
+                                                document_number:
+                                                    'documents[0][number]',
                                             }}
                                             errors={{
                                                 name: errors.name,
-                                                nationality: errors['documents.0.nationality'],
-                                                document_type: errors['documents.0.type'],
-                                                document_number: errors['documents.0.number'],
+                                                nationality:
+                                                    errors[
+                                                        'documents.0.nationality'
+                                                    ],
+                                                document_type:
+                                                    errors['documents.0.type'],
+                                                document_number:
+                                                    errors[
+                                                        'documents.0.number'
+                                                    ],
                                             }}
                                             contactNames={{
                                                 phone: 'phone',
@@ -178,9 +203,17 @@ export function CheckInForm({
                                             ...checkInErrors,
                                         ].map(
                                             (error) =>
-                                                error && <InputError key={error} message={error} />,
+                                                error && (
+                                                    <InputError
+                                                        key={error}
+                                                        message={error}
+                                                    />
+                                                ),
                                         )}
-                                        <Button type="submit" disabled={processing}>
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
                                             {processing && <Spinner />}
                                             {missingGuests > 1
                                                 ? 'Save guest and continue'
@@ -205,14 +238,17 @@ export function CheckInForm({
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
                         <DialogHeader>
-                            <DialogTitle>Complete details before check-in</DialogTitle>
+                            <DialogTitle>
+                                Complete details before check-in
+                            </DialogTitle>
                             <DialogDescription>
                                 {incompleteGuests.length > 0
                                     ? 'Some registered adults are missing identity details required by this hotel.'
                                     : missingGuests > 0
                                       ? `${missingGuests} adult${missingGuests === 1 ? '' : 's'} still need registration.`
                                       : 'Guest registration details need attention before this stay can be checked in.'}{' '}
-                                Phone and email can be updated on the guest profile too.
+                                Phone and email can be updated on the guest
+                                profile too.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
@@ -224,8 +260,9 @@ export function CheckInForm({
                                         className="mt-0.5 size-4 shrink-0"
                                     />
                                     <span>
-                                        A teammate with guest-registration and identity permission
-                                        must register the remaining adults before check-in.
+                                        A teammate with guest-registration and
+                                        identity permission must register the
+                                        remaining adults before check-in.
                                     </span>
                                 </p>
                             )}
@@ -238,8 +275,9 @@ export function CheckInForm({
                                             className="mt-0.5 size-4 shrink-0"
                                         />
                                         <span>
-                                            Some guest details are restricted. Ask a teammate with
-                                            identity permission to review this booking.
+                                            Some guest details are restricted.
+                                            Ask a teammate with identity
+                                            permission to review this booking.
                                         </span>
                                     </p>
                                 )}
@@ -273,16 +311,21 @@ export function CheckInForm({
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Complete check-in requirements</DialogTitle>
+                        <DialogTitle>
+                            Complete check-in requirements
+                        </DialogTitle>
                         <DialogDescription>
-                            This reservation needs attention before check-in. Review its room and
-                            guest details, then try again.
+                            This reservation needs attention before check-in.
+                            Review its room and guest details, then try again.
                         </DialogDescription>
                     </DialogHeader>
                     {checkInErrors.length > 0 && (
                         <div className="space-y-2 border border-status-warning/25 bg-status-warning-tint/50 p-3">
                             {checkInErrors.map((error) => (
-                                <p className="text-sm text-status-warning" key={error}>
+                                <p
+                                    className="text-sm text-status-warning"
+                                    key={error}
+                                >
                                     {error}
                                 </p>
                             ))}
@@ -291,11 +334,15 @@ export function CheckInForm({
                     <div className="flex flex-wrap gap-2">
                         {guestProfileId && (
                             <Button variant="outline" asChild>
-                                <Link href={showGuest(guestProfileId)}>Open guest profile</Link>
+                                <Link href={showGuest(guestProfileId)}>
+                                    Open guest profile
+                                </Link>
                             </Button>
                         )}
                         <Button variant="outline" asChild>
-                            <Link href={showReservation(number)}>Review reservation</Link>
+                            <Link href={showReservation(number)}>
+                                Review reservation
+                            </Link>
                         </Button>
                     </div>
                 </DialogContent>

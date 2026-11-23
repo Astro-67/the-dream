@@ -30,6 +30,7 @@ test('the calendar shows assigned reservations with guest names and detail links
             'reservation_number' => $reservation->reservation_number,
             'arrival' => '2026-12-10', 'departure' => '2026-12-12',
             'guest_name' => 'Staying Guest', 'source' => 'phone', 'status' => 'confirmed',
+            'booked_through' => 'guest', 'tour_operator_name' => null,
             'url' => route('reservations.show', $reservation),
         ]));
 });

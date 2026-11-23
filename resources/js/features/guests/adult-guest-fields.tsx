@@ -29,7 +29,9 @@ export function AdultGuestFields({
         'aria-invalid': Boolean(errors[key]),
         'aria-describedby': errors[key] ? `${id}-${key}-error` : undefined,
     });
-    const error = (key: Field) => <InputError id={`${id}-${key}-error`} message={errors[key]} />;
+    const error = (key: Field) => (
+        <InputError id={`${id}-${key}-error`} message={errors[key]} />
+    );
     return (
         <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
@@ -45,7 +47,9 @@ export function AdultGuestFields({
             <div className="space-y-2">
                 <Label htmlFor={`${id}-document_type`}>ID document</Label>
                 <NativeSelect {...field('document_type')} defaultValue="">
-                    <option value="">{required ? 'Choose document' : 'Add later'}</option>
+                    <option value="">
+                        {required ? 'Choose document' : 'Add later'}
+                    </option>
                     <option value="passport">Passport</option>
                     <option value="nida">NIDA</option>
                     <option value="zanid">ZanID</option>
@@ -54,7 +58,11 @@ export function AdultGuestFields({
             </div>
             <div className="space-y-2">
                 <Label htmlFor={`${id}-document_number`}>Document number</Label>
-                <Input {...field('document_number')} maxLength={255} autoComplete="off" />
+                <Input
+                    {...field('document_number')}
+                    maxLength={255}
+                    autoComplete="off"
+                />
                 {error('document_number')}
             </div>
             {contactNames?.phone && (
@@ -67,9 +75,16 @@ export function AdultGuestFields({
                         autoComplete="tel"
                         maxLength={50}
                         aria-invalid={Boolean(contactErrors.phone)}
-                        aria-describedby={contactErrors.phone ? `${id}-phone-error` : undefined}
+                        aria-describedby={
+                            contactErrors.phone
+                                ? `${id}-phone-error`
+                                : undefined
+                        }
                     />
-                    <InputError id={`${id}-phone-error`} message={contactErrors.phone} />
+                    <InputError
+                        id={`${id}-phone-error`}
+                        message={contactErrors.phone}
+                    />
                 </div>
             )}
             {contactNames?.email && (
@@ -82,9 +97,16 @@ export function AdultGuestFields({
                         autoComplete="email"
                         maxLength={255}
                         aria-invalid={Boolean(contactErrors.email)}
-                        aria-describedby={contactErrors.email ? `${id}-email-error` : undefined}
+                        aria-describedby={
+                            contactErrors.email
+                                ? `${id}-email-error`
+                                : undefined
+                        }
                     />
-                    <InputError id={`${id}-email-error`} message={contactErrors.email} />
+                    <InputError
+                        id={`${id}-email-error`}
+                        message={contactErrors.email}
+                    />
                 </div>
             )}
         </div>

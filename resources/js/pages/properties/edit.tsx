@@ -495,7 +495,7 @@ export default function EditProperty({
                                         <dt className="text-xs text-muted-foreground">
                                             {label}
                                         </dt>
-                                        <dd className="mt-0.5 wrap-anywhere text-sm font-medium">
+                                        <dd className="mt-0.5 text-sm font-medium wrap-anywhere">
                                             {value}
                                         </dd>
                                     </div>
