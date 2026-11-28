@@ -271,7 +271,7 @@ Artisan::command('inventory:extend', function (RecalculateInventory $recalculate
     return $refused === 0 ? self::SUCCESS : self::FAILURE;
 })->purpose('Extend inventory records to the configured horizon');
 
-Schedule::command('inventory:extend')->daily()->withoutOverlapping();
+Schedule::command('inventory:extend')->daily()->withoutOverlapping(60);
 
 Artisan::command('vfms:exchange-rates', function (FetchExchangeRates $fetch): int {
     if ($fetch->handle(now('Africa/Dar_es_Salaam')->toDateString()) === null) {
@@ -290,11 +290,12 @@ Artisan::command('vfms:issued-documents', function (IssuedDocuments $documents):
 })->purpose('Backfill issued fiscal documents from delivered VFMS filings; safe to rerun');
 
 // Heals any projection that failed after its filing was accepted.
-Schedule::command('vfms:issued-documents')->hourly()->withoutOverlapping();
+Schedule::command('vfms:issued-documents')->hourly()->withoutOverlapping(55);
 
 // Hourly so a missed or failed fetch retries the same day; each date keeps one row.
-Schedule::command('vfms:exchange-rates')->hourly()->withoutOverlapping();
-Schedule::command('outbox:sweep')->everyMinute()->withoutOverlapping();
+Schedule::command('vfms:exchange-rates')->hourly()->withoutOverlapping(55);
+// A killed run never releases its overlap lock; short expiries keep it from blocking the next runs for the 24-hour default.
+Schedule::command('outbox:sweep')->everyMinute()->withoutOverlapping(10);
 
 Artisan::command('housekeeping:sync-service', function (SyncRoomServiceStatus $sync): int {
     $properties = Tenancy::within(TenantContext::platform('housekeeping service-period rollover'), fn () => Property::query()->active()->get());
@@ -307,7 +308,7 @@ Artisan::command('housekeeping:sync-service', function (SyncRoomServiceStatus $s
     return self::SUCCESS;
 })->purpose('Reconcile housekeeping with property-local service periods');
 
-Schedule::command('housekeeping:sync-service')->everyMinute()->withoutOverlapping();
+Schedule::command('housekeeping:sync-service')->everyMinute()->withoutOverlapping(10);
 
 Artisan::command('night-audit:close-due', function (): int {
     $properties = Tenancy::within(TenantContext::platform('night audit trigger'), fn () => Property::query()->active()->get());
@@ -332,7 +333,7 @@ Artisan::command('night-audit:close-due', function (): int {
     return $failed === 0 ? self::SUCCESS : self::FAILURE;
 })->purpose('Dispatch night audit for properties past their local close time');
 
-Schedule::command('night-audit:close-due')->everyMinute()->withoutOverlapping();
+Schedule::command('night-audit:close-due')->everyMinute()->withoutOverlapping(10);
 
 Artisan::command('front-desk:checkout-due', function (RunAutomaticCheckout $checkout): int {
     $properties = Tenancy::within(TenantContext::platform('automatic check-out trigger'), fn () => Property::query()->active()->get());
@@ -350,7 +351,7 @@ Artisan::command('front-desk:checkout-due', function (RunAutomaticCheckout $chec
     return $failed === 0 ? self::SUCCESS : self::FAILURE;
 })->purpose('Check out due stays after each property local automatic check-out time');
 
-Schedule::command('front-desk:checkout-due')->everyMinute()->withoutOverlapping();
+Schedule::command('front-desk:checkout-due')->everyMinute()->withoutOverlapping(10);
 
 Artisan::command('subscriptions:advance', function (AdvanceSubscription $advance): int {
     $organizations = Tenancy::within(TenantContext::platform('hourly subscription lifecycle'), fn () => Subscription::query()->pluck('organization_id'));
@@ -368,7 +369,7 @@ Artisan::command('subscriptions:advance', function (AdvanceSubscription $advance
     return $failed === 0 ? self::SUCCESS : self::FAILURE;
 })->purpose('Issue subscription invoices, send reminders and advance unpaid subscriptions');
 
-Schedule::command('subscriptions:advance')->hourly()->withoutOverlapping();
+Schedule::command('subscriptions:advance')->hourly()->withoutOverlapping(55);
 
 Artisan::command('reservations:cancel-unpaid', function (): int {
     $properties = Tenancy::within(TenantContext::platform('automatic unpaid reservation cancellation'), fn () => Property::query()->active()->get());
@@ -388,4 +389,4 @@ Artisan::command('reservations:cancel-unpaid', function (): int {
     return $failed === 0 ? self::SUCCESS : self::FAILURE;
 })->purpose('Cancel reservations still unpaid after the property deadline');
 
-Schedule::command('reservations:cancel-unpaid')->everyMinute()->withoutOverlapping();
+Schedule::command('reservations:cancel-unpaid')->everyMinute()->withoutOverlapping(10);
