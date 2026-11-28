@@ -8,6 +8,7 @@ use App\Domains\Rates\Actions\SeedDefaultTaxRules;
 use App\Domains\Rates\Models\RatePlan;
 use App\Domains\Reservations\Actions\CreateReservation;
 use App\Domains\Reservations\Enums\ReservationStatus;
+use Illuminate\Console\Scheduling\Schedule;
 use Tests\Support\BookingForm;
 
 test('seeded Zanzibar levy never blocks night audit for an allowed folio currency', function (string $currency) {
@@ -72,4 +73,10 @@ test('a property that fails to close does not stop the others, and a closed date
         ->and(inTenant($t->a->property, fn () => BusinessDateClose::query()->count()))->toBe(0)
         ->and(BusinessDate::of($t->b->property->fresh()))->toBe('2026-12-11')
         ->and(inTenant($t->b->property, fn () => BusinessDateClose::query()->count()))->toBe(1);
+});
+
+test('a killed scheduled run never locks its command out for the 24-hour default', function () {
+    foreach (app(Schedule::class)->events() as $event) {
+        expect($event->expiresAt)->toBeLessThanOrEqual(60, $event->command);
+    }
 });
